@@ -1,0 +1,17 @@
+[app]
+name = "Lina"
+environment = "development"
+
+[logging]
+level = "INFO"
+
+[paths]
+data = "data"
+logs = "logs"
+models = "models"
+cache = "cache"
+
+[ollama]
+base_url = "http://localhost:11434"
+default_model = ""
+
