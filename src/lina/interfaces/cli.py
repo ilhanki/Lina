@@ -1,0 +1,49 @@
+"""Command-line interface for Lina."""
+
+import sys
+from typing import TextIO
+
+from lina.services.conversation_service import ConversationService
+
+
+class LinaCli:
+    """Simple terminal chat interface."""
+
+    def __init__(
+        self,
+        conversation_service: ConversationService,
+        input_stream: TextIO = sys.stdin,
+        output_stream: TextIO = sys.stdout,
+    ) -> None:
+        self._conversation_service = conversation_service
+        self._input_stream = input_stream
+        self._output_stream = output_stream
+
+    def run(self) -> None:
+        self._write_banner()
+
+        while True:
+            self._output_stream.write("> ")
+            self._output_stream.flush()
+
+            user_input = self._input_stream.readline()
+            if user_input == "":
+                break
+
+            message = user_input.strip()
+            if message.lower() in {"exit", "quit"}:
+                break
+            if not message:
+                continue
+
+            response = self._conversation_service.handle_message(message)
+            self._output_stream.write(f"{response.text}\n")
+            self._output_stream.flush()
+
+    def _write_banner(self) -> None:
+        self._output_stream.write("----------------------------------------\n\n")
+        self._output_stream.write("Lina v0.1.0\n\n")
+        self._output_stream.write("Merhaba İlhan.\n\n")
+        self._output_stream.write("Hazırım.\n\n")
+        self._output_stream.write("----------------------------------------\n\n")
+        self._output_stream.flush()
