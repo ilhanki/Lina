@@ -6,10 +6,15 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from lina.brain.model_provider import ModelProvider, ModelRequest, ModelResponse
+from lina.brain.model_provider import (
+    ModelProvider,
+    ModelProviderError,
+    ModelRequest,
+    ModelResponse,
+)
 
 
-class OllamaProviderError(Exception):
+class OllamaProviderError(ModelProviderError):
     """Raised when the Ollama provider cannot generate a response."""
 
 
@@ -29,6 +34,9 @@ class OllamaProvider(ModelProvider):
         self._opener = opener
 
     def generate(self, request: ModelRequest) -> ModelResponse:
+        if not self._model.strip():
+            raise OllamaProviderError("Ollama model is not configured")
+
         payload = {
             "model": self._model,
             "prompt": request.prompt,
@@ -51,7 +59,7 @@ class OllamaProvider(ModelProvider):
         )
 
         try:
-            with self._opener(http_request, self._timeout) as response:
+            with self._opener(http_request, timeout=self._timeout) as response:
                 raw_response = response.read()
         except HTTPError as error:
             raise OllamaProviderError(f"Ollama HTTP error: {error.code}") from error
@@ -69,4 +77,3 @@ class OllamaProvider(ModelProvider):
             raise OllamaProviderError("Ollama returned an invalid response shape")
 
         return decoded_response
-

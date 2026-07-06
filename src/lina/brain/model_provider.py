@@ -18,9 +18,12 @@ class ModelResponse:
     text: str
 
 
+class ModelProviderError(Exception):
+    """Raised when a model provider cannot generate a response."""
+
+
 class ModelProvider(Protocol):
     """Contract implemented by model providers."""
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         """Generate a model response for the given request."""
-

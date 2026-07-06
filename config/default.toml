@@ -13,5 +13,4 @@ cache = "cache"
 
 [ollama]
 base_url = "http://localhost:11434"
-default_model = ""
-
+default_model = "llama3.2:3b"

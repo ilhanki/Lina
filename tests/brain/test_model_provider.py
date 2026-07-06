@@ -2,7 +2,12 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from lina.brain.model_provider import ModelProvider, ModelRequest, ModelResponse
+from lina.brain.model_provider import (
+    ModelProvider,
+    ModelProviderError,
+    ModelRequest,
+    ModelResponse,
+)
 
 
 class FakeModelProvider:
@@ -31,3 +36,8 @@ def test_model_response_is_immutable() -> None:
     with pytest.raises(FrozenInstanceError):
         response.text = "Other"
 
+
+def test_model_provider_error_keeps_message() -> None:
+    error = ModelProviderError("Provider failed")
+
+    assert str(error) == "Provider failed"

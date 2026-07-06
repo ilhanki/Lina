@@ -1,6 +1,6 @@
 from io import StringIO
 
-from lina.brain.model_provider import ModelResponse
+from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.cli import LinaCli
 
 
@@ -11,6 +11,11 @@ class FakeConversationService:
     def handle_message(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
         return ModelResponse(text=f"Response: {user_message}")
+
+
+class FailingConversationService:
+    def handle_message(self, user_message: str) -> ModelResponse:
+        raise ModelProviderError("Ollama model is not configured")
 
 
 def test_cli_prints_banner() -> None:
@@ -80,3 +85,15 @@ def test_cli_stops_on_quit_commands() -> None:
 
     assert service.messages == []
 
+
+def test_cli_prints_model_provider_errors_without_crashing() -> None:
+    output_stream = StringIO()
+    cli = LinaCli(
+        conversation_service=FailingConversationService(),
+        input_stream=StringIO("Hello\nquit\n"),
+        output_stream=output_stream,
+    )
+
+    cli.run()
+
+    assert "Model provider error: Ollama model is not configured" in output_stream.getvalue()

@@ -81,6 +81,17 @@ def test_ollama_provider_converts_network_errors() -> None:
         provider.generate(ModelRequest(prompt="Hello"))
 
 
+def test_ollama_provider_rejects_missing_model() -> None:
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="",
+        opener=FakeOllamaHttpClient(b'{"response": "Hello"}'),
+    )
+
+    with pytest.raises(OllamaProviderError, match="Ollama model is not configured"):
+        provider.generate(ModelRequest(prompt="Hello"))
+
+
 def test_ollama_provider_converts_invalid_json() -> None:
     provider = OllamaProvider(
         base_url="http://localhost:11434",
@@ -101,4 +112,3 @@ def test_ollama_provider_rejects_missing_response_text() -> None:
 
     with pytest.raises(OllamaProviderError, match="missing text content"):
         provider.generate(ModelRequest(prompt="Hello"))
-

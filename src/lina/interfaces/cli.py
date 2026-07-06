@@ -3,6 +3,7 @@
 import sys
 from typing import TextIO
 
+from lina.brain.model_provider import ModelProviderError
 from lina.services.conversation_service import ConversationService
 
 
@@ -36,7 +37,13 @@ class LinaCli:
             if not message:
                 continue
 
-            response = self._conversation_service.handle_message(message)
+            try:
+                response = self._conversation_service.handle_message(message)
+            except ModelProviderError as error:
+                self._output_stream.write(f"Model provider error: {error}\n")
+                self._output_stream.flush()
+                continue
+
             self._output_stream.write(f"{response.text}\n")
             self._output_stream.flush()
 
