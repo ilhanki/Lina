@@ -1,6 +1,7 @@
-# Memory
+# Memory Paketi
 
-Memory modules belong here.
+Bu paket hafıza sistemi için ayrılmıştır.
 
-Future modules may include conversation history, semantic memory, vector indexes, summarization, user facts, retrieval policies, retention rules, and privacy controls.
+Gelecekte konuşma geçmişi, semantic memory, vector index, summarization, kullanıcı bilgileri, retrieval policy, retention rule ve privacy control yapıları burada geliştirilebilir.
 
+Memory capability doğrudan UI'a bağımlı olmamalıdır.

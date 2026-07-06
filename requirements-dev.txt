@@ -1,0 +1,5 @@
+# Development dependencies only.
+# Runtime dependencies belong in requirements.txt.
+
+pytest
+

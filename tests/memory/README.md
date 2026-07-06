@@ -1,4 +1,3 @@
-# Memory Tests
+# Memory Testleri
 
-Tests for `src/lina/memory`.
-
+`src/lina/memory` paketi için testler burada yer alır.

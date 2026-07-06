@@ -1,6 +1,7 @@
-# Config
+# Config Klasörü
 
-Configuration files for Lina live here.
+Bu klasör Lina'nın yapılandırma dosyalarını içerir.
 
-Use this folder for default settings, environment-specific settings, feature flags, model routing preferences, and future user preferences. Secrets should not be committed; use `.env` for local secret values.
+Varsayılan ayarlar, ortam bazlı ayarlar, feature flag'ler, model tercihleri ve gelecekte kullanıcı tercihleri burada tutulabilir.
 
+Gizli bilgiler bu klasöre yazılmamalıdır. Yerel gizli değerler için `.env` kullanılmalıdır.

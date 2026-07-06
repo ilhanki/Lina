@@ -1,6 +1,13 @@
-# Utils
+# Utils Paketi
 
-Small reusable helpers belong here.
+Bu paket küçük ve tekrar kullanılabilir yardımcılar için ayrılmıştır.
 
-Use this package for low-level utilities that do not own business behavior, such as path helpers, serialization helpers, retry helpers, validation helpers, and time utilities.
+Örnek kullanım alanları:
 
+- Path helper.
+- Serialization helper.
+- Retry helper.
+- Validation helper.
+- Time utility.
+
+Business logic bu pakete taşınmamalıdır.

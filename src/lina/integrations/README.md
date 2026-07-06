@@ -1,6 +1,7 @@
-# Integrations
+# Integrations Paketi
 
-External system adapters belong here.
+Bu paket dış sistem adapter'ları için ayrılmıştır.
 
-Future modules may include Ollama clients, browser drivers, Windows APIs, cloud APIs if ever needed, and third-party SDK adapters. Keep integration details behind stable service interfaces.
+Gelecekte Ollama, LM Studio, OpenAI, Gemini, browser driver'ları, Windows API'leri ve üçüncü parti SDK adapter'ları burada yer alabilir.
 
+Entegrasyon detayları servis ve brain katmanından izole edilmelidir.

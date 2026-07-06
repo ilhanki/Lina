@@ -1,6 +1,7 @@
-# Lina Package
+# Lina Paketi
 
-This is the main Python package for Lina.
+Bu klasör Lina'nın ana Python paketidir.
 
-Each subpackage owns one major capability area. Keep modules small, typed, and focused. Shared application contracts should live in `core`; reusable low-level helpers should live in `utils`.
+Her alt paket belirli bir sorumluluk alanını temsil eder. Ortak uygulama kontratları `core` içinde, düşük seviyeli yardımcılar `utils` içinde tutulmalıdır.
 
+Kod dili İngilizcedir; bu README gibi dokümanlar Türkçedir.

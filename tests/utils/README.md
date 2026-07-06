@@ -1,4 +1,3 @@
-# Utility Tests
+# Utils Testleri
 
-Tests for `src/lina/utils`.
-
+`src/lina/utils` paketi için testler burada yer alır.

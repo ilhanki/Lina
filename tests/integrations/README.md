@@ -1,4 +1,3 @@
-# Integration Tests
+# Integrations Testleri
 
-Tests for `src/lina/integrations`.
-
+`src/lina/integrations` paketi için testler burada yer alır.

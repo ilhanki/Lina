@@ -1,6 +1,5 @@
-# Models
+# Models Klasörü
 
-Local model files and model metadata belong here when Lina needs project-managed models.
+Bu klasör Lina'nın proje tarafından yönetilen yerel model dosyaları veya model metadata dosyaları için ayrılmıştır.
 
-Large model artifacts are ignored by Git. External model runtimes such as Ollama may store models elsewhere.
-
+Büyük model dosyaları Git tarafından takip edilmez. Ollama gibi harici model runtime'ları modelleri farklı bir konumda saklayabilir.

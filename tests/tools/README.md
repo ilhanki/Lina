@@ -1,4 +1,3 @@
-# Tool Tests
+# Tools Testleri
 
-Tests for `src/lina/tools`.
-
+`src/lina/tools` paketi için testler burada yer alır.

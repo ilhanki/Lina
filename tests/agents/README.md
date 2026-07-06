@@ -1,4 +1,3 @@
-# Agent Tests
+# Agents Testleri
 
-Tests for `src/lina/agents`.
-
+`src/lina/agents` paketi için testler burada yer alır.

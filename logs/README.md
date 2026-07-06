@@ -1,6 +1,5 @@
-# Logs
+# Logs Klasörü
 
-Runtime logs are written here during local development.
+Bu klasör yerel çalışma sırasında oluşan log dosyaları için ayrılmıştır.
 
-Log files are ignored by Git. Keep only this README and `.gitkeep` in version control.
-
+Log dosyaları Git tarafından takip edilmez. Sadece bu açıklama dosyası ve `.gitkeep` sürüm kontrolünde kalır.

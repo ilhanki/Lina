@@ -1,4 +1,3 @@
-# Interface Tests
+# Interfaces Testleri
 
-Tests for `src/lina/interfaces`.
-
+`src/lina/interfaces` paketi için testler burada yer alır.

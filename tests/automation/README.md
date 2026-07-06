@@ -1,4 +1,3 @@
-# Automation Tests
+# Automation Testleri
 
-Tests for `src/lina/automation`.
-
+`src/lina/automation` paketi için testler burada yer alır.

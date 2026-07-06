@@ -1,6 +1,7 @@
-# Agents
+# Agents Paketi
 
-Multi-agent architecture code belongs here.
+Bu paket gelecekteki çoklu ajan mimarisi için ayrılmıştır.
 
-Future modules may include planner agents, executor agents, critic agents, routing policies, task decomposition, and coordination strategies. Agents should depend on service and tool interfaces, not directly on UI code.
+Planner, executor, reviewer, critic, task decomposition ve coordination stratejileri burada geliştirilebilir.
 
+Agent'lar UI koduna doğrudan bağımlı olmamalıdır.

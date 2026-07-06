@@ -1,6 +1,7 @@
-# Speech
+# Speech Paketi
 
-Voice modules belong here.
+Bu paket ses özellikleri için ayrılmıştır.
 
-Future modules may include microphone input, speech recognition, text-to-speech, wake word detection, audio device management, and voice activity detection.
+Gelecekte microphone input, speech recognition, text-to-speech, wake word detection, audio device management ve voice activity detection yapıları burada geliştirilebilir.
 
+Speech capability, conversation flow'a gevşek bağlı şekilde bağlanmalıdır.

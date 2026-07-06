@@ -1,6 +1,12 @@
-# Cache
+# Cache Klasörü
 
-Temporary generated artifacts belong here.
+Bu klasör geçici ve yeniden üretilebilir dosyalar için ayrılmıştır.
 
-Examples include downloaded metadata, intermediate transcription files, screen analysis cache, and tool execution cache. Cache contents are ignored by Git.
+Örnekler:
 
+- İndirilen geçici metadata.
+- Ara transkripsiyon dosyaları.
+- Ekran analizi cache verileri.
+- Tool execution cache çıktıları.
+
+Cache içeriği Git tarafından takip edilmez.

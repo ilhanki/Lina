@@ -1,6 +1,7 @@
-# Automation
+# Automation Paketi
 
-Windows automation modules belong here.
+Bu paket Windows otomasyonu ile ilgili kodlar için ayrılmıştır.
 
-Future modules may control applications, windows, keyboard input, mouse input, clipboard state, file dialogs, and operating system workflows. Keep automation actions explicit and auditable.
+Gelecekte uygulama kontrolü, pencere yönetimi, klavye, fare, clipboard, dosya diyalogları ve işletim sistemi iş akışları burada ele alınabilir.
 
+Automation işlemleri açık, izlenebilir ve permission policy ile kontrol edilebilir olmalıdır.

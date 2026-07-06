@@ -1,6 +1,7 @@
-# Interfaces
+# Interfaces Paketi
 
-User-facing entry points belong here.
+Bu paket kullanıcıya dönük giriş noktaları için ayrılmıştır.
 
-Future modules may include CLI, desktop GUI, tray app, local API server, or web UI adapters. Interface code should orchestrate application services without owning business logic.
+Gelecekte CLI, desktop GUI, tray app, local API server veya web UI adapter'ları burada yer alabilir.
 
+Interface kodu business logic içermemeli, uygulama servislerini çağırmalıdır.

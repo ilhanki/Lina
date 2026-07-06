@@ -1,6 +1,7 @@
-# Data
+# Data Klasörü
 
-Local application data belongs here.
+Bu klasör Lina'nın yerel uygulama verileri için ayrılmıştır.
 
-Future examples include memory databases, embeddings, conversation archives, user preferences, and tool state. Generated data is ignored by Git.
+Gelecekte konuşma geçmişi, hafıza veritabanları, embedding dosyaları, kullanıcı tercihleri ve tool state dosyaları burada tutulabilir.
 
+Üretilen veri dosyaları Git tarafından takip edilmez.

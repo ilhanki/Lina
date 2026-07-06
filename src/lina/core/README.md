@@ -1,6 +1,15 @@
-# Core
+# Core Paketi
 
-Core application code belongs here.
+Bu paket Lina'nın temel uygulama altyapısını içerir.
 
-Use this package for application startup, dependency wiring, shared interfaces, configuration loading, logging setup, lifecycle management, and cross-cutting domain contracts.
+Kullanım alanları:
 
+- Application startup.
+- Dependency wiring.
+- Configuration loading.
+- Logging setup.
+- Lifecycle management.
+- Ortak protocol ve contract tanımları.
+- Event sistemi.
+
+`core` katmanı feature detaylarını bilmemelidir.

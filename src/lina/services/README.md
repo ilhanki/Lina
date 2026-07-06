@@ -1,6 +1,7 @@
-# Services
+# Services Paketi
 
-Application services belong here.
+Bu paket uygulama servisleri için ayrılmıştır.
 
-Services coordinate business workflows across core, tools, memory, integrations, speech, vision, and automation. They should expose stable use-case methods and keep UI-specific concerns out.
+Servisler `core`, `brain`, `tools`, `memory`, `speech`, `vision`, `automation` ve `integrations` gibi katmanlar arasında use-case akışlarını koordine eder.
 
+Servisler UI'a özgü sorumluluk taşımamalıdır.

@@ -1,6 +1,7 @@
-# Vision
+# Vision Paketi
 
-Vision modules belong here.
+Bu paket ekran ve görsel algı özellikleri için ayrılmıştır.
 
-Future modules may include screen capture, OCR, image analysis, object detection, UI element recognition, and multimodal model adapters.
+Gelecekte screen capture, OCR, image analysis, object detection, UI element recognition ve multimodal model adapter'ları burada geliştirilebilir.
 
+Vision capability, automation ve GUI ile gevşek bağlı çalışmalıdır.

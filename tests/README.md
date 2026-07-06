@@ -1,6 +1,7 @@
-# Tests
+# Tests Klasörü
 
-Tests mirror the `src/lina` package structure.
+Bu klasör testleri içerir.
 
-Add focused unit tests for each module as it is implemented. Broader integration tests should be added when services coordinate multiple packages.
+Test yapısı `src/lina` paket yapısını takip eder. Yeni modül eklendiğinde ilgili test alanı da eklenmelidir.
 
+Unit testler hızlı ve deterministik olmalıdır. Dış sistemlere bağlı testler integration test olarak ayrılmalıdır.

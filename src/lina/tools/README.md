@@ -1,6 +1,7 @@
-# Tools
+# Tools Paketi
 
-Tool system modules belong here.
+Bu paket Lina'nın tool sistemi için ayrılmıştır.
 
-Future modules may include a tool registry, tool schemas, permission checks, execution results, built-in tools, plugin-loaded tools, and audit logging for tool calls.
+Gelecekte tool registry, tool schema, permission check, execution result, built-in tools, plugin-loaded tools ve audit logging burada ele alınacaktır.
 
+Tool çalıştırma özellikle güvenlik ve kullanıcı onayı açısından dikkatli tasarlanmalıdır.

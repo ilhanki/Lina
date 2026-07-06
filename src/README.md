@@ -1,6 +1,7 @@
-# Source
+# Source Klasörü
 
-Python source code lives under `src`.
+Bu klasör Python kaynak kodunu içerir.
 
-The installable package is `lina`. Keeping source code under `src` helps prevent accidental imports from the repository root during testing.
+Kurulabilir ana paket `lina` paketidir. `src` layout kullanılması, test sırasında repository kökünden yanlışlıkla import yapılmasını azaltır.
 
+Kod dili İngilizcedir.

@@ -1,4 +1,3 @@
-# Service Tests
+# Services Testleri
 
-Tests for `src/lina/services`.
-
+`src/lina/services` paketi için testler burada yer alır.

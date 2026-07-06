@@ -1,4 +1,3 @@
-# Core Tests
+# Core Testleri
 
-Tests for `src/lina/core`.
-
+`src/lina/core` paketi için testler burada yer alır.

@@ -1,4 +1,3 @@
-# Speech Tests
+# Speech Testleri
 
-Tests for `src/lina/speech`.
-
+`src/lina/speech` paketi için testler burada yer alır.

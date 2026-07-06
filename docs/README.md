@@ -1,6 +1,8 @@
-# Docs
+# Dokümantasyon
 
-Project documentation belongs here.
+Bu klasör Lina'nın proje dokümantasyonunu içerir.
 
-Use this folder for architecture notes, module contracts, design decisions, setup guides, roadmap documents, and future user-facing documentation.
+Burada mimari kararlar, yol haritası, geliştirme notları, kurulum rehberleri ve gelecekte kullanıcıya dönük dokümanlar tutulur.
+
+Dokümantasyon dili Türkçedir. Kod örnekleri, dosya yolları ve API isimleri İngilizce kalır.
 

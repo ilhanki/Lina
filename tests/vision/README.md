@@ -1,4 +1,3 @@
-# Vision Tests
+# Vision Testleri
 
-Tests for `src/lina/vision`.
-
+`src/lina/vision` paketi için testler burada yer alır.
