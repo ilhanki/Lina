@@ -63,7 +63,10 @@ def test_ollama_provider_sends_expected_http_request() -> None:
     assert request.full_url == "http://localhost:11434/api/generate"
     assert request.get_method() == "POST"
     assert request.headers["Content-type"] == "application/json"
-    assert request.data == b'{"model": "llama3", "prompt": "Hello", "stream": false}'
+    assert request.data == (
+        b'{"model": "llama3", "prompt": "Hello", "stream": false, '
+        b'"options": {"temperature": 0.2}}'
+    )
     assert http_client.timeouts == [12.0]
 
 
