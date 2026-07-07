@@ -753,3 +753,43 @@ Bu sprintte Lina `v0.2.0-alpha` release candidate için dokümantasyon ve kalite
 `v0.2.0-alpha`
 
 Tag otomatik oluşturulmadı. Tag oluşturma ayrıca kullanıcı onayı gerektirir.
+
+## 2026-07-07 - Sprint 11
+
+### Sprint Durumu
+
+Sprint 11 tamamlandı.
+
+Bu sprintte kod tabanı kalite ve mimari sertleştirme açısından denetlendi. Büyük mimari refactor yapılmadı; public davranış korunarak küçük bir error handling tutarlılığı iyileştirildi.
+
+### Audit Bulguları
+
+- TODO/FIXME veya açık yarım bırakılmış işaret bulunmadı.
+- Test paketi sprint başında temizdi.
+- Tool execution hatalarının interface katmanlarına sızma riski olduğu görüldü.
+
+### Yapılan İyileştirme
+
+- `ToolExecutionService`, registry kaynaklı tool hatalarını `ToolExecutionError` altında toplar hale getirildi.
+- `ConversationService`, current time safe tool çalıştırması başarısız olursa deterministic response fallback'i kullanır hale getirildi.
+- CLI ve GUI davranışı korunarak tool error handling daha tutarlı hale getirildi.
+
+### Completed Commits
+
+- `b3fffda refactor: improve tool error handling consistency`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `149 passed`.
+- İlgili service/interface testleri: `28 passed`.
+- Sprint sonu tam test paketi: `151 passed`.
+
+### Current Project Status
+
+- Tool execution hata sınırları daha tutarlı.
+- SAFE current time akışı başarısız olsa bile kullanıcıya cevap üretme yolu korunuyor.
+- Büyük mimari değişiklik yapılmadı.
+
+### Sprint 12 Notu
+
+Bir sonraki adım runtime configuration seçeneklerini geriye uyumlu şekilde genişletmek olmalıdır. Config formatı kırılmamalı ve optional ayarlar default değer almalıdır.
