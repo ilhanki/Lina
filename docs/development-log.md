@@ -1064,3 +1064,37 @@ Lina'nın sistem promptu (DEFAULT_SYSTEM_PROMPT) yeniden düzenlenerek daha güv
 ### Sprint 18 Notu
 
 Bir sonraki adım, Developer Experience v1: Dokümantasyon, README ve hızlı başlangıç rehberlerini iyileştirmektir.
+
+## 2026-07-07 - Sprint 18
+
+### Sprint Durumu
+
+Sprint 18 tamamlandı.
+
+Projenin dokümantasyonları ve geliştirici deneyimi, son zamanlarda eklenen `v2` özellikleri yansıtacak şekilde güncellendi.
+
+### Eklenen Yapı
+
+- `README.md` dosyasında bulunan "Project awareness yalnız izinli dokümanlarla sınırlıdır" veya "GUI minimal Tkinter arayüzüdür" gibi v1'den kalma, yeni özellikleri (Git entegrasyonu, Tool yetkilendirme altyapısı, GUI yenilikleri) göz ardı eden kısımlar güncellendi.
+- `docs/roadmap.md` dosyasında tamamlanan aşamalar arasına `GUI v2`, `Project awareness v2` ve `Safe tool foundation v2 (PermissionDecision)` ifadeleri eklendi.
+- `docs/smoke-test-checklist.md` dosyası güncellenerek, test adımlarına arayüzdeki "Durum Çubuğu", "Clear Chat" ve "Copy Last Response" özellikleri ile CLI üzerinden Git project awareness durumunu doğrulayan senaryolar eklendi.
+
+### Güvenlik Sınırları
+
+- Koda doğrudan etki edecek yeni bir özellik eklenmedi. Tüm çalışma izole olarak markdown dokümanları üzerinden yürütüldü.
+
+### Completed Commits
+
+- `6e8ad66 docs: improve developer experience and update outdated features`
+
+### Test Results
+
+- Herhangi bir kod değişmediği için otomatik test paketinin bozulması söz konusu değildir. Test sayısı korundu (194 passed).
+
+### Current Project Status
+
+- Projenin README, Yol Haritası ve Smoke Testleri kod tabanının güncel gerçeğiyle senkronize hale getirildi. Artık geliştiriciler ve projeye sonradan bakanlar için daha tutarlı bir durum söz konusu.
+
+### Sprint 19 Notu
+
+Bir sonraki adım, Regression & Test Hardening: Mevcut test suite'i genel olarak güçlendirmek ve edge case'leri sıkılaştırmaktır.
