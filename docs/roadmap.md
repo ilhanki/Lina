@@ -2,6 +2,31 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
+## Mevcut Durum: v0.2.0-alpha Release Candidate
+
+Tamamlanan ana başlıklar:
+
+- Proje standartları ve dokümantasyon temeli.
+- Core infrastructure.
+- Brain v1.
+- Ollama provider entegrasyonu.
+- Conversation flow.
+- CLI arayüzü.
+- Tkinter Desktop UI v1.
+- Runtime conversation context.
+- Sınırlı project awareness.
+- Safe tool foundation.
+- SAFE tool routing ile current time cevabı.
+
+Henüz kapsam dışı olan büyük başlıklar:
+
+- Kalıcı Memory.
+- Genel dosya capability'si.
+- Shell command execution.
+- Browser, camera, speech, vision ve Windows automation.
+- Multi-agent architecture.
+- Packaging, installer ve release automation.
+
 ## Milestone 0: Proje Standartları
 
 Amaç:
