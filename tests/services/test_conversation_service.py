@@ -18,6 +18,44 @@ class FakeBrain:
         return ModelResponse(text=f"Response: {user_message}")
 
 
+class FakeIntentAnalyzer:
+    def __init__(self, intent_type) -> None:
+        self._intent_type = intent_type
+        self.messages: list[str] = []
+
+    def analyze(self, message: str):
+        from lina.brain.intent import Intent
+
+        self.messages.append(message)
+        return Intent(type=self._intent_type)
+
+
+class SequenceIntentAnalyzer:
+    def __init__(self, intent_types) -> None:
+        self._intent_types = list(intent_types)
+
+    def analyze(self, message: str):
+        from lina.brain.intent import Intent
+
+        return Intent(type=self._intent_types.pop(0))
+
+
+class FakeDeterministicResponseService:
+    def __init__(self, can_handle: bool, handled_intent_types=None) -> None:
+        self._can_handle = can_handle
+        self._handled_intent_types = handled_intent_types
+        self.handled_intents = []
+
+    def can_handle(self, intent) -> bool:
+        if self._handled_intent_types is not None:
+            return intent.type in self._handled_intent_types
+        return self._can_handle
+
+    def handle(self, intent) -> ModelResponse:
+        self.handled_intents.append(intent)
+        return ModelResponse(text="Deterministic response")
+
+
 def test_conversation_service_sends_user_message_to_brain() -> None:
     brain = FakeBrain()
     service = ConversationService(brain=brain)
@@ -58,4 +96,68 @@ def test_conversation_service_limits_history() -> None:
 
     assert brain.histories[2] == [
         ConversationTurn(user_message="Second", assistant_response="Response: Second")
+    ]
+
+
+def test_conversation_service_routes_deterministic_intent_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    intent_analyzer = FakeIntentAnalyzer(intent_type=IntentType.HELP)
+    deterministic_response_service = FakeDeterministicResponseService(can_handle=True)
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=intent_analyzer,
+        deterministic_response_service=deterministic_response_service,
+    )
+
+    response = service.handle_message("help")
+
+    assert response == ModelResponse(text="Deterministic response")
+    assert brain.messages == []
+    assert intent_analyzer.messages == ["help"]
+    assert len(deterministic_response_service.handled_intents) == 1
+
+
+def test_conversation_service_routes_chat_intent_to_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(
+            can_handle=False
+        ),
+    )
+
+    response = service.handle_message("Hello")
+
+    assert response == ModelResponse(text="Response: Hello")
+    assert brain.messages == ["Hello"]
+
+
+def test_conversation_service_adds_deterministic_responses_to_history() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.HELP, IntentType.CHAT]
+        ),
+        deterministic_response_service=FakeDeterministicResponseService(
+            can_handle=True,
+            handled_intent_types={IntentType.HELP},
+        ),
+    )
+
+    service.handle_message("help")
+    service.handle_message("Continue")
+
+    assert brain.histories[0] == [
+        ConversationTurn(
+            user_message="help",
+            assistant_response="Deterministic response",
+        )
     ]
