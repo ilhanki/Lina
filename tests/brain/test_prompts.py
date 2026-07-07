@@ -14,16 +14,19 @@ def test_default_system_prompt_requires_turkish_answers() -> None:
 
 
 def test_default_system_prompt_prevents_language_mixing() -> None:
-    assert "gereksiz şekilde başka dillerle karıştırma" in DEFAULT_SYSTEM_PROMPT
+    assert "cümlenin tamamı doğal Türkçe olmalı" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_prevents_broken_mixed_words() -> None:
+    assert "kelime kırpıntısı kullanma" in DEFAULT_SYSTEM_PROMPT
+    assert "about" in DEFAULT_SYSTEM_PROMPT
     assert "progressu" in DEFAULT_SYSTEM_PROMPT
     assert "starting pointina" in DEFAULT_SYSTEM_PROMPT
+    assert "algunos" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_allows_technical_terms() -> None:
-    assert "Commit, branch, repository, provider, prompt, CLI" in DEFAULT_SYSTEM_PROMPT
+    assert "Commit, branch, repository, provider, prompt, CLI, GUI ve tool" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_prefers_honest_uncertainty() -> None:
@@ -47,3 +50,7 @@ def test_default_system_prompt_respects_project_context() -> None:
 
 def test_default_system_prompt_handles_missing_info_honestly() -> None:
     assert "erişimin yoksa bunu dürüstçe belirt" in DEFAULT_SYSTEM_PROMPT
+
+
+def test_default_system_prompt_prevents_exaggerated_promises() -> None:
+    assert "Abartılı vaat verme" in DEFAULT_SYSTEM_PROMPT
