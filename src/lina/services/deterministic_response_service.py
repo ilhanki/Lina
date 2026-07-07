@@ -40,9 +40,17 @@ class DeterministicResponseService:
         if intent.type is IntentType.CAPABILITIES:
             return ModelResponse(
                 text=(
-                    "Şu anda terminal üzerinden sohbet edebiliyorum, Ollama ile yerel "
-                    "modele bağlanabiliyorum ve basit komutları anlayabiliyorum. Henüz "
-                    "dosyaları, GitHub'ı, kamerayı veya bilgisayarı yönetemiyorum."
+                    "Şu anda CLI ve Tkinter GUI üzerinden sohbet edebiliyorum. Ollama "
+                    "ile yerel modele bağlanabiliyor, basit intent'leri LLM'e göndermeden "
+                    "cevaplayabiliyor, session içi geçici konuşma geçmişi ve runtime "
+                    "context kullanabiliyorum. İzinli proje dokümanlarından ve güvenli "
+                    "read-only Git bağlamından proje durumunu okuyabiliyorum. SAFE tool "
+                    "altyapısıyla saat gibi güvenli araçları çalıştırabiliyor ve "
+                    "Ollama/model bağlantı durumunu teşhis edebiliyorum. Henüz bilgisayarı "
+                    "genel olarak yönetemem; genel dosya erişimim, kamera, mikrofon, ekran "
+                    "görme, shell command execution veya browser automation yeteneğim yok. "
+                    "Kalıcı memory kullanmıyorum; Git commit, push, reset, checkout veya "
+                    "merge işlemleri yapamam. LLM kendi kendine tehlikeli tool çalıştıramaz."
                 )
             )
         if intent.type is IntentType.CURRENT_TIME:

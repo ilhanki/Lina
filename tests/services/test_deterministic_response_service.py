@@ -46,11 +46,18 @@ def test_deterministic_response_service_returns_honest_capabilities_response() -
 
     response = service.handle(Intent(type=IntentType.CAPABILITIES))
 
-    assert "terminal üzerinden sohbet" in response.text
+    assert "CLI" in response.text
+    assert "Tkinter GUI" in response.text
     assert "Ollama" in response.text
-    assert "Henüz dosyaları" in response.text
-    assert "GitHub'ı" in response.text
-    assert "yönetemiyorum" in response.text
+    assert "runtime context" in response.text
+    assert "read-only Git" in response.text
+    assert "SAFE tool" in response.text
+    assert "model bağlantı durumunu teşhis" in response.text
+    assert "genel dosya erişimim" in response.text
+    assert "shell command execution" in response.text
+    assert "Kalıcı memory kullanmıyorum" in response.text
+    assert "Git commit, push, reset, checkout veya merge işlemleri yapamam" in response.text
+    assert "tehlikeli tool çalıştıramaz" in response.text
 
 
 def test_deterministic_response_service_returns_current_time() -> None:
