@@ -11,6 +11,7 @@ from lina.core.paths import AppPaths
 from lina.core.settings import load_settings
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.services.conversation_service import ConversationService
+from lina.services.project_context_service import ProjectContextService
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,11 @@ def create_application_services(
         model=settings.ollama.default_model,
     )
     brain = Brain(model_provider=provider)
-    conversation_service = ConversationService(brain=brain)
+    project_context_service = ProjectContextService(project_root=project_root)
+    conversation_service = ConversationService(
+        brain=brain,
+        project_context_service=project_context_service,
+    )
 
     return ApplicationServices(
         application=application,

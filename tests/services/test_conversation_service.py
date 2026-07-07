@@ -7,14 +7,17 @@ class FakeBrain:
     def __init__(self) -> None:
         self.messages: list[str] = []
         self.histories: list[list[ConversationTurn]] = []
+        self.project_contexts: list[str | None] = []
 
     def respond(
         self,
         user_message: str,
         conversation_history: list[ConversationTurn] | None = None,
+        project_context: str | None = None,
     ) -> ModelResponse:
         self.messages.append(user_message)
         self.histories.append(list(conversation_history or []))
+        self.project_contexts.append(project_context)
         return ModelResponse(text=f"Response: {user_message}")
 
 
@@ -54,6 +57,18 @@ class FakeDeterministicResponseService:
     def handle(self, intent) -> ModelResponse:
         self.handled_intents.append(intent)
         return ModelResponse(text="Deterministic response")
+
+
+class FakeProjectContextService:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.calls = 0
+
+    def collect_context(self):
+        from lina.services.project_context_service import ProjectContext
+
+        self.calls += 1
+        return ProjectContext(text=self.text)
 
 
 def test_conversation_service_sends_user_message_to_brain() -> None:
@@ -161,3 +176,42 @@ def test_conversation_service_adds_deterministic_responses_to_history() -> None:
             assistant_response="Deterministic response",
         )
     ]
+
+
+def test_conversation_service_routes_project_intent_with_project_context() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    project_context_service = FakeProjectContextService(text="Sprint 5 completed.")
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.PROJECT_STATUS),
+        deterministic_response_service=FakeDeterministicResponseService(
+            can_handle=False
+        ),
+        project_context_service=project_context_service,
+    )
+
+    response = service.handle_message("Lina projesinin durumu ne?")
+
+    assert response == ModelResponse(text="Response: Lina projesinin durumu ne?")
+    assert brain.messages == ["Lina projesinin durumu ne?"]
+    assert brain.project_contexts == ["Sprint 5 completed."]
+    assert project_context_service.calls == 1
+
+
+def test_conversation_service_project_intent_uses_honest_fallback_without_service() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.PROJECT_SUMMARY),
+        deterministic_response_service=FakeDeterministicResponseService(
+            can_handle=False
+        ),
+    )
+
+    service.handle_message("Son sprintlerde ne eklendi?")
+
+    assert brain.project_contexts == ["Proje bağlamı şu anda yapılandırılmamış."]
