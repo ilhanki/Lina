@@ -1133,3 +1133,33 @@ Yeni bir public özellik veya dependency eklenmeden, mevcut kritik sistemlerin (
 ### Sprint 20 Notu
 
 Bir sonraki adım, v0.3.0-alpha Release Prep: Dokümantasyon, sürüm notları ve son rötuşların yapılarak yeni stabil bir adıma geçilmesidir.
+
+## 2026-07-07 - Sprint 20
+
+### Sprint Durumu
+
+Sprint 20 (v0.3.0-alpha Release Prep) tamamlandı.
+
+Lina'nın yeni yeteneklerini yansıtan `v0.3.0-alpha` sürümü için gerekli tüm statik versiyon metinleri güncellendi ve release candidate hazırlandı.
+
+### Eklenen Yapı
+
+- `src/lina/interfaces/cli.py` içerisindeki CLI karşılama banner'ı `v0.3.0-alpha` olarak güncellendi.
+- İlgili CLI ve Main testlerindeki beklenen sürüm logları (`tests/interfaces/test_cli.py`, `tests/test_main.py`) `v0.3.0-alpha` olarak güncellendi.
+- `README.md`, `docs/roadmap.md` ve `docs/smoke-test-checklist.md` içindeki mevcut sürüm ibareleri `v0.3.0-alpha` yapıldı.
+
+### Güvenlik Sınırları
+
+- Sadece versiyon etiketleri güncellendi. Hiçbir yeni mantık veya paket (dependency) eklenmedi.
+
+### Completed Commits
+
+- `9adb709 chore: prepare v0.3.0-alpha release candidate`
+
+### Test Results
+
+- Sürüm etiketlerine bağlı olan testler dahil olmak üzere 196 testin tamamı sorunsuz çalışmaya devam ediyor.
+
+### Current Project Status
+
+- Lina, Project Awareness v2, GUI v2, Tool Execution Security (PermissionDecision) ve Hardened Test Suite ile birlikte yepyeni, kararlı bir kilometre taşına (v0.3.0-alpha) ulaşmış durumda. Hazır ve temiz bir zemin.
