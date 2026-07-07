@@ -1,5 +1,7 @@
 """Tkinter desktop interface for Lina."""
 
+from collections.abc import Callable
+import threading
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 
@@ -14,9 +16,12 @@ class LinaGui:
         self,
         conversation_service: ConversationService,
         root: tk.Tk | None = None,
+        thread_factory: Callable[..., threading.Thread] = threading.Thread,
     ) -> None:
         self._conversation_service = conversation_service
         self._root = root or tk.Tk()
+        self._thread_factory = thread_factory
+        self._is_waiting_for_response = False
         self._root.title("Lina")
 
         self._chat_log = ScrolledText(
@@ -48,14 +53,33 @@ class LinaGui:
         self._root.mainloop()
 
     def send_message(self) -> None:
+        if self._is_waiting_for_response:
+            return
+
         message = self._get_input_text()
         if not message:
             return
 
         self._clear_input()
         self._append_message("İlhan", message)
+        self._append_message("Lina", "yazıyor...")
+        self._set_waiting_state(True)
+
+        thread = self._thread_factory(
+            target=self._generate_response,
+            args=(message,),
+            daemon=True,
+        )
+        thread.start()
+
+    def _generate_response(self, message: str) -> None:
         response = self._conversation_service.handle_message(message)
+        self._root.after(0, self._show_response, response)
+
+    def _show_response(self, response: ModelResponse) -> None:
+        self._remove_last_message()
         self._append_message("Lina", response.text)
+        self._set_waiting_state(False)
 
     def _handle_enter(self, event: tk.Event) -> str:
         self.send_message()
@@ -72,6 +96,17 @@ class LinaGui:
         self._chat_log.insert(tk.END, format_chat_message(sender, message))
         self._chat_log.configure(state=tk.DISABLED)
         self._chat_log.see(tk.END)
+
+    def _remove_last_message(self) -> None:
+        self._chat_log.configure(state=tk.NORMAL)
+        self._chat_log.delete("end-3l", tk.END)
+        self._chat_log.configure(state=tk.DISABLED)
+
+    def _set_waiting_state(self, is_waiting: bool) -> None:
+        self._is_waiting_for_response = is_waiting
+        state = tk.DISABLED if is_waiting else tk.NORMAL
+        self._message_input.configure(state=state)
+        self._send_button.configure(state=state)
 
 
 def format_chat_message(sender: str, message: str) -> str:
