@@ -210,7 +210,9 @@ def test_conversation_service_routes_project_intent_with_project_context() -> No
 
     assert response == ModelResponse(text="Response: Lina projesinin durumu ne?")
     assert brain.messages == ["Lina projesinin durumu ne?"]
-    assert brain.project_contexts == ["Sprint 5 completed."]
+    assert len(brain.project_contexts) == 1
+    assert "Sprint 5 completed." in brain.project_contexts[0]
+    assert "[Kaynak: proje dokümanları]" in brain.project_contexts[0]
     assert project_context_service.calls == 1
 
 

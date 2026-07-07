@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from lina.brain.brain import Brain
+from lina.brain.context_manager import ContextManager
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -11,6 +12,7 @@ from lina.core.paths import AppPaths
 from lina.core.settings import load_settings
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.services.conversation_service import ConversationService
+from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import ModelDiagnosticsService
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
@@ -48,13 +50,19 @@ def create_application_services(
         project_root=project_root,
         max_characters_per_file=settings.runtime.project_context_max_characters,
     )
+    git_context_service = GitContextService(project_root=project_root)
+    context_manager = ContextManager(
+        project_context_service=project_context_service,
+        git_context_service=git_context_service,
+        history_limit=settings.runtime.conversation_history_limit,
+    )
     tool_registry = ToolRegistry()
     tool_registry.register(EchoTool())
     tool_registry.register(CurrentTimeTool())
     tool_execution_service = ToolExecutionService(tool_registry=tool_registry)
     conversation_service = ConversationService(
         brain=brain,
-        project_context_service=project_context_service,
+        context_manager=context_manager,
         tool_execution_service=tool_execution_service,
         history_limit=settings.runtime.conversation_history_limit,
     )
