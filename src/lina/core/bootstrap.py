@@ -12,6 +12,9 @@ from lina.core.settings import load_settings
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.services.conversation_service import ConversationService
 from lina.services.project_context_service import ProjectContextService
+from lina.services.tool_execution_service import ToolExecutionService
+from lina.tools.builtin import CurrentTimeTool, EchoTool
+from lina.tools.registry import ToolRegistry
 
 
 @dataclass(frozen=True)
@@ -39,9 +42,14 @@ def create_application_services(
     )
     brain = Brain(model_provider=provider)
     project_context_service = ProjectContextService(project_root=project_root)
+    tool_registry = ToolRegistry()
+    tool_registry.register(EchoTool())
+    tool_registry.register(CurrentTimeTool())
+    tool_execution_service = ToolExecutionService(tool_registry=tool_registry)
     conversation_service = ConversationService(
         brain=brain,
         project_context_service=project_context_service,
+        tool_execution_service=tool_execution_service,
     )
 
     return ApplicationServices(

@@ -70,6 +70,17 @@ class FakeProjectContextService:
         return ProjectContext(text=self.text)
 
 
+class FakeToolExecutionService:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def execute(self, tool_name: str, input_text: str = ""):
+        from lina.tools.tool import ToolResult
+
+        self.calls.append(tool_name)
+        return ToolResult(text="Şu an saat 15:42.")
+
+
 def test_conversation_service_sends_user_message_to_brain() -> None:
     brain = FakeBrain()
     service = ConversationService(brain=brain)
@@ -214,3 +225,21 @@ def test_conversation_service_project_intent_uses_honest_fallback_without_servic
     service.handle_message("Son sprintlerde ne eklendi?")
 
     assert brain.project_contexts == ["Proje bağlamı şu anda yapılandırılmamış."]
+
+
+def test_conversation_service_routes_current_time_to_safe_tool() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    tool_execution_service = FakeToolExecutionService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.CURRENT_TIME),
+        tool_execution_service=tool_execution_service,
+    )
+
+    response = service.handle_message("Saat kaç?")
+
+    assert response == ModelResponse(text="Şu an saat 15:42.")
+    assert tool_execution_service.calls == ["current_time"]
+    assert brain.messages == []
