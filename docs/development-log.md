@@ -638,3 +638,56 @@ Bu sprintte Lina için Safe Tool Foundation v1 eklendi. Amaç gerçek bilgisayar
 ### Sprint 9 Notu
 
 Sprint 9 için doğal sonraki adım, SAFE tool'ların kontrollü şekilde ConversationService akışına bağlanmasıdır. Bu bağlama yalnız deterministic intent üzerinden olmalı; LLM'in kendi başına tool çalıştırmasına izin verilmemelidir.
+
+## 2026-07-07 - Sprint 9
+
+### Sprint Durumu
+
+Sprint 9 tamamlandı.
+
+Bu sprintte Sprint 8'de eklenen safe tool altyapısı kontrollü şekilde conversation flow'a bağlandı. LLM'in kendi kendine tool seçmesine izin verilmedi; yalnız deterministic intent üzerinden SAFE tool çalıştırma yolu eklendi.
+
+### Eklenen Yapı
+
+- `ToolExecutionService` eklendi.
+- Tool execution sırasında permission check uygulanır hale getirildi.
+- `CurrentTimeTool` eklendi.
+- `CURRENT_TIME` intent'i, uygun durumda `ToolExecutionService` üzerinden `current_time` safe tool'una yönlendirilir hale getirildi.
+- Bootstrap sırasında `ToolRegistry`, `EchoTool`, `CurrentTimeTool` ve `ToolExecutionService` açık şekilde oluşturuldu.
+
+### Güvenlik Sınırları
+
+- SAFE olmayan tool'lar otomatik çalıştırılmaz.
+- Shell execution yoktur.
+- Dosya write/delete yoktur.
+- Browser, camera, screen veya OS automation yoktur.
+- LLM tool seçmez; routing deterministic intent üzerinden yapılır.
+
+### Completed Commits
+
+- `98f4529 feat: add tool execution service`
+- `2338398 feat: route safe tool intents`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `144 passed`.
+- ToolExecutionService, registry ve permission testleri: `8 passed`.
+- CurrentTimeTool, ConversationService routing, bootstrap ve execution testleri: `17 passed`.
+- Sprint sonu tam test paketi: `149 passed`.
+
+### Current Project Status
+
+- Lina artık güvenli tool altyapısını conversation flow içinde kontrollü şekilde kullanabiliyor.
+- `Saat kaç?` gibi current time intent'i Brain/Ollama çağırmadan safe tool üzerinden cevaplanabilir.
+- Deterministic intent ve normal chat akışları korunuyor.
+
+### Known Limits
+
+- Tool execution sadece SAFE tool'larla sınırlıdır.
+- Permission confirmation UI yoktur.
+- LLM function calling veya otomatik tool planning yoktur.
+- Dangerous, read-only veya confirmation gerektiren tool'lar otomatik çalıştırılmaz.
+
+### Sprint 10 Notu
+
+Sprint 10 için yeni büyük özellik eklenmemeli. Odak v0.2.0-alpha release candidate hazırlığı, README/roadmap güncellemesi, smoke test checklist ve bilinen sınırlamaların dokümante edilmesi olmalıdır.
