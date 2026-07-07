@@ -62,6 +62,7 @@ def test_fake_gui_send_message_calls_conversation_service() -> None:
         ("Lina", "Response: Hello"),
     ]
     assert gui.waiting_states == [True, False]
+    assert gui.input_focus_count == 1
 
 
 def test_gui_does_not_send_while_waiting_for_response() -> None:
@@ -86,6 +87,7 @@ def test_gui_shows_provider_errors_as_chat_messages() -> None:
         ("Lina", format_error_message()),
     ]
     assert gui.waiting_states == [True, False]
+    assert gui.input_focus_count == 1
 
 
 def _create_test_gui(service: FakeConversationService, input_text: str):
@@ -97,6 +99,7 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
     gui.recorded_messages = []
     gui.waiting_states = []
     gui.input_was_cleared = False
+    gui.input_focus_count = 0
     gui._get_input_text = lambda: input_text.strip()
     gui._clear_input = lambda: setattr(gui, "input_was_cleared", True)
     gui._append_message = lambda sender, message: gui.recorded_messages.append(
@@ -106,6 +109,11 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
     gui._set_waiting_state = lambda is_waiting: (
         setattr(gui, "_is_waiting_for_response", is_waiting),
         gui.waiting_states.append(is_waiting),
+    )
+    gui._focus_input = lambda: setattr(
+        gui,
+        "input_focus_count",
+        gui.input_focus_count + 1,
     )
     return gui
 

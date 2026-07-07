@@ -65,6 +65,7 @@ class LinaGui:
         self._main_frame.rowconfigure(0, weight=1)
 
         self._append_message("Lina", "Merhaba İlhan. Hazırım.")
+        self._message_input.focus_set()
 
     def run(self) -> None:
         self._root.mainloop()
@@ -102,11 +103,13 @@ class LinaGui:
         self._remove_last_message()
         self._append_message("Lina", response.text)
         self._set_waiting_state(False)
+        self._focus_input()
 
     def _show_error(self) -> None:
         self._remove_last_message()
         self._append_message("Lina", format_error_message())
         self._set_waiting_state(False)
+        self._focus_input()
 
     def _handle_enter(self, event: tk.Event) -> str:
         self.send_message()
@@ -142,6 +145,9 @@ class LinaGui:
         state = tk.DISABLED if is_waiting else tk.NORMAL
         self._message_input.configure(state=state)
         self._send_button.configure(state=state)
+
+    def _focus_input(self) -> None:
+        self._message_input.focus_set()
 
 
 def format_chat_message(sender: str, message: str) -> str:
