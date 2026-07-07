@@ -18,7 +18,6 @@ def test_default_system_prompt_prevents_language_mixing() -> None:
 
 
 def test_default_system_prompt_prevents_broken_mixed_words() -> None:
-    assert "kırpılmış yabancı kelimeler kullanma" in DEFAULT_SYSTEM_PROMPT
     assert "progressu" in DEFAULT_SYSTEM_PROMPT
     assert "starting pointina" in DEFAULT_SYSTEM_PROMPT
 
@@ -36,15 +35,15 @@ def test_default_system_prompt_avoids_claiming_missing_capabilities() -> None:
 
 
 def test_default_system_prompt_prevents_project_history_hallucination() -> None:
-    assert "Proje geçmişi" in DEFAULT_SYSTEM_PROMPT
-    assert "uydurma" in DEFAULT_SYSTEM_PROMPT
+    assert "proje geçmişi" in DEFAULT_SYSTEM_PROMPT
+    assert "hallucination yapma" in DEFAULT_SYSTEM_PROMPT
 
 
-def test_default_system_prompt_prevents_claiming_external_access() -> None:
-    assert "GitHub'ı" in DEFAULT_SYSTEM_PROMPT
-    assert "gördüğünü söyleme" in DEFAULT_SYSTEM_PROMPT
+def test_default_system_prompt_respects_project_context() -> None:
+    assert "Project context" in DEFAULT_SYSTEM_PROMPT
+    assert "Kaynak: git" in DEFAULT_SYSTEM_PROMPT
+    assert "projeyle ilgili soruları doğrudan oradaki bilgilere dayanarak yanıtla" in DEFAULT_SYSTEM_PROMPT
 
 
-def test_default_system_prompt_handles_today_project_questions_honestly() -> None:
-    assert "bugün projede ne yapıldığını" in DEFAULT_SYSTEM_PROMPT
-    assert "yalnızca mevcut konuşmaya göre" in DEFAULT_SYSTEM_PROMPT
+def test_default_system_prompt_handles_missing_info_honestly() -> None:
+    assert "erişimin yoksa bunu dürüstçe belirt" in DEFAULT_SYSTEM_PROMPT
