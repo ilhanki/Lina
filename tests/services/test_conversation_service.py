@@ -9,16 +9,15 @@ class FakeBrain:
         self.histories: list[list[ConversationTurn]] = []
         self.project_contexts: list[str | None] = []
 
-    def respond(
-        self,
-        user_message: str,
-        conversation_history: list[ConversationTurn] | None = None,
-        project_context: str | None = None,
-    ) -> ModelResponse:
+    def respond(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
-        self.histories.append(list(conversation_history or []))
-        self.project_contexts.append(project_context)
         return ModelResponse(text=f"Response: {user_message}")
+
+    def respond_with_context(self, context) -> ModelResponse:
+        self.messages.append(context.user_message)
+        self.histories.append(list(context.conversation_history))
+        self.project_contexts.append(context.project_context)
+        return ModelResponse(text=f"Response: {context.user_message}")
 
 
 class FakeIntentAnalyzer:
