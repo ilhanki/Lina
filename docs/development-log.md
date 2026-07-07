@@ -281,3 +281,100 @@ Bu sprintte Lina'ya minimal, rule-based intent analysis katmanı eklendi. Amaç,
 - Sprint 4 öncesinde Context Manager v1 gerçekten gerekli mi, yoksa önce deterministic intent kapsamı mı genişletilmeli mimari olarak değerlendirilmeli.
 - Eğer Context Manager seçilirse kapsam yalnızca conversation context ve runtime context ile sınırlı tutulmalı.
 - Memory veya Tool sistemi başlatılmadan önce izin, güvenlik ve veri sınırları ayrıca netleştirilmeli.
+
+## 2026-07-07 - Sprint 4
+
+### Sprint Durumu
+
+Sprint 4 tamamlandı.
+
+Bu sprintte Lina için ilk masaüstü sohbet arayüzü eklendi. Amaç final görsel tasarım yapmak değil, terminal dışına çıkan ve mevcut `ConversationService` akışını kullanan sade, sürdürülebilir bir Desktop UI v1 oluşturmaktı.
+
+### Sprint 4 Hedefi
+
+- `python gui.py` komutuyla basit masaüstü sohbet penceresi açmak.
+- Mevcut Brain, IntentAnalyzer, DeterministicResponseService, ConversationService ve OllamaProvider akışını korumak.
+- CLI davranışını bozmamak.
+- Tkinter ile dependency eklemeden ilk desktop UI temelini kurmak.
+- Model cevapları beklenirken UI thread'in donmasını engellemek.
+
+### Tkinter Seçimi
+
+Tkinter seçildi çünkü Python standart kütüphanesinde bulunur, Windows üzerinde ek kurulum gerektirmez ve ilk masaüstü UI için yeterlidir. Bu sprintte PyQt, Electron, web frontend veya üçüncü parti UI kütüphanesi eklenmedi.
+
+### Eklenen Yapı
+
+- `gui.py` GUI entrypoint olarak eklendi.
+- `src/lina/interfaces/gui.py` altında `LinaGui` Tkinter arayüzü eklendi.
+- `src/lina/core/bootstrap.py` ile CLI ve GUI entrypoint'leri için ortak application wiring oluşturuldu.
+- `main.py`, CLI davranışı korunarak ortak bootstrap kullanımına geçirildi.
+
+### ConversationService Entegrasyonu
+
+GUI doğrudan business logic içermez. Kullanıcıdan mesaj alır, `ConversationService` içine verir ve dönen `ModelResponse` değerini sohbet alanında gösterir. Bu sayede mevcut intent routing ve normal chat akışı korunur.
+
+### Background Thread Davranışı
+
+- Kullanıcı mesaj gönderdiğinde input ve gönder butonu geçici olarak disable edilir.
+- Sohbet alanına `Lina: yazıyor...` mesajı eklenir.
+- `ConversationService.handle_message()` background thread içinde çalıştırılır.
+- UI güncellemesi Tkinter ana thread'ine `after()` ile döner.
+- Aynı anda birden fazla mesaj gönderimi şimdilik engellenir.
+
+### Hata Yönetimi
+
+GUI, `ModelProviderError` hatalarını traceback göstermeden sohbet mesajı olarak gösterir. Kullanıcıya şu tarz kısa ve Türkçe bir hata döner:
+
+`Lina şu anda modele ulaşamadı. Ollama çalışıyor mu kontrol edebilir misin?`
+
+CLI hata davranışı değiştirilmedi.
+
+### Completed Commits
+
+- `ed101b3 feat: add gui application wiring`
+- `c740b6f feat: add tkinter chat window`
+- `028efff feat: run gui requests in background thread`
+- `4c42fda fix: show gui errors as chat messages`
+- `09f0f4b fix: keep logging setup deterministic`
+
+### Test Results
+
+- Başlangıç tam test paketi: `100 passed`.
+- GUI wiring testleri: `3 passed`.
+- GUI window ve entrypoint testleri: `5 passed`.
+- GUI threading testleri: `5 passed`.
+- GUI ve CLI error handling testleri: `14 passed`.
+- Logging izolasyon düzeltmesi sonrası ilgili testler: `8 passed`.
+- Sprint sonu tam test paketi: `109 passed`.
+
+### Bugs Discovered
+
+- Kök seviyede `tests/test_gui.py` ve interface seviyesinde `tests/interfaces/test_gui.py` aynı modül adıyla çakıştı. Entry point testi `tests/test_gui_entrypoint.py` olarak yeniden adlandırıldı.
+- Tam test paketinde yeni bootstrap testleri sonrası logging testleri kırıldı. Kök neden, `configure_logging()` fonksiyonunun dış handler'ları kendi yönettiği handler gibi kabul etmesiydi.
+
+### Bugs Fixed
+
+- GUI entrypoint test dosyası yeniden adlandırılarak test import çakışması giderildi.
+- `configure_logging()`, yalnız Lina tarafından yönetilen handler'ı takip edecek şekilde deterministik hale getirildi.
+
+### Current Project Status
+
+- Lina terminalden `python main.py` ile çalışmaya devam eder.
+- Lina masaüstü arayüzden `python gui.py` ile çalıştırılabilir.
+- GUI üzerinden deterministic intent cevapları ve normal Ollama chat akışı kullanılabilir.
+- UI model cevabı beklerken donmamak için background thread kullanır.
+- Memory, Tool sistemi, Vision, Speech, Automation, Browser, Camera, Planner, Event Bus, GUI ayar ekranı, packaging ve installer hâlâ kapsam dışıdır.
+
+### Known Limits
+
+- UI görsel olarak minimaldir; tema, ikon, modern tasarım sistemi veya system tray yoktur.
+- Aynı anda yalnızca bir mesaj gönderimi desteklenir.
+- Shift+Enter desteği yoktur.
+- GUI unit testleri gerçek Tkinter `mainloop` çalıştırmaz; helper ve davranış seviyesinde test edilir.
+- Paketleme veya `.exe` üretimi yapılmadı.
+
+### Sprint 5 Önerisi
+
+- Sprint 5 öncesinde masaüstü UI'ın mı iyileştirileceği, yoksa Context Manager v1 / conversation context tarafına mı geçileceği mimari olarak değerlendirilmeli.
+- Eğer UI devam edecekse önerilen küçük adım: GUI mesaj görünümünü ve kullanıcı deneyimini iyileştirmek, ama yeni framework veya tema sistemi eklememek.
+- Eğer Brain tarafı devam edecekse önerilen adım: Context Manager v1 kapsamını yalnız runtime conversation context ile sınırlamak.
