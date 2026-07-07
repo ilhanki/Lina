@@ -793,3 +793,52 @@ Bu sprintte kod tabanı kalite ve mimari sertleştirme açısından denetlendi. 
 ### Sprint 12 Notu
 
 Bir sonraki adım runtime configuration seçeneklerini geriye uyumlu şekilde genişletmek olmalıdır. Config formatı kırılmamalı ve optional ayarlar default değer almalıdır.
+
+## 2026-07-07 - Sprint 12
+
+### Sprint Durumu
+
+Sprint 12 tamamlandı.
+
+Bu sprintte Lina'nın runtime configuration sistemi geriye uyumlu şekilde genişletildi. Mevcut config formatı kırılmadı; yeni ayarlar eksik olduğunda güvenli default değerleriyle çalışır.
+
+### Eklenen Ayarlar
+
+- `ollama.request_timeout`
+- `runtime.conversation_history_limit`
+- `runtime.project_context_max_characters`
+
+### Kullanım Noktaları
+
+- Ollama provider timeout değeri settings üzerinden verilir.
+- ConversationService history limiti settings üzerinden verilir.
+- ProjectContextService doküman karakter limiti settings üzerinden verilir.
+
+### Completed Commits
+
+- `7ff69aa feat: add runtime configuration options`
+- `2a4f68c docs: document runtime configuration`
+- `af69da3 fix: preserve settings dataclass defaults`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `151 passed`.
+- Settings, bootstrap ve project context testleri: `18 passed`.
+- Geriye uyumluluk düzeltmesi sonrası ilgili core testleri: `21 passed`.
+- Sprint sonu tam test paketi: `155 passed`.
+
+### Current Project Status
+
+- Runtime config daha merkezi ve test edilebilir hale geldi.
+- Eski `AppSettings`, `OllamaSettings` ve config kullanımları geriye uyumlu kalır.
+- Yeni dependency eklenmedi.
+
+### Known Limits
+
+- GUI ayar ekranı yoktur.
+- Ayarlar runtime sırasında kullanıcı arayüzünden değiştirilemez.
+- Environment variable override sistemi hâlâ yoktur.
+
+### Sprint 13 Notu
+
+Bir sonraki adım Ollama diagnostics ve model status görünürlüğüdür. Amaç model indirmek veya Ollama kurmak değil, kullanıcıya bağlantı durumunu daha anlaşılır göstermektir.
