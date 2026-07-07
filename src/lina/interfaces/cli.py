@@ -34,13 +34,16 @@ class LinaCli:
             message = user_input.strip()
             if message.lower() in {"exit", "quit"}:
                 break
+            if message.lower() in {"help", "?"}:
+                self._write_help()
+                continue
             if not message:
                 continue
 
             try:
                 response = self._conversation_service.handle_message(message)
             except ModelProviderError as error:
-                self._output_stream.write(f"Model provider error: {error}\n")
+                self._output_stream.write(f"Lina şu anda cevap üretemedi: {error}\n")
                 self._output_stream.flush()
                 continue
 
@@ -53,4 +56,8 @@ class LinaCli:
         self._output_stream.write("Merhaba İlhan.\n\n")
         self._output_stream.write("Hazırım.\n\n")
         self._output_stream.write("----------------------------------------\n\n")
+        self._output_stream.flush()
+
+    def _write_help(self) -> None:
+        self._output_stream.write("Komutlar: help, ?, exit, quit\n")
         self._output_stream.flush()

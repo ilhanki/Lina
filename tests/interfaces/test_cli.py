@@ -96,4 +96,19 @@ def test_cli_prints_model_provider_errors_without_crashing() -> None:
 
     cli.run()
 
-    assert "Model provider error: Ollama model is not configured" in output_stream.getvalue()
+    assert "Lina şu anda cevap üretemedi: Ollama model is not configured" in output_stream.getvalue()
+
+
+def test_cli_prints_help_without_sending_message() -> None:
+    service = FakeConversationService()
+    output_stream = StringIO()
+    cli = LinaCli(
+        conversation_service=service,
+        input_stream=StringIO("?\nexit\n"),
+        output_stream=output_stream,
+    )
+
+    cli.run()
+
+    assert "Komutlar: help, ?, exit, quit" in output_stream.getvalue()
+    assert service.messages == []
