@@ -1,6 +1,6 @@
 # Lina Smoke Test Checklist
 
-Bu doküman `v0.2.0-alpha` öncesi manuel doğrulama adımlarını tanımlar.
+Bu doküman `v0.3.0-alpha` öncesi manuel doğrulama adımlarını tanımlar.
 
 ## Ön Koşullar
 

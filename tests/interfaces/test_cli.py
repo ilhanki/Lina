@@ -29,7 +29,7 @@ def test_cli_prints_banner() -> None:
     cli.run()
 
     output = output_stream.getvalue()
-    assert "Lina v0.1.0" in output
+    assert "Lina v0.3.0-alpha" in output
     assert "Merhaba İlhan." in output
     assert "Hazırım." in output
 

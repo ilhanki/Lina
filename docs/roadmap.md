@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.2.0-alpha Release Candidate
+## Mevcut Durum: v0.3.0-alpha Release Candidate
 
 Tamamlanan ana başlıklar:
 

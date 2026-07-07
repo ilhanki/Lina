@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda `v0.2.0-alpha` release candidate seviyesindedir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir ve sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir.
+Bu depo şu anda `v0.3.0-alpha` release candidate seviyesindedir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir ve sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir.
 
 ## Projenin Amacı
 
@@ -249,6 +249,6 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.2.0-alpha release candidate**
+Mevcut durum: **v0.3.0-alpha release candidate**
 
 Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı ve güvenli tool temeline sahip erken aşama bir masaüstü asistanıdır.

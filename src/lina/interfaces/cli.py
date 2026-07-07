@@ -52,7 +52,7 @@ class LinaCli:
 
     def _write_banner(self) -> None:
         self._output_stream.write("----------------------------------------\n\n")
-        self._output_stream.write("Lina v0.1.0\n\n")
+        self._output_stream.write("Lina v0.3.0-alpha\n\n")
         self._output_stream.write("Merhaba İlhan.\n\n")
         self._output_stream.write("Hazırım.\n\n")
         self._output_stream.write("----------------------------------------\n\n")
