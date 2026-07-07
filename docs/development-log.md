@@ -1027,3 +1027,40 @@ Tool Execution sürecindeki yetkilendirme modeli daha kullanıcı dostu bir hale
 ### Sprint 17 Notu
 
 Bir sonraki adım, Assistant Reliability (Prompt/Guidance) iyileştirmelerini yapmak ve Türkçe cevapların kalitesini garanti altına almaktır.
+
+## 2026-07-07 - Sprint 17
+
+### Sprint Durumu
+
+Sprint 17 tamamlandı.
+
+Lina'nın sistem promptu (DEFAULT_SYSTEM_PROMPT) yeniden düzenlenerek daha güvenilir, doğru ve bağlama uygun cevaplar üretmesi sağlandı.
+
+### Eklenen Yapı
+
+- `DEFAULT_SYSTEM_PROMPT` içeriğine **Güvenilirlik ve Dürüstlük (Groundedness)** bölümü eklendi.
+- Lina'nın uydurma (hallucination) yapmasını önlemek adına, özellikle proje bağlamı ("Project context" veya "Kaynak: git") verildiğinde yalnızca bu bağlamdaki bilgilere dayanarak cevap vermesi sıkı şekilde tembihlendi.
+- Eski sürümde yer alan "proje hafızası veya git entegrasyonu olmadığı için" kısıtlaması kaldırıldı; yerine mevcut bağlamla senkronize kurallar getirildi.
+- Promptu test eden `tests/brain/test_prompts.py` içeriği yeni kurallara göre güncellendi.
+
+### Güvenlik Sınırları
+
+- Dil bariyerleri ve kod alanlarındaki istisnalar korundu (örn. terminal komutlarının, class isimlerinin İngilizce kalması).
+- "Erişimin yoksa dürüstçe belirt" ve "Bilmiyorsan kesin konuşma" yönergeleri daha belirgin hale getirildi.
+
+### Completed Commits
+
+- `fc07ecd feat: refine assistant prompts for reliability and groundedness`
+
+### Test Results
+
+- Prompt testleri dahil tüm testler başarıyla geçti: `194 passed`.
+
+### Current Project Status
+
+- Lina, proje bazlı soruları cevaplarken artık çok daha kararlı ve halüsinasyondan uzak yanıtlar verecek şekilde yönlendiriliyor.
+- Geliştirilmiş prompt, son zamanlarda eklenen ContextManager (Git ve Doküman entegrasyonu) özellikleriyle tam uyumlu hale geldi.
+
+### Sprint 18 Notu
+
+Bir sonraki adım, Developer Experience v1: Dokümantasyon, README ve hızlı başlangıç rehberlerini iyileştirmektir.
