@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda temel mimari ve proje standartları aşamasındadır. Henüz asistan davranışı, LLM entegrasyonu, hafıza sistemi, araç sistemi veya masaüstü arayüzü uygulanmamıştır.
+Bu depo şu anda `v0.2.0-alpha` release candidate seviyesindedir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir ve sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir.
 
 ## Projenin Amacı
 
@@ -41,36 +41,39 @@ Lina zamanla şu yeteneklere sahip bir masaüstü asistanına dönüşmelidir:
 
 ## Planlanan Özellikler
 
-- `Brain` katmanı ile prompt, context, model seçimi ve cevap orkestrasyonu.
-- `capabilities` yaklaşımı ile bağımsız yetenek modülleri.
-- Event-aware mimari ile modüller arası gevşek bağlılık.
-- Ollama ile ilk yerel model entegrasyonu.
-- İleride LM Studio, OpenAI, Gemini gibi sağlayıcılar için provider adapter yapısı.
-- Hafıza için yerel kalıcı depolama.
-- Güvenli tool execution ve permission sistemi.
-- GUI katmanı gelmeden önce test edilebilir servis mimarisi.
+Mevcut çalışan özellikler:
+
+- `Brain` orchestration katmanı.
+- `ModelProvider` contract.
+- Ollama provider entegrasyonu.
+- Default system prompt ve prompt builder.
+- Runtime conversation context.
+- Session içi geçici conversation history.
+- Rule-based intent analyzer.
+- Deterministic response flow.
+- Sınırlı project awareness.
+- SAFE tool foundation ve current time tool routing.
+- CLI arayüzü.
+- Tkinter tabanlı masaüstü GUI.
+- Unit test altyapısı.
+
+Planlanan uzun vadeli özellikler:
+
+- Kalıcı Memory capability.
+- Daha gelişmiş tool sistemi.
+- Files capability.
+- Speech ve TTS.
+- Vision ve screen understanding.
+- Windows automation.
+- Browser automation.
+- Multi-agent architecture.
+- Packaging ve release süreci.
 
 ## Geliştirme Yol Haritası
 
 Ayrıntılı yol haritası [docs/roadmap.md](docs/roadmap.md) dosyasında tutulur.
 
-Özet milestone sırası:
-
-1. Proje standartları ve mimari temel.
-2. Core infrastructure.
-3. Brain v1.
-4. LLM provider entegrasyonu.
-5. Conversation flow.
-6. Memory capability.
-7. Tool sistemi.
-8. Files capability.
-9. Speech capability.
-10. Vision capability.
-11. Automation capability.
-12. Agent mimarisi.
-13. Desktop GUI.
-14. Local API.
-15. Paketleme, güvenlik ve ürünleştirme.
+Mevcut release candidate, core altyapı, Brain v1, Ollama entegrasyonu, conversation flow, GUI v1, project awareness v1 ve safe tool foundation v1 aşamalarını içerir.
 
 ## Kullanılan Teknolojiler
 
@@ -131,6 +134,16 @@ python gui.py
 ```
 
 Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun` ve `saat kaç` gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+
+## Testler
+
+Tam test paketini çalıştırmak için:
+
+```powershell
+python -m pytest
+```
+
+Manuel doğrulama adımları için [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md) dosyasına bakın.
 
 ## Proje Yapısı
 
@@ -209,8 +222,18 @@ test: cover event bus behavior
 
 Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Proprietary` olarak kabul edilmektedir.
 
+## Mevcut Sınırlamalar
+
+- Kalıcı Memory sistemi yoktur.
+- Genel dosya okuma/yazma capability'si yoktur.
+- Shell command execution yoktur.
+- Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
+- Project awareness yalnız izinli dokümanlarla sınırlıdır.
+- Tool sistemi yalnız SAFE tool temelini içerir.
+- GUI minimal Tkinter arayüzüdür; paketleme veya installer yoktur.
+
 ## Geliştirme Durumu
 
-Mevcut durum: **Milestone 0 - Proje Standartlarını Oluşturma**
+Mevcut durum: **v0.2.0-alpha release candidate**
 
-Henüz uygulama özelliği geliştirilmemiştir. Bu aşamada amaç; dil standardı, mimari yön, yol haritası, katkı kuralları ve geliştirme prensiplerini netleştirmektir.
+Lina şu anda CLI ve GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing ve güvenli tool temeline sahip erken aşama bir masaüstü asistanıdır.
