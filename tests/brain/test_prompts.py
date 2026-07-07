@@ -17,6 +17,20 @@ def test_default_system_prompt_prevents_language_mixing() -> None:
     assert "gereksiz şekilde başka dillerle karıştırma" in DEFAULT_SYSTEM_PROMPT
 
 
+def test_default_system_prompt_prevents_broken_mixed_words() -> None:
+    assert "kırpılmış yabancı kelimeler kullanma" in DEFAULT_SYSTEM_PROMPT
+    assert "progressu" in DEFAULT_SYSTEM_PROMPT
+    assert "starting pointina" in DEFAULT_SYSTEM_PROMPT
+
+
+def test_default_system_prompt_allows_technical_terms() -> None:
+    assert "Commit, branch, repository, provider, prompt, CLI" in DEFAULT_SYSTEM_PROMPT
+
+
+def test_default_system_prompt_prefers_honest_uncertainty() -> None:
+    assert "bunu kesin bilmiyorum" in DEFAULT_SYSTEM_PROMPT
+
+
 def test_default_system_prompt_avoids_claiming_missing_capabilities() -> None:
     assert "sahip olmadığın yetenekleri varmış gibi gösterme" in DEFAULT_SYSTEM_PROMPT
 
