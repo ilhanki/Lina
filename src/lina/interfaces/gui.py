@@ -299,8 +299,8 @@ def normalize_chat_message(sender: str, message: str) -> str:
     text = message.strip()
     label = f"{sender}:"
 
-    if text.lower().startswith(label.lower()):
-        return text[len(label) :].strip()
+    while text.lower().startswith(label.lower()):
+        text = text[len(label) :].strip()
 
     return text
 

@@ -53,6 +53,10 @@ def test_format_chat_message_removes_duplicate_assistant_label() -> None:
     assert format_chat_message("Lina", "Lina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
 
 
+def test_format_chat_message_removes_repeated_assistant_labels() -> None:
+    assert format_chat_message("Lina", "Lina:Lina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
+
+
 def test_format_chat_message_removes_duplicate_user_label() -> None:
     assert format_chat_message("İlhan", "İlhan: Merhaba") == "İlhan:\nMerhaba\n\n"
 
@@ -144,6 +148,27 @@ def test_gui_stores_error_as_last_response_text() -> None:
     gui.send_message()
 
     assert gui._last_response_text == format_error_message()
+
+
+def test_gui_append_message_uses_normalization_in_render_path() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    chat_log = _FakeChatLog()
+    gui._chat_log = chat_log
+    gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
+
+    gui._append_message("Lina", "Lina:Lina: Ben Lina.")
+
+    assert chat_log.inserted_text == "Lina:\nBen Lina.\n\n"
+    assert gui._message_ranges == [("1.0", "1.0")]
+
+
+def test_gui_single_send_appends_single_final_response() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+
+    gui.send_message()
+
+    assert gui.recorded_messages.count(("Lina", "Response: Hello")) == 1
 
 
 # --- Chat controls tests ---
@@ -314,6 +339,9 @@ class _FakeRoot:
 class _FakeChatLog:
     """Fake ScrolledText for testing clear_chat without Tkinter."""
 
+    def __init__(self) -> None:
+        self.inserted_text = ""
+
     def configure(self, **kwargs) -> None:
         pass
 
@@ -321,7 +349,7 @@ class _FakeChatLog:
         pass
 
     def insert(self, index: str, text: str) -> None:
-        pass
+        self.inserted_text += text
 
     def index(self, idx: str) -> str:
         return "1.0"
