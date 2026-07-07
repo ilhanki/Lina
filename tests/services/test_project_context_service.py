@@ -52,6 +52,15 @@ def test_project_context_service_limits_document_length(tmp_path: Path) -> None:
     assert len(content) == 6000
 
 
+def test_project_context_service_uses_configured_length_limit(tmp_path: Path) -> None:
+    _write_project_file(tmp_path, "README.md", "a" * 100)
+    service = ProjectContextService(project_root=tmp_path, max_characters_per_file=10)
+
+    content = service.read_document(Path("README.md"))
+
+    assert len(content) == 10
+
+
 def _write_project_file(tmp_path: Path, relative_path: str, content: str) -> None:
     file_path = tmp_path / relative_path
     file_path.parent.mkdir(parents=True, exist_ok=True)

@@ -39,9 +39,13 @@ def create_application_services(
     provider = OllamaProvider(
         base_url=settings.ollama.base_url,
         model=settings.ollama.default_model,
+        timeout=settings.ollama.request_timeout,
     )
     brain = Brain(model_provider=provider)
-    project_context_service = ProjectContextService(project_root=project_root)
+    project_context_service = ProjectContextService(
+        project_root=project_root,
+        max_characters_per_file=settings.runtime.project_context_max_characters,
+    )
     tool_registry = ToolRegistry()
     tool_registry.register(EchoTool())
     tool_registry.register(CurrentTimeTool())
@@ -50,6 +54,7 @@ def create_application_services(
         brain=brain,
         project_context_service=project_context_service,
         tool_execution_service=tool_execution_service,
+        history_limit=settings.runtime.conversation_history_limit,
     )
 
     return ApplicationServices(

@@ -42,6 +42,44 @@ def test_load_settings_reads_valid_toml_file(tmp_path: Path) -> None:
     assert settings.paths.cache == "cache"
     assert settings.ollama.base_url == "http://localhost:11434"
     assert settings.ollama.default_model == "llama3"
+    assert settings.ollama.request_timeout == 30.0
+    assert settings.runtime.conversation_history_limit == 6
+    assert settings.runtime.project_context_max_characters == 6000
+
+
+def test_load_settings_reads_optional_runtime_settings(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+        request_timeout = 12.5
+
+        [runtime]
+        conversation_history_limit = 4
+        project_context_max_characters = 3000
+        """,
+    )
+
+    settings = load_settings(config_path)
+
+    assert settings.ollama.request_timeout == 12.5
+    assert settings.runtime.conversation_history_limit == 4
+    assert settings.runtime.project_context_max_characters == 3000
 
 
 def test_settings_are_immutable(tmp_path: Path) -> None:
@@ -157,6 +195,64 @@ def test_invalid_section_type_raises_configuration_error(tmp_path: Path) -> None
         load_settings(config_path)
 
 
+def test_invalid_optional_runtime_value_raises_configuration_error(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [runtime]
+        conversation_history_limit = 0
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match="positive integer"):
+        load_settings(config_path)
+
+
+def test_invalid_optional_ollama_timeout_raises_configuration_error(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+        request_timeout = -1
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match="positive number"):
+        load_settings(config_path)
+
+
 def _write_valid_config(tmp_path: Path) -> Path:
     return _write_config(
         tmp_path,
@@ -185,4 +281,3 @@ def _write_config(tmp_path: Path, content: str) -> Path:
     config_path = tmp_path / "settings.toml"
     config_path.write_text(content, encoding="utf-8")
     return config_path
-

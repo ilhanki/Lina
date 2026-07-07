@@ -14,3 +14,8 @@ cache = "cache"
 [ollama]
 base_url = "http://localhost:11434"
 default_model = "llama3.2:3b"
+request_timeout = 30.0
+
+[runtime]
+conversation_history_limit = 6
+project_context_max_characters = 6000

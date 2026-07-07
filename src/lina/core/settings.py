@@ -39,6 +39,15 @@ class OllamaSettings:
 
     base_url: str
     default_model: str
+    request_timeout: float
+
+
+@dataclass(frozen=True)
+class RuntimeSettings:
+    """Runtime behavior settings."""
+
+    conversation_history_limit: int
+    project_context_max_characters: int
 
 
 @dataclass(frozen=True)
@@ -49,6 +58,7 @@ class AppSettings:
     logging: LoggingSettings
     paths: PathSettings
     ollama: OllamaSettings
+    runtime: RuntimeSettings
 
 
 def load_settings(config_path: Path) -> AppSettings:
@@ -80,6 +90,26 @@ def load_settings(config_path: Path) -> AppSettings:
         ollama=OllamaSettings(
             base_url=_require_string(raw_settings, "ollama", "base_url"),
             default_model=_require_string(raw_settings, "ollama", "default_model"),
+            request_timeout=_optional_positive_float(
+                raw_settings,
+                "ollama",
+                "request_timeout",
+                30.0,
+            ),
+        ),
+        runtime=RuntimeSettings(
+            conversation_history_limit=_optional_positive_int(
+                raw_settings,
+                "runtime",
+                "conversation_history_limit",
+                6,
+            ),
+            project_context_max_characters=_optional_positive_int(
+                raw_settings,
+                "runtime",
+                "project_context_max_characters",
+                6000,
+            ),
         ),
     )
 
@@ -107,3 +137,55 @@ def _require_section(settings: dict[str, Any], section_name: str) -> dict[str, A
 
     return section
 
+
+def _optional_section(settings: dict[str, Any], section_name: str) -> dict[str, Any]:
+    if section_name not in settings:
+        return {}
+
+    section = settings[section_name]
+    if not isinstance(section, dict):
+        raise ConfigurationError(f"Config section must be a table: {section_name}")
+
+    return section
+
+
+def _optional_positive_int(
+    settings: dict[str, Any],
+    section_name: str,
+    key: str,
+    default: int,
+) -> int:
+    section = _optional_section(settings, section_name)
+    if key not in section:
+        return default
+
+    value = section[key]
+    if not isinstance(value, int):
+        raise ConfigurationError(f"Config key must be an integer: {section_name}.{key}")
+    if value <= 0:
+        raise ConfigurationError(
+            f"Config key must be a positive integer: {section_name}.{key}"
+        )
+
+    return value
+
+
+def _optional_positive_float(
+    settings: dict[str, Any],
+    section_name: str,
+    key: str,
+    default: float,
+) -> float:
+    section = _optional_section(settings, section_name)
+    if key not in section:
+        return default
+
+    value = section[key]
+    if not isinstance(value, int | float):
+        raise ConfigurationError(f"Config key must be a number: {section_name}.{key}")
+    if value <= 0:
+        raise ConfigurationError(
+            f"Config key must be a positive number: {section_name}.{key}"
+        )
+
+    return float(value)

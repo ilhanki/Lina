@@ -23,13 +23,18 @@ class ProjectContextService:
         Path("docs/development-log.md"),
         Path("docs/roadmap.md"),
     )
-    _MAX_CHARACTERS_PER_FILE = 6000
+    _DEFAULT_MAX_CHARACTERS_PER_FILE = 6000
     _EMPTY_CONTEXT_MESSAGE = (
         "İzinli proje dokümanlarından okunabilir bir bağlam bulunamadı."
     )
 
-    def __init__(self, project_root: Path) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        max_characters_per_file: int = _DEFAULT_MAX_CHARACTERS_PER_FILE,
+    ) -> None:
         self._project_root = project_root.resolve(strict=False)
+        self._max_characters_per_file = max_characters_per_file
 
     def collect_context(self) -> ProjectContext:
         sections: list[str] = []
@@ -65,4 +70,4 @@ class ProjectContextService:
         except OSError:
             return ""
 
-        return content[: self._MAX_CHARACTERS_PER_FILE].strip()
+        return content[: self._max_characters_per_file].strip()
