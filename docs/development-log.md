@@ -991,3 +991,39 @@ Lina'nın "Project Awareness" yeteneği read-only Git context desteği ile güç
 ### Sprint 16 Notu
 
 Bir sonraki adım, Tool Execution yeteneğinin yetkilendirme (PermissionDecision) UX süreçlerini güçlendirmektir.
+
+## 2026-07-07 - Sprint 16
+
+### Sprint Durumu
+
+Sprint 16 tamamlandı.
+
+Tool Execution sürecindeki yetkilendirme modeli daha kullanıcı dostu bir hale getirilerek `PermissionDecision` yapısına taşındı.
+
+### Eklenen Yapı
+
+- `PermissionDecision` veri modeli (`is_allowed` ve `reason`) oluşturuldu.
+- `can_execute_automatically` fonksiyonu yerine daha zengin bilgi sunan `check_tool_permission` eklendi.
+- `ToolExecutionService` güncellenerek araç otomatik çalıştırma reddedildiğinde kullanıcının anlayabileceği `reason` mesajını hata olarak dönmesi sağlandı.
+
+### Güvenlik Sınırları
+
+- Daha önce `SAFE` araçlarda olan otomatik çalıştırma yetkisi korundu.
+- Kullanıcı onayı (interactive mode) veya UI entegrasyonu eklenmedi, sadece yetkilendirme altyapısı genişletildi.
+
+### Completed Commits
+
+- `cb4e178 feat: enhance tool permissions UX model`
+
+### Test Results
+
+- Tool Execution ve Permission testleri suite genelinde başarılı: `194 passed`.
+
+### Current Project Status
+
+- Araçlar yetkilendirme sınırlarını daha anlamlı hata mesajlarıyla kontrol ediyor.
+- Lina'nın araç kullanım altyapısı gelecekte GUI üzerinde onay pencereleri çıkarabilmeye uygun bir formata kavuştu.
+
+### Sprint 17 Notu
+
+Bir sonraki adım, Assistant Reliability (Prompt/Guidance) iyileştirmelerini yapmak ve Türkçe cevapların kalitesini garanti altına almaktır.
