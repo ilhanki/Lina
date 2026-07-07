@@ -459,3 +459,66 @@ Bu sprintte Lina'nın Tkinter tabanlı masaüstü arayüzü daha okunabilir ve d
   - GUI v1.1: küçük görsel iyileştirmeler, pencere kapanış davranışı ve kullanıcı deneyimi detayları.
   - Brain Context v1: yalnız runtime conversation context ile sınırlı, Memory olmayan küçük context yönetimi.
 - Büyük özellik eklemeden önce seçilecek yönün roadmap ve Brain Specification ile ilişkisi kısa mimari değerlendirmeyle netleştirilmeli.
+
+## 2026-07-07 - Sprint 6
+
+### Sprint Durumu
+
+Sprint 6 tamamlandı.
+
+Bu sprintte Lina'ya sınırlı ve güvenli Project Awareness v1 eklendi. Lina artık proje durumu veya son sprintlerle ilgili belirli sorularda genel dosya erişimi kazanmadan, yalnız izinli proje dokümanlarından bağlam toplayıp Brain'e iletebilir.
+
+### Eklenen Yapı
+
+- `ProjectContextService` eklendi.
+- İzinli doküman allowlist'i tanımlandı:
+  - `README.md`
+  - `docs/development-log.md`
+  - `docs/roadmap.md`
+- `PROJECT_STATUS` ve `PROJECT_SUMMARY` intent türleri eklendi.
+- `PromptBuilder`, optional project context desteği kazandı.
+- `ConversationService`, project awareness intent geldiğinde project context toplayıp Brain'e iletir hale getirildi.
+- Bootstrap sırasında `ProjectContextService`, repo root ile açık şekilde oluşturuldu.
+
+### Güvenlik Sınırları
+
+- Genel file browser eklenmedi.
+- Kullanıcı dosyaları okunmadı.
+- Git command, GitHub API, tool sistemi veya Memory eklenmedi.
+- Path traversal engellendi.
+- Allowlist dışı dosyalar okunmaz.
+- Eksik dokümanlar uygulamayı çökertmez.
+- Okunan içerik dosya başına karakter limitiyle sınırlandırıldı.
+
+### Completed Commits
+
+- `9e36c54 feat: add project context service`
+- `1068ad4 feat: add project awareness intent`
+- `3ca5e43 feat: include project context in prompts`
+- `9bacab3 feat: route project awareness requests`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `112 passed`.
+- `ProjectContextService` testleri: `5 passed`.
+- Intent model ve analyzer testleri: `29 passed`.
+- PromptBuilder ve Brain project context testleri: `9 passed`.
+- ConversationService ve bootstrap routing testleri: `10 passed`.
+- Sprint sonu tam test paketi: `128 passed`.
+
+### Current Project Status
+
+- Lina, "Lina projesinin durumu ne?", "Bugün Lina projesinde ne yaptık?", "Son sprintlerde ne eklendi?" gibi sorularda izinli proje dokümanlarından bağlam sağlayabilir.
+- Bu cevaplar hâlâ Brain ve model üzerinden üretilir; deterministic summary motoru eklenmedi.
+- Model prompt'u, verilen proje bağlamında olmayan proje geçmişi, commit, URL, dosya veya yapılan iş uydurmaması için açıkça yönlendirilir.
+
+### Known Limits
+
+- Project Awareness yalnız üç izinli dokümandan metin toplar.
+- Git geçmişi, GitHub, commit listesi veya dosya sistemi taraması yoktur.
+- Project context basit metin olarak verilir; embedding, vector database veya RAG framework yoktur.
+- Bağlam uzunluğu karakter limitiyle sade şekilde kontrol edilir.
+
+### Sprint 7 Notu
+
+Sprint 7 için doğal sonraki adım, conversation history ve project context akışını küçük bir `ContextManager` altında sadeleştirmektir. Bu adım Memory değildir ve kalıcı depolama içermemelidir.
