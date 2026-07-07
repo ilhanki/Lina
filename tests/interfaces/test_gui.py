@@ -6,6 +6,7 @@ from lina.interfaces.gui import (
     format_chat_message,
     format_error_message,
     format_welcome_message,
+    normalize_chat_message,
 )
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
@@ -46,6 +47,18 @@ def test_gui_class_can_be_imported() -> None:
 
 def test_format_chat_message_formats_sender_and_message() -> None:
     assert format_chat_message("Lina", "Hello") == "Lina:\nHello\n\n"
+
+
+def test_format_chat_message_removes_duplicate_assistant_label() -> None:
+    assert format_chat_message("Lina", "Lina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
+
+
+def test_format_chat_message_removes_duplicate_user_label() -> None:
+    assert format_chat_message("İlhan", "İlhan: Merhaba") == "İlhan:\nMerhaba\n\n"
+
+
+def test_normalize_chat_message_preserves_normal_content() -> None:
+    assert normalize_chat_message("Lina", "Ben Lina.") == "Ben Lina."
 
 
 def test_format_error_message_returns_user_friendly_text() -> None:

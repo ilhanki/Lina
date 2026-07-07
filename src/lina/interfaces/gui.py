@@ -292,7 +292,17 @@ class LinaGui:
 
 
 def format_chat_message(sender: str, message: str) -> str:
-    return f"{sender}:\n{message.strip()}\n\n"
+    return f"{sender}:\n{normalize_chat_message(sender, message)}\n\n"
+
+
+def normalize_chat_message(sender: str, message: str) -> str:
+    text = message.strip()
+    label = f"{sender}:"
+
+    if text.lower().startswith(label.lower()):
+        return text[len(label) :].strip()
+
+    return text
 
 
 def format_error_message() -> str:
