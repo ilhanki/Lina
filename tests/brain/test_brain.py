@@ -1,4 +1,5 @@
 from lina.brain.brain import Brain
+from lina.brain.conversation_context import ConversationContext
 from lina.brain.model_provider import ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 
@@ -82,3 +83,21 @@ def test_brain_passes_project_context_to_prompt_builder() -> None:
 
     assert "Project context:" in provider.requests[0].prompt
     assert "Sprint 5 completed." in provider.requests[0].prompt
+
+
+def test_brain_responds_with_conversation_context() -> None:
+    provider = FakeModelProvider()
+    brain = Brain(
+        model_provider=provider,
+        prompt_builder=PromptBuilder(system_prompt="You are Lina."),
+    )
+    context = ConversationContext(
+        user_message="What happened?",
+        conversation_history=[],
+        project_context="Project context",
+    )
+
+    brain.respond_with_context(context)
+
+    assert "Project context" in provider.requests[0].prompt
+    assert "User:\nWhat happened?" in provider.requests[0].prompt

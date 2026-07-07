@@ -44,3 +44,10 @@ class PromptBuilder:
 
         sections.append(f"User:\n{message}")
         return "\n\n".join(sections)
+
+    def build_from_context(self, context) -> str:
+        return self.build(
+            user_message=context.user_message,
+            history=context.conversation_history,
+            project_context=context.project_context,
+        )

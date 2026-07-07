@@ -1,3 +1,4 @@
+from lina.brain.conversation_context import ConversationContext
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 
 
@@ -48,3 +49,20 @@ def test_prompt_builder_includes_project_context() -> None:
     assert "Aşağıdaki proje bağlamına dayan" in prompt
     assert "Sprint 5 completed." in prompt
     assert "User:\nWhat happened in the project?" in prompt
+
+
+def test_prompt_builder_builds_from_conversation_context() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+    context = ConversationContext(
+        user_message="What happened?",
+        conversation_history=[
+            ConversationTurn(user_message="Hello", assistant_response="Hi"),
+        ],
+        project_context="Project context",
+    )
+
+    prompt = builder.build_from_context(context)
+
+    assert "Project context" in prompt
+    assert "Conversation history:" in prompt
+    assert "User:\nWhat happened?" in prompt

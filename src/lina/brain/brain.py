@@ -2,6 +2,7 @@
 
 from typing import Sequence
 
+from lina.brain.conversation_context import ConversationContext
 from lina.brain.model_provider import ModelProvider, ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 from lina.brain.prompts import DEFAULT_SYSTEM_PROMPT
@@ -32,4 +33,8 @@ class Brain:
             project_context=project_context,
         )
         request = ModelRequest(prompt=prompt)
+        return self._model_provider.generate(request)
+
+    def respond_with_context(self, context: ConversationContext) -> ModelResponse:
+        request = ModelRequest(prompt=self._prompt_builder.build_from_context(context))
         return self._model_provider.generate(request)
