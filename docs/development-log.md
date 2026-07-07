@@ -112,3 +112,81 @@ Bu sprint sonunda Lina terminal üzerinden çalıştırılabilir hale geldi. `py
 - Sprint 2 kapsamı netleştirilecek.
 - İlk önerilen çalışma, CLI ve provider hata deneyimini daha kullanıcı dostu hale getirmek veya Conversation Flow v1'e uygun ilk minimal intent ayrımını tasarlamak.
 - Prompt Builder, Context Manager, Memory ve Tool sistemi henüz başlatılmayacaksa bu sınırlar açık şekilde korunmalı.
+
+## 2026-07-07 - Sprint 2
+
+### Sprint Durumu
+
+Sprint 2 tamamlandı.
+
+Bu sprintte Lina'nın terminal üzerinden verdiği cevapların daha tutarlı, kimlikli ve Türkçe odaklı olması için ilk conversation pipeline iyileştirmeleri yapıldı. Lina artık kullanıcı mesajını ham şekilde modele göndermek yerine minimal bir system prompt ve session içi geçici konuşma geçmişiyle birlikte provider'a iletir.
+
+### Major Architectural Decisions
+
+- `PromptBuilder`, prompt metninin dağınık şekilde farklı modüllere yayılmasını engellemek için Brain katmanı altında konumlandırıldı.
+- Default system prompt ayrı bir modülde tutuldu; böylece Lina'nın kimliği, konuşma dili ve yetenek sınırları merkezi hale getirildi.
+- `Brain`, provider-specific logic içermeden küçük bir orchestrator olarak kaldı.
+- Conversation history gerçek Memory olarak tasarlanmadı; yalnızca runtime session içinde yaşayan geçici bağlam olarak `ConversationService` tarafından yönetildi.
+- CLI iyileştirmeleri interface katmanında tutuldu; business logic veya intent analyzer eklenmedi.
+
+### Completed Commits
+
+- `35a09a8 feat: add prompt builder`
+- `50e4e94 feat: add default system prompt`
+- `c27c30f feat: integrate prompt builder with brain`
+- `1c88cd7 feat: add conversation history`
+- `c2b42ce fix: improve cli user experience`
+
+### Added Features
+
+- Minimal `PromptBuilder` eklendi.
+- Lina'nın kimliğini ve konuşma sınırlarını tanımlayan default system prompt eklendi.
+- Brain, user message'ı provider'a göndermeden önce Prompt Builder üzerinden prompt üretir hale getirildi.
+- Session içi geçici conversation history eklendi.
+- CLI için `help` ve `?` komutları eklendi.
+- Provider hatası mesajı kullanıcıya daha doğal Türkçe bir metinle gösterilir hale getirildi.
+
+### Bugs Discovered
+
+- Brain testlerinde eski beklenti, kullanıcı mesajının provider'a ham şekilde gönderilmesini varsayıyordu.
+- Sprint 2 mimarisi gereği bu davranış değiştiği için test yeni prompt pipeline sözleşmesine göre güncellendi.
+
+### Bugs Fixed
+
+- Eski Brain test beklentisi yeni Prompt Builder entegrasyonuyla uyumlu hale getirildi.
+- CLI hata metni İngilizce teknik ifade yerine kullanıcı dostu Türkçe mesaja dönüştürüldü.
+
+### Runtime Issues Encountered
+
+- Bu sprintte yeni bir runtime hata tespit edilmedi.
+- Sprint sonunda tam test paketi çalıştırıldı.
+
+### Test Results
+
+- `python -m pytest tests/brain/test_prompt_builder.py` sonucu: `2 passed`.
+- `python -m pytest tests/brain/test_prompts.py` sonucu: `4 passed`.
+- `python -m pytest tests/brain/test_brain.py` sonucu: `3 passed`.
+- `python -m pytest tests/brain/test_prompt_builder.py tests/brain/test_brain.py tests/services/test_conversation_service.py` sonucu: `11 passed`.
+- `python -m pytest tests/interfaces/test_cli.py` sonucu: `7 passed`.
+- Sprint sonu tam test paketi: `64 passed`.
+
+### Current Project Status
+
+- Sprint 1 ile başlayan terminal tabanlı Lina artık daha tutarlı bir asistan kimliğine sahip.
+- Lina kendisini Lina olarak tanımlayan bir system prompt ile konuşma üretir.
+- Kullanıcının adının İlhan olduğu prompt seviyesinde modele aktarılır.
+- Conversation history sadece oturum boyunca tutulur ve kalıcı Memory kapsamına girmez.
+- Memory, Tool sistemi, Vision, Speech, Automation, Browser, Event Bus, Planner, Model Router, Multi-agent ve GUI hâlâ kapsam dışıdır.
+
+### Lessons Learned
+
+- Prompt davranışı merkezi tutulmadığında asistan kimliği ve dil standardı kolayca dağılabilir.
+- Geçici conversation history, gerçek Memory tasarlanmadan önce faydalı ama sınırları net tutulması gereken bir ara adımdır.
+- Brain'in küçük kalması entegrasyonları kolaylaştırıyor; yeni davranış Brain'e provider bilgisi eklemeden kazandırılabildi.
+- Kullanıcıya gösterilen hata mesajları teknik olarak doğru olduğu kadar sakin ve anlaşılır da olmalı.
+
+### Next Session Goals
+
+- Sprint 3'e başlamadan önce Conversation Flow v1 ve Brain Specification v1 tekrar gözden geçirilecek.
+- Bir sonraki mantıklı adım, minimal intent analysis veya context yönetiminin gerçekten gerekli olup olmadığını mimari olarak değerlendirmek.
+- Memory, Tool sistemi veya Planner başlatılmadan önce kapsam ve sınırlar yeniden netleştirilecek.
