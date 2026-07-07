@@ -579,3 +579,62 @@ Bu sprintte runtime conversation context akışı küçük ve test edilebilir bi
 ### Sprint 8 Notu
 
 Bir sonraki mantıklı adım güvenli tool altyapısının temelini atmaktır. Sprint 8 kapsamında gerçek shell, dosya yazma/silme veya otomasyon olmadan yalnız tool contract, permission model ve safe builtin tool eklenmelidir.
+
+## 2026-07-07 - Sprint 8
+
+### Sprint Durumu
+
+Sprint 8 tamamlandı.
+
+Bu sprintte Lina için Safe Tool Foundation v1 eklendi. Amaç gerçek bilgisayar kontrolü vermek değil, gelecekteki tool sisteminin güvenli kontrat, permission ve registry temelini atmaktı.
+
+### Eklenen Yapı
+
+- `PermissionLevel` modeli eklendi.
+- Yalnız `SAFE` permission seviyesinin otomatik çalıştırılabileceği kuralı eklendi.
+- `Tool` protocol yapısı eklendi.
+- `ToolResult` modeli eklendi.
+- `ToolRegistry` eklendi.
+- Duplicate tool kaydı reddedilir hale getirildi.
+- Unknown tool için temiz `ToolRegistryError` eklendi.
+- Güvenli builtin tool olarak `EchoTool` eklendi.
+
+### Güvenlik Sınırları
+
+- Shell command execution yoktur.
+- Dosya okuma/yazma/silme yoktur.
+- Browser, camera, screen veya OS automation yoktur.
+- LLM otomatik tool seçemez.
+- GUI veya CLI üzerinden tool execution bağlanmadı.
+- Bu sprintte yalnız tool altyapısı ve testleri eklendi.
+
+### Completed Commits
+
+- `157d5a2 feat: add tool models and permissions`
+- `ca105a6 feat: add tool registry`
+- `f14f026 feat: add safe builtin tool`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `135 passed`.
+- Permission ve tool model testleri: `3 passed`.
+- Tool registry testleri: `4 passed`.
+- Builtin, permission ve registry testleri: `8 passed`.
+- Sprint sonu tam test paketi: `144 passed`.
+
+### Current Project Status
+
+- Lina artık güvenli tool altyapısının temel modellerine sahip.
+- Tool sistemi henüz conversation flow'a bağlanmadı.
+- Sadece SAFE tool'ların otomatik çalıştırılabileceği temel kural tanımlandı.
+
+### Known Limits
+
+- Tool execution service henüz yok.
+- Intent routing tool sistemine bağlı değil.
+- Permission confirmation UI yok.
+- Dangerous, read-only veya confirmation gerektiren tool'lar otomatik çalıştırılmaz.
+
+### Sprint 9 Notu
+
+Sprint 9 için doğal sonraki adım, SAFE tool'ların kontrollü şekilde ConversationService akışına bağlanmasıdır. Bu bağlama yalnız deterministic intent üzerinden olmalı; LLM'in kendi başına tool çalıştırmasına izin verilmemelidir.
