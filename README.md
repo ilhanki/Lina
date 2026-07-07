@@ -116,6 +116,22 @@ Yerel ortam değişkenleri için:
 Copy-Item .env.example .env
 ```
 
+## Kullanım
+
+CLI arayüzünü çalıştırmak için:
+
+```powershell
+python main.py
+```
+
+Masaüstü GUI arayüzünü çalıştırmak için:
+
+```powershell
+python gui.py
+```
+
+Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun` ve `saat kaç` gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+
 ## Proje Yapısı
 
 ```text
