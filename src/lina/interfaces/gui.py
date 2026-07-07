@@ -5,7 +5,7 @@ import threading
 import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 
-from lina.brain.model_provider import ModelResponse
+from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.services.conversation_service import ConversationService
 
 
@@ -73,12 +73,22 @@ class LinaGui:
         thread.start()
 
     def _generate_response(self, message: str) -> None:
-        response = self._conversation_service.handle_message(message)
+        try:
+            response = self._conversation_service.handle_message(message)
+        except ModelProviderError:
+            self._root.after(0, self._show_error)
+            return
+
         self._root.after(0, self._show_response, response)
 
     def _show_response(self, response: ModelResponse) -> None:
         self._remove_last_message()
         self._append_message("Lina", response.text)
+        self._set_waiting_state(False)
+
+    def _show_error(self) -> None:
+        self._remove_last_message()
+        self._append_message("Lina", format_error_message())
         self._set_waiting_state(False)
 
     def _handle_enter(self, event: tk.Event) -> str:
@@ -111,3 +121,7 @@ class LinaGui:
 
 def format_chat_message(sender: str, message: str) -> str:
     return f"{sender}: {message.strip()}\n\n"
+
+
+def format_error_message() -> str:
+    return "Lina şu anda modele ulaşamadı. Ollama çalışıyor mu kontrol edebilir misin?"
