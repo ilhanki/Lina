@@ -190,3 +190,94 @@ Bu sprintte Lina'nın terminal üzerinden verdiği cevapların daha tutarlı, ki
 - Sprint 3'e başlamadan önce Conversation Flow v1 ve Brain Specification v1 tekrar gözden geçirilecek.
 - Bir sonraki mantıklı adım, minimal intent analysis veya context yönetiminin gerçekten gerekli olup olmadığını mimari olarak değerlendirmek.
 - Memory, Tool sistemi veya Planner başlatılmadan önce kapsam ve sınırlar yeniden netleştirilecek.
+
+## 2026-07-07 - Sprint 3
+
+### Sprint Durumu
+
+Sprint 3 tamamlandı.
+
+Bu sprintte Lina'ya minimal, rule-based intent analysis katmanı eklendi. Amaç, bazı basit kullanıcı isteklerini LLM'e göndermeden deterministik şekilde cevaplamak ve normal sohbet akışını bozmadan korumaktı.
+
+### Sprint 3 Hedefi
+
+- Kullanıcının basit amacını ilk seviyede anlamak.
+- `help`, kimlik, yetenekler ve saat gibi temel istekleri LLM'e gitmeden cevaplamak.
+- Normal sohbet mesajlarını `Brain -> PromptBuilder -> ModelProvider -> Ollama` akışında bırakmak.
+- Memory, Tool sistemi, Git entegrasyonu, dosya okuma, Planner veya Event Bus eklemeden küçük bir altyapı kurmak.
+
+### Eklenen Intent Analysis Yapısı
+
+- `IntentType` ve `Intent` modelleri eklendi.
+- `IntentAnalyzer`, basit string matching ile desteklenen intent'leri tespit eder hale getirildi.
+- Desteklenen intent'ler:
+  - `HELP`
+  - `IDENTITY`
+  - `CAPABILITIES`
+  - `CURRENT_TIME`
+  - `CHAT`
+  - `UNKNOWN`
+- Analyzer büyük/küçük harf, baş/son boşluk ve basit noktalama durumlarını yönetir.
+- Agresif eşleşmeden kaçınıldı; normal sohbet mesajlarının yanlışlıkla deterministic intent sayılmaması önceliklendirildi.
+
+### LLM'e Gitmeden Cevaplanan Intent'ler
+
+- `HELP`: Kullanıcıya kısa yardım metni döndürür.
+- `IDENTITY`: Lina'nın kim olduğunu kısa ve Türkçe şekilde açıklar.
+- `CAPABILITIES`: Mevcut gerçek yetenekleri dürüstçe listeler ve olmayan yetenekleri varmış gibi göstermez.
+- `CURRENT_TIME`: Python standart kütüphanesiyle mevcut yerel saati döndürür.
+
+### Major Architectural Decisions
+
+- Deterministic cevaplar için yeni bir response modeli oluşturulmadı; mevcut `ModelResponse` kullanıldı.
+- `ConversationService`, intent routing'in sahibi oldu.
+- Deterministic intent geldiğinde `Brain` ve `OllamaProvider` çağrılmaz.
+- `CHAT` intent geldiğinde mevcut Brain akışı korunur.
+- Deterministic cevaplar session history'ye eklenir; böylece sonraki normal sohbetlerde bağlam olarak kullanılabilir.
+- `exit` ve `quit` davranışı CLI katmanında bırakıldı.
+
+### Completed Commits
+
+- `211029c feat: add intent models`
+- `b249aca feat: add intent analyzer`
+- `31a29d9 feat: add deterministic response handler`
+- `dcc5821 feat: route deterministic intents in conversation service`
+
+### Test Results
+
+- Başlangıç tam test paketi: `68 passed`.
+- `python -m pytest tests/brain/test_intent.py` sonucu: `2 passed`.
+- `python -m pytest tests/brain/test_intent_analyzer.py` sonucu: `20 passed`.
+- `python -m pytest tests/services/test_deterministic_response_service.py` sonucu: `7 passed`.
+- Routing ve CLI ilgili testleri: `41 passed`.
+- Sprint sonu tam test paketi: `100 passed`.
+
+### Bugs Discovered
+
+- `?` mesajı başlangıçta normalize edilirken boş string'e dönüşüyordu ve `HELP` yerine `CHAT` olarak algılanıyordu.
+- ConversationService history testi ilk tasarımda deterministic cevabın sonraki chat çağrısına taşındığını yeterince kanıtlamıyordu.
+
+### Bugs Fixed
+
+- `?` özel komut olarak korunacak şekilde normalize işlemi düzeltildi.
+- ConversationService testi, deterministic cevabın sonraki `CHAT` çağrısında Brain'e history olarak iletildiğini doğrulayacak şekilde güçlendirildi.
+
+### Current Project Status
+
+- Lina artık bazı basit intent'leri LLM'e göndermeden cevaplayabiliyor.
+- Normal sohbet akışı korunuyor.
+- Memory, Git entegrasyonu, dosya okuma, Tool sistemi, Vision, Speech, Automation, Browser, Planner, Event Bus, GUI ve Multi-agent hâlâ kapsam dışında.
+- Test kapsamı 100 teste ulaştı ve tüm testler başarıyla geçti.
+
+### Known Limits
+
+- Intent analysis yalnızca basit ve deterministik string matching kullanır.
+- Karmaşık doğal dil, bağlamdan intent çıkarma veya entity extraction yoktur.
+- `CURRENT_TIME` yalnızca yerel sistem saatini söyler; tarih, takvim veya zaman dilimi yorumu yapmaz.
+- Deterministic cevaplar özelleştirilebilir prompt/persona sistemiyle bağlı değildir; Sprint 3 için bilinçli olarak küçük tutuldu.
+
+### Sprint 4 Önerisi
+
+- Sprint 4 öncesinde Context Manager v1 gerçekten gerekli mi, yoksa önce deterministic intent kapsamı mı genişletilmeli mimari olarak değerlendirilmeli.
+- Eğer Context Manager seçilirse kapsam yalnızca conversation context ve runtime context ile sınırlı tutulmalı.
+- Memory veya Tool sistemi başlatılmadan önce izin, güvenlik ve veri sınırları ayrıca netleştirilmeli.
