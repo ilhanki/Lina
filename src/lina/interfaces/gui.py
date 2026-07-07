@@ -3,6 +3,7 @@
 from collections.abc import Callable
 import threading
 import tkinter as tk
+from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
@@ -23,29 +24,37 @@ class LinaGui:
         self._thread_factory = thread_factory
         self._is_waiting_for_response = False
         self._root.title("Lina")
+        self._root.geometry("780x620")
+        self._root.minsize(520, 420)
+
+        self._main_frame = ttk.Frame(self._root, padding=16)
+        self._main_frame.grid(row=0, column=0, sticky="nsew")
 
         self._chat_log = ScrolledText(
-            self._root,
+            self._main_frame,
             wrap=tk.WORD,
             state=tk.DISABLED,
             width=72,
             height=24,
         )
-        self._chat_log.grid(row=0, column=0, columnspan=2, padx=12, pady=12, sticky="nsew")
+        self._chat_log.grid(row=0, column=0, columnspan=2, sticky="nsew")
 
-        self._message_input = tk.Text(self._root, height=3, width=56)
-        self._message_input.grid(row=1, column=0, padx=(12, 8), pady=(0, 12), sticky="ew")
+        self._message_input = tk.Text(self._main_frame, height=3, width=56)
+        self._message_input.grid(row=1, column=0, padx=(0, 10), pady=(12, 0), sticky="ew")
         self._message_input.bind("<Return>", self._handle_enter)
 
-        self._send_button = tk.Button(
-            self._root,
+        self._send_button = ttk.Button(
+            self._main_frame,
             text="Gönder",
             command=self.send_message,
         )
-        self._send_button.grid(row=1, column=1, padx=(0, 12), pady=(0, 12), sticky="ew")
+        self._send_button.grid(row=1, column=1, pady=(12, 0), sticky="ew")
 
         self._root.columnconfigure(0, weight=1)
         self._root.rowconfigure(0, weight=1)
+        self._main_frame.columnconfigure(0, weight=1)
+        self._main_frame.columnconfigure(1, weight=0)
+        self._main_frame.rowconfigure(0, weight=1)
 
         self._append_message("Lina", "Merhaba İlhan. Hazırım.")
 
