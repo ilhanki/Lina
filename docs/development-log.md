@@ -378,3 +378,84 @@ CLI hata davranışı değiştirilmedi.
 - Sprint 5 öncesinde masaüstü UI'ın mı iyileştirileceği, yoksa Context Manager v1 / conversation context tarafına mı geçileceği mimari olarak değerlendirilmeli.
 - Eğer UI devam edecekse önerilen küçük adım: GUI mesaj görünümünü ve kullanıcı deneyimini iyileştirmek, ama yeni framework veya tema sistemi eklememek.
 - Eğer Brain tarafı devam edecekse önerilen adım: Context Manager v1 kapsamını yalnız runtime conversation context ile sınırlamak.
+
+## 2026-07-07 - Sprint 5
+
+### Sprint Durumu
+
+Sprint 5 tamamlandı.
+
+Bu sprintte Lina'nın Tkinter tabanlı masaüstü arayüzü daha okunabilir ve düzenli hale getirildi. Ek olarak, Türkçe cevap kalitesini güçlendirmek için default system prompt daha açık yönergelerle güncellendi.
+
+### Sprint 5 Hedefi
+
+- GUI'nin ham Tkinter demo hissini azaltmak.
+- Pencere boyutu, minimum boyut, spacing ve resize davranışını iyileştirmek.
+- Sohbet mesajlarını daha okunabilir hale getirmek.
+- Input focus ve cevap sonrası kullanım akışını güçlendirmek.
+- Türkçe cevaplarda karışık dil kırpıntılarını azaltmak.
+- README'ye CLI ve GUI kullanım notu eklemek.
+
+### GUI UX İyileştirmeleri
+
+- Pencere başlangıç boyutu `780x620`, minimum boyutu `520x420` olarak ayarlandı.
+- Ana içerik `ttk.Frame` içinde padding ile düzenlendi.
+- Chat alanı, input alanı ve gönder butonu daha dengeli grid layout ile hizalandı.
+- Chat alanı için daha okunabilir `Segoe UI` fontu kullanıldı.
+- Mesaj formatı gönderen ve içerik ayrı satırlarda olacak şekilde sadeleştirildi.
+- `Lina: Yazıyor...` geçici mesajı satır sayısına bağlı silme yerine metin aralığı takip edilerek kaldırılır hale getirildi.
+- Pencere açıldığında input focus alır.
+- Cevap veya hata sonrası input tekrar enable edilir ve focus input'a döner.
+
+### Türkçe Cevap Kalitesi
+
+- Default system prompt, Türkçe cümle içinde kırpılmış veya uydurma yabancı kelimeleri engelleyecek şekilde güçlendirildi.
+- Teknik terimlerin gerektiğinde İngilizce kalabileceği açıkça belirtildi.
+- Lina'nın bilmediği konularda "bunu kesin bilmiyorum" diyebilmesi için dürüst belirsizlik yönergesi eklendi.
+- İlhan'a samimi ama abartısız hitap etmesi vurgulandı.
+
+### README Güncellemesi
+
+- `README.md` içine `python main.py` ile CLI çalıştırma bilgisi eklendi.
+- `python gui.py` ile masaüstü GUI çalıştırma bilgisi eklendi.
+- Normal sohbet cevapları için Ollama'nın çalışıyor olması ve yapılandırılmış modelin yüklü olması gerektiği not edildi.
+
+### Completed Commits
+
+- `e1d204f improve gui layout and spacing`
+- `f56e73c improve chat message rendering`
+- `e1f7814 improve gui input behavior`
+- `793bd92 fix: improve Turkish response guidance`
+- `f815dbb docs: update README usage instructions`
+
+### Test Results
+
+- Başlangıç tam test paketi: `109 passed`.
+- GUI layout sonrası interface testleri: `7 passed`.
+- Chat rendering sonrası interface testleri: `7 passed`.
+- Input davranışı sonrası interface testleri: `7 passed`.
+- Prompt güncellemesi sonrası ilgili testler: `15 passed`.
+- Sprint sonu tam test paketi: `112 passed`.
+
+### Current Project Status
+
+- Lina CLI üzerinden `python main.py` ile çalışmaya devam eder.
+- Lina GUI üzerinden `python gui.py` ile çalıştırılabilir.
+- GUI daha okunabilir, daha dengeli ve daha profesyonel bir ilk masaüstü deneyimi sunar.
+- Türkçe cevap rehberliği daha nettir.
+- Yeni dependency eklenmedi.
+
+### Known Limits
+
+- GUI hâlâ minimal Tkinter arayüzüdür; özel tema sistemi, ikon, system tray veya paketleme yoktur.
+- Shift+Enter desteği yoktur.
+- Aynı anda tek mesaj gönderimi desteklenir.
+- Türkçe kalitesi prompt ile iyileştirildi; language detector veya post-processor eklenmedi.
+- Memory, Tool sistemi, dosya okuma, GitHub entegrasyonu, Vision, Speech ve Automation hâlâ kapsam dışıdır.
+
+### Sprint 6 Önerisi
+
+- Sprint 6 öncesinde iki yönden biri seçilmeli:
+  - GUI v1.1: küçük görsel iyileştirmeler, pencere kapanış davranışı ve kullanıcı deneyimi detayları.
+  - Brain Context v1: yalnız runtime conversation context ile sınırlı, Memory olmayan küçük context yönetimi.
+- Büyük özellik eklemeden önce seçilecek yönün roadmap ve Brain Specification ile ilişkisi kısa mimari değerlendirmeyle netleştirilmeli.
