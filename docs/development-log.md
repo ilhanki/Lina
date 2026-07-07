@@ -787,6 +787,41 @@ Manuel GUI smoke testte görülen kritik kullanıcı deneyimi ve cevap kalitesi 
 
 Bu hotfix sonrası `v0.3.0-alpha` tag için teknik olarak daha hazır durumdadır. Tag otomatik oluşturulmadı; kullanıcı onayı gerektirir.
 
+## 2026-07-07 - v0.3.0-alpha Release Blocker Fix
+
+### Amaç
+
+Manuel GUI smoke testte tekrar görülen release blocker seviyesindeki sorunlar incelendi ve düzeltildi. Yeni büyük özellik eklenmedi.
+
+### Düzeltilenler
+
+- GUI gerçek render path üzerinde tekrarlı `Lina:` / `İlhan:` etiketleri normalize edilir hale getirildi.
+- `Lina:Lina:` gibi tekrarlı asistan etiketi regression test ile güvenceye alındı.
+- Tek bir mesaj gönderiminde final cevabın iki kez append edilmemesi testlendi.
+- Model diagnostics, Ollama unreachable, model not available ve timeout durumlarını daha net ayırır hale getirildi.
+- GUI provider hata mesajları hata türüne göre daha açıklayıcı hale getirildi.
+- Ollama provider timeout hatasını ayrı domain mesajına dönüştürür hale getirildi.
+
+### Config Kontrolü
+
+- `config/default.toml` içindeki model adı `llama3.2:3b` olarak korunuyor.
+- `settings -> bootstrap -> OllamaProvider` zincirinde `base_url`, `default_model` ve `request_timeout` aktarımı doğrulandı.
+- CLI ve GUI aynı configuration/bootstrap hattını kullanıyor.
+
+### Test Sonucu
+
+- Hotfix öncesi başlangıç test paketi: `206 passed`.
+- Release blocker fix sonrası final test paketi: `218 passed`.
+
+### Completed Commits
+
+- `c8fdc6d fix: resolve gui label duplication in render path`
+- `aab77bf fix: improve model connection diagnostics`
+
+### v0.3.0-alpha Durumu
+
+Bu düzeltmelerden sonra `v0.3.0-alpha` tag için bloklayıcı görünen GUI render ve diagnostics sorunları giderildi. Tag otomatik oluşturulmadı.
+
 ## 2026-07-07 - Sprint 11
 
 ### Sprint Durumu
