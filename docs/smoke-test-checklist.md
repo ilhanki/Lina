@@ -43,24 +43,28 @@ python gui.py
 
 Kontroller:
 
-- Lina penceresi açılır.
+- Lina penceresi açılır. Özel header ("Lina", "Personal AI Assistant") ve sağ alt köşede status bar ("Bağlanıyor...", "Bağlı") görünür.
 - Input alanı focus alır.
+- Üstte "Clear Chat" ve "Copy Last Response" butonları mevcuttur.
 - `help` kısa yardım cevabı verir.
 - `Saat kaç?` yerel saati döndürür.
 - `Sen kimsin?` Lina kimlik cevabı verir.
 - `Neler yapabiliyorsun?` mevcut gerçek yetenekleri dürüstçe söyler.
 - `selam Lina bugün nasılsın?` normal chat olarak Ollama'ya gider.
-- Cevap beklenirken input ve gönder butonu disable olur.
+- Cevap beklenirken input alanı disable olur, status bar "Düşünüyor..." veya benzeri durumu yansıtır.
 - Cevap gelince input tekrar aktif olur.
 - Yeni mesajlarda sohbet alanı aşağı kayar.
+- "Copy Last Response" butonuna basıldığında son asistan cevabı panoya kopyalanır.
+- "Clear Chat" butonuna basıldığında sohbet geçmişi temizlenir.
 
 ## Ollama Kapalıyken Davranış
 
-Ollama kapalıyken GUI üzerinden normal chat mesajı gönder.
+Ollama kapalıyken GUI başlat.
 
 Beklenen sonuç:
 
-- Uygulama çökmez.
+- Sağ alt status bar "Ulaşılamıyor" (Kırmızı) durumuna geçer.
+- Ollama kapalıyken mesaj atıldığında uygulama çökmez.
 - Traceback gösterilmez.
 - Kullanıcıya kısa Türkçe hata mesajı gösterilir.
 
@@ -70,13 +74,14 @@ CLI veya GUI içinde şu mesajları dene:
 
 ```text
 Lina projesinin durumu ne?
+Şu an hangi branch üzerindeyim ve working tree nasıl?
 Bugün Lina projesinde ne yaptık?
 Son sprintlerde ne eklendi?
 ```
 
 Beklenen sonuç:
 
-- Lina izinli proje dokümanlarına dayalı cevap verir.
+- Lina, izinli proje dokümanlarına ve aktif okunabilir Git verisine (branch, status, log) dayalı cevap verir.
 - Sahte GitHub URL, sahte commit veya sahte dosya uydurmaz.
 - Bilmediği noktaları dürüstçe sınırlar.
 

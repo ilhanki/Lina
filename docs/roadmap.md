@@ -12,10 +12,10 @@ Tamamlanan ana başlıklar:
 - Ollama provider entegrasyonu.
 - Conversation flow.
 - CLI arayüzü.
-- Tkinter Desktop UI v1.
+- Tkinter Desktop UI v2 (Durum çubuğu ve profesyonel görünüm).
 - Runtime conversation context.
-- Sınırlı project awareness.
-- Safe tool foundation.
+- Project awareness v2 (İzinli dokümanlar ve Git desteği).
+- Safe tool foundation v2 (PermissionDecision UX yapısı).
 - SAFE tool routing ile current time cevabı.
 
 Henüz kapsam dışı olan büyük başlıklar:

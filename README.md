@@ -73,7 +73,7 @@ Planlanan uzun vadeli özellikler:
 
 Ayrıntılı yol haritası [docs/roadmap.md](docs/roadmap.md) dosyasında tutulur.
 
-Mevcut release candidate, core altyapı, Brain v1, Ollama entegrasyonu, conversation flow, GUI v1, project awareness v1 ve safe tool foundation v1 aşamalarını içerir.
+Mevcut release candidate, core altyapı, Brain v1, Ollama entegrasyonu, conversation flow, GUI v2, project awareness v2 (Git destekli) ve safe tool foundation v2 (PermissionDecision UX) aşamalarını içerir.
 
 ## Kullanılan Teknolojiler
 
@@ -243,12 +243,12 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 - Genel dosya okuma/yazma capability'si yoktur.
 - Shell command execution yoktur.
 - Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
-- Project awareness yalnız izinli dokümanlarla sınırlıdır.
-- Tool sistemi yalnız SAFE tool temelini içerir.
-- GUI minimal Tkinter arayüzüdür; paketleme veya installer yoktur.
+- Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
+- Tool sistemi SAFE araçları çalıştırabilir, interaktif onay mekanizması (PermissionDecision UX) altyapısı vardır ancak UI entegrasyonu yoktur.
+- GUI Tkinter tabanlı asistan arayüzüdür (v2); paketleme veya installer yoktur.
 
 ## Geliştirme Durumu
 
 Mevcut durum: **v0.2.0-alpha release candidate**
 
-Lina şu anda CLI ve GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing ve güvenli tool temeline sahip erken aşama bir masaüstü asistanıdır.
+Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı ve güvenli tool temeline sahip erken aşama bir masaüstü asistanıdır.
