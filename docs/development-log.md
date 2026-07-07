@@ -943,4 +943,51 @@ Bu sprintte Lina'nın Tkinter GUI'si daha profesyonel ve kullanışlı hale geti
 
 ### Sprint 15 Notu
 
+### Sprint 15 Notu
+
 Bir sonraki adım read-only Git context desteği ile project awareness'ı güçlendirmektir.
+
+## 2026-07-07 - Sprint 15
+
+### Sprint Durumu
+
+Sprint 15 tamamlandı.
+
+Lina'nın "Project Awareness" yeteneği read-only Git context desteği ile güçlendirildi. `GitContextService` geliştirilerek aktif branch, son commitler ve working tree durumu proje sorularına dahil edildi.
+
+### Eklenen Yapı
+
+- `GitContextService` eklendi. Sadece "branch", "log" ve "status" komutlarını kullanarak güvenli bilgi toplar.
+- `ContextManager`, proje sorularında (`PROJECT_STATUS`, `PROJECT_SUMMARY`) hem dokümanlardan hem de git üzerinden bağlam toplayacak şekilde genişletildi.
+- `Bootstrap` üzerinde `GitContextService` uygulamaya dâhil edilerek ContextManager'a enjekte edildi.
+- İzinli olmayan komut veya girdilerin sisteme dâhil olmasını engellemek için `GitContextService` içinde sabit argüman listeleri kullanıldı. (shell=True kullanılmadı).
+
+### Güvenlik Sınırları
+
+- Yalnızca "read-only" git komutları kullanılır.
+- Kullanıcı girdisi komutlara doğrudan eklenmez.
+- `shell=True` kesinlikle kapalıdır.
+- Güvenli zaman aşımları (`timeout`) tanımlandı. Hata durumları uygulamayı çökertmeyecek şekilde (`False`, None, vs.) yönetildi.
+
+### Completed Commits
+
+- `5e33120 feat: add read-only git context service`
+
+### Test Results
+
+- Git context service testleri dahil tüm suite çalıştırıldı: `194 passed`.
+
+### Current Project Status
+
+- Lina artık "Projenin durumu ne?" gibi sorulara sadece dokümanları değil, bulunduğu deponun "main" dalında olup olmadığını ve okunabilir git log'larını/status durumunu da referans alarak daha iyi cevaplar verebilir.
+- CLI ve GUI davranışları başarılı şekilde aynı bağlam yönetimini kullanır.
+
+### Known Limits
+
+- Sadece o an bulunulan deponun kök dizinine dair bilgi verir, çoklu depo desteği yoktur.
+- Son 10 commit sabittir.
+- Git yüklü değilse hata vermeden sessizce git verisini atlar.
+
+### Sprint 16 Notu
+
+Bir sonraki adım, Tool Execution yeteneğinin yetkilendirme (PermissionDecision) UX süreçlerini güçlendirmektir.
