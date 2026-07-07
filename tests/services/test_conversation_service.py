@@ -265,3 +265,35 @@ def test_conversation_service_falls_back_when_current_time_tool_fails() -> None:
 
     assert "Şu an saat" in response.text
     assert brain.messages == []
+
+
+def test_conversation_service_uses_provided_context_manager() -> None:
+    from lina.brain.context_manager import ContextManager
+    from lina.brain.intent import IntentType
+
+    class FakeContextManager(ContextManager):
+        def build_context(self, user_message, intent, conversation_history):
+            from lina.brain.conversation_context import ConversationContext
+            
+            return ConversationContext(
+                user_message=user_message,
+                conversation_history=conversation_history,
+                project_context="Injected ContextManager output"
+            )
+
+    brain = FakeBrain()
+    manager = FakeContextManager()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.PROJECT_STATUS),
+        deterministic_response_service=FakeDeterministicResponseService(
+            can_handle=False
+        ),
+        context_manager=manager,
+    )
+
+    response = service.handle_message("Lina durumu?")
+
+    assert response == ModelResponse(text="Response: Lina durumu?")
+    assert len(brain.project_contexts) == 1
+    assert brain.project_contexts[0] == "Injected ContextManager output"

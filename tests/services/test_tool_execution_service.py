@@ -48,3 +48,21 @@ def test_tool_execution_service_wraps_unknown_tool_errors() -> None:
 
     with pytest.raises(ToolExecutionError, match="Tool is not available"):
         service.execute("missing")
+
+
+def test_tool_execution_service_does_not_wrap_tool_exceptions() -> None:
+    @dataclass(frozen=True)
+    class FailingTool:
+        name: str = "failing"
+        permission_level: PermissionLevel = PermissionLevel.SAFE
+        description: str = "Failing tool"
+
+        def execute(self, input_text: str = "") -> ToolResult:
+            raise ValueError("Tool execution failed internally")
+
+    registry = ToolRegistry()
+    registry.register(FailingTool())
+    service = ToolExecutionService(tool_registry=registry)
+
+    with pytest.raises(ValueError, match="Tool execution failed internally"):
+        service.execute("failing")
