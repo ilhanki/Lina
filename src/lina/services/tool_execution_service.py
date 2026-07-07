@@ -1,6 +1,6 @@
 """Safe tool execution service for Lina."""
 
-from lina.tools.permissions import can_execute_automatically
+from lina.tools.permissions import check_tool_permission
 from lina.tools.registry import ToolRegistry, ToolRegistryError
 from lina.tools.tool import ToolResult
 
@@ -21,9 +21,10 @@ class ToolExecutionService:
         except ToolRegistryError as error:
             raise ToolExecutionError(f"Tool is not available: {tool_name}") from error
 
-        if not can_execute_automatically(tool.permission_level):
+        decision = check_tool_permission(tool.permission_level)
+        if not decision.is_allowed:
             raise ToolExecutionError(
-                f"Tool cannot be executed automatically: {tool_name}"
+                f"Tool cannot be executed automatically: {tool_name}. Reason: {decision.reason}"
             )
 
         return tool.execute(input_text=input_text)

@@ -1,4 +1,4 @@
-from lina.tools.permissions import PermissionLevel, can_execute_automatically
+from lina.tools.permissions import PermissionLevel, check_tool_permission
 
 
 def test_permission_level_values_are_stable() -> None:
@@ -9,7 +9,16 @@ def test_permission_level_values_are_stable() -> None:
 
 
 def test_only_safe_tools_can_execute_automatically() -> None:
-    assert can_execute_automatically(PermissionLevel.SAFE)
-    assert not can_execute_automatically(PermissionLevel.READ_ONLY)
-    assert not can_execute_automatically(PermissionLevel.REQUIRES_CONFIRMATION)
-    assert not can_execute_automatically(PermissionLevel.DANGEROUS)
+    decision = check_tool_permission(PermissionLevel.SAFE)
+    assert decision.is_allowed
+    assert "Güvenli araç" in decision.reason
+
+    for level in (
+        PermissionLevel.READ_ONLY,
+        PermissionLevel.REQUIRES_CONFIRMATION,
+        PermissionLevel.DANGEROUS,
+    ):
+        decision = check_tool_permission(level)
+        assert not decision.is_allowed
+        assert "Onay gerekiyor" in decision.reason
+        assert level.value in decision.reason
