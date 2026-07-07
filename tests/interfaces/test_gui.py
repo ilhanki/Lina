@@ -1,5 +1,12 @@
+"""Tests for Lina GUI interface."""
+
 from lina.brain.model_provider import ModelProviderError, ModelResponse
-from lina.interfaces.gui import LinaGui, format_chat_message, format_error_message
+from lina.interfaces.gui import (
+    LinaGui,
+    format_chat_message,
+    format_error_message,
+    format_welcome_message,
+)
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
     ModelDiagnosticsService,
@@ -30,6 +37,9 @@ class ImmediateThread:
         self._target(*self._args)
 
 
+# --- Format function tests ---
+
+
 def test_gui_class_can_be_imported() -> None:
     assert LinaGui is not None
 
@@ -39,9 +49,18 @@ def test_format_chat_message_formats_sender_and_message() -> None:
 
 
 def test_format_error_message_returns_user_friendly_text() -> None:
-    assert format_error_message() == (
-        "Lina şu anda modele ulaşamadı. Ollama çalışıyor mu kontrol edebilir misin?"
-    )
+    message = format_error_message()
+    assert "Modele ulaşılamadı" in message
+    assert "Ollama" in message
+
+
+def test_format_welcome_message_contains_greeting() -> None:
+    message = format_welcome_message()
+    assert "Merhaba" in message
+    assert "Lina" in message
+
+
+# --- Message sending tests ---
 
 
 def test_fake_gui_does_not_send_empty_message() -> None:
@@ -96,41 +115,82 @@ def test_gui_shows_provider_errors_as_chat_messages() -> None:
     assert gui.input_focus_count == 1
 
 
-def _create_test_gui(service: FakeConversationService, input_text: str):
-    gui = LinaGui.__new__(LinaGui)
-    gui._conversation_service = service
-    gui._thread_factory = ImmediateThread
-    gui._root = _FakeRoot()
-    gui._is_waiting_for_response = False
-    gui._diagnostics_service = None
-    gui.recorded_messages = []
-    gui.waiting_states = []
-    gui.input_was_cleared = False
-    gui.input_focus_count = 0
-    gui._get_input_text = lambda: input_text.strip()
-    gui._clear_input = lambda: setattr(gui, "input_was_cleared", True)
-    gui._append_message = lambda sender, message: gui.recorded_messages.append(
-        (sender, message)
+def test_gui_stores_last_response_text() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+
+    gui.send_message()
+
+    assert gui._last_response_text == "Response: Hello"
+
+
+def test_gui_stores_error_as_last_response_text() -> None:
+    service = FakeConversationService(should_fail=True)
+    gui = _create_test_gui(service, input_text="Hello")
+
+    gui.send_message()
+
+    assert gui._last_response_text == format_error_message()
+
+
+# --- Chat controls tests ---
+
+
+def test_gui_clear_chat_resets_messages_and_ranges() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+    gui._chat_log = _FakeChatLog()
+    gui.send_message()
+
+    gui.clear_chat()
+
+    assert gui._message_ranges == []
+    assert gui._last_response_text == ""
+
+
+def test_gui_copy_last_response_does_nothing_when_empty() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._last_response_text = ""
+    gui._clipboard = None
+    gui._root.clipboard_clear = lambda: None
+    gui._root.clipboard_append = lambda text: setattr(gui, "_clipboard", text)
+
+    gui.copy_last_response()
+
+    assert gui._clipboard is None
+
+
+def test_gui_copy_last_response_copies_to_clipboard() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._last_response_text = "Test cevap"
+    gui._clipboard = None
+    gui._root.clipboard_clear = lambda: None
+    gui._root.clipboard_append = lambda text: setattr(gui, "_clipboard", text)
+
+    gui.copy_last_response()
+
+    assert gui._clipboard == "Test cevap"
+
+
+# --- Status update tests ---
+
+
+def test_gui_updates_status_on_send() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+    gui._status_updates = []
+    original_update = gui._update_status_text
+    gui._update_status_text = lambda text: (
+        gui._status_updates.append(text),
+        original_update(text) if hasattr(gui, '_status_text') else None,
     )
-    gui._remove_last_message = lambda: None
-    gui._set_waiting_state = lambda is_waiting: (
-        setattr(gui, "_is_waiting_for_response", is_waiting),
-        gui.waiting_states.append(is_waiting),
-    )
-    gui._focus_input = lambda: setattr(
-        gui,
-        "input_focus_count",
-        gui.input_focus_count + 1,
-    )
-    return gui
+
+    gui.send_message()
+
+    assert "Cevap bekleniyor..." in gui._status_updates
 
 
-class _FakeRoot:
-    def after(self, delay_ms: int, callback, *args) -> None:
-        callback(*args)
-
-
-# --- GUI diagnostics tests ---
+# --- Diagnostics tests ---
 
 
 class _FakeDiagnosticsService:
@@ -196,3 +256,62 @@ def test_gui_shows_unreachable_status() -> None:
     gui._run_initial_diagnostics()
 
     assert "Ollama" in gui._status_updates[-1]
+
+
+# --- Test helpers ---
+
+
+def _create_test_gui(service: FakeConversationService, input_text: str):
+    gui = LinaGui.__new__(LinaGui)
+    gui._conversation_service = service
+    gui._thread_factory = ImmediateThread
+    gui._root = _FakeRoot()
+    gui._is_waiting_for_response = False
+    gui._diagnostics_service = None
+    gui._last_response_text = ""
+    gui._message_ranges = []
+    gui.recorded_messages = []
+    gui.waiting_states = []
+    gui.input_was_cleared = False
+    gui.input_focus_count = 0
+    gui._get_input_text = lambda: input_text.strip()
+    gui._clear_input = lambda: setattr(gui, "input_was_cleared", True)
+    gui._append_message = lambda sender, message: gui.recorded_messages.append(
+        (sender, message)
+    )
+    gui._remove_last_message = lambda: None
+    gui._set_waiting_state = lambda is_waiting: (
+        setattr(gui, "_is_waiting_for_response", is_waiting),
+        gui.waiting_states.append(is_waiting),
+    )
+    gui._focus_input = lambda: setattr(
+        gui,
+        "input_focus_count",
+        gui.input_focus_count + 1,
+    )
+    gui._update_status_text = lambda text: None
+    return gui
+
+
+class _FakeRoot:
+    def after(self, delay_ms: int, callback, *args) -> None:
+        callback(*args)
+
+
+class _FakeChatLog:
+    """Fake ScrolledText for testing clear_chat without Tkinter."""
+
+    def configure(self, **kwargs) -> None:
+        pass
+
+    def delete(self, start: str, end: str) -> None:
+        pass
+
+    def insert(self, index: str, text: str) -> None:
+        pass
+
+    def index(self, idx: str) -> str:
+        return "1.0"
+
+    def see(self, idx: str) -> None:
+        pass
