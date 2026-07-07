@@ -135,6 +135,21 @@ python gui.py
 
 Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun` ve `saat kaç` gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
 
+## Runtime Configuration
+
+Temel çalışma ayarları `config/default.toml` içinde tutulur.
+
+Önemli ayarlar:
+
+- `logging.level`: Uygulama log seviyesi.
+- `ollama.base_url`: Ollama HTTP adresi.
+- `ollama.default_model`: Kullanılacak yerel model adı.
+- `ollama.request_timeout`: Ollama istek timeout değeri.
+- `runtime.conversation_history_limit`: Session içi konuşma geçmişi limiti.
+- `runtime.project_context_max_characters`: İzinli proje dokümanı başına okunacak maksimum karakter sayısı.
+
+Eksik optional runtime ayarları güvenli default değerleriyle çalışır.
+
 ## Testler
 
 Tam test paketini çalıştırmak için:
