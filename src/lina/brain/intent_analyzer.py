@@ -12,6 +12,7 @@ class IntentAnalyzer:
         "yardım",
         "komutlar",
         "ne yazabilirim",
+        "nasıl kullanılır",
     }
     _IDENTITY_MESSAGES = {
         "sen kimsin",

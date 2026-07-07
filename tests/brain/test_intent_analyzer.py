@@ -12,6 +12,7 @@ from lina.brain.intent_analyzer import IntentAnalyzer
         "yardım",
         "komutlar",
         "ne yazabilirim",
+        "nasıl kullanılır",
     ],
 )
 def test_intent_analyzer_detects_help(message: str) -> None:
@@ -126,5 +127,23 @@ def test_intent_analyzer_does_not_match_aggressively() -> None:
     analyzer = IntentAnalyzer()
 
     intent = analyzer.analyze("Saat kaçta çalışmaya başlayalım?")
+
+    assert intent.type is IntentType.CHAT
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "bir gün yönetecek misin",
+        "ileride bilgisayarımı yönetebilecek misin",
+        "gelecekte ne yapacaksın",
+        "seni geliştirecek miyiz",
+        "ne zaman daha fazla şey yapacaksın",
+    ],
+)
+def test_intent_analyzer_keeps_future_capability_questions_as_chat(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
 
     assert intent.type is IntentType.CHAT
