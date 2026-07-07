@@ -64,4 +64,3 @@ def test_configure_logging_accepts_lowercase_level() -> None:
 def test_configure_logging_rejects_invalid_level() -> None:
     with pytest.raises(ValueError, match="Invalid log level"):
         configure_logging("LOUD")
-

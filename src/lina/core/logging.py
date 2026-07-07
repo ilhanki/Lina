@@ -5,6 +5,7 @@ import logging
 
 LOGGER_NAME = "lina"
 _LOG_FORMAT = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+_LINA_HANDLER_MARKER = "_lina_managed_handler"
 
 
 def configure_logging(level: str = "INFO") -> logging.Logger:
@@ -15,17 +16,27 @@ def configure_logging(level: str = "INFO") -> logging.Logger:
     logger.setLevel(log_level)
     logger.propagate = False
 
-    if not logger.handlers:
+    managed_handlers = [
+        handler
+        for handler in logger.handlers
+        if getattr(handler, _LINA_HANDLER_MARKER, False)
+    ]
+
+    if not managed_handlers:
+        logger.handlers.clear()
         logger.addHandler(_create_stream_handler(log_level))
-    else:
-        for handler in logger.handlers:
-            handler.setLevel(log_level)
+        return logger
+
+    logger.handlers.clear()
+    logger.handlers.extend(managed_handlers[:1])
+    logger.handlers[0].setLevel(log_level)
 
     return logger
 
 
 def _create_stream_handler(level: int) -> logging.StreamHandler:
     handler = logging.StreamHandler()
+    setattr(handler, _LINA_HANDLER_MARKER, True)
     handler.setLevel(level)
     handler.setFormatter(logging.Formatter(_LOG_FORMAT))
     return handler
@@ -39,4 +50,3 @@ def _parse_log_level(level: str) -> int:
         raise ValueError(f"Invalid log level: {level}")
 
     return log_level
-
