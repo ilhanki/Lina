@@ -1,12 +1,13 @@
 from pathlib import Path
 
 from gui import run_gui_application
+from lina.core.bootstrap import ApplicationServices
 from lina.services.conversation_service import ConversationService
 
 
 def test_run_gui_application_launches_gui_with_conversation_service(tmp_path: Path) -> None:
     config_path = _write_config(tmp_path)
-    launched_services: list[ConversationService] = []
+    launched_services: list[ApplicationServices] = []
 
     run_gui_application(
         config_path=config_path,
@@ -15,7 +16,7 @@ def test_run_gui_application_launches_gui_with_conversation_service(tmp_path: Pa
     )
 
     assert len(launched_services) == 1
-    assert isinstance(launched_services[0], ConversationService)
+    assert isinstance(launched_services[0].conversation_service, ConversationService)
 
 
 def _write_config(tmp_path: Path) -> Path:

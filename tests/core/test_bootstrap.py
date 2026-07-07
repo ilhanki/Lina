@@ -3,6 +3,7 @@ from pathlib import Path
 from lina.core.application import ApplicationState
 from lina.core.bootstrap import create_application_services
 from lina.services.conversation_service import ConversationService
+from lina.services.model_diagnostics_service import ModelDiagnosticsService
 
 
 def test_create_application_services_creates_application_and_conversation_service(
@@ -17,6 +18,7 @@ def test_create_application_services_creates_application_and_conversation_servic
 
     assert services.application.state is ApplicationState.INITIALIZED
     assert isinstance(services.conversation_service, ConversationService)
+    assert isinstance(services.diagnostics_service, ModelDiagnosticsService)
 
 
 def _write_config(tmp_path: Path) -> Path:

@@ -11,6 +11,7 @@ from lina.core.paths import AppPaths
 from lina.core.settings import load_settings
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.services.conversation_service import ConversationService
+from lina.services.model_diagnostics_service import ModelDiagnosticsService
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
@@ -23,6 +24,7 @@ class ApplicationServices:
 
     application: LinaApplication
     conversation_service: ConversationService
+    diagnostics_service: ModelDiagnosticsService
 
 
 def create_application_services(
@@ -56,8 +58,14 @@ def create_application_services(
         tool_execution_service=tool_execution_service,
         history_limit=settings.runtime.conversation_history_limit,
     )
+    diagnostics_service = ModelDiagnosticsService(
+        base_url=settings.ollama.base_url,
+        model=settings.ollama.default_model,
+        timeout=min(settings.ollama.request_timeout, 5.0),
+    )
 
     return ApplicationServices(
         application=application,
         conversation_service=conversation_service,
+        diagnostics_service=diagnostics_service,
     )

@@ -1,14 +1,25 @@
 """Tkinter desktop interface for Lina."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 import threading
 import tkinter as tk
 from tkinter import ttk
 from tkinter import font
 from tkinter.scrolledtext import ScrolledText
+from typing import TYPE_CHECKING
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.services.conversation_service import ConversationService
+from lina.services.model_diagnostics_service import (
+    ModelDiagnosticsService,
+    ModelStatus,
+    format_status_message,
+)
+
+if TYPE_CHECKING:
+    from lina.services.model_diagnostics_service import DiagnosticsResult
 
 
 class LinaGui:
@@ -19,10 +30,12 @@ class LinaGui:
         conversation_service: ConversationService,
         root: tk.Tk | None = None,
         thread_factory: Callable[..., threading.Thread] = threading.Thread,
+        diagnostics_service: ModelDiagnosticsService | None = None,
     ) -> None:
         self._conversation_service = conversation_service
         self._root = root or tk.Tk()
         self._thread_factory = thread_factory
+        self._diagnostics_service = diagnostics_service
         self._is_waiting_for_response = False
         self._root.title("Lina")
         self._root.geometry("780x620")
@@ -45,10 +58,10 @@ class LinaGui:
             padx=10,
             pady=10,
         )
-        self._chat_log.grid(row=0, column=0, columnspan=2, sticky="nsew")
+        self._chat_log.grid(row=1, column=0, columnspan=2, sticky="nsew")
 
         self._message_input = tk.Text(self._main_frame, height=3, width=56)
-        self._message_input.grid(row=1, column=0, padx=(0, 10), pady=(12, 0), sticky="ew")
+        self._message_input.grid(row=2, column=0, padx=(0, 10), pady=(12, 0), sticky="ew")
         self._message_input.bind("<Return>", self._handle_enter)
 
         self._send_button = ttk.Button(
@@ -56,16 +69,25 @@ class LinaGui:
             text="Gönder",
             command=self.send_message,
         )
-        self._send_button.grid(row=1, column=1, pady=(12, 0), sticky="ew")
+        self._send_button.grid(row=2, column=1, pady=(12, 0), sticky="ew")
+
+        self._status_text = tk.StringVar(value="")
+        self._status_label = ttk.Label(
+            self._main_frame,
+            textvariable=self._status_text,
+            anchor="w",
+        )
+        self._status_label.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
 
         self._root.columnconfigure(0, weight=1)
         self._root.rowconfigure(0, weight=1)
         self._main_frame.columnconfigure(0, weight=1)
         self._main_frame.columnconfigure(1, weight=0)
-        self._main_frame.rowconfigure(0, weight=1)
+        self._main_frame.rowconfigure(1, weight=1)
 
         self._append_message("Lina", "Merhaba İlhan. Hazırım.")
         self._message_input.focus_set()
+        self._run_initial_diagnostics()
 
     def run(self) -> None:
         self._root.mainloop()
@@ -148,6 +170,29 @@ class LinaGui:
 
     def _focus_input(self) -> None:
         self._message_input.focus_set()
+
+    def _run_initial_diagnostics(self) -> None:
+        if self._diagnostics_service is None:
+            return
+
+        self._update_status_text("Modele bağlanılıyor...")
+        thread = self._thread_factory(
+            target=self._check_diagnostics,
+            args=(),
+            daemon=True,
+        )
+        thread.start()
+
+    def _check_diagnostics(self) -> None:
+        if self._diagnostics_service is None:
+            return
+
+        result = self._diagnostics_service.check_status()
+        message = format_status_message(result)
+        self._root.after(0, self._update_status_text, message)
+
+    def _update_status_text(self, text: str) -> None:
+        self._status_text.set(text)
 
 
 def format_chat_message(sender: str, message: str) -> str:

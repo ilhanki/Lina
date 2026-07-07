@@ -1,5 +1,11 @@
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.gui import LinaGui, format_chat_message, format_error_message
+from lina.services.model_diagnostics_service import (
+    DiagnosticsResult,
+    ModelDiagnosticsService,
+    ModelStatus,
+    format_status_message as format_diagnostics_message,
+)
 
 
 class FakeConversationService:
@@ -96,6 +102,7 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
     gui._thread_factory = ImmediateThread
     gui._root = _FakeRoot()
     gui._is_waiting_for_response = False
+    gui._diagnostics_service = None
     gui.recorded_messages = []
     gui.waiting_states = []
     gui.input_was_cleared = False
@@ -121,3 +128,71 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
 class _FakeRoot:
     def after(self, delay_ms: int, callback, *args) -> None:
         callback(*args)
+
+
+# --- GUI diagnostics tests ---
+
+
+class _FakeDiagnosticsService:
+    def __init__(self, result: DiagnosticsResult) -> None:
+        self._result = result
+        self.check_count = 0
+
+    def check_status(self) -> DiagnosticsResult:
+        self.check_count += 1
+        return self._result
+
+    @property
+    def configured_model(self) -> str:
+        return self._result.model_name
+
+
+def test_gui_runs_diagnostics_on_init_when_service_provided() -> None:
+    service = FakeConversationService()
+    diagnostics = _FakeDiagnosticsService(
+        DiagnosticsResult(
+            status=ModelStatus.READY,
+            model_name="llama3",
+            message="Model hazır.",
+        )
+    )
+    gui = _create_test_gui(service, input_text="")
+    gui._diagnostics_service = diagnostics
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._run_initial_diagnostics()
+
+    assert diagnostics.check_count == 1
+    assert "llama3" in gui._status_updates[-1]
+
+
+def test_gui_does_not_run_diagnostics_when_no_service() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="")
+    gui._diagnostics_service = None
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._run_initial_diagnostics()
+
+    assert gui._status_updates == []
+
+
+def test_gui_shows_unreachable_status() -> None:
+    service = FakeConversationService()
+    diagnostics = _FakeDiagnosticsService(
+        DiagnosticsResult(
+            status=ModelStatus.OLLAMA_UNREACHABLE,
+            model_name="llama3",
+            message="",
+        )
+    )
+    gui = _create_test_gui(service, input_text="")
+    gui._diagnostics_service = diagnostics
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._run_initial_diagnostics()
+
+    assert "Ollama" in gui._status_updates[-1]

@@ -12,13 +12,14 @@ if str(SRC_DIR) not in sys.path:
 
 from lina.core.application import ApplicationState
 from lina.core.bootstrap import create_application_services
+from lina.core.bootstrap import ApplicationServices
 from lina.services.conversation_service import ConversationService
 
 
 def run_gui_application(
     config_path: Path = PROJECT_ROOT / "config" / "default.toml",
     project_root: Path = PROJECT_ROOT,
-    gui_launcher: Callable[[ConversationService], None] | None = None,
+    gui_launcher: Callable[[ApplicationServices], None] | None = None,
 ) -> None:
     services = create_application_services(
         config_path=config_path,
@@ -28,16 +29,19 @@ def run_gui_application(
 
     services.application.start()
     try:
-        launcher(services.conversation_service)
+        launcher(services)
     finally:
         if services.application.state is ApplicationState.RUNNING:
             services.application.stop()
 
 
-def _launch_tkinter_gui(conversation_service: ConversationService) -> None:
+def _launch_tkinter_gui(services: ApplicationServices) -> None:
     from lina.interfaces.gui import LinaGui
 
-    gui = LinaGui(conversation_service=conversation_service)
+    gui = LinaGui(
+        conversation_service=services.conversation_service,
+        diagnostics_service=services.diagnostics_service,
+    )
     gui.run()
 
 
