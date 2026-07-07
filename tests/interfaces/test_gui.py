@@ -29,7 +29,7 @@ def test_gui_class_can_be_imported() -> None:
 
 
 def test_format_chat_message_formats_sender_and_message() -> None:
-    assert format_chat_message("Lina", "Hello") == "Lina: Hello\n\n"
+    assert format_chat_message("Lina", "Hello") == "Lina:\nHello\n\n"
 
 
 def test_format_error_message_returns_user_friendly_text() -> None:
@@ -58,7 +58,7 @@ def test_fake_gui_send_message_calls_conversation_service() -> None:
     assert gui.input_was_cleared
     assert gui.recorded_messages == [
         ("İlhan", "Hello"),
-        ("Lina", "yazıyor..."),
+        ("Lina", "Yazıyor..."),
         ("Lina", "Response: Hello"),
     ]
     assert gui.waiting_states == [True, False]
@@ -82,7 +82,7 @@ def test_gui_shows_provider_errors_as_chat_messages() -> None:
 
     assert gui.recorded_messages == [
         ("İlhan", "Hello"),
-        ("Lina", "yazıyor..."),
+        ("Lina", "Yazıyor..."),
         ("Lina", format_error_message()),
     ]
     assert gui.waiting_states == [True, False]

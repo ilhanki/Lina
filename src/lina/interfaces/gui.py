@@ -4,6 +4,7 @@ from collections.abc import Callable
 import threading
 import tkinter as tk
 from tkinter import ttk
+from tkinter import font
 from tkinter.scrolledtext import ScrolledText
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
@@ -26,6 +27,8 @@ class LinaGui:
         self._root.title("Lina")
         self._root.geometry("780x620")
         self._root.minsize(520, 420)
+        self._message_ranges: list[tuple[str, str]] = []
+        self._chat_font = font.Font(family="Segoe UI", size=10)
 
         self._main_frame = ttk.Frame(self._root, padding=16)
         self._main_frame.grid(row=0, column=0, sticky="nsew")
@@ -36,6 +39,11 @@ class LinaGui:
             state=tk.DISABLED,
             width=72,
             height=24,
+            font=self._chat_font,
+            borderwidth=1,
+            relief=tk.SOLID,
+            padx=10,
+            pady=10,
         )
         self._chat_log.grid(row=0, column=0, columnspan=2, sticky="nsew")
 
@@ -71,7 +79,7 @@ class LinaGui:
 
         self._clear_input()
         self._append_message("İlhan", message)
-        self._append_message("Lina", "yazıyor...")
+        self._append_message("Lina", "Yazıyor...")
         self._set_waiting_state(True)
 
         thread = self._thread_factory(
@@ -112,14 +120,22 @@ class LinaGui:
 
     def _append_message(self, sender: str, message: str) -> None:
         self._chat_log.configure(state=tk.NORMAL)
+        start_index = self._chat_log.index(tk.END)
         self._chat_log.insert(tk.END, format_chat_message(sender, message))
+        end_index = self._chat_log.index(tk.END)
+        self._message_ranges.append((start_index, end_index))
         self._chat_log.configure(state=tk.DISABLED)
         self._chat_log.see(tk.END)
 
     def _remove_last_message(self) -> None:
+        if not self._message_ranges:
+            return
+
+        start_index, end_index = self._message_ranges.pop()
         self._chat_log.configure(state=tk.NORMAL)
-        self._chat_log.delete("end-3l", tk.END)
+        self._chat_log.delete(start_index, end_index)
         self._chat_log.configure(state=tk.DISABLED)
+        self._chat_log.see(tk.END)
 
     def _set_waiting_state(self, is_waiting: bool) -> None:
         self._is_waiting_for_response = is_waiting
@@ -129,7 +145,7 @@ class LinaGui:
 
 
 def format_chat_message(sender: str, message: str) -> str:
-    return f"{sender}: {message.strip()}\n\n"
+    return f"{sender}:\n{message.strip()}\n\n"
 
 
 def format_error_message() -> str:
