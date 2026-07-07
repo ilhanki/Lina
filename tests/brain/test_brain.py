@@ -66,3 +66,19 @@ def test_brain_passes_conversation_history_to_prompt_builder() -> None:
     assert "Conversation history:" in provider.requests[0].prompt
     assert "User: My name is Ilhan." in provider.requests[0].prompt
     assert "Assistant: Nice to meet you." in provider.requests[0].prompt
+
+
+def test_brain_passes_project_context_to_prompt_builder() -> None:
+    provider = FakeModelProvider()
+    brain = Brain(
+        model_provider=provider,
+        prompt_builder=PromptBuilder(system_prompt="You are Lina."),
+    )
+
+    brain.respond(
+        "What happened in the project?",
+        project_context="Sprint 5 completed.",
+    )
+
+    assert "Project context:" in provider.requests[0].prompt
+    assert "Sprint 5 completed." in provider.requests[0].prompt

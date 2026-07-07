@@ -22,9 +22,18 @@ class PromptBuilder:
         self,
         user_message: str,
         history: Sequence[ConversationTurn] | None = None,
+        project_context: str | None = None,
     ) -> str:
         message = user_message.strip()
         sections = [f"System:\n{self._system_prompt}"]
+
+        if project_context and project_context.strip():
+            sections.append(
+                "Project context:\n"
+                "Aşağıdaki proje bağlamına dayan. Bu bağlamda olmayan proje geçmişi, "
+                "commit, URL, dosya veya yapılan iş uydurma.\n"
+                f"{project_context.strip()}"
+            )
 
         if history:
             history_lines: list[str] = []

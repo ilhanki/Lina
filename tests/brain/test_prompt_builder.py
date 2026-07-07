@@ -34,3 +34,17 @@ def test_prompt_builder_includes_conversation_history() -> None:
         "Assistant: Nice to meet you.\n\n"
         "User:\nWhat is my name?"
     )
+
+
+def test_prompt_builder_includes_project_context() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+
+    prompt = builder.build(
+        user_message="What happened in the project?",
+        project_context="Sprint 5 completed.",
+    )
+
+    assert "Project context:" in prompt
+    assert "Aşağıdaki proje bağlamına dayan" in prompt
+    assert "Sprint 5 completed." in prompt
+    assert "User:\nWhat happened in the project?" in prompt

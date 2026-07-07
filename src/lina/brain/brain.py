@@ -24,10 +24,12 @@ class Brain:
         self,
         user_message: str,
         conversation_history: Sequence[ConversationTurn] | None = None,
+        project_context: str | None = None,
     ) -> ModelResponse:
         prompt = self._prompt_builder.build(
             user_message=user_message,
             history=conversation_history,
+            project_context=project_context,
         )
         request = ModelRequest(prompt=prompt)
         return self._model_provider.generate(request)
