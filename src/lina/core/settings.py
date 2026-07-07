@@ -1,6 +1,6 @@
 """Application settings loading for Lina."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 import tomllib
@@ -39,15 +39,15 @@ class OllamaSettings:
 
     base_url: str
     default_model: str
-    request_timeout: float
+    request_timeout: float = 30.0
 
 
 @dataclass(frozen=True)
 class RuntimeSettings:
     """Runtime behavior settings."""
 
-    conversation_history_limit: int
-    project_context_max_characters: int
+    conversation_history_limit: int = 6
+    project_context_max_characters: int = 6000
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class AppSettings:
     logging: LoggingSettings
     paths: PathSettings
     ollama: OllamaSettings
-    runtime: RuntimeSettings
+    runtime: RuntimeSettings = field(default_factory=RuntimeSettings)
 
 
 def load_settings(config_path: Path) -> AppSettings:
