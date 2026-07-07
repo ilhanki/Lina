@@ -73,6 +73,39 @@ def test_intent_analyzer_detects_current_time(message: str) -> None:
     assert intent.type is IntentType.CURRENT_TIME
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "lina projesinin durumu ne",
+        "lina roadmap ne durumda",
+        "projede ne var",
+    ],
+)
+def test_intent_analyzer_detects_project_status(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.PROJECT_STATUS
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "bugün lina projesinde ne yaptık",
+        "son sprintlerde ne yaptık",
+        "son sprintlerde ne eklendi",
+        "son gelişmeler ne",
+    ],
+)
+def test_intent_analyzer_detects_project_summary(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.PROJECT_SUMMARY
+
+
 def test_intent_analyzer_falls_back_to_chat() -> None:
     analyzer = IntentAnalyzer()
 

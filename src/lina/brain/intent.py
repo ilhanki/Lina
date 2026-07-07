@@ -12,6 +12,8 @@ class IntentType(Enum):
     IDENTITY = "identity"
     CAPABILITIES = "capabilities"
     CURRENT_TIME = "current_time"
+    PROJECT_STATUS = "project_status"
+    PROJECT_SUMMARY = "project_summary"
     UNKNOWN = "unknown"
 
 
