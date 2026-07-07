@@ -754,6 +754,39 @@ Bu sprintte Lina `v0.2.0-alpha` release candidate için dokümantasyon ve kalite
 
 Tag otomatik oluşturulmadı. Tag oluşturma ayrıca kullanıcı onayı gerektirir.
 
+## 2026-07-07 - v0.3.0-alpha Release Candidate Hotfix
+
+### Amaç
+
+Manuel GUI smoke testte görülen kritik kullanıcı deneyimi ve cevap kalitesi sorunları düzeltildi. Yeni büyük özellik eklenmedi.
+
+### Düzeltilenler
+
+- GUI chat render katmanında asistan etiketi çiftlenmesi düzeltildi.
+- Assistant response `Lina:` ile başlıyorsa ekranda ikinci kez `Lina:` gösterilmemesi sağlandı.
+- Kullanıcı etiketi için de aynı çiftleme koruması eklendi.
+- Deterministic capabilities cevabı mevcut gerçek yetenekleri yansıtacak şekilde güncellendi.
+- Capabilities cevabı, olmayan yetenekleri ve Git işlemi sınırlarını daha açık belirtir hale getirildi.
+- HELP intent matching regression testleri güçlendirildi.
+- Gelecek yeteneklerle ilgili normal sohbet sorularının `CHAT` olarak kalması testlendi.
+- Türkçe reliability guidance daha kısa, net ve sert hale getirildi.
+
+### Test Sonucu
+
+- Hotfix öncesi başlangıç test paketi: `196 passed`.
+- Hotfix sonrası final test paketi: `206 passed`.
+
+### Completed Commits
+
+- `8a7a53c fix: correct gui assistant label rendering`
+- `3132d50 fix: update deterministic capability response`
+- `4722b04 fix: tighten help intent matching`
+- `47d79fc fix: strengthen Turkish reliability guidance`
+
+### v0.3.0-alpha Durumu
+
+Bu hotfix sonrası `v0.3.0-alpha` tag için teknik olarak daha hazır durumdadır. Tag otomatik oluşturulmadı; kullanıcı onayı gerektirir.
+
 ## 2026-07-07 - Sprint 11
 
 ### Sprint Durumu
