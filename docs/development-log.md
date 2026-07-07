@@ -1286,3 +1286,57 @@ v0.3.0-alpha öncesi manuel GUI smoke testte görülen son kritik polish sorunla
 
 - Manuel GUI smoke test yeniden çalıştırılmalı.
 - Eğer manuel test temiz geçerse v0.3.0-alpha tag/release adımı ayrıca onayla başlatılmalı.
+
+## 2026-07-08 - Gün Sonu Kapanışı - v0.3.0-alpha Tag
+
+### Günün Kapanış Durumu
+
+Bugün Sprint 19, Sprint 20 ve v0.3.0-alpha release hotfix/polish çalışmaları tamamlanmış kabul edildi. Bu kapanış, yeni özellik geliştirme veya refactor amacı taşımadı; mevcut durum test edildi, dokümante edildi ve alpha sürüm etiketi için hazırlanacak hale getirildi.
+
+### Test Durumu
+
+- Başlangıç kontrolünde `python -m pytest` çalıştırıldı.
+- Son durumda `224 passed` sonucu alındı.
+- Testler geçtiği için release tag adımına geçilmesi güvenli kabul edildi.
+
+### Push Durumu
+
+- `main` branch başlangıçta `origin/main` ile senkron durumdaydı.
+- Gün sonu dokümantasyon commit’i sonrası `main` branch tekrar pushlanacaktır.
+
+### v0.3.0-alpha Tag Durumu
+
+- `v0.3.0-alpha` tag’i, testler geçtikten ve dokümantasyon güncellendikten sonra oluşturulacak alpha sürüm etiketi olarak planlandı.
+- Bu sürüm bilinçli olarak alpha statüsündedir; bilinen sorunlar saklanmadan aşağıda listelenmiştir.
+
+### Mevcut Yetenekler
+
+- CLI üzerinden Lina ile konuşma.
+- Tkinter tabanlı masaüstü GUI.
+- Ollama local model entegrasyonu.
+- `PromptBuilder` ile temel prompt üretimi.
+- `IntentAnalyzer` ile minimal intent analizi.
+- Deterministic responses ile bazı güvenli ve sabit yanıtlar.
+- Session history.
+- Runtime `ContextManager`.
+- Project Awareness.
+- Read-only Git context.
+- Safe Tool Foundation.
+- `ToolExecutionService`.
+- Model diagnostics.
+
+### Bilinen Sorunlar
+
+- GUI’de bazı gerçek kullanıcı akışlarında `Lina:Lina:` çift etiket problemi hâlâ görülebiliyor olabilir.
+- Türkçe LLM cevap kalitesi yerel modele bağlıdır ve hâlâ iyileştirme istemektedir.
+- “Bir gün bilgisayarımı yönetebilecek misin?” gibi gelecek capability / bilgisayar kontrolü soruları için deterministic intent henüz eklenmemiştir; LLM bazen fazla iddialı cevap verebilir.
+- Ollama timeout durumları kullanıcıya daha düzgün gösterilmektedir, ancak model performansı ve yavaşlık hâlâ kullanılan yerel modele bağlıdır.
+- Kalıcı memory henüz yok.
+- Speech, vision, camera, browser automation, Windows automation ve gerçek bilgisayar kontrolü henüz yok.
+
+### Yarın İçin Önerilen İlk İşler
+
+1. GUI actual render path label duplication sorununu kesin olarak düzeltmek.
+2. Computer control / future capability soruları için deterministic response eklemek.
+3. Türkçe response reliability polish çalışmasını sürdürmek.
+4. Sonrasında `v0.3.1-alpha` veya `v0.3.0-alpha` hotfix değerlendirmesi yapmak.
