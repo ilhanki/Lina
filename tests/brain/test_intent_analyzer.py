@@ -1,0 +1,97 @@
+import pytest
+
+from lina.brain.intent import IntentType
+from lina.brain.intent_analyzer import IntentAnalyzer
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "help",
+        "?",
+        "yardım",
+        "komutlar",
+        "ne yazabilirim",
+    ],
+)
+def test_intent_analyzer_detects_help(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.HELP
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "sen kimsin",
+        "kimsin",
+        "kendini tanıt",
+        "lina kim",
+    ],
+)
+def test_intent_analyzer_detects_identity(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.IDENTITY
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "neler yapabiliyorsun",
+        "ne yapabiliyorsun",
+        "yeteneklerin neler",
+        "hangi özelliklerin var",
+    ],
+)
+def test_intent_analyzer_detects_capabilities(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.CAPABILITIES
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "saat kaç",
+        "şu an saat kaç",
+        "zamanı söyler misin",
+        "bugünün saati ne",
+    ],
+)
+def test_intent_analyzer_detects_current_time(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.CURRENT_TIME
+
+
+def test_intent_analyzer_falls_back_to_chat() -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze("Bugün nasılsın Lina?")
+
+    assert intent.type is IntentType.CHAT
+
+
+def test_intent_analyzer_handles_case_whitespace_and_punctuation() -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze("  SeN KiMsiN?  ")
+
+    assert intent.type is IntentType.IDENTITY
+
+
+def test_intent_analyzer_does_not_match_aggressively() -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze("Saat kaçta çalışmaya başlayalım?")
+
+    assert intent.type is IntentType.CHAT
