@@ -896,3 +896,51 @@ Bu sprintte Lina'ya Ollama bağlantı durumunu kontrol eden `ModelDiagnosticsSer
 ### Sprint 14 Notu
 
 Bir sonraki adım GUI'yi daha profesyonel ve kullanışlı hale getirmektir.
+
+## 2026-07-07 - Sprint 14
+
+### Sprint Durumu
+
+Sprint 14 tamamlandı.
+
+Bu sprintte Lina'nın Tkinter GUI'si daha profesyonel ve kullanışlı hale getirildi. Yeni dependency eklenmedi, mevcut ConversationService akışı korundu.
+
+### GUI İyileştirmeleri
+
+- Üst başlık alanı eklendi: "Lina — Yapay Zekâ Masaüstü Asistanı".
+- Alt status bar eklendi: bağlantı durumu, cevap bekleme durumu gösterilir.
+- "Sohbeti Temizle" butonu eklendi.
+- "Son Cevabı Kopyala" butonu eklendi.
+- Pencere boyutu 820x660'a yükseltildi.
+- Hata mesajı daha açıklayıcı hale getirildi.
+- Başlangıç mesajı daha profesyonel ve sıcak hale getirildi.
+- Pencere kapatma davranışı `WM_DELETE_WINDOW` ile temiz şekilde yönetilir.
+- Header ve content arasında separator eklendi.
+- Input alanı ve butonlar ayrı frame'lerde düzenlendi.
+- Son cevap text'i takip edilerek kopyalama fonksiyonu sağlandı.
+
+### Completed Commits
+
+- `adc0702 feat: add gui status bar and chat controls`
+
+### Test Results
+
+- GUI interface testleri: `17 passed`.
+- Sprint sonu tam test paketi: `178 passed`.
+
+### Current Project Status
+
+- GUI daha profesyonel bir görünüme sahip.
+- Clear chat ve copy last response fonksiyonları çalışıyor.
+- Status bar bağlantı ve cevap durumunu gösteriyor.
+- CLI davranışı değişmedi.
+
+### Known Limits
+
+- Tema sistemi eklenmedi.
+- Shift+Enter desteği hâlâ yok.
+- İkon ve system tray yoktur.
+
+### Sprint 15 Notu
+
+Bir sonraki adım read-only Git context desteği ile project awareness'ı güçlendirmektir.
