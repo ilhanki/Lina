@@ -522,3 +522,60 @@ Bu sprintte Lina'ya sınırlı ve güvenli Project Awareness v1 eklendi. Lina ar
 ### Sprint 7 Notu
 
 Sprint 7 için doğal sonraki adım, conversation history ve project context akışını küçük bir `ContextManager` altında sadeleştirmektir. Bu adım Memory değildir ve kalıcı depolama içermemelidir.
+
+## 2026-07-07 - Sprint 7
+
+### Sprint Durumu
+
+Sprint 7 tamamlandı.
+
+Bu sprintte runtime conversation context akışı küçük ve test edilebilir bir Context Manager katmanına taşındı. Bu çalışma Memory değildir; kalıcı depolama, embedding, özetleme veya vector database içermez.
+
+### Eklenen Yapı
+
+- `ConversationContext` modeli eklendi.
+- `ContextManager` eklendi.
+- ContextManager sınırlı conversation history sağlar.
+- Project awareness intent geldiğinde project context toplama sorumluluğu ContextManager'a taşındı.
+- `PromptBuilder`, `ConversationContext` üzerinden prompt üretebilir hale geldi.
+- `Brain`, `respond_with_context()` ile context tabanlı cevap üretme akışı kazandı.
+- `ConversationService`, context toplama detaylarından arındırıldı.
+
+### Mimari Kararlar
+
+- `ApplicationContext` ile karışmaması için runtime bağlam modeli `ConversationContext` olarak adlandırıldı.
+- Token counting, summarization, Memory veya embedding eklenmedi.
+- ConversationService hâlâ intent routing ve history append akışının sahibidir.
+- ContextManager yalnız o anki kullanıcı mesajı için sınırlı runtime context üretir.
+
+### Completed Commits
+
+- `0f2b874 feat: add conversation context models`
+- `8702455 feat: add context manager`
+- `92d952f feat: integrate context with prompt builder`
+- `5a3c870 refactor: simplify conversation service context flow`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `128 passed`.
+- ConversationContext testleri: `1 passed`.
+- ContextManager testleri: `4 passed`.
+- PromptBuilder, Brain ve context model testleri: `12 passed`.
+- ConversationService, ContextManager ve bootstrap testleri: `14 passed`.
+- Sprint sonu tam test paketi: `135 passed`.
+
+### Current Project Status
+
+- Lina'nın conversation history ve project context akışı daha düzenli hale geldi.
+- Project awareness, normal chat ve deterministic intent davranışları korunuyor.
+- Kalıcı Memory hâlâ kapsam dışıdır.
+
+### Known Limits
+
+- ContextManager yalnız basit string context ve sınırlı history taşır.
+- Token limiti, semantic retrieval, summarization ve long-term memory yoktur.
+- Project context hâlâ yalnız allowlist dokümanlardan alınır.
+
+### Sprint 8 Notu
+
+Bir sonraki mantıklı adım güvenli tool altyapısının temelini atmaktır. Sprint 8 kapsamında gerçek shell, dosya yazma/silme veya otomasyon olmadan yalnız tool contract, permission model ve safe builtin tool eklenmelidir.
