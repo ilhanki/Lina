@@ -8,7 +8,7 @@ from lina.brain.model_provider import ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
 from lina.services.deterministic_response_service import DeterministicResponseService
 from lina.services.project_context_service import ProjectContextService
-from lina.services.tool_execution_service import ToolExecutionService
+from lina.services.tool_execution_service import ToolExecutionError, ToolExecutionService
 
 
 class ConversationService:
@@ -41,9 +41,12 @@ class ConversationService:
         intent = self._intent_analyzer.analyze(user_message)
 
         if intent.type is IntentType.CURRENT_TIME and self._tool_execution_service:
-            response = ModelResponse(
-                text=self._tool_execution_service.execute("current_time").text
-            )
+            try:
+                response = ModelResponse(
+                    text=self._tool_execution_service.execute("current_time").text
+                )
+            except ToolExecutionError:
+                response = self._deterministic_response_service.handle(intent)
         elif self._deterministic_response_service.can_handle(intent):
             response = self._deterministic_response_service.handle(intent)
         else:

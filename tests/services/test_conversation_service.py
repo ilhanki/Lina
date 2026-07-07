@@ -71,13 +71,17 @@ class FakeProjectContextService:
 
 
 class FakeToolExecutionService:
-    def __init__(self) -> None:
+    def __init__(self, should_fail: bool = False) -> None:
         self.calls: list[str] = []
+        self._should_fail = should_fail
 
     def execute(self, tool_name: str, input_text: str = ""):
+        from lina.services.tool_execution_service import ToolExecutionError
         from lina.tools.tool import ToolResult
 
         self.calls.append(tool_name)
+        if self._should_fail:
+            raise ToolExecutionError("Tool failed")
         return ToolResult(text="Şu an saat 15:42.")
 
 
@@ -242,4 +246,20 @@ def test_conversation_service_routes_current_time_to_safe_tool() -> None:
 
     assert response == ModelResponse(text="Şu an saat 15:42.")
     assert tool_execution_service.calls == ["current_time"]
+    assert brain.messages == []
+
+
+def test_conversation_service_falls_back_when_current_time_tool_fails() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.CURRENT_TIME),
+        tool_execution_service=FakeToolExecutionService(should_fail=True),
+    )
+
+    response = service.handle_message("Saat kaç?")
+
+    assert "Şu an saat" in response.text
     assert brain.messages == []

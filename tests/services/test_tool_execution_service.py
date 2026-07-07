@@ -40,3 +40,11 @@ def test_tool_execution_service_rejects_non_safe_tool() -> None:
 
     with pytest.raises(ToolExecutionError, match="cannot be executed automatically"):
         service.execute("dangerous")
+
+
+def test_tool_execution_service_wraps_unknown_tool_errors() -> None:
+    registry = ToolRegistry()
+    service = ToolExecutionService(tool_registry=registry)
+
+    with pytest.raises(ToolExecutionError, match="Tool is not available"):
+        service.execute("missing")
