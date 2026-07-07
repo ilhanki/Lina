@@ -22,7 +22,10 @@ def test_default_system_prompt_prevents_broken_mixed_words() -> None:
     assert "about" in DEFAULT_SYSTEM_PROMPT
     assert "progressu" in DEFAULT_SYSTEM_PROMPT
     assert "starting pointina" in DEFAULT_SYSTEM_PROMPT
+    assert "tentang" in DEFAULT_SYSTEM_PROMPT
+    assert "today'de" in DEFAULT_SYSTEM_PROMPT
     assert "algunos" in DEFAULT_SYSTEM_PROMPT
+    assert "melez ifadeler üretme" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_allows_technical_terms() -> None:

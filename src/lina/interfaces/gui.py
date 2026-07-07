@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import re
 import threading
 import tkinter as tk
 from tkinter import ttk
@@ -297,10 +298,18 @@ def format_chat_message(sender: str, message: str) -> str:
 
 def normalize_chat_message(sender: str, message: str) -> str:
     text = message.strip()
-    label = f"{sender}:"
+    sender_name = sender.strip()
+    if not sender_name:
+        return text
 
-    while text.lower().startswith(label.lower()):
-        text = text[len(label) :].strip()
+    label_pattern = re.compile(
+        rf"^(?:{re.escape(sender_name)}\s*:\s*)+",
+        re.IGNORECASE,
+    )
+    previous_text = None
+    while previous_text != text:
+        previous_text = text
+        text = label_pattern.sub("", text).strip()
 
     return text
 
@@ -316,6 +325,8 @@ def format_error_message(error: ModelProviderError | None = None) -> str:
             return "Ollama yanıt vermedi. Bağlantı zaman aşımına uğradı."
         if "network error" in error_text or "connection refused" in error_text:
             return "Ollama'ya ulaşılamıyor. Ollama çalışıyor mu kontrol edin."
+        if "request failed" in error_text:
+            return "Ollama isteği tamamlanamadı. Lütfen Ollama durumunu ve model ayarlarını kontrol edin."
 
     return (
         "Modele ulaşılamadı. Lütfen Ollama'nın çalıştığından "

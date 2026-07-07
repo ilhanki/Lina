@@ -42,7 +42,7 @@ class OllamaProvider(ModelProvider):
             "prompt": request.prompt,
             "stream": False,
             "options": {
-                "temperature": 0.2,
+                "temperature": 0.1,
             },
         }
         response_data = self._post_json("/api/generate", payload)

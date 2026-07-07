@@ -65,7 +65,7 @@ def test_ollama_provider_sends_expected_http_request() -> None:
     assert request.headers["Content-type"] == "application/json"
     assert request.data == (
         b'{"model": "llama3", "prompt": "Hello", "stream": false, '
-        b'"options": {"temperature": 0.2}}'
+        b'"options": {"temperature": 0.1}}'
     )
     assert http_client.timeouts == [12.0]
 

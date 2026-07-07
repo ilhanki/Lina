@@ -57,6 +57,18 @@ def test_format_chat_message_removes_repeated_assistant_labels() -> None:
     assert format_chat_message("Lina", "Lina:Lina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
 
 
+def test_format_chat_message_removes_spaced_repeated_assistant_labels() -> None:
+    assert format_chat_message("Lina", "Lina: Lina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
+
+
+def test_format_chat_message_removes_labels_with_spaced_colons() -> None:
+    assert format_chat_message("Lina", "Lina : Lina : Ben Lina.") == "Lina:\nBen Lina.\n\n"
+
+
+def test_format_chat_message_removes_multiline_repeated_assistant_labels() -> None:
+    assert format_chat_message("Lina", "Lina:\nLina: Ben Lina.") == "Lina:\nBen Lina.\n\n"
+
+
 def test_format_chat_message_removes_duplicate_user_label() -> None:
     assert format_chat_message("İlhan", "İlhan: Merhaba") == "İlhan:\nMerhaba\n\n"
 
@@ -93,6 +105,12 @@ def test_format_error_message_for_unconfigured_model() -> None:
     message = format_error_message(ModelProviderError("Ollama model is not configured"))
 
     assert "Model adı yapılandırılmamış" in message
+
+
+def test_format_error_message_for_general_provider_failure() -> None:
+    message = format_error_message(ModelProviderError("Ollama request failed"))
+
+    assert "Ollama isteği tamamlanamadı" in message
 
 
 def test_format_welcome_message_contains_greeting() -> None:
@@ -182,10 +200,34 @@ def test_gui_append_message_uses_normalization_in_render_path() -> None:
     gui._chat_log = chat_log
     gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
 
-    gui._append_message("Lina", "Lina:Lina: Ben Lina.")
+    gui._append_message("Lina", "Lina: Lina: Ben Lina.")
 
     assert chat_log.inserted_text == "Lina:\nBen Lina.\n\n"
     assert gui._message_ranges == [("1.0", "1.0")]
+
+
+def test_gui_append_message_keeps_identity_response_single_labeled() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    chat_log = _FakeChatLog()
+    gui._chat_log = chat_log
+    gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
+
+    gui._append_message("Lina", "Ben Lina, İlhan'ın masaüstü asistanıyım.")
+
+    assert chat_log.inserted_text == "Lina:\nBen Lina, İlhan'ın masaüstü asistanıyım.\n\n"
+    assert "Lina:Lina:" not in chat_log.inserted_text
+
+
+def test_gui_append_message_normalizes_error_response_in_render_path() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    chat_log = _FakeChatLog()
+    gui._chat_log = chat_log
+    gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
+
+    gui._append_message("Lina", "Lina:Lina: Modele ulaşılamadı.")
+
+    assert chat_log.inserted_text == "Lina:\nModele ulaşılamadı.\n\n"
+    assert "Lina:Lina:" not in chat_log.inserted_text
 
 
 def test_gui_single_send_appends_single_final_response() -> None:
