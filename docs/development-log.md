@@ -691,3 +691,65 @@ Bu sprintte Sprint 8'de eklenen safe tool altyapısı kontrollü şekilde conver
 ### Sprint 10 Notu
 
 Sprint 10 için yeni büyük özellik eklenmemeli. Odak v0.2.0-alpha release candidate hazırlığı, README/roadmap güncellemesi, smoke test checklist ve bilinen sınırlamaların dokümante edilmesi olmalıdır.
+
+## 2026-07-07 - Sprint 10
+
+### Sprint Durumu
+
+Sprint 10 tamamlandı.
+
+Bu sprintte Lina `v0.2.0-alpha` release candidate için dokümantasyon ve kalite açısından toparlandı. Yeni büyük özellik eklenmedi; odak README, roadmap, smoke test checklist ve release hazırlığıydı.
+
+### Eklenen / Güncellenen Dokümantasyon
+
+- `docs/smoke-test-checklist.md` eklendi.
+- `README.md`, mevcut `v0.2.0-alpha` durumunu yansıtacak şekilde güncellendi.
+- `docs/roadmap.md`, tamamlanan ana başlıkları ve henüz kapsam dışı olan büyük özellikleri gösterecek şekilde güncellendi.
+- Development log'a Sprint 10 kapanışı eklendi.
+
+### Release Candidate Özeti
+
+`v0.2.0-alpha` seviyesinde Lina şunları destekler:
+
+- CLI arayüzü.
+- Tkinter Desktop UI.
+- Ollama ile yerel LLM cevabı.
+- Brain orchestration.
+- PromptBuilder ve Türkçe response guidance.
+- Runtime conversation context.
+- Session içi geçici history.
+- Rule-based intent analyzer.
+- Deterministic responses.
+- Sınırlı project awareness.
+- Safe tool foundation.
+- Current time safe tool routing.
+- Unit test suite.
+
+### Completed Commits
+
+- `6d4d057 docs: add smoke test checklist`
+- `6629c86 docs: update README for v0.2.0-alpha`
+- `9c0a8fd docs: update roadmap after sprint 10`
+
+### Test Results
+
+- Sprint başlangıç tam test paketi: `149 passed`.
+- Sprint final tam test paketi bu log yazıldıktan sonra çalıştırılacaktır.
+
+### Known Limits
+
+- Kalıcı Memory yoktur.
+- Genel dosya capability'si yoktur.
+- Shell command execution yoktur.
+- Browser, camera, speech, vision ve Windows automation yoktur.
+- Tool sistemi yalnız SAFE foundation seviyesindedir.
+- Project awareness yalnız allowlist dokümanlarla sınırlıdır.
+- Packaging, installer ve `.exe` üretimi yoktur.
+
+### Tag Önerisi
+
+Önerilen release tag:
+
+`v0.2.0-alpha`
+
+Tag otomatik oluşturulmadı. Tag oluşturma ayrıca kullanıcı onayı gerektirir.
