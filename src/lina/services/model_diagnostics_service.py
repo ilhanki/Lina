@@ -16,6 +16,8 @@ class ModelStatus(Enum):
     CONNECTING = "connecting"
     OLLAMA_UNREACHABLE = "ollama_unreachable"
     MODEL_NOT_CONFIGURED = "model_not_configured"
+    MODEL_NOT_AVAILABLE = "model_not_available"
+    TIMEOUT = "timeout"
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,10 @@ def format_status_message(result: DiagnosticsResult) -> str:
         return "Ollama'ya ulaşılamıyor. Ollama çalışıyor mu kontrol edin."
     if result.status is ModelStatus.MODEL_NOT_CONFIGURED:
         return "Model adı yapılandırılmamış."
+    if result.status is ModelStatus.MODEL_NOT_AVAILABLE:
+        return f"Model yüklü değil: {result.model_name}"
+    if result.status is ModelStatus.TIMEOUT:
+        return "Ollama yanıt vermedi. Bağlantı zaman aşımına uğradı."
     return result.message
 
 
@@ -69,11 +75,30 @@ class ModelDiagnosticsService:
                 message="Model adı yapılandırılmamış.",
             )
 
-        if not self._is_ollama_reachable():
+        available_models = self._get_available_models()
+        if available_models is ModelStatus.TIMEOUT:
+            return DiagnosticsResult(
+                status=ModelStatus.TIMEOUT,
+                model_name=self._model,
+                message="Ollama yanıt vermedi.",
+            )
+        if available_models is ModelStatus.OLLAMA_UNREACHABLE:
             return DiagnosticsResult(
                 status=ModelStatus.OLLAMA_UNREACHABLE,
                 model_name=self._model,
                 message="Ollama'ya ulaşılamıyor.",
+            )
+        if available_models == ():
+            return DiagnosticsResult(
+                status=ModelStatus.MODEL_NOT_AVAILABLE,
+                model_name=self._model,
+                message="Yapılandırılmış model Ollama içinde bulunamadı.",
+            )
+        if self._model not in available_models:
+            return DiagnosticsResult(
+                status=ModelStatus.MODEL_NOT_AVAILABLE,
+                model_name=self._model,
+                message="Yapılandırılmış model Ollama içinde bulunamadı.",
             )
 
         return DiagnosticsResult(
@@ -82,8 +107,8 @@ class ModelDiagnosticsService:
             message="Model hazır.",
         )
 
-    def _is_ollama_reachable(self) -> bool:
-        """Check if Ollama HTTP API is reachable."""
+    def _get_available_models(self) -> tuple[str, ...] | ModelStatus:
+        """Return available Ollama model names, or an error status."""
         request = Request(
             url=f"{self._base_url}/api/tags",
             method="GET",
@@ -92,6 +117,17 @@ class ModelDiagnosticsService:
             with self._opener(request, timeout=self._timeout) as response:
                 raw = response.read()
                 data = json.loads(raw.decode("utf-8"))
-                return isinstance(data, dict)
+                if not isinstance(data, dict):
+                    return ModelStatus.OLLAMA_UNREACHABLE
+                models = data.get("models")
+                if not isinstance(models, list):
+                    return ()
+                names: list[str] = []
+                for model in models:
+                    if isinstance(model, dict) and isinstance(model.get("name"), str):
+                        names.append(model["name"])
+                return tuple(names)
+        except TimeoutError:
+            return ModelStatus.TIMEOUT
         except (HTTPError, URLError, OSError, json.JSONDecodeError, UnicodeDecodeError):
-            return False
+            return ModelStatus.OLLAMA_UNREACHABLE

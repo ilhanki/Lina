@@ -34,14 +34,19 @@ class FakeTagsResponse:
 class FakeReachableOpener:
     """Fake opener that simulates a reachable Ollama server."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_names: list[str] | None = None) -> None:
         self.requests: list[Request] = []
         self.timeouts: list[float] = []
+        self._model_names = model_names or ["llama3"]
 
     def __call__(self, request: Request, timeout: float) -> FakeTagsResponse:
         self.requests.append(request)
         self.timeouts.append(timeout)
-        return FakeTagsResponse(json.dumps({"models": []}).encode("utf-8"))
+        return FakeTagsResponse(
+            json.dumps(
+                {"models": [{"name": model_name} for model_name in self._model_names]}
+            ).encode("utf-8")
+        )
 
 
 class FakeUnreachableOpener:
@@ -49,6 +54,13 @@ class FakeUnreachableOpener:
 
     def __call__(self, request: Request, timeout: float) -> Any:
         raise URLError("connection refused")
+
+
+class FakeTimeoutOpener:
+    """Fake opener that simulates a timeout."""
+
+    def __call__(self, request: Request, timeout: float) -> Any:
+        raise TimeoutError("timed out")
 
 
 # --- ModelDiagnosticsService tests ---
@@ -80,6 +92,34 @@ def test_diagnostics_returns_unreachable_when_ollama_down() -> None:
     result = service.check_status()
 
     assert result.status is ModelStatus.OLLAMA_UNREACHABLE
+    assert result.model_name == "llama3"
+
+
+def test_diagnostics_returns_model_not_available_when_model_missing() -> None:
+    service = ModelDiagnosticsService(
+        base_url="http://localhost:11434",
+        model="missing-model",
+        timeout=5.0,
+        opener=FakeReachableOpener(model_names=["llama3"]),
+    )
+
+    result = service.check_status()
+
+    assert result.status is ModelStatus.MODEL_NOT_AVAILABLE
+    assert result.model_name == "missing-model"
+
+
+def test_diagnostics_returns_timeout_when_ollama_times_out() -> None:
+    service = ModelDiagnosticsService(
+        base_url="http://localhost:11434",
+        model="llama3",
+        timeout=5.0,
+        opener=FakeTimeoutOpener(),
+    )
+
+    result = service.check_status()
+
+    assert result.status is ModelStatus.TIMEOUT
     assert result.model_name == "llama3"
 
 
@@ -206,6 +246,24 @@ def test_format_status_message_not_configured() -> None:
     assert "yapılandırılmamış" in format_status_message(result)
 
 
+def test_format_status_message_model_not_available() -> None:
+    result = DiagnosticsResult(
+        status=ModelStatus.MODEL_NOT_AVAILABLE,
+        model_name="missing-model",
+        message="",
+    )
+    assert "Model yüklü değil: missing-model" == format_status_message(result)
+
+
+def test_format_status_message_timeout() -> None:
+    result = DiagnosticsResult(
+        status=ModelStatus.TIMEOUT,
+        model_name="llama3",
+        message="",
+    )
+    assert "zaman aşımına uğradı" in format_status_message(result)
+
+
 # --- ModelStatus enum tests ---
 
 
@@ -214,3 +272,5 @@ def test_model_status_values() -> None:
     assert ModelStatus.CONNECTING.value == "connecting"
     assert ModelStatus.OLLAMA_UNREACHABLE.value == "ollama_unreachable"
     assert ModelStatus.MODEL_NOT_CONFIGURED.value == "model_not_configured"
+    assert ModelStatus.MODEL_NOT_AVAILABLE.value == "model_not_available"
+    assert ModelStatus.TIMEOUT.value == "timeout"

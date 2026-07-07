@@ -66,6 +66,8 @@ class OllamaProvider(ModelProvider):
                 raw_response = response.read()
         except HTTPError as error:
             raise OllamaProviderError(f"Ollama HTTP error: {error.code}") from error
+        except TimeoutError as error:
+            raise OllamaProviderError("Ollama request timed out") from error
         except URLError as error:
             raise OllamaProviderError(f"Ollama network error: {error.reason}") from error
         except OSError as error:

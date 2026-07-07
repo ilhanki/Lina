@@ -84,6 +84,20 @@ def test_ollama_provider_converts_network_errors() -> None:
         provider.generate(ModelRequest(prompt="Hello"))
 
 
+def test_ollama_provider_converts_timeout_errors() -> None:
+    def timeout_opener(request: Request, timeout: float) -> Any:
+        raise TimeoutError("timed out")
+
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="llama3",
+        opener=timeout_opener,
+    )
+
+    with pytest.raises(OllamaProviderError, match="timed out"):
+        provider.generate(ModelRequest(prompt="Hello"))
+
+
 def test_ollama_provider_rejects_missing_model() -> None:
     provider = OllamaProvider(
         base_url="http://localhost:11434",

@@ -202,8 +202,8 @@ class LinaGui:
     def _generate_response(self, message: str) -> None:
         try:
             response = self._conversation_service.handle_message(message)
-        except ModelProviderError:
-            self._root.after(0, self._show_error)
+        except ModelProviderError as error:
+            self._root.after(0, self._show_error, error)
             return
 
         self._root.after(0, self._show_response, response)
@@ -216,9 +216,9 @@ class LinaGui:
         self._update_status_text("Hazır")
         self._focus_input()
 
-    def _show_error(self) -> None:
+    def _show_error(self, error: ModelProviderError | None = None) -> None:
         self._remove_last_message()
-        error_text = format_error_message()
+        error_text = format_error_message(error)
         self._append_message("Lina", error_text)
         self._last_response_text = error_text
         self._set_waiting_state(False)
@@ -305,7 +305,18 @@ def normalize_chat_message(sender: str, message: str) -> str:
     return text
 
 
-def format_error_message() -> str:
+def format_error_message(error: ModelProviderError | None = None) -> str:
+    if error is not None:
+        error_text = str(error).lower()
+        if "not configured" in error_text:
+            return "Model adı yapılandırılmamış. Lütfen config/default.toml dosyasını kontrol edin."
+        if "http error: 404" in error_text or "not found" in error_text:
+            return "Yapılandırılmış model Ollama içinde bulunamadı. Model adını ve yüklü modelleri kontrol edin."
+        if "timed out" in error_text or "timeout" in error_text:
+            return "Ollama yanıt vermedi. Bağlantı zaman aşımına uğradı."
+        if "network error" in error_text or "connection refused" in error_text:
+            return "Ollama'ya ulaşılamıyor. Ollama çalışıyor mu kontrol edin."
+
     return (
         "Modele ulaşılamadı. Lütfen Ollama'nın çalıştığından "
         "ve yapılandırılmış modelin yüklü olduğundan emin olun."

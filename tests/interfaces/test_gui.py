@@ -71,6 +71,30 @@ def test_format_error_message_returns_user_friendly_text() -> None:
     assert "Ollama" in message
 
 
+def test_format_error_message_for_unreachable_ollama() -> None:
+    message = format_error_message(ModelProviderError("Ollama network error: connection refused"))
+
+    assert "Ollama'ya ulaşılamıyor" in message
+
+
+def test_format_error_message_for_missing_model() -> None:
+    message = format_error_message(ModelProviderError("Ollama HTTP error: 404"))
+
+    assert "model Ollama içinde bulunamadı" in message
+
+
+def test_format_error_message_for_timeout() -> None:
+    message = format_error_message(ModelProviderError("Ollama request timed out"))
+
+    assert "zaman aşımına uğradı" in message
+
+
+def test_format_error_message_for_unconfigured_model() -> None:
+    message = format_error_message(ModelProviderError("Ollama model is not configured"))
+
+    assert "Model adı yapılandırılmamış" in message
+
+
 def test_format_welcome_message_contains_greeting() -> None:
     message = format_welcome_message()
     assert "Merhaba" in message
@@ -126,7 +150,7 @@ def test_gui_shows_provider_errors_as_chat_messages() -> None:
     assert gui.recorded_messages == [
         ("İlhan", "Hello"),
         ("Lina", "Yazıyor..."),
-        ("Lina", format_error_message()),
+        ("Lina", format_error_message(ModelProviderError("connection refused"))),
     ]
     assert gui.waiting_states == [True, False]
     assert gui.input_focus_count == 1
@@ -147,7 +171,9 @@ def test_gui_stores_error_as_last_response_text() -> None:
 
     gui.send_message()
 
-    assert gui._last_response_text == format_error_message()
+    assert gui._last_response_text == format_error_message(
+        ModelProviderError("connection refused")
+    )
 
 
 def test_gui_append_message_uses_normalization_in_render_path() -> None:
