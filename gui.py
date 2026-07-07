@@ -1,8 +1,8 @@
-"""Lina application entry point."""
+"""Lina desktop GUI entry point."""
 
+from collections.abc import Callable
 from pathlib import Path
 import sys
-from typing import TextIO
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -12,35 +12,37 @@ if str(SRC_DIR) not in sys.path:
 
 from lina.core.application import ApplicationState
 from lina.core.bootstrap import create_application_services
-from lina.interfaces.cli import LinaCli
+from lina.services.conversation_service import ConversationService
 
 
-def run_application(
+def run_gui_application(
     config_path: Path = PROJECT_ROOT / "config" / "default.toml",
     project_root: Path = PROJECT_ROOT,
-    input_stream: TextIO = sys.stdin,
-    output_stream: TextIO = sys.stdout,
+    gui_launcher: Callable[[ConversationService], None] | None = None,
 ) -> None:
     services = create_application_services(
         config_path=config_path,
         project_root=project_root,
     )
-    cli = LinaCli(
-        conversation_service=services.conversation_service,
-        input_stream=input_stream,
-        output_stream=output_stream,
-    )
+    launcher = gui_launcher or _launch_tkinter_gui
 
     services.application.start()
     try:
-        cli.run()
+        launcher(services.conversation_service)
     finally:
         if services.application.state is ApplicationState.RUNNING:
             services.application.stop()
 
 
+def _launch_tkinter_gui(conversation_service: ConversationService) -> None:
+    from lina.interfaces.gui import LinaGui
+
+    gui = LinaGui(conversation_service=conversation_service)
+    gui.run()
+
+
 def main() -> None:
-    run_application()
+    run_gui_application()
 
 
 if __name__ == "__main__":
