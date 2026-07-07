@@ -1,6 +1,6 @@
 from lina.brain.brain import Brain
 from lina.brain.model_provider import ModelRequest, ModelResponse
-from lina.brain.prompt_builder import PromptBuilder
+from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 
 
 class FakeModelProvider:
@@ -47,3 +47,22 @@ def test_brain_uses_default_prompt_builder_when_not_provided() -> None:
     assert "System:" in provider.requests[0].prompt
     assert "Lina" in provider.requests[0].prompt
     assert "User:\nHello" in provider.requests[0].prompt
+
+
+def test_brain_passes_conversation_history_to_prompt_builder() -> None:
+    provider = FakeModelProvider()
+    brain = Brain(
+        model_provider=provider,
+        prompt_builder=PromptBuilder(system_prompt="You are Lina."),
+    )
+
+    brain.respond(
+        "What is my name?",
+        conversation_history=[
+            ConversationTurn(user_message="My name is Ilhan.", assistant_response="Nice to meet you."),
+        ],
+    )
+
+    assert "Conversation history:" in provider.requests[0].prompt
+    assert "User: My name is Ilhan." in provider.requests[0].prompt
+    assert "Assistant: Nice to meet you." in provider.requests[0].prompt
