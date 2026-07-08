@@ -1370,3 +1370,66 @@ Lina'nın Türkçe konuşma kalitesini iyileştirmek için prompt, intent ve det
 ### Sonraki Önerilen İş
 
 Computer control / future capability soruları için küçük, deterministik ve dürüst bir intent/response akışı eklemek.
+
+## 2026-07-08 - Roadmap Realignment & v0.3.1 Stabilization Gate
+
+### Sprint Durumu
+
+`v0.3.0-alpha` sonrası hotfix ve polish çalışmaları stabilization gate üzerinden değerlendirildi. Amaç küçük polish döngülerinde takılı kalmadan, release blocker / known issue / roadmap feature ayrımını netleştirmek ve Memory Capability v1'e geçiş zeminini hazırlamaktı.
+
+### v0.3.0-alpha Sonrası Hotfix Durumu
+
+- GUI typing placeholder silme akışı düzeltildi.
+- GUI label duplication için gerçek render path regresyon testleri mevcut.
+- Türkçe conversation style prompt seviyesinde iyileştirildi.
+- `CASUAL_GREETING` intent ile basit selamlaşmalar LLM'e gitmeden cevaplanıyor.
+- Bilgisayar kontrolü / future capability soruları için güvenli deterministic status cevabı eklendi.
+
+### Release Policy Kararı
+
+Roadmap içine üçlü ayrım eklendi:
+
+- Release blocker: Uygulamayı bozan, çökerten, yanlış vaat veren veya güvenlik riski oluşturan sorunlar.
+- Known issue: Kullanımı engellemeyen kalite veya UX eksikleri.
+- Roadmap feature: Yeni capability veya büyük geliştirme.
+
+Bu ayrım, küçük kalite eksiklerinin ana milestone ilerleyişini gereksiz yere durdurmaması için eklendi.
+
+### Roadmap Realignment
+
+Roadmap güncel durum olarak `v0.3.1-alpha` stabilization hotfix adayına taşındı. Hedef sürüm hattı şu şekilde netleştirildi:
+
+- `v0.3.1-alpha`: Stabilization hotfix.
+- `v0.4.0-alpha`: Memory Capability v1.
+- `v0.4.1-alpha`: Memory UX / Recall polish.
+- `v0.5.0-alpha`: Files Capability v1.
+- `v0.6.0-alpha`: Speech Capability v1.
+- `v0.7.0-alpha`: Vision / Screen Awareness v1.
+- `v0.8.0-alpha`: Safe Windows Automation v1.
+
+### Memory v1 Hazırlığı
+
+Memory Capability v1 için kapsam dokümante edildi:
+
+- Local-first.
+- SQLite.
+- Kalıcı conversation summary.
+- User preference memory.
+- Project decision memory.
+- `MemoryService`.
+- `MemoryRepository`.
+- Explicit memory operations.
+- Privacy-first.
+- Hassas bilgileri kullanıcı istemeden saklamama.
+- Forget/delete capability için ileride genişletilebilir zemin.
+
+Kapsam dışı alanlar da netleştirildi: vector database, embeddings, cloud sync, multi-user memory, autonomous monitoring, sensitive personal data auto-save ve agent memory planning.
+
+### Test Sonucu
+
+- Başlangıç testi: `243 passed`
+- Stabilization gate sonrası final test: `250 passed`
+
+### Sonraki Ana İş
+
+Bir sonraki ana geliştirme hattı `v0.4.0-alpha - Memory Capability v1` olmalıdır. `v0.3.1-alpha` tag kararı için önce manuel smoke test çalıştırılmalıdır.

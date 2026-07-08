@@ -2,7 +2,19 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.3.0-alpha Release Candidate
+## Mevcut Durum: v0.3.1-alpha Stabilization Hotfix Adayı
+
+`v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
+
+`v0.3.0-alpha` sonrasında bazı küçük ama önemli stabilization hotfix'leri yapıldı:
+
+- GUI typing placeholder silme akışı düzeltildi; `Yazıyor...` mesajı gerçek cevap gelince tamamen kaldırılır.
+- GUI label duplication riskini azaltan render path regresyon testleri güçlendirildi.
+- Türkçe konuşma kalitesi prompt seviyesinde iyileştirildi.
+- Basit selamlaşmalar için `CASUAL_GREETING` deterministic intent eklendi.
+- Bilgisayar kontrolü / future capability soruları için güvenli ve dürüst deterministic status cevabı eklendi.
+
+Bu nedenle proje şu anda `v0.3.1-alpha` stabilization hotfix adayı durumundadır. Bu aşamanın amacı yeni capability eklemek değil, `v0.3.0-alpha` sonrası release blocker niteliğindeki küçük güvenilirlik sorunlarını kapatıp Memory Capability v1'e temiz geçiş yapmaktır.
 
 Tamamlanan ana başlıklar:
 
@@ -26,6 +38,76 @@ Henüz kapsam dışı olan büyük başlıklar:
 - Browser, camera, speech, vision ve Windows automation.
 - Multi-agent architecture.
 - Packaging, installer ve release automation.
+
+## v0.3.x Stabilization Gate
+
+`v0.3.1-alpha` öncesi stabilization gate aşağıdaki durumlara göre değerlendirilir:
+
+- GUI label duplication bug için gerçek render path testleri vardır.
+- Typing placeholder gerçek cevap gelince tamamen silinir.
+- `selam`, `naber`, `nasılsın` gibi basit selamlaşmalar LLM'e gitmeden deterministic cevaplanır.
+- `neler yapabiliyorsun` cevabı mevcut gerçek yetenekleri ve eksikleri dürüstçe listeler.
+- `bilgisayarımı yönetebilir misin` gibi bilgisayar kontrolü soruları LLM'e gitmeden güvenli ve dürüst cevaplanır.
+- Ollama çalışmıyorken deterministic intent'ler çalışmaya devam eder.
+- Tam test paketi geçmelidir.
+
+Bu gate tamamlandığında küçük polish işleri ana roadmap'i durdurmamalıdır. Kullanımı engellemeyen kalite eksikleri known issue olarak takip edilir; yeni capability işleri ilgili milestone'a taşınır.
+
+## Release Policy
+
+Lina'da release kararları üç ayrı kategoriyle değerlendirilir.
+
+### Release Blocker
+
+Release blocker; uygulamayı bozan, çökerten, yanlış vaat veren, güvenlik riski oluşturan veya kullanıcının güvenini zedeleyen sorundur.
+
+Örnekler:
+
+- GUI'nin normal mesaj gönderme akışında cevabı bozuk göstermesi.
+- Lina'nın sahip olmadığı bir yeteneği varmış gibi iddia etmesi.
+- Deterministic olması gereken güvenlik cevabının LLM'e gidip yanlış vaat üretmesi.
+- Test paketinin kırılması.
+- Kullanıcı verisi veya bilgisayar üzerinde riskli bir işlemin izinsiz tetiklenmesi.
+
+Release blocker kapatılmadan yeni alpha/hotfix tag oluşturulmaz.
+
+### Known Issue
+
+Known issue; kullanımı tamamen engellemeyen, ancak kalite, UX veya tutarlılık açısından takip edilmesi gereken eksiktir.
+
+Örnekler:
+
+- Bazı serbest LLM cevaplarında Türkçe üslubun hâlâ iyileştirme istemesi.
+- GUI'nin görsel olarak daha profesyonel hale getirilebilecek alanları.
+- Yerel model performansının kullanılan Ollama modeline göre değişmesi.
+
+Known issue'lar release notes veya development log içinde açıkça yazılır; gizlenmez. Ancak release blocker değilse ana milestone ilerleyişini durdurmaz.
+
+### Roadmap Feature
+
+Roadmap feature; yeni capability veya büyük mimari geliştirmedir.
+
+Örnekler:
+
+- Kalıcı Memory.
+- Files capability.
+- Speech, Vision veya Windows Automation.
+- Browser automation.
+- Multi-agent architecture.
+
+Roadmap feature'lar küçük hotfix sprintlerine sıkıştırılmaz. Kendi milestone kapsamı, test planı ve güvenlik değerlendirmesiyle ele alınır.
+
+## Hedef Sürüm Hattı
+
+Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
+
+- `v0.3.1-alpha`: Stabilization hotfix.
+- `v0.4.0-alpha`: Memory Capability v1.
+- `v0.4.1-alpha`: Memory UX / Recall polish.
+- `v0.5.0-alpha`: Files Capability v1.
+- `v0.6.0-alpha`: Speech Capability v1.
+- `v0.7.0-alpha`: Vision / Screen Awareness v1.
+- `v0.8.0-alpha`: Safe Windows Automation v1.
 
 ## Milestone 0: Proje Standartları
 
@@ -144,11 +226,34 @@ Teknolojiler:
 
 Amaç:
 
-- Konuşma geçmişi ve temel kullanıcı hafızası için yerel kalıcılık sağlamak.
+- Konuşma geçmişi, kullanıcı tercihleri ve proje kararları için yerel öncelikli, açık ve güvenli bir hafıza temeli kurmak.
 
 Neden bu sırada:
 
 Asistanın kişiselleşmesi için hafıza erken ama conversation flow sonrasında eklenmelidir.
+
+Kapsam:
+
+- Local-first memory yaklaşımı.
+- Python standard library `sqlite3` ile SQLite tabanlı yerel kalıcılık.
+- Kalıcı conversation summary.
+- User preference memory.
+- Project decision memory.
+- `MemoryService` ile uygulama use-case akışı.
+- `MemoryRepository` ile kalıcılık sınırı.
+- Explicit memory operations: Lina neyi sakladığını açıkça bilmeli ve kullanıcıya gerektiğinde söyleyebilmelidir.
+- Privacy-first davranış: kullanıcı istemeden hassas bilgi saklanmamalıdır.
+- Forget/delete capability için ileride genişletilebilir tasarım.
+
+Kapsam dışı:
+
+- Vector database.
+- Embeddings.
+- Cloud sync.
+- Multi-user memory.
+- Long-term autonomous monitoring.
+- Sensitive personal data auto-save.
+- Agent memory planning.
 
 Teknolojiler:
 
