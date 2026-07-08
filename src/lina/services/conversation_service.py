@@ -97,11 +97,13 @@ class ConversationService:
                         "Örnek: bunu hatırla: kısa cevapları seviyorum."
                     )
                 )
-            self._memory_service.add_memory(
+            memory = self._memory_service.add_memory(
                 MemoryType.CONVERSATION_NOTE,
                 content,
                 source="explicit_user_request",
             )
+            if memory is None:
+                return ModelResponse(text="Bunu zaten hatırlıyorum İlhan.")
             return ModelResponse(text=f"Tamam İlhan, bunu hatırlayacağım: {content}.")
 
         if intent_type in {IntentType.MEMORY_RECALL, IntentType.MEMORY_LIST}:

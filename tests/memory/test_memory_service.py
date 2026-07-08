@@ -45,6 +45,91 @@ def test_memory_service_lists_memories(tmp_path: Path) -> None:
         repository.close()
 
 
+def test_memory_service_does_not_add_duplicate_memory(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        first = service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+        second = service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+
+        assert first is not None
+        assert second is None
+        assert [memory.content for memory in service.list_memories()] == [
+            "kısa cevapları seviyorum"
+        ]
+    finally:
+        repository.close()
+
+
+def test_memory_service_treats_case_difference_as_duplicate(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+        duplicate = service.add_memory(MemoryType.CONVERSATION_NOTE, "Kısa cevapları seviyorum")
+
+        assert duplicate is None
+        assert len(service.list_memories()) == 1
+    finally:
+        repository.close()
+
+
+def test_memory_service_treats_whitespace_difference_as_duplicate(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+        duplicate = service.add_memory(
+            MemoryType.CONVERSATION_NOTE,
+            "  kısa   cevapları   seviyorum  ",
+        )
+
+        assert duplicate is None
+        assert len(service.list_memories()) == 1
+    finally:
+        repository.close()
+
+
+def test_memory_service_allows_different_content(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "çok kısa cevapları seviyorum")
+
+        assert [memory.content for memory in service.list_memories()] == [
+            "kısa cevapları seviyorum",
+            "çok kısa cevapları seviyorum",
+        ]
+    finally:
+        repository.close()
+
+
+def test_memory_service_allows_same_content_after_forget(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+        service.forget_memory_by_content("kısa cevapları seviyorum")
+
+        saved_again = service.add_memory(
+            MemoryType.CONVERSATION_NOTE,
+            "kısa cevapları seviyorum",
+        )
+
+        assert saved_again is not None
+        assert [memory.content for memory in service.list_memories()] == [
+            "kısa cevapları seviyorum"
+        ]
+    finally:
+        repository.close()
+
+
 def test_memory_service_forgets_by_content(tmp_path: Path) -> None:
     repository = MemoryRepository(tmp_path / "memory.sqlite3")
     service = MemoryService(repository=repository)

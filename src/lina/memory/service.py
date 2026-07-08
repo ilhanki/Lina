@@ -23,9 +23,12 @@ class MemoryService:
         memory_type: MemoryType,
         content: str,
         source: str = "explicit_user_request",
-    ) -> MemoryRecord:
+    ) -> MemoryRecord | None:
         """Add a memory record."""
         normalized_content = content.strip()
+        if self._has_active_memory(normalized_content):
+            return None
+
         now = self._clock()
         return self._repository.add(
             MemoryRecord(
@@ -36,6 +39,13 @@ class MemoryService:
                 updated_at=now,
                 source=source,
             )
+        )
+
+    def _has_active_memory(self, content: str) -> bool:
+        normalized_content = _normalize_memory_content(content)
+        return any(
+            _normalize_memory_content(memory.content) == normalized_content
+            for memory in self.list_memories(active_only=True)
         )
 
     def list_memories(self, active_only: bool = True) -> tuple[MemoryRecord, ...]:
@@ -78,3 +88,7 @@ class MemoryService:
     def close(self) -> None:
         """Close the underlying repository."""
         self._repository.close()
+
+
+def _normalize_memory_content(content: str) -> str:
+    return " ".join(content.strip().casefold().split())

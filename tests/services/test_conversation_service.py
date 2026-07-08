@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from lina.brain.model_provider import ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
+from lina.memory.repository import MemoryRepository
+from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
 
 
@@ -86,7 +90,8 @@ class FakeToolExecutionService:
 
 
 class FakeMemoryService:
-    def __init__(self) -> None:
+    def __init__(self, is_duplicate: bool = False) -> None:
+        self._is_duplicate = is_duplicate
         self.added: list[tuple[object, str, str]] = []
         self.memories = []
         self.forgotten: list[str] = []
@@ -94,7 +99,9 @@ class FakeMemoryService:
 
     def add_memory(self, memory_type, content: str, source: str):
         self.added.append((memory_type, content, source))
-        return None
+        if self._is_duplicate:
+            return None
+        return FakeMemory(content)
 
     def list_memories(self):
         return tuple(self.memories)
@@ -245,6 +252,88 @@ def test_conversation_service_returns_memory_remember_missing_content() -> None:
     assert "Neyi hatırlamamı istediğini" in response.text
     assert memory_service.added == []
     assert brain.messages == []
+
+
+def test_conversation_service_returns_duplicate_memory_response_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService(is_duplicate=True)
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_REMEMBER),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("bunu hatırla: kısa cevapları seviyorum")
+
+    assert response.text == "Bunu zaten hatırlıyorum İlhan."
+    assert brain.messages == []
+
+
+def test_conversation_service_keeps_single_memory_for_duplicate_remember(
+    tmp_path: Path,
+) -> None:
+    from lina.brain.intent import IntentType
+
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    memory_service = MemoryService(repository=repository)
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[
+                IntentType.MEMORY_REMEMBER,
+                IntentType.MEMORY_REMEMBER,
+                IntentType.MEMORY_LIST,
+            ]
+        ),
+        memory_service=memory_service,
+    )
+
+    try:
+        first = service.handle_message("bunu hatırla: kısa cevapları seviyorum")
+        second = service.handle_message("bunu hatırla: kısa   cevapları   seviyorum")
+        listed = service.handle_message("hafızanı listele")
+
+        assert first.text == "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
+        assert second.text == "Bunu zaten hatırlıyorum İlhan."
+        assert listed.text == "Şunları hatırlıyorum:\n- kısa cevapları seviyorum"
+        assert brain.messages == []
+    finally:
+        memory_service.close()
+
+
+def test_conversation_service_allows_remember_after_forget(tmp_path: Path) -> None:
+    from lina.brain.intent import IntentType
+
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    memory_service = MemoryService(repository=repository)
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[
+                IntentType.MEMORY_REMEMBER,
+                IntentType.MEMORY_FORGET,
+                IntentType.MEMORY_REMEMBER,
+                IntentType.MEMORY_LIST,
+            ]
+        ),
+        memory_service=memory_service,
+    )
+
+    try:
+        service.handle_message("bunu hatırla: kısa cevapları seviyorum")
+        service.handle_message("şunu unut: kısa cevapları seviyorum")
+        response = service.handle_message("bunu hatırla: kısa cevapları seviyorum")
+        listed = service.handle_message("hafızanı listele")
+
+        assert response.text == "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
+        assert listed.text == "Şunları hatırlıyorum:\n- kısa cevapları seviyorum"
+        assert brain.messages == []
+    finally:
+        memory_service.close()
 
 
 def test_conversation_service_routes_memory_recall_without_calling_brain() -> None:
