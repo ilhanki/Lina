@@ -74,3 +74,7 @@ class MemoryService:
             return None
 
         return "\n".join(lines)
+
+    def close(self) -> None:
+        """Close the underlying repository."""
+        self._repository.close()

@@ -51,6 +51,16 @@ class RuntimeSettings:
 
 
 @dataclass(frozen=True)
+class MemorySettings:
+    """Memory capability settings."""
+
+    enabled: bool = True
+    database_path: str = "data/lina_memory.sqlite3"
+    max_context_items: int = 8
+    max_context_characters: int = 1200
+
+
+@dataclass(frozen=True)
 class AppSettings:
     """Typed application settings."""
 
@@ -59,6 +69,7 @@ class AppSettings:
     paths: PathSettings
     ollama: OllamaSettings
     runtime: RuntimeSettings = field(default_factory=RuntimeSettings)
+    memory: MemorySettings = field(default_factory=MemorySettings)
 
 
 def load_settings(config_path: Path) -> AppSettings:
@@ -109,6 +120,27 @@ def load_settings(config_path: Path) -> AppSettings:
                 "runtime",
                 "project_context_max_characters",
                 6000,
+            ),
+        ),
+        memory=MemorySettings(
+            enabled=_optional_bool(raw_settings, "memory", "enabled", True),
+            database_path=_optional_string(
+                raw_settings,
+                "memory",
+                "database_path",
+                "data/lina_memory.sqlite3",
+            ),
+            max_context_items=_optional_positive_int(
+                raw_settings,
+                "memory",
+                "max_context_items",
+                8,
+            ),
+            max_context_characters=_optional_positive_int(
+                raw_settings,
+                "memory",
+                "max_context_characters",
+                1200,
             ),
         ),
     )
@@ -166,6 +198,42 @@ def _optional_positive_int(
         raise ConfigurationError(
             f"Config key must be a positive integer: {section_name}.{key}"
         )
+
+    return value
+
+
+def _optional_string(
+    settings: dict[str, Any],
+    section_name: str,
+    key: str,
+    default: str,
+) -> str:
+    section = _optional_section(settings, section_name)
+    if key not in section:
+        return default
+
+    value = section[key]
+    if not isinstance(value, str):
+        raise ConfigurationError(f"Config key must be a string: {section_name}.{key}")
+    if not value.strip():
+        raise ConfigurationError(f"Config key must not be empty: {section_name}.{key}")
+
+    return value
+
+
+def _optional_bool(
+    settings: dict[str, Any],
+    section_name: str,
+    key: str,
+    default: bool,
+) -> bool:
+    section = _optional_section(settings, section_name)
+    if key not in section:
+        return default
+
+    value = section[key]
+    if not isinstance(value, bool):
+        raise ConfigurationError(f"Config key must be a boolean: {section_name}.{key}")
 
     return value
 

@@ -45,6 +45,10 @@ def test_load_settings_reads_valid_toml_file(tmp_path: Path) -> None:
     assert settings.ollama.request_timeout == 30.0
     assert settings.runtime.conversation_history_limit == 6
     assert settings.runtime.project_context_max_characters == 6000
+    assert settings.memory.enabled is True
+    assert settings.memory.database_path == "data/lina_memory.sqlite3"
+    assert settings.memory.max_context_items == 8
+    assert settings.memory.max_context_characters == 1200
 
 
 def test_load_settings_reads_optional_runtime_settings(tmp_path: Path) -> None:
@@ -80,6 +84,43 @@ def test_load_settings_reads_optional_runtime_settings(tmp_path: Path) -> None:
     assert settings.ollama.request_timeout == 12.5
     assert settings.runtime.conversation_history_limit == 4
     assert settings.runtime.project_context_max_characters == 3000
+
+
+def test_load_settings_reads_optional_memory_settings(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [memory]
+        enabled = false
+        database_path = "data/test_memory.sqlite3"
+        max_context_items = 3
+        max_context_characters = 400
+        """,
+    )
+
+    settings = load_settings(config_path)
+
+    assert settings.memory.enabled is False
+    assert settings.memory.database_path == "data/test_memory.sqlite3"
+    assert settings.memory.max_context_items == 3
+    assert settings.memory.max_context_characters == 400
 
 
 def test_settings_are_immutable(tmp_path: Path) -> None:
@@ -250,6 +291,36 @@ def test_invalid_optional_ollama_timeout_raises_configuration_error(tmp_path: Pa
     )
 
     with pytest.raises(ConfigurationError, match="positive number"):
+        load_settings(config_path)
+
+
+def test_invalid_optional_memory_value_raises_configuration_error(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [memory]
+        max_context_items = 0
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match="positive integer"):
         load_settings(config_path)
 
 

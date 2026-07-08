@@ -11,6 +11,8 @@ from lina.core.logging import configure_logging
 from lina.core.paths import AppPaths
 from lina.core.settings import load_settings
 from lina.integrations.ollama_provider import OllamaProvider
+from lina.memory.repository import MemoryRepository
+from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
 from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import ModelDiagnosticsService
@@ -51,10 +53,18 @@ def create_application_services(
         max_characters_per_file=settings.runtime.project_context_max_characters,
     )
     git_context_service = GitContextService(project_root=project_root)
+    memory_service = _create_memory_service(
+        project_root=project_root,
+        database_path=settings.memory.database_path,
+        enabled=settings.memory.enabled,
+    )
     context_manager = ContextManager(
         project_context_service=project_context_service,
         git_context_service=git_context_service,
+        memory_service=memory_service,
         history_limit=settings.runtime.conversation_history_limit,
+        memory_context_max_items=settings.memory.max_context_items,
+        memory_context_max_characters=settings.memory.max_context_characters,
     )
     tool_registry = ToolRegistry()
     tool_registry.register(EchoTool())
@@ -64,6 +74,7 @@ def create_application_services(
         brain=brain,
         context_manager=context_manager,
         tool_execution_service=tool_execution_service,
+        memory_service=memory_service,
         history_limit=settings.runtime.conversation_history_limit,
     )
     diagnostics_service = ModelDiagnosticsService(
@@ -77,3 +88,21 @@ def create_application_services(
         conversation_service=conversation_service,
         diagnostics_service=diagnostics_service,
     )
+
+
+def _create_memory_service(
+    project_root: Path,
+    database_path: str,
+    enabled: bool,
+) -> MemoryService | None:
+    if not enabled:
+        return None
+
+    configured_path = Path(database_path)
+    if configured_path.is_absolute():
+        resolved_database_path = configured_path
+    else:
+        resolved_database_path = project_root / configured_path
+
+    repository = MemoryRepository(resolved_database_path)
+    return MemoryService(repository=repository)

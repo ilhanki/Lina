@@ -19,3 +19,9 @@ request_timeout = 30.0
 [runtime]
 conversation_history_limit = 6
 project_context_max_characters = 6000
+
+[memory]
+enabled = true
+database_path = "data/lina_memory.sqlite3"
+max_context_items = 8
+max_context_characters = 1200
