@@ -1497,3 +1497,45 @@ Varsayılan database yolu `data/lina_memory.sqlite3` olarak belirlendi. `data/*`
 ### Sonraki Ana İş
 
 Manuel GUI/CLI smoke test sonrası `v0.4.0-alpha` tag değerlendirmesi yapılmalıdır. Sonraki geliştirme hattı `v0.4.1-alpha - Memory UX / Recall polish` olmalıdır.
+
+## 2026-07-08 - Memory GUI Hang Hotfix
+
+### Sorun
+
+Memory komutları CLI ve normal service akışında çalışırken GUI içinde `Yazıyor...` placeholder durumunda takılı kalabiliyordu.
+
+Örnek:
+
+```text
+bunu hatırla: kısa cevapları seviyorum
+```
+
+GUI'de cevap gelmeden şu durumda kalabiliyordu:
+
+- `Lina: Yazıyor...`
+- Status: `Cevap bekleniyor...`
+
+### Kök Neden
+
+İki riskli nokta tespit edildi:
+
+- GUI background worker yalnız `ModelProviderError` yakalıyordu. Memory/SQLite gibi beklenmeyen bir hata olursa worker thread sessizce sonlanabiliyor ve UI resetlenmiyordu.
+- `MemoryRepository` SQLite connection'ı bootstrap sırasında ana thread'de oluşturuluyor, GUI response generation ise background thread'de çalışıyordu. Bu SQLite thread kısıtı nedeniyle memory komutlarında hata üretebilecek bir akıştı.
+
+### Düzeltme
+
+- GUI response worker beklenmeyen exception durumlarını da yakalar hale getirildi.
+- Beklenmeyen hata durumunda `Yazıyor...` placeholder temizlenir, kullanıcı dostu hata mesajı gösterilir, input ve gönder butonu yeniden aktifleşir, status `Hata oluştu` durumuna döner.
+- Hata `logging.exception` ile loglanır.
+- `MemoryRepository` SQLite connection'ı `check_same_thread=False` ile açıldı ve repository operasyonları lock ile korunur hale getirildi.
+
+### Testler
+
+- GUI hızlı deterministic memory response aldığında bekleme durumundan çıkıyor.
+- GUI beklenmeyen exception aldığında placeholder temizleniyor ve status takılı kalmıyor.
+- MemoryRepository temp SQLite database ile worker thread benzeri kullanımda çalışıyor.
+- Tam test paketi: `299 passed`
+
+### Durum
+
+Memory komutlarının GUI'de `Yazıyor...` durumunda takılı kalmasına yol açan ana thread/worker thread riski kapatıldı.
