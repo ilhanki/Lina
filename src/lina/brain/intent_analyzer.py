@@ -59,6 +59,15 @@ class IntentAnalyzer:
         "selam lina nasılsın",
         "merhaba lina nasılsın",
     }
+    _COMPUTER_CONTROL_STATUS_MESSAGES = {
+        "bilgisayarımı yönetebilir misin",
+        "bilgisayarımı kontrol edebilir misin",
+        "bilgisayarıma erişebiliyor musun",
+        "bilgisayarımı yönetebilecek misin",
+        "ileride bilgisayarımı yönetebilecek misin",
+        "bir gün bilgisayarımı yönetebilecek misin",
+        "merhaba bilgisayarımı yönetebilir misin",
+    }
 
     def analyze(self, message: str) -> Intent:
         normalized_message = self._normalize(message)
@@ -75,6 +84,8 @@ class IntentAnalyzer:
             return Intent(type=IntentType.PROJECT_STATUS)
         if normalized_message in self._PROJECT_SUMMARY_MESSAGES:
             return Intent(type=IntentType.PROJECT_SUMMARY)
+        if normalized_message in self._COMPUTER_CONTROL_STATUS_MESSAGES:
+            return Intent(type=IntentType.COMPUTER_CONTROL_STATUS)
         if normalized_message in self._CASUAL_GREETING_MESSAGES:
             return Intent(type=IntentType.CASUAL_GREETING)
 

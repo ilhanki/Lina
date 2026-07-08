@@ -15,6 +15,7 @@ def test_deterministic_response_service_can_handle_supported_intents() -> None:
     assert service.can_handle(Intent(type=IntentType.CAPABILITIES))
     assert service.can_handle(Intent(type=IntentType.CURRENT_TIME))
     assert service.can_handle(Intent(type=IntentType.CASUAL_GREETING))
+    assert service.can_handle(Intent(type=IntentType.COMPUTER_CONTROL_STATUS))
 
 
 def test_deterministic_response_service_does_not_handle_chat() -> None:
@@ -82,6 +83,18 @@ def test_deterministic_response_service_returns_natural_casual_greeting() -> Non
     assert "progressu" not in response.text
     assert "today'de" not in response.text
     assert len(response.text) < 80
+
+
+def test_deterministic_response_service_returns_honest_computer_control_status() -> None:
+    service = DeterministicResponseService()
+
+    response = service.handle(Intent(type=IntentType.COMPUTER_CONTROL_STATUS))
+
+    assert "Şu anda bilgisayarını genel olarak yönetemem" in response.text
+    assert "ekran görme" in response.text
+    assert "Windows automation" in response.text
+    assert "shell command execution" in response.text
+    assert "iddia etmem doğru olmaz" in response.text
 
 
 def test_deterministic_response_service_rejects_unsupported_intent() -> None:

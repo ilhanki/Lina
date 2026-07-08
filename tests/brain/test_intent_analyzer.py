@@ -134,7 +134,6 @@ def test_intent_analyzer_detects_casual_greeting(message: str) -> None:
     [
         "selam, bir bug var",
         "selam lina bugün projede ne yaptık",
-        "merhaba bilgisayarımı yönetebilir misin",
     ],
 )
 def test_intent_analyzer_does_not_overmatch_casual_greeting(message: str) -> None:
@@ -143,6 +142,25 @@ def test_intent_analyzer_does_not_overmatch_casual_greeting(message: str) -> Non
     intent = analyzer.analyze(message)
 
     assert intent.type is IntentType.CHAT
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "bilgisayarımı yönetebilir misin",
+        "bilgisayarımı kontrol edebilir misin",
+        "bilgisayarıma erişebiliyor musun",
+        "ileride bilgisayarımı yönetebilecek misin",
+        "bir gün bilgisayarımı yönetebilecek misin",
+        "merhaba bilgisayarımı yönetebilir misin",
+    ],
+)
+def test_intent_analyzer_detects_computer_control_status(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.COMPUTER_CONTROL_STATUS
 
 
 def test_intent_analyzer_falls_back_to_chat() -> None:
@@ -184,4 +202,7 @@ def test_intent_analyzer_keeps_future_capability_questions_as_chat(message: str)
 
     intent = analyzer.analyze(message)
 
-    assert intent.type is IntentType.CHAT
+    if "bilgisayarımı" in message:
+        assert intent.type is IntentType.COMPUTER_CONTROL_STATUS
+    else:
+        assert intent.type is IntentType.CHAT

@@ -20,6 +20,7 @@ class DeterministicResponseService:
             IntentType.CAPABILITIES,
             IntentType.CURRENT_TIME,
             IntentType.CASUAL_GREETING,
+            IntentType.COMPUTER_CONTROL_STATUS,
         }
 
     def handle(self, intent: Intent) -> ModelResponse:
@@ -59,6 +60,15 @@ class DeterministicResponseService:
         if intent.type is IntentType.CASUAL_GREETING:
             return ModelResponse(
                 text="Selam İlhan! Buradayım, bugün ne yapalım?"
+            )
+        if intent.type is IntentType.COMPUTER_CONTROL_STATUS:
+            return ModelResponse(
+                text=(
+                    "Şu anda bilgisayarını genel olarak yönetemem. Henüz ekran görme, "
+                    "Windows automation, genel dosya erişimi veya shell command execution "
+                    "yeteneğim yok. İleride bu yetenekler güvenli izin akışlarıyla "
+                    "eklenebilir, ama bugün bunu yapabildiğimi iddia etmem doğru olmaz."
+                )
             )
 
         raise ValueError(f"Unsupported deterministic intent: {intent.type.value}")

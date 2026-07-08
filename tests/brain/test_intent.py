@@ -10,6 +10,7 @@ def test_intent_type_values_are_stable() -> None:
     assert IntentType.PROJECT_STATUS.value == "project_status"
     assert IntentType.PROJECT_SUMMARY.value == "project_summary"
     assert IntentType.CASUAL_GREETING.value == "casual_greeting"
+    assert IntentType.COMPUTER_CONTROL_STATUS.value == "computer_control_status"
     assert IntentType.UNKNOWN.value == "unknown"
 
 

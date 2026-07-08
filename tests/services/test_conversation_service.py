@@ -163,6 +163,23 @@ def test_conversation_service_routes_casual_greeting_without_calling_brain() -> 
     assert brain.messages == []
 
 
+def test_conversation_service_routes_computer_control_status_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(
+            intent_type=IntentType.COMPUTER_CONTROL_STATUS
+        ),
+    )
+
+    response = service.handle_message("bilgisayarımı yönetebilir misin")
+
+    assert "bilgisayarını genel olarak yönetemem" in response.text
+    assert brain.messages == []
+
+
 def test_conversation_service_routes_chat_intent_to_brain() -> None:
     from lina.brain.intent import IntentType
 

@@ -15,6 +15,7 @@ class IntentType(Enum):
     PROJECT_STATUS = "project_status"
     PROJECT_SUMMARY = "project_summary"
     CASUAL_GREETING = "casual_greeting"
+    COMPUTER_CONTROL_STATUS = "computer_control_status"
     UNKNOWN = "unknown"
 
 
