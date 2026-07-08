@@ -1539,3 +1539,44 @@ GUI'de cevap gelmeden şu durumda kalabiliyordu:
 ### Durum
 
 Memory komutlarının GUI'de `Yazıyor...` durumunda takılı kalmasına yol açan ana thread/worker thread riski kapatıldı.
+
+## 2026-07-08 - Memory Duplicate Prevention Hotfix
+
+### Sorun
+
+Memory v1 içinde aynı explicit bilgi tekrar tekrar kaydedilebiliyordu.
+
+Örnek:
+
+```text
+bunu hatırla: kısa cevapları seviyorum
+bunu hatırla: kısa cevapları seviyorum
+```
+
+Bu akış ikinci komutta yeni kayıt oluşturmamalıdır.
+
+### Düzeltme
+
+- Aynı active memory content tekrar kaydedilmez hale getirildi.
+- Duplicate kontrolü `MemoryService` içinde normalize edilmiş content üzerinden yapılır.
+- Büyük/küçük harf farkları duplicate sayılır.
+- Baş/son boşluk ve birden fazla boşluk farkları duplicate sayılır.
+- Semantic similarity, embedding, fuzzy matching veya LLM comparison eklenmedi.
+- Forget sonrasında aynı bilgi tekrar kaydedilebilir.
+
+### Kullanıcıya Dönen Cevap
+
+Duplicate durumda Lina şu kısa deterministic cevabı döndürür:
+
+```text
+Bunu zaten hatırlıyorum İlhan.
+```
+
+### Test Sonucu
+
+- İlgili memory/conversation testleri: `35 passed`
+- Tam test paketi: `307 passed`
+
+### Durum
+
+Memory v1, `v0.4.0-alpha` tag için duplicate prevention hotfix ile daha stabil hale getirildi.

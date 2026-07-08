@@ -20,6 +20,7 @@ Bu sürüm, Lina'ya ilk gerçek local-first kalıcı hafıza altyapısını ekle
 - Memory context'in normal chat prompt akışına sınırlı eklenmesi.
 - Config üzerinden memory ayarları.
 - Bootstrap içinde GUI ve CLI için ortak MemoryService wiring.
+- Aynı explicit memory bilgisinin tekrar tekrar kaydedilmesini engelleyen duplicate prevention.
 
 ## Memory Komutları
 
@@ -39,6 +40,8 @@ hafızanı sıfırla
 - Varsayılan dosya yolu `data/lina_memory.sqlite3` değeridir.
 - Runtime SQLite dosyaları Git'e eklenmez.
 - Forget ve clear komutları deterministic olarak çalışır.
+- Aynı active memory content tekrar kaydedilmez; case ve whitespace farkları duplicate sayılır.
+- Forget sonrasında aynı bilgi tekrar kaydedilebilir.
 
 ## Bilinen Sınırlamalar
 
@@ -58,7 +61,7 @@ hafızanı sıfırla
 python -m pytest
 ```
 
-Bu geliştirme sırasında tam test paketi `294 passed` sonucu vermiştir.
+Bu geliştirme sırasında tam test paketi `307 passed` sonucu vermiştir.
 
 ## Sonraki Adımlar
 
