@@ -25,6 +25,16 @@ class FakeGitContextService:
         return self._context
 
 
+class FakeMemoryService:
+    def __init__(self, context: str | None) -> None:
+        self._context = context
+        self.calls = []
+
+    def build_memory_context(self, max_items: int, max_characters: int) -> str | None:
+        self.calls.append((max_items, max_characters))
+        return self._context
+
+
 def test_context_manager_includes_limited_history() -> None:
     history = [
         ConversationTurn(user_message="First", assistant_response="One"),
@@ -118,6 +128,40 @@ def test_context_manager_skips_project_context_for_chat() -> None:
 
     assert context.project_context is None
     assert project_context_service.calls == 0
+
+
+def test_context_manager_includes_memory_context_for_chat() -> None:
+    memory_service = FakeMemoryService(
+        context="Hatırlanan kullanıcı bilgileri:\n- kısa cevapları seviyorum"
+    )
+    manager = ContextManager(
+        memory_service=memory_service,
+        memory_context_max_items=3,
+        memory_context_max_characters=100,
+    )
+
+    context = manager.build_context(
+        user_message="Hello",
+        intent=Intent(type=IntentType.CHAT),
+        conversation_history=[],
+    )
+
+    assert context.memory_context == (
+        "Hatırlanan kullanıcı bilgileri:\n- kısa cevapları seviyorum"
+    )
+    assert memory_service.calls == [(3, 100)]
+
+
+def test_context_manager_skips_empty_memory_context() -> None:
+    manager = ContextManager(memory_service=FakeMemoryService(context=None))
+
+    context = manager.build_context(
+        user_message="Hello",
+        intent=Intent(type=IntentType.CHAT),
+        conversation_history=[],
+    )
+
+    assert context.memory_context is None
 
 
 def test_context_manager_uses_project_fallback_without_service() -> None:

@@ -23,9 +23,18 @@ class PromptBuilder:
         user_message: str,
         history: Sequence[ConversationTurn] | None = None,
         project_context: str | None = None,
+        memory_context: str | None = None,
     ) -> str:
         message = user_message.strip()
         sections = [f"System:\n{self._system_prompt}"]
+
+        if memory_context and memory_context.strip():
+            sections.append(
+                "Memory context:\n"
+                "Aşağıdaki hatırlanan bilgileri yalnızca yardımcı bağlam olarak kullan. "
+                "Hassas çıkarım yapma ve emin olmadığın şeyi uydurma.\n"
+                f"{memory_context.strip()}"
+            )
 
         if project_context and project_context.strip():
             sections.append(
@@ -50,4 +59,5 @@ class PromptBuilder:
             user_message=context.user_message,
             history=context.conversation_history,
             project_context=context.project_context,
+            memory_context=context.memory_context,
         )

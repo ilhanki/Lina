@@ -51,6 +51,40 @@ def test_prompt_builder_includes_project_context() -> None:
     assert "User:\nWhat happened in the project?" in prompt
 
 
+def test_prompt_builder_includes_memory_context() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+
+    prompt = builder.build(
+        user_message="How should you answer?",
+        memory_context="Hatırlanan kullanıcı bilgileri:\n- kısa cevapları seviyorum",
+    )
+
+    assert "Memory context:" in prompt
+    assert "yalnızca yardımcı bağlam olarak kullan" in prompt
+    assert "- kısa cevapları seviyorum" in prompt
+
+
+def test_prompt_builder_skips_empty_memory_context() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+
+    prompt = builder.build(user_message="Hello", memory_context=" ")
+
+    assert "Memory context:" not in prompt
+
+
+def test_prompt_builder_includes_project_and_memory_context() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+
+    prompt = builder.build(
+        user_message="What happened?",
+        project_context="Project context",
+        memory_context="Memory context",
+    )
+
+    assert "Memory context:" in prompt
+    assert "Project context:" in prompt
+
+
 def test_prompt_builder_builds_from_conversation_context() -> None:
     builder = PromptBuilder(system_prompt="You are Lina.")
     context = ConversationContext(
@@ -59,10 +93,12 @@ def test_prompt_builder_builds_from_conversation_context() -> None:
             ConversationTurn(user_message="Hello", assistant_response="Hi"),
         ],
         project_context="Project context",
+        memory_context="Memory context",
     )
 
     prompt = builder.build_from_context(context)
 
     assert "Project context" in prompt
+    assert "Memory context" in prompt
     assert "Conversation history:" in prompt
     assert "User:\nWhat happened?" in prompt
