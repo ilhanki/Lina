@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda `v0.3.1-alpha` stabilization hotfix adayı seviyesindedir. `v0.3.0-alpha` tag'i oluşturulmuş, ardından GUI ve konuşma kalitesi için küçük hotfix/polish çalışmaları yapılmıştır. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir ve sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir.
+Bu depo şu anda `v0.4.0-alpha` Memory Capability v1 geliştirme hattındadır. `v0.3.1-alpha` stabilization hotfix tag'i oluşturulmuş, ardından ilk local-first kalıcı hafıza altyapısı eklenmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir ve açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir.
 
 ## Projenin Amacı
 
@@ -49,6 +49,8 @@ Mevcut çalışan özellikler:
 - Default system prompt ve prompt builder.
 - Runtime conversation context.
 - Session içi geçici conversation history.
+- Local-first SQLite Memory Capability v1.
+- Explicit memory commands.
 - Rule-based intent analyzer.
 - Deterministic response flow.
 - Sınırlı project awareness.
@@ -59,7 +61,7 @@ Mevcut çalışan özellikler:
 
 Planlanan uzun vadeli özellikler:
 
-- Kalıcı Memory capability.
+- Memory UX / Recall polish.
 - Daha gelişmiş tool sistemi.
 - Files capability.
 - Speech ve TTS.
@@ -133,7 +135,24 @@ Masaüstü GUI arayüzünü çalıştırmak için:
 python gui.py
 ```
 
-Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar ve bilgisayar kontrolüyle ilgili güvenlik soruları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar, bilgisayar kontrolüyle ilgili güvenlik soruları ve explicit memory komutları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+
+Memory komut örnekleri:
+
+```text
+bunu hatırla: kısa cevapları seviyorum
+ne hatırlıyorsun
+hafızanı listele
+şunu unut: kısa cevapları seviyorum
+hafızanı sıfırla
+```
+
+Memory v1 privacy notu:
+
+- Lina v1'de yalnız explicit memory komutlarıyla kayıt yapar.
+- Hassas bilgiler otomatik kaydedilmez.
+- Memory local SQLite dosyasında tutulur.
+- Varsayılan database yolu `data/lina_memory.sqlite3` değeridir ve Git'e eklenmez.
 
 ## Runtime Configuration
 
@@ -147,6 +166,10 @@ Temel çalışma ayarları `config/default.toml` içinde tutulur.
 - `ollama.request_timeout`: Ollama istek timeout değeri.
 - `runtime.conversation_history_limit`: Session içi konuşma geçmişi limiti.
 - `runtime.project_context_max_characters`: İzinli proje dokümanı başına okunacak maksimum karakter sayısı.
+- `memory.enabled`: Memory capability açık/kapalı durumu.
+- `memory.database_path`: Local SQLite memory dosyasının yolu.
+- `memory.max_context_items`: Prompt'a eklenecek maksimum memory kaydı.
+- `memory.max_context_characters`: Prompt'a eklenecek maksimum memory context karakter sayısı.
 
 Eksik optional runtime ayarları güvenli default değerleriyle çalışır.
 
@@ -239,7 +262,7 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Mevcut Sınırlamalar
 
-- Kalıcı Memory sistemi yoktur.
+- Memory v1 yalnız explicit komutlarla kayıt yapar; otomatik memory extraction yoktur.
 - Genel dosya okuma/yazma capability'si yoktur.
 - Shell command execution yoktur.
 - Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
@@ -249,6 +272,6 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.3.1-alpha stabilization hotfix adayı**
+Mevcut durum: **v0.4.0-alpha Memory Capability v1 geliştirme hattı**
 
-Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı ve güvenli tool temeline sahip erken aşama bir masaüstü asistanıdır.
+Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli ve explicit local SQLite memory altyapısına sahip erken aşama bir masaüstü asistanıdır.

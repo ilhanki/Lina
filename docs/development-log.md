@@ -1433,3 +1433,67 @@ Kapsam dışı alanlar da netleştirildi: vector database, embeddings, cloud syn
 ### Sonraki Ana İş
 
 Bir sonraki ana geliştirme hattı `v0.4.0-alpha - Memory Capability v1` olmalıdır. `v0.3.1-alpha` tag kararı için önce manuel smoke test çalıştırılmalıdır.
+
+## 2026-07-08 - Memory Capability v1
+
+### Sprint Durumu
+
+`v0.4.0-alpha` hattı kapsamında Lina'ya ilk local-first, SQLite tabanlı ve explicit komutlarla çalışan kalıcı hafıza altyapısı eklendi. Bu çalışma yeni dependency eklemeden, Python standard library `sqlite3` kullanılarak tamamlandı.
+
+### Eklenen Yapı
+
+- `MemoryType` ve `MemoryRecord` modelleri eklendi.
+- SQLite-backed `MemoryRepository` eklendi.
+- `MemoryService` eklendi.
+- Explicit memory intents eklendi:
+  - `MEMORY_REMEMBER`
+  - `MEMORY_RECALL`
+  - `MEMORY_LIST`
+  - `MEMORY_FORGET`
+  - `MEMORY_CLEAR`
+- Memory commands `ConversationService` içinde deterministic olarak işlendi.
+- Memory command'leri Brain/Ollama çağırmadan cevaplanır hale getirildi.
+- Memory responses session history'ye normal conversation turn olarak eklenir hale getirildi.
+- `ConversationContext` içine `memory_context` eklendi.
+- `ContextManager`, MemoryService üzerinden sınırlı memory context üretebilir hale getirildi.
+- `PromptBuilder`, memory context varsa prompt'a ayrı ve güvenli bir bölüm olarak ekler hale getirildi.
+- Bootstrap içinde MemoryRepository / MemoryService wiring eklendi.
+- GUI ve CLI aynı bootstrap üzerinden memory altyapısını kullanır hale getirildi.
+
+### Config
+
+`config/default.toml` içine `[memory]` bölümü eklendi:
+
+- `enabled`
+- `database_path`
+- `max_context_items`
+- `max_context_characters`
+
+Varsayılan database yolu `data/lina_memory.sqlite3` olarak belirlendi. `data/*` zaten `.gitignore` kapsamında olduğu için runtime SQLite dosyaları Git'e eklenmez.
+
+### Privacy ve Safety
+
+- Memory v1 yalnız explicit memory komutlarıyla kayıt yapar.
+- Hassas bilgi otomatik kaydedilmez.
+- LLM ile memory extraction yapılmaz.
+- Vector database, embeddings, cloud sync ve autonomous monitoring eklenmedi.
+- Forget ve clear komutları deterministic çalışır.
+
+### Bilinen Sınırlar
+
+- Memory v1 semantic search yapmaz.
+- Memory v1 kullanıcı profili çıkarımı yapmaz.
+- Memory v1 agent memory planning içermez.
+- Memory UX / Recall polish sonraki `v0.4.1-alpha` hattına bırakıldı.
+
+### Test Sonucu
+
+- İlgili memory repository/service testleri: `10 passed`
+- Memory intent ve conversation routing testleri: `92 passed`
+- Prompt/context integration testleri: `38 passed`
+- Settings/bootstrap testleri: `21 passed`
+- Tam test paketi: `294 passed`
+
+### Sonraki Ana İş
+
+Manuel GUI/CLI smoke test sonrası `v0.4.0-alpha` tag değerlendirmesi yapılmalıdır. Sonraki geliştirme hattı `v0.4.1-alpha - Memory UX / Recall polish` olmalıdır.

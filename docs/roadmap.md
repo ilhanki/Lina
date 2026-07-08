@@ -2,19 +2,25 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.3.1-alpha Stabilization Hotfix Adayı
+## Mevcut Durum: v0.4.0-alpha Memory Capability v1
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
-`v0.3.0-alpha` sonrasında bazı küçük ama önemli stabilization hotfix'leri yapıldı:
+`v0.3.1-alpha` stabilization hotfix tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, `v0.3.0-alpha` sonrasında görülen küçük güvenilirlik ve konuşma kalitesi sorunlarını kapattı.
+
+`v0.4.0-alpha` hattında Memory Capability v1 geliştirilmektedir. Bu hat, Lina'nın ilk gerçek local-first kalıcı hafıza altyapısını ekler.
+
+`v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
 - GUI typing placeholder silme akışı düzeltildi; `Yazıyor...` mesajı gerçek cevap gelince tamamen kaldırılır.
 - GUI label duplication riskini azaltan render path regresyon testleri güçlendirildi.
 - Türkçe konuşma kalitesi prompt seviyesinde iyileştirildi.
 - Basit selamlaşmalar için `CASUAL_GREETING` deterministic intent eklendi.
 - Bilgisayar kontrolü / future capability soruları için güvenli ve dürüst deterministic status cevabı eklendi.
-
-Bu nedenle proje şu anda `v0.3.1-alpha` stabilization hotfix adayı durumundadır. Bu aşamanın amacı yeni capability eklemek değil, `v0.3.0-alpha` sonrası release blocker niteliğindeki küçük güvenilirlik sorunlarını kapatıp Memory Capability v1'e temiz geçiş yapmaktır.
+- SQLite-backed `MemoryRepository` eklendi.
+- `MemoryService` eklendi.
+- Explicit memory intents ve deterministic memory command responses eklendi.
+- Memory context, normal chat prompt akışına sınırlı ve şeffaf şekilde dahil edildi.
 
 Tamamlanan ana başlıklar:
 
@@ -26,6 +32,7 @@ Tamamlanan ana başlıklar:
 - CLI arayüzü.
 - Tkinter Desktop UI v2 (Durum çubuğu ve profesyonel görünüm).
 - Runtime conversation context.
+- Memory Capability v1 (explicit local SQLite memory).
 - Project awareness v2 (İzinli dokümanlar ve Git desteği).
 - Safe tool foundation v2 (PermissionDecision UX yapısı).
 - SAFE tool routing ile current time cevabı.
@@ -89,7 +96,7 @@ Roadmap feature; yeni capability veya büyük mimari geliştirmedir.
 
 Örnekler:
 
-- Kalıcı Memory.
+- Memory UX / Recall polish.
 - Files capability.
 - Speech, Vision veya Windows Automation.
 - Browser automation.
@@ -224,6 +231,12 @@ Teknolojiler:
 
 ## Milestone 5: Memory Capability v1
 
+Durum:
+
+- Uygulama aşamasında / v0.4.0-alpha hattında.
+- İlk local-first SQLite repository, MemoryService, explicit memory intents, ConversationService routing ve prompt memory context entegrasyonu tamamlandı.
+- Tag oluşturulmadan önce manuel GUI/CLI smoke test önerilir.
+
 Amaç:
 
 - Konuşma geçmişi, kullanıcı tercihleri ve proje kararları için yerel öncelikli, açık ve güvenli bir hafıza temeli kurmak.
@@ -236,7 +249,8 @@ Kapsam:
 
 - Local-first memory yaklaşımı.
 - Python standard library `sqlite3` ile SQLite tabanlı yerel kalıcılık.
-- Kalıcı conversation summary.
+- Explicit conversation note kayıtları.
+- Kalıcı conversation summary için temel zemin.
 - User preference memory.
 - Project decision memory.
 - `MemoryService` ile uygulama use-case akışı.
@@ -244,6 +258,14 @@ Kapsam:
 - Explicit memory operations: Lina neyi sakladığını açıkça bilmeli ve kullanıcıya gerektiğinde söyleyebilmelidir.
 - Privacy-first davranış: kullanıcı istemeden hassas bilgi saklanmamalıdır.
 - Forget/delete capability için ileride genişletilebilir tasarım.
+
+v1 komut örnekleri:
+
+- `bunu hatırla: kısa cevapları seviyorum`
+- `ne hatırlıyorsun`
+- `hafızanı listele`
+- `şunu unut: kısa cevapları seviyorum`
+- `hafızanı sıfırla`
 
 Kapsam dışı:
 
