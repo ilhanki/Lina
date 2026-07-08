@@ -19,6 +19,7 @@ class DeterministicResponseService:
             IntentType.IDENTITY,
             IntentType.CAPABILITIES,
             IntentType.CURRENT_TIME,
+            IntentType.CASUAL_GREETING,
         }
 
     def handle(self, intent: Intent) -> ModelResponse:
@@ -55,5 +56,9 @@ class DeterministicResponseService:
             )
         if intent.type is IntentType.CURRENT_TIME:
             return ModelResponse(text=f"Şu an saat {self._clock():%H:%M}.")
+        if intent.type is IntentType.CASUAL_GREETING:
+            return ModelResponse(
+                text="Selam İlhan! Buradayım, bugün ne yapalım?"
+            )
 
         raise ValueError(f"Unsupported deterministic intent: {intent.type.value}")

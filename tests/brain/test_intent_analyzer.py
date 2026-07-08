@@ -107,6 +107,44 @@ def test_intent_analyzer_detects_project_summary(message: str) -> None:
     assert intent.type is IntentType.PROJECT_SUMMARY
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "selam",
+        "merhaba",
+        "nasılsın",
+        "naber",
+        "ne haber",
+        "günaydın",
+        "iyi geceler",
+        "iyi akşamlar",
+        "selam lina bugün nasılsın",
+    ],
+)
+def test_intent_analyzer_detects_casual_greeting(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.CASUAL_GREETING
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "selam, bir bug var",
+        "selam lina bugün projede ne yaptık",
+        "merhaba bilgisayarımı yönetebilir misin",
+    ],
+)
+def test_intent_analyzer_does_not_overmatch_casual_greeting(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.CHAT
+
+
 def test_intent_analyzer_falls_back_to_chat() -> None:
     analyzer = IntentAnalyzer()
 

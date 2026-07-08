@@ -43,6 +43,22 @@ class IntentAnalyzer:
         "son sprintlerde ne eklendi",
         "son gelişmeler ne",
     }
+    _CASUAL_GREETING_MESSAGES = {
+        "selam",
+        "merhaba",
+        "naber",
+        "nasılsın",
+        "ne haber",
+        "günaydın",
+        "iyi geceler",
+        "iyi akşamlar",
+        "selam lina",
+        "merhaba lina",
+        "selam lina bugün nasılsın",
+        "merhaba lina bugün nasılsın",
+        "selam lina nasılsın",
+        "merhaba lina nasılsın",
+    }
 
     def analyze(self, message: str) -> Intent:
         normalized_message = self._normalize(message)
@@ -59,6 +75,8 @@ class IntentAnalyzer:
             return Intent(type=IntentType.PROJECT_STATUS)
         if normalized_message in self._PROJECT_SUMMARY_MESSAGES:
             return Intent(type=IntentType.PROJECT_SUMMARY)
+        if normalized_message in self._CASUAL_GREETING_MESSAGES:
+            return Intent(type=IntentType.CASUAL_GREETING)
 
         return Intent(type=IntentType.CHAT)
 

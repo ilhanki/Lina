@@ -14,6 +14,7 @@ def test_deterministic_response_service_can_handle_supported_intents() -> None:
     assert service.can_handle(Intent(type=IntentType.IDENTITY))
     assert service.can_handle(Intent(type=IntentType.CAPABILITIES))
     assert service.can_handle(Intent(type=IntentType.CURRENT_TIME))
+    assert service.can_handle(Intent(type=IntentType.CASUAL_GREETING))
 
 
 def test_deterministic_response_service_does_not_handle_chat() -> None:
@@ -68,6 +69,19 @@ def test_deterministic_response_service_returns_current_time() -> None:
     response = service.handle(Intent(type=IntentType.CURRENT_TIME))
 
     assert response.text == "Şu an saat 15:42."
+
+
+def test_deterministic_response_service_returns_natural_casual_greeting() -> None:
+    service = DeterministicResponseService()
+
+    response = service.handle(Intent(type=IntentType.CASUAL_GREETING))
+
+    assert response.text == "Selam İlhan! Buradayım, bugün ne yapalım?"
+    assert "Selamlarsın" not in response.text
+    assert "about" not in response.text
+    assert "progressu" not in response.text
+    assert "today'de" not in response.text
+    assert len(response.text) < 80
 
 
 def test_deterministic_response_service_rejects_unsupported_intent() -> None:

@@ -148,6 +148,21 @@ def test_conversation_service_routes_deterministic_intent_without_calling_brain(
     assert len(deterministic_response_service.handled_intents) == 1
 
 
+def test_conversation_service_routes_casual_greeting_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.CASUAL_GREETING),
+    )
+
+    response = service.handle_message("selam")
+
+    assert response.text == "Selam İlhan! Buradayım, bugün ne yapalım?"
+    assert brain.messages == []
+
+
 def test_conversation_service_routes_chat_intent_to_brain() -> None:
     from lina.brain.intent import IntentType
 
