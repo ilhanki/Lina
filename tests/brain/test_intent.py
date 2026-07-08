@@ -11,6 +11,11 @@ def test_intent_type_values_are_stable() -> None:
     assert IntentType.PROJECT_SUMMARY.value == "project_summary"
     assert IntentType.CASUAL_GREETING.value == "casual_greeting"
     assert IntentType.COMPUTER_CONTROL_STATUS.value == "computer_control_status"
+    assert IntentType.MEMORY_REMEMBER.value == "memory_remember"
+    assert IntentType.MEMORY_RECALL.value == "memory_recall"
+    assert IntentType.MEMORY_FORGET.value == "memory_forget"
+    assert IntentType.MEMORY_CLEAR.value == "memory_clear"
+    assert IntentType.MEMORY_LIST.value == "memory_list"
     assert IntentType.UNKNOWN.value == "unknown"
 
 

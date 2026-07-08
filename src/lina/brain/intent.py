@@ -16,6 +16,11 @@ class IntentType(Enum):
     PROJECT_SUMMARY = "project_summary"
     CASUAL_GREETING = "casual_greeting"
     COMPUTER_CONTROL_STATUS = "computer_control_status"
+    MEMORY_REMEMBER = "memory_remember"
+    MEMORY_RECALL = "memory_recall"
+    MEMORY_FORGET = "memory_forget"
+    MEMORY_CLEAR = "memory_clear"
+    MEMORY_LIST = "memory_list"
     UNKNOWN = "unknown"
 
 

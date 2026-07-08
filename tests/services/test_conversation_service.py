@@ -85,6 +85,34 @@ class FakeToolExecutionService:
         return ToolResult(text="Şu an saat 15:42.")
 
 
+class FakeMemoryService:
+    def __init__(self) -> None:
+        self.added: list[tuple[object, str, str]] = []
+        self.memories = []
+        self.forgotten: list[str] = []
+        self.clear_count = 0
+
+    def add_memory(self, memory_type, content: str, source: str):
+        self.added.append((memory_type, content, source))
+        return None
+
+    def list_memories(self):
+        return tuple(self.memories)
+
+    def forget_memory_by_content(self, content: str) -> int:
+        self.forgotten.append(content)
+        return 1 if content == "kısa cevapları seviyorum" else 0
+
+    def clear_memories(self) -> int:
+        self.clear_count += 1
+        return len(self.memories)
+
+
+class FakeMemory:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
 def test_conversation_service_sends_user_message_to_brain() -> None:
     brain = FakeBrain()
     service = ConversationService(brain=brain)
@@ -178,6 +206,145 @@ def test_conversation_service_routes_computer_control_status_without_calling_bra
 
     assert "bilgisayarını genel olarak yönetemem" in response.text
     assert brain.messages == []
+
+
+def test_conversation_service_routes_memory_remember_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+    from lina.memory.models import MemoryType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_REMEMBER),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("bunu hatırla: kısa cevapları seviyorum")
+
+    assert response.text == "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
+    assert memory_service.added == [
+        (MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum", "explicit_user_request")
+    ]
+    assert brain.messages == []
+
+
+def test_conversation_service_returns_memory_remember_missing_content() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_REMEMBER),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("bunu hatırla:")
+
+    assert "Neyi hatırlamamı istediğini" in response.text
+    assert memory_service.added == []
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_memory_recall_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    memory_service.memories = [
+        FakeMemory("kısa cevapları seviyorum"),
+        FakeMemory("Türkçe dokümantasyon istiyorum"),
+    ]
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_RECALL),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("ne hatırlıyorsun")
+
+    assert response.text == (
+        "Şunları hatırlıyorum:\n"
+        "- kısa cevapları seviyorum\n"
+        "- Türkçe dokümantasyon istiyorum"
+    )
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_empty_memory_recall_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_RECALL),
+        memory_service=FakeMemoryService(),
+    )
+
+    response = service.handle_message("ne hatırlıyorsun")
+
+    assert response.text == "Şu an hafızamda kayıtlı bir bilgi yok."
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_memory_forget_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_FORGET),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("şunu unut: kısa cevapları seviyorum")
+
+    assert response.text == "Tamam, bunu hafızamdan kaldırdım."
+    assert memory_service.forgotten == ["kısa cevapları seviyorum"]
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_memory_clear_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_CLEAR),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("hafızanı sıfırla")
+
+    assert response.text == "Hafızamdaki tüm kayıtları temizledim."
+    assert memory_service.clear_count == 1
+    assert brain.messages == []
+
+
+def test_conversation_service_adds_memory_responses_to_history() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.MEMORY_RECALL, IntentType.CHAT]
+        ),
+        memory_service=FakeMemoryService(),
+    )
+
+    service.handle_message("ne hatırlıyorsun")
+    service.handle_message("devam")
+
+    assert brain.histories[0] == [
+        ConversationTurn(
+            user_message="ne hatırlıyorsun",
+            assistant_response="Şu an hafızamda kayıtlı bir bilgi yok.",
+        )
+    ]
 
 
 def test_conversation_service_routes_chat_intent_to_brain() -> None:

@@ -68,9 +68,54 @@ class IntentAnalyzer:
         "bir gün bilgisayarımı yönetebilecek misin",
         "merhaba bilgisayarımı yönetebilir misin",
     }
+    _MEMORY_RECALL_MESSAGES = {
+        "ne hatırlıyorsun",
+        "hakkımda ne biliyorsun",
+        "benden ne hatırlıyorsun",
+        "hafızanda ne var",
+    }
+    _MEMORY_LIST_MESSAGES = {
+        "hafızanı listele",
+        "kayıtlı bilgileri göster",
+        "hatırladıklarını listele",
+    }
+    _MEMORY_CLEAR_MESSAGES = {
+        "tüm hafızanı temizle",
+        "hafızanı sıfırla",
+        "bütün kayıtlı bilgileri sil",
+    }
+    _MEMORY_REMEMBER_PREFIXES = (
+        "bunu hatırla:",
+        "bunu hatırla",
+        "şunu hatırla:",
+        "şunu hatırla",
+        "bunu kaydet:",
+        "bunu kaydet",
+        "bunu unutma:",
+        "bunu unutma",
+        "selam bunu hatırla:",
+        "selam bunu hatırla",
+    )
+    _MEMORY_FORGET_PREFIXES = (
+        "şunu unut:",
+        "şunu unut",
+        "bunu hafızandan sil:",
+        "bunu hafızandan sil",
+    )
 
     def analyze(self, message: str) -> Intent:
         normalized_message = self._normalize(message)
+
+        if self._starts_with_any(normalized_message, self._MEMORY_REMEMBER_PREFIXES):
+            return Intent(type=IntentType.MEMORY_REMEMBER)
+        if self._starts_with_any(normalized_message, self._MEMORY_FORGET_PREFIXES):
+            return Intent(type=IntentType.MEMORY_FORGET)
+        if normalized_message in self._MEMORY_CLEAR_MESSAGES:
+            return Intent(type=IntentType.MEMORY_CLEAR)
+        if normalized_message in self._MEMORY_LIST_MESSAGES:
+            return Intent(type=IntentType.MEMORY_LIST)
+        if normalized_message in self._MEMORY_RECALL_MESSAGES:
+            return Intent(type=IntentType.MEMORY_RECALL)
 
         if normalized_message in self._HELP_MESSAGES:
             return Intent(type=IntentType.HELP)
@@ -96,3 +141,6 @@ class IntentAnalyzer:
         if stripped_message == "?":
             return stripped_message
         return stripped_message.rstrip("?!.,;:")
+
+    def _starts_with_any(self, message: str, prefixes: tuple[str, ...]) -> bool:
+        return any(message.startswith(prefix) for prefix in prefixes)

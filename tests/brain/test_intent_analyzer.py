@@ -163,6 +163,90 @@ def test_intent_analyzer_detects_computer_control_status(message: str) -> None:
     assert intent.type is IntentType.COMPUTER_CONTROL_STATUS
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "bunu hatırla: ben kısa cevapları seviyorum",
+        "şunu hatırla: Lina projesinde memory v1'e geçtik",
+        "bunu kaydet: varsayılan model llama3.2:3b",
+        "bunu unutma: projede Türkçe dokümantasyon istiyorum",
+        "selam bunu hatırla: kısa cevap seviyorum",
+        "bunu hatırla:",
+    ],
+)
+def test_intent_analyzer_detects_memory_remember(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.MEMORY_REMEMBER
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "ne hatırlıyorsun",
+        "hakkımda ne biliyorsun",
+        "benden ne hatırlıyorsun",
+        "hafızanda ne var",
+    ],
+)
+def test_intent_analyzer_detects_memory_recall(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.MEMORY_RECALL
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "hafızanı listele",
+        "kayıtlı bilgileri göster",
+        "hatırladıklarını listele",
+    ],
+)
+def test_intent_analyzer_detects_memory_list(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.MEMORY_LIST
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "şunu unut: ben kısa cevapları seviyorum",
+        "bunu hafızandan sil: varsayılan model llama3.2:3b",
+        "şunu unut:",
+    ],
+)
+def test_intent_analyzer_detects_memory_forget(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.MEMORY_FORGET
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "tüm hafızanı temizle",
+        "hafızanı sıfırla",
+        "bütün kayıtlı bilgileri sil",
+    ],
+)
+def test_intent_analyzer_detects_memory_clear(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.MEMORY_CLEAR
+
+
 def test_intent_analyzer_falls_back_to_chat() -> None:
     analyzer = IntentAnalyzer()
 
