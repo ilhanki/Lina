@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 import re
 import threading
 import tkinter as tk
@@ -21,6 +22,9 @@ from lina.services.model_diagnostics_service import (
 
 if TYPE_CHECKING:
     from lina.services.model_diagnostics_service import DiagnosticsResult
+
+
+_logger = logging.getLogger(__name__)
 
 
 class LinaGui:
@@ -206,6 +210,10 @@ class LinaGui:
         except ModelProviderError as error:
             self._root.after(0, self._show_error, error)
             return
+        except Exception:
+            _logger.exception("Unexpected error while generating GUI response")
+            self._root.after(0, self._show_unexpected_error)
+            return
 
         self._root.after(0, self._show_response, response)
 
@@ -224,6 +232,15 @@ class LinaGui:
         self._last_response_text = error_text
         self._set_waiting_state(False)
         self._update_status_text("Bağlantı hatası")
+        self._focus_input()
+
+    def _show_unexpected_error(self) -> None:
+        self._remove_last_message()
+        error_text = format_unexpected_error_message()
+        self._append_message("Lina", error_text)
+        self._last_response_text = error_text
+        self._set_waiting_state(False)
+        self._update_status_text("Hata oluştu")
         self._focus_input()
 
     def _handle_enter(self, event: tk.Event) -> str:
@@ -331,6 +348,13 @@ def format_error_message(error: ModelProviderError | None = None) -> str:
     return (
         "Modele ulaşılamadı. Lütfen Ollama'nın çalıştığından "
         "ve yapılandırılmış modelin yüklü olduğundan emin olun."
+    )
+
+
+def format_unexpected_error_message() -> str:
+    return (
+        "Beklenmeyen bir hata oluştu. İşlem tamamlanamadı ama arayüz "
+        "kullanıma hazır."
     )
 
 

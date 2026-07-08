@@ -5,6 +5,7 @@ from lina.interfaces.gui import (
     LinaGui,
     format_chat_message,
     format_error_message,
+    format_unexpected_error_message,
     format_welcome_message,
     normalize_chat_message,
 )
@@ -17,14 +18,25 @@ from lina.services.model_diagnostics_service import (
 
 
 class FakeConversationService:
-    def __init__(self, should_fail: bool = False) -> None:
+    def __init__(
+        self,
+        should_fail: bool = False,
+        response_text: str | None = None,
+        unexpected_error: Exception | None = None,
+    ) -> None:
         self.messages: list[str] = []
         self._should_fail = should_fail
+        self._response_text = response_text
+        self._unexpected_error = unexpected_error
 
     def handle_message(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
+        if self._unexpected_error is not None:
+            raise self._unexpected_error
         if self._should_fail:
             raise ModelProviderError("connection refused")
+        if self._response_text is not None:
+            return ModelResponse(text=self._response_text)
         return ModelResponse(text=f"Response: {user_message}")
 
 
@@ -113,6 +125,13 @@ def test_format_error_message_for_general_provider_failure() -> None:
     assert "Ollama isteği tamamlanamadı" in message
 
 
+def test_format_unexpected_error_message_returns_user_friendly_text() -> None:
+    message = format_unexpected_error_message()
+
+    assert "Beklenmeyen bir hata oluştu" in message
+    assert "arayüz kullanıma hazır" in message
+
+
 def test_format_welcome_message_contains_greeting() -> None:
     message = format_welcome_message()
     assert "Merhaba" in message
@@ -149,6 +168,30 @@ def test_fake_gui_send_message_calls_conversation_service() -> None:
     assert gui.input_focus_count == 1
 
 
+def test_fake_gui_memory_command_fast_response_resets_waiting_state() -> None:
+    service = FakeConversationService(
+        response_text="Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
+    )
+    gui = _create_test_gui(
+        service,
+        input_text="bunu hatırla: kısa cevapları seviyorum",
+    )
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui.send_message()
+
+    assert service.messages == ["bunu hatırla: kısa cevapları seviyorum"]
+    assert gui.recorded_messages == [
+        ("İlhan", "bunu hatırla: kısa cevapları seviyorum"),
+        ("Lina", "Yazıyor..."),
+        ("Lina", "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."),
+    ]
+    assert gui.waiting_states == [True, False]
+    assert gui._is_waiting_for_response is False
+    assert gui._status_updates[-1] == "Hazır"
+
+
 def test_gui_does_not_send_while_waiting_for_response() -> None:
     service = FakeConversationService()
     gui = _create_test_gui(service, input_text="Hello")
@@ -171,6 +214,25 @@ def test_gui_shows_provider_errors_as_chat_messages() -> None:
         ("Lina", format_error_message(ModelProviderError("connection refused"))),
     ]
     assert gui.waiting_states == [True, False]
+    assert gui.input_focus_count == 1
+
+
+def test_gui_shows_unexpected_errors_and_resets_waiting_state() -> None:
+    service = FakeConversationService(unexpected_error=RuntimeError("sqlite thread error"))
+    gui = _create_test_gui(service, input_text="bunu hatırla: kısa cevapları seviyorum")
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui.send_message()
+
+    assert gui.recorded_messages == [
+        ("İlhan", "bunu hatırla: kısa cevapları seviyorum"),
+        ("Lina", "Yazıyor..."),
+        ("Lina", format_unexpected_error_message()),
+    ]
+    assert gui.waiting_states == [True, False]
+    assert gui._is_waiting_for_response is False
+    assert gui._status_updates[-1] == "Hata oluştu"
     assert gui.input_focus_count == 1
 
 
@@ -243,6 +305,20 @@ def test_gui_show_response_replaces_typing_message_without_leaving_label() -> No
     assert chat_log.visible_text == "Lina:\nMerhaba İlhan.\n\n"
     assert "Yazıyor" not in chat_log.visible_text
     assert "Lina:\nLina:" not in chat_log.visible_text
+
+
+def test_gui_show_unexpected_error_replaces_typing_message() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    chat_log = _FakeTkTextLog()
+    gui._chat_log = chat_log
+    gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
+    gui._remove_last_message = LinaGui._remove_last_message.__get__(gui, LinaGui)
+
+    gui._append_message("Lina", "Yazıyor...")
+    gui._show_unexpected_error()
+
+    assert chat_log.visible_text == f"Lina:\n{format_unexpected_error_message()}\n\n"
+    assert "Yazıyor" not in chat_log.visible_text
 
 
 def test_gui_single_send_appends_single_final_response() -> None:
