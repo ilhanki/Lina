@@ -238,9 +238,9 @@ class LinaGui:
 
     def _append_message(self, sender: str, message: str) -> None:
         self._chat_log.configure(state=tk.NORMAL)
-        start_index = self._chat_log.index(tk.END)
-        self._chat_log.insert(tk.END, format_chat_message(sender, message))
-        end_index = self._chat_log.index(tk.END)
+        start_index = self._chat_log.index("end-1c")
+        self._chat_log.insert("end-1c", format_chat_message(sender, message))
+        end_index = self._chat_log.index("end-1c")
         self._message_ranges.append((start_index, end_index))
         self._chat_log.configure(state=tk.DISABLED)
         self._chat_log.see(tk.END)

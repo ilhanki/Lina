@@ -230,6 +230,21 @@ def test_gui_append_message_normalizes_error_response_in_render_path() -> None:
     assert "Lina:Lina:" not in chat_log.inserted_text
 
 
+def test_gui_show_response_replaces_typing_message_without_leaving_label() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    chat_log = _FakeTkTextLog()
+    gui._chat_log = chat_log
+    gui._append_message = LinaGui._append_message.__get__(gui, LinaGui)
+    gui._remove_last_message = LinaGui._remove_last_message.__get__(gui, LinaGui)
+
+    gui._append_message("Lina", "Yazıyor...")
+    gui._show_response(ModelResponse(text="Lina: Merhaba İlhan."))
+
+    assert chat_log.visible_text == "Lina:\nMerhaba İlhan.\n\n"
+    assert "Yazıyor" not in chat_log.visible_text
+    assert "Lina:\nLina:" not in chat_log.visible_text
+
+
 def test_gui_single_send_appends_single_final_response() -> None:
     service = FakeConversationService()
     gui = _create_test_gui(service, input_text="Hello")
@@ -424,3 +439,37 @@ class _FakeChatLog:
 
     def see(self, idx: str) -> None:
         pass
+
+
+class _FakeTkTextLog:
+    """Fake Tk Text widget with an implicit trailing newline."""
+
+    def __init__(self) -> None:
+        self._content = "\n"
+
+    @property
+    def visible_text(self) -> str:
+        return self._content[:-1]
+
+    def configure(self, **kwargs) -> None:
+        pass
+
+    def delete(self, start: str, end: str) -> None:
+        start_index = int(start)
+        end_index = int(end)
+        self._content = self._content[:start_index] + self._content[end_index:]
+
+    def insert(self, index: str, text: str) -> None:
+        insert_index = self._resolve_index(index)
+        self._content = self._content[:insert_index] + text + self._content[insert_index:]
+
+    def index(self, idx: str) -> str:
+        return str(self._resolve_index(idx))
+
+    def see(self, idx: str) -> None:
+        pass
+
+    def _resolve_index(self, idx: str) -> int:
+        if idx == "end-1c":
+            return len(self._content) - 1
+        return len(self._content)
