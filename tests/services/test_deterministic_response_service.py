@@ -31,6 +31,9 @@ def test_deterministic_response_service_returns_help_response() -> None:
 
     assert isinstance(response, ModelResponse)
     assert "sohbet edebilir" in response.text
+    assert "bunu hatırla: kısa cevapları seviyorum" in response.text
+    assert "ne hatırlıyorsun" in response.text
+    assert "şunu unut: kısa cevapları seviyorum" in response.text
     assert "exit veya quit" in response.text
 
 
@@ -52,12 +55,15 @@ def test_deterministic_response_service_returns_honest_capabilities_response() -
     assert "Tkinter GUI" in response.text
     assert "Ollama" in response.text
     assert "runtime context" in response.text
+    assert "yerel ve kalıcı memory" in response.text
+    assert "bunu hatırla: kısa cevapları seviyorum" in response.text
+    assert "ne hatırlıyorsun" in response.text
+    assert "şunu unut: kısa cevapları seviyorum" in response.text
     assert "read-only Git" in response.text
     assert "SAFE tool" in response.text
     assert "model bağlantı durumunu teşhis" in response.text
     assert "genel dosya erişimim" in response.text
     assert "shell command execution" in response.text
-    assert "Kalıcı memory kullanmıyorum" in response.text
     assert "Git commit, push, reset, checkout veya merge işlemleri yapamam" in response.text
     assert "tehlikeli tool çalıştıramaz" in response.text
 
