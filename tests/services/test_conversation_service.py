@@ -12,15 +12,22 @@ class FakeBrain:
         self.messages: list[str] = []
         self.histories: list[list[ConversationTurn]] = []
         self.project_contexts: list[str | None] = []
+        self.file_contexts: list[str | None] = []
+        self.should_fail = False
 
     def respond(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
         return ModelResponse(text=f"Response: {user_message}")
 
     def respond_with_context(self, context) -> ModelResponse:
+        from lina.brain.model_provider import ModelProviderError
+
+        if self.should_fail:
+            raise ModelProviderError("Ollama network error")
         self.messages.append(context.user_message)
         self.histories.append(list(context.conversation_history))
         self.project_contexts.append(context.project_context)
+        self.file_contexts.append(context.file_context)
         return ModelResponse(text=f"Response: {context.user_message}")
 
 
@@ -121,6 +128,45 @@ class FakeMemoryService:
 class FakeMemory:
     def __init__(self, content: str) -> None:
         self.content = content
+
+
+class FakeAllowedFile:
+    def __init__(self, path: str, exists: bool = True) -> None:
+        self.path = path
+        self.exists = exists
+
+
+class FakeFileContent:
+    def __init__(self, path: str, text: str, truncated: bool = False) -> None:
+        self.path = path
+        self.text = text
+        self.truncated = truncated
+
+
+class FakeFileAccessService:
+    def __init__(self, should_reject=None) -> None:
+        self.should_reject = should_reject
+        self.read_requests: list[str] = []
+        self.context_requests: list[str] = []
+
+    def list_allowed_files(self):
+        return (
+            FakeAllowedFile("README.md"),
+            FakeAllowedFile("docs/roadmap.md"),
+            FakeAllowedFile("missing.md", exists=False),
+        )
+
+    def read_allowed_file(self, path_or_alias: str):
+        self.read_requests.append(path_or_alias)
+        if self.should_reject is not None:
+            raise self.should_reject
+        return FakeFileContent(path="README.md", text="Readme content")
+
+    def build_file_context(self, path_or_alias: str):
+        self.context_requests.append(path_or_alias)
+        if self.should_reject is not None:
+            raise self.should_reject
+        return FakeFileContent(path="docs/roadmap.md", text="Roadmap content")
 
 
 def test_conversation_service_sends_user_message_to_brain() -> None:
@@ -237,6 +283,161 @@ def test_conversation_service_routes_memory_remember_without_calling_brain() -> 
         (MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum", "explicit_user_request")
     ]
     assert brain.messages == []
+
+
+def test_conversation_service_routes_file_list_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_LIST_ALLOWED),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    response = service.handle_message("hangi dosyaları okuyabiliyorsun")
+
+    assert "README.md" in response.text
+    assert "docs/roadmap.md" in response.text
+    assert "missing.md" not in response.text
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_file_capabilities_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_CAPABILITIES),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    response = service.handle_message("bilgisayarımdaki dosyaları okuyabiliyor musun")
+
+    assert "genel dosyaları okuyamıyorum" in response.text
+    assert "read-only proje dosyalarını" in response.text
+    assert "Dosya yazma" in response.text
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_file_read_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    file_service = FakeFileAccessService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_READ),
+        file_access_service=file_service,
+    )
+
+    response = service.handle_message("README dosyasını oku")
+
+    assert "README.md dosyasının içeriği" in response.text
+    assert "Readme content" in response.text
+    assert file_service.read_requests == ["readme"]
+    assert brain.messages == []
+
+
+def test_conversation_service_rejects_forbidden_file_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+    from lina.files.models import ForbiddenFilePathError
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_READ),
+        file_access_service=FakeFileAccessService(
+            should_reject=ForbiddenFilePathError("forbidden")
+        ),
+    )
+
+    response = service.handle_message("../README.md dosyasını oku")
+
+    assert "Güvenlik nedeniyle" in response.text
+    assert brain.messages == []
+
+
+def test_conversation_service_rejects_unknown_file_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+    from lina.files.models import UnknownAllowedFileError
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_READ),
+        file_access_service=FakeFileAccessService(
+            should_reject=UnknownAllowedFileError("unknown")
+        ),
+    )
+
+    response = service.handle_message("secret dosyasını oku")
+
+    assert "Bunu okuyamıyorum İlhan" in response.text
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_file_summarize_with_context_to_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    file_service = FakeFileAccessService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_SUMMARIZE),
+        file_access_service=file_service,
+    )
+
+    response = service.handle_message("roadmap dosyasını özetle")
+
+    assert response.text == "Response: roadmap dosyasını özetle"
+    assert file_service.context_requests == ["roadmap"]
+    assert brain.messages == ["roadmap dosyasını özetle"]
+    assert "Dosya: docs/roadmap.md" in brain.file_contexts[0]
+    assert "Roadmap content" in brain.file_contexts[0]
+
+
+def test_conversation_service_file_summarize_falls_back_when_model_fails() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    brain.should_fail = True
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_SUMMARIZE),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    response = service.handle_message("roadmap dosyasını özetle")
+
+    assert "Dosyayı okuyabildim" in response.text
+    assert "Roadmap content" in response.text
+
+
+def test_conversation_service_file_summarize_keeps_memory_history_context() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.MEMORY_RECALL, IntentType.FILE_SUMMARIZE]
+        ),
+        memory_service=FakeMemoryService(),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    service.handle_message("ne hatırlıyorsun")
+    service.handle_message("roadmap dosyasını özetle")
+
+    assert brain.histories[0] == [
+        ConversationTurn(
+            user_message="ne hatırlıyorsun",
+            assistant_response="Şu an hafızamda kayıtlı bir bilgi yok İlhan.",
+        )
+    ]
+    assert "Roadmap content" in brain.file_contexts[0]
 
 
 def test_conversation_service_returns_memory_remember_missing_content() -> None:

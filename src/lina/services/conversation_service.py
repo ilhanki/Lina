@@ -1,11 +1,20 @@
 """Conversation service for Lina."""
 
+from dataclasses import replace
+
 from lina.brain.brain import Brain
 from lina.brain.context_manager import ContextManager
-from lina.brain.intent import IntentType
+from lina.brain.intent import Intent, IntentType
 from lina.brain.intent_analyzer import IntentAnalyzer
-from lina.brain.model_provider import ModelResponse
+from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
+from lina.files.file_access_service import FileAccessService
+from lina.files.models import (
+    FileAccessError,
+    ForbiddenFilePathError,
+    MissingAllowedFileError,
+    UnknownAllowedFileError,
+)
 from lina.memory.models import MemoryType
 from lina.memory.service import MemoryService
 from lina.services.deterministic_response_service import DeterministicResponseService
@@ -25,6 +34,7 @@ class ConversationService:
         context_manager: ContextManager | None = None,
         tool_execution_service: ToolExecutionService | None = None,
         memory_service: MemoryService | None = None,
+        file_access_service: FileAccessService | None = None,
         history_limit: int = 6,
     ) -> None:
         self._brain = brain
@@ -38,6 +48,7 @@ class ConversationService:
         )
         self._tool_execution_service = tool_execution_service
         self._memory_service = memory_service
+        self._file_access_service = file_access_service
         self._history_limit = history_limit
         self._history: list[ConversationTurn] = []
 
@@ -52,6 +63,13 @@ class ConversationService:
             IntentType.MEMORY_CLEAR,
         }:
             response = self._handle_memory_intent(intent.type, user_message)
+        elif intent.type in {
+            IntentType.FILE_LIST_ALLOWED,
+            IntentType.FILE_CAPABILITIES,
+            IntentType.FILE_READ,
+            IntentType.FILE_SUMMARIZE,
+        }:
+            response = self._handle_file_intent(intent.type, user_message)
         elif intent.type is IntentType.CURRENT_TIME and self._tool_execution_service:
             try:
                 response = ModelResponse(
@@ -146,8 +164,157 @@ class ConversationService:
 
         raise ValueError(f"Unsupported memory intent: {intent_type.value}")
 
+    def _handle_file_intent(
+        self,
+        intent_type: IntentType,
+        user_message: str,
+    ) -> ModelResponse:
+        if self._file_access_service is None:
+            return ModelResponse(
+                text="Dosya okuma yeteneği şu anda yapılandırılmamış İlhan."
+            )
+
+        if intent_type is IntentType.FILE_LIST_ALLOWED:
+            files = [
+                file.path
+                for file in self._file_access_service.list_allowed_files()
+                if file.exists
+            ]
+            if not files:
+                return ModelResponse(
+                    text="Şu anda okuyabileceğim mevcut izinli proje dosyası yok İlhan."
+                )
+            lines = ["Şu an yalnızca şu izinli proje dosyalarını okuyabiliyorum:"]
+            lines.extend(f"{index}. {path}" for index, path in enumerate(files, start=1))
+            return ModelResponse(text="\n".join(lines))
+
+        if intent_type is IntentType.FILE_CAPABILITIES:
+            return ModelResponse(
+                text=(
+                    "Bilgisayarındaki genel dosyaları okuyamıyorum İlhan. Şu an sadece "
+                    "Lina projesinde izinli, read-only proje dosyalarını okuyabilirim. "
+                    "Dosya yazma, silme, taşıma veya yeniden adlandırma yetkim yok."
+                )
+            )
+
+        reference = _extract_file_reference(user_message)
+        if not reference:
+            return _format_unknown_file_response()
+
+        if intent_type is IntentType.FILE_READ:
+            try:
+                content = self._file_access_service.read_allowed_file(reference)
+            except FileAccessError as error:
+                return _format_file_access_error(error)
+
+            return ModelResponse(
+                text=_format_file_preview(content.path, content.text, content.truncated)
+            )
+
+        if intent_type is IntentType.FILE_SUMMARIZE:
+            try:
+                content = self._file_access_service.build_file_context(reference)
+            except FileAccessError as error:
+                return _format_file_access_error(error)
+
+            context = self._context_manager.build_context(
+                user_message=user_message,
+                intent=Intent(type=IntentType.CHAT),
+                conversation_history=self._history,
+            )
+            context = replace(
+                context,
+                file_context=_format_file_context(
+                    content.path,
+                    content.text,
+                    content.truncated,
+                ),
+            )
+            try:
+                return self._brain.respond_with_context(context)
+            except ModelProviderError:
+                return ModelResponse(
+                    text=(
+                        "Dosyayı okuyabildim ama özetlemek için yerel modele bağlı "
+                        "değilim. İlk bölümünü gösterebilirim:\n\n"
+                        f"{_format_file_preview(content.path, content.text, content.truncated)}"
+                    )
+                )
+
+        raise ValueError(f"Unsupported file intent: {intent_type.value}")
+
 
 def _extract_memory_content(message: str) -> str:
     if ":" not in message:
         return ""
     return message.split(":", 1)[1].strip()
+
+
+def _extract_file_reference(message: str) -> str:
+    normalized = message.strip().casefold()
+    known_references = (
+        "docs/roadmap.md",
+        "docs/development-log.md",
+        "docs/architecture.md",
+        "docs/vision.md",
+        "docs/brain-specification-v1.md",
+        "docs/conversation-flow-v1.md",
+        "docs/release-notes-v0.3.0-alpha.md",
+        "docs/release-notes-v0.3.1-alpha.md",
+        "docs/release-notes-v0.4.0-alpha.md",
+        "docs/release-notes-v0.4.1-alpha.md",
+        "readme",
+        "contributing",
+        "roadmap",
+        "development log",
+        "dev log",
+        "architecture",
+        "vision",
+        "brain spec",
+        "conversation flow",
+        "release notes v0.4.1",
+        "v0.4.1 release notes",
+        "release notes v0.4.0",
+        "v0.4.0 release notes",
+        "release notes v0.3.1",
+        "v0.3.1 release notes",
+        "release notes v0.3.0",
+        "v0.3.0 release notes",
+    )
+    for reference in known_references:
+        if reference in normalized:
+            return reference
+    if ":\\" in message or ":/" in message or ".." in message:
+        return message.strip()
+    return ""
+
+
+def _format_file_context(path: str, text: str, truncated: bool) -> str:
+    suffix = "\n\nNot: Dosya uzun olduğu için yalnızca ilk bölüm kullanıldı." if truncated else ""
+    return f"Dosya: {path}\nİçerik:\n{text}{suffix}"
+
+
+def _format_file_preview(path: str, text: str, truncated: bool) -> str:
+    if truncated:
+        return f"{path} dosyası uzun olduğu için ilk bölümü gösteriyorum:\n\n{text}"
+    return f"{path} dosyasının içeriği:\n\n{text}"
+
+
+def _format_unknown_file_response() -> ModelResponse:
+    return ModelResponse(
+        text=(
+            "Bunu okuyamıyorum İlhan. Şu an yalnızca izinli proje dosyalarını "
+            "okuyabiliyorum. 'hangi dosyaları okuyabiliyorsun' diyerek listeyi "
+            "görebilirsin."
+        )
+    )
+
+
+def _format_file_access_error(error: FileAccessError) -> ModelResponse:
+    if isinstance(error, ForbiddenFilePathError):
+        return ModelResponse(text="Güvenlik nedeniyle bu dosya yolunu okuyamam İlhan.")
+    if isinstance(error, UnknownAllowedFileError):
+        return _format_unknown_file_response()
+    if isinstance(error, MissingAllowedFileError):
+        return ModelResponse(text="Bu dosya izinli listede ama şu anda mevcut değil İlhan.")
+    return ModelResponse(text="Bu dosyayı güvenli şekilde okuyamadım İlhan.")
