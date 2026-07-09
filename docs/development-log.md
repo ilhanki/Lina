@@ -1796,3 +1796,31 @@ Professional Chat UI içine Lina logosunu güvenli ve küçük kapsamlı bir GUI
 ### Durum
 
 Branding Polish tamamlandı. Tag oluşturulmadı.
+
+## 2026-07-10 - Day-End Close - v0.5.x GUI and Branding Stabilization
+
+### Kapanan Çalışmalar
+
+- `v0.5.0-alpha` Files Capability v1 taglendi.
+- Files Capability v1 içinde read-only allowlisted file access tamamlandı.
+- File summary fallback ve grounding bugları kapatıldı.
+- Path traversal güvenlik bug'ı kapatıldı.
+- Prompt history bounding eklendi.
+- `v0.5.1-alpha` Professional Chat UI Refresh taglendi.
+- GUI modern koyu temaya geçti.
+- Sidebar, chat bubbles, composer ve placeholder action buttons eklendi.
+- `v0.5.2-alpha` Branding Polish adayı hazırlandı.
+- `assets/branding/lina-logo.png` ve `assets/branding/lina-icon.png` projeye dahil edildi.
+- GUI sidebar branding ve window icon fallback desteği eklendi.
+
+### Test Sonucu
+
+- Tam test paketi: `384 passed`
+
+### Durum
+
+`v0.5.x` hattı Files Capability v1, Professional Chat UI Refresh ve Branding Polish çalışmalarını kapsayacak şekilde kapatılmaya hazırdır. `v0.5.1-alpha` tag'ine dokunulmadı ve taşınmadı.
+
+### Sonraki Büyük Hedef
+
+Sıradaki büyük hedef `v0.6.0-alpha` Speech Capability v1 olacaktır. Speech geliştirmesine geçmeden önce kısa bir Speech Architecture & Safety Planning sprinti yapılmalıdır.
