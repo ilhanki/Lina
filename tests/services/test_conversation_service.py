@@ -396,8 +396,9 @@ def test_conversation_service_routes_file_summarize_with_context_to_brain() -> N
     assert response.text.startswith("Response: docs/roadmap.md dosyasını")
     assert file_service.context_requests == ["roadmap"]
     assert brain.messages == [
-        "docs/roadmap.md dosyasını, yalnızca verilen izinli dosya bağlamına dayanarak "
-        "kısa ve anlaşılır Türkçe ile özetle. Dosya içeriğinde olmayan bilgi uydurma."
+        "docs/roadmap.md dosyasını aşağıdaki izinli dosya bağlamına dayanarak Türkçe "
+        "ve kısa şekilde özetle. Dosya bağlamı dışında bilgi uydurma. Eğer bağlam "
+        "yetersizse bunu açıkça söyle. Selamlama, sohbet sorusu veya meta başlık yazma."
     ]
     assert "Dosya: docs/roadmap.md" in brain.file_contexts[0]
     assert "Roadmap content" in brain.file_contexts[0]
@@ -452,13 +453,31 @@ def test_conversation_service_file_summarize_keeps_memory_history_context() -> N
     service.handle_message("ne hatırlıyorsun")
     service.handle_message("roadmap dosyasını özetle")
 
-    assert brain.histories[0] == [
-        ConversationTurn(
-            user_message="ne hatırlıyorsun",
-            assistant_response="Şu an hafızamda kayıtlı bir bilgi yok İlhan.",
-        )
-    ]
+    assert brain.histories[0] == []
     assert "Roadmap content" in brain.file_contexts[0]
+
+
+def test_conversation_service_file_summarize_ignores_previous_casual_history() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.CASUAL_GREETING, IntentType.FILE_SUMMARIZE]
+        ),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    service.handle_message("selam naber")
+    response = service.handle_message("roadmap dosyasını özetle")
+
+    assert response.text.startswith("Response: docs/roadmap.md dosyasını")
+    assert brain.histories[0] == []
+    assert "Dosya: docs/roadmap.md" in brain.file_contexts[0]
+    assert "Roadmap content" in brain.file_contexts[0]
+    assert "selam naber" not in brain.messages[0].casefold()
+    assert "bugün ne yapalım" not in brain.messages[0].casefold()
 
 
 def test_conversation_service_returns_memory_remember_missing_content() -> None:

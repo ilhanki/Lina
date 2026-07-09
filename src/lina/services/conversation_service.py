@@ -220,7 +220,7 @@ class ConversationService:
             context = self._context_manager.build_context(
                 user_message=_build_file_summary_request(content.path),
                 intent=Intent(type=IntentType.CHAT),
-                conversation_history=self._history,
+                conversation_history=[],
             )
             context = replace(
                 context,
@@ -298,8 +298,9 @@ def _format_file_context(path: str, text: str, truncated: bool) -> str:
 
 def _build_file_summary_request(path: str) -> str:
     return (
-        f"{path} dosyasını, yalnızca verilen izinli dosya bağlamına dayanarak "
-        "kısa ve anlaşılır Türkçe ile özetle. Dosya içeriğinde olmayan bilgi uydurma."
+        f"{path} dosyasını aşağıdaki izinli dosya bağlamına dayanarak Türkçe ve kısa "
+        "şekilde özetle. Dosya bağlamı dışında bilgi uydurma. Eğer bağlam yetersizse "
+        "bunu açıkça söyle. Selamlama, sohbet sorusu veya meta başlık yazma."
     )
 
 

@@ -292,6 +292,14 @@ def test_intent_analyzer_prefers_file_summarize_over_casual_greeting() -> None:
     assert intent.type is IntentType.FILE_SUMMARIZE
 
 
+def test_intent_analyzer_prefers_roadmap_file_summarize_over_casual_greeting() -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze("selam roadmap dosyasını özetle")
+
+    assert intent.type is IntentType.FILE_SUMMARIZE
+
+
 def test_intent_analyzer_falls_back_to_chat() -> None:
     analyzer = IntentAnalyzer()
 

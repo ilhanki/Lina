@@ -27,6 +27,14 @@ class PromptBuilder:
         file_context: str | None = None,
     ) -> str:
         message = user_message.strip()
+        if file_context and file_context.strip():
+            return self._build_file_context_prompt(
+                user_message=message,
+                memory_context=memory_context,
+                project_context=project_context,
+                file_context=file_context,
+            )
+
         sections = [f"System:\n{self._system_prompt}"]
 
         if memory_context and memory_context.strip():
@@ -45,14 +53,6 @@ class PromptBuilder:
                 f"{project_context.strip()}"
             )
 
-        if file_context and file_context.strip():
-            sections.append(
-                "File context:\n"
-                "Aşağıdaki izinli dosya bağlamına dayan. Bu bağlam dışında dosya "
-                "içeriği, dosya yolu veya proje geçmişi uydurma.\n"
-                f"{file_context.strip()}"
-            )
-
         if history:
             history_lines: list[str] = []
             for turn in history:
@@ -61,6 +61,50 @@ class PromptBuilder:
             sections.append("Conversation history:\n" + "\n".join(history_lines))
 
         sections.append(f"User:\n{message}")
+        return "\n\n".join(sections)
+
+    def _build_file_context_prompt(
+        self,
+        user_message: str,
+        file_context: str,
+        memory_context: str | None = None,
+        project_context: str | None = None,
+    ) -> str:
+        sections = [
+            (
+                "System:\n"
+                "Sen Lina'sın. Kullanıcı açıkça başka bir dil istemedikçe Türkçe cevap ver. "
+                "Bu görev bir dosya okuma/özetleme görevidir; genel sohbet cevabı verme."
+            )
+        ]
+
+        if memory_context and memory_context.strip():
+            sections.append(
+                "Memory context:\n"
+                "Bu bilgileri yalnızca yardımcı bağlam olarak kullan; dosya içeriğinin yerine geçirme.\n"
+                f"{memory_context.strip()}"
+            )
+
+        if project_context and project_context.strip():
+            sections.append(
+                "Project context:\n"
+                "Bu bilgileri yalnızca yardımcı bağlam olarak kullan; dosya içeriğinin yerine geçirme.\n"
+                f"{project_context.strip()}"
+            )
+
+        sections.append(
+            "File context:\n"
+            "Aşağıdaki izinli dosya bağlamını birincil kaynak olarak kullan. "
+            "Cevabını önceki sohbet mesajlarına göre değil, dosya içeriğine göre cevap ver. "
+            "Dosya bağlamı dışında bilgi uydurma. selamlama, sohbet sorusu veya meta başlık yazma.\n"
+            f"{file_context.strip()}"
+        )
+        sections.append(f"User:\n{user_message}")
+        sections.append(
+            "Answer instructions:\n"
+            "Yalnızca dosya bağlamına dayalı kısa ve net Türkçe özet ver. "
+            "'Merhaba', 'bugün ne yapalım', 'İlhan'a Samimi Bir Cevap' gibi ifadeler kullanma."
+        )
         return "\n\n".join(sections)
 
     def build_from_context(self, context) -> str:

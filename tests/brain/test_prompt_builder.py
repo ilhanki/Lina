@@ -24,7 +24,10 @@ def test_prompt_builder_includes_conversation_history() -> None:
     prompt = builder.build(
         user_message="What is my name?",
         history=[
-            ConversationTurn(user_message="My name is Ilhan.", assistant_response="Nice to meet you."),
+            ConversationTurn(
+                user_message="My name is Ilhan.",
+                assistant_response="Nice to meet you.",
+            ),
         ],
     )
 
@@ -94,7 +97,9 @@ def test_prompt_builder_includes_file_context() -> None:
     )
 
     assert "File context:" in prompt
-    assert "izinli dosya bağlamına dayan" in prompt
+    assert "izinli dosya bağlamını birincil kaynak olarak kullan" in prompt
+    assert "önceki sohbet mesajlarına göre değil, dosya içeriğine göre cevap ver" in prompt
+    assert "selamlama, sohbet sorusu veya meta başlık yazma" in prompt
     assert "File: README.md" in prompt
     assert "Lina docs" in prompt
 
@@ -139,5 +144,5 @@ def test_prompt_builder_builds_from_conversation_context() -> None:
     assert "Project context" in prompt
     assert "Memory context" in prompt
     assert "File context" in prompt
-    assert "Conversation history:" in prompt
+    assert "Conversation history:" not in prompt
     assert "User:\nWhat happened?" in prompt
