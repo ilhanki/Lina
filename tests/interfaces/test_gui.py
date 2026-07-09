@@ -168,6 +168,104 @@ def test_fake_gui_send_message_calls_conversation_service() -> None:
     assert gui.input_focus_count == 1
 
 
+def test_gui_adds_sent_message_to_input_history() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+
+    gui.send_message()
+
+    assert gui._input_history == ["Hello"]
+    assert gui._input_history_index == 1
+
+
+def test_gui_does_not_add_empty_message_to_input_history() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="   ")
+
+    gui.send_message()
+
+    assert gui._input_history == []
+
+
+def test_gui_does_not_add_consecutive_duplicate_input_history() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="Hello")
+
+    gui.send_message()
+    gui.send_message()
+
+    assert gui._input_history == ["Hello"]
+
+
+def test_gui_history_previous_loads_last_message() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._message_input = _FakeMessageInput()
+    gui._record_input_history("selam")
+    gui._record_input_history("neler yapabiliyorsun")
+
+    gui._navigate_input_history(-1)
+
+    assert gui._message_input.text == "neler yapabiliyorsun"
+
+
+def test_gui_history_multiple_previous_loads_older_messages() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._message_input = _FakeMessageInput()
+    gui._record_input_history("selam")
+    gui._record_input_history("neler yapabiliyorsun")
+
+    gui._navigate_input_history(-1)
+    gui._navigate_input_history(-1)
+
+    assert gui._message_input.text == "selam"
+
+
+def test_gui_history_next_loads_newer_message() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._message_input = _FakeMessageInput()
+    gui._record_input_history("selam")
+    gui._record_input_history("neler yapabiliyorsun")
+
+    gui._navigate_input_history(-1)
+    gui._navigate_input_history(-1)
+    gui._navigate_input_history(1)
+
+    assert gui._message_input.text == "neler yapabiliyorsun"
+
+
+def test_gui_history_next_clears_input_at_end() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._message_input = _FakeMessageInput()
+    gui._record_input_history("selam")
+
+    gui._navigate_input_history(-1)
+    gui._navigate_input_history(1)
+
+    assert gui._message_input.text == ""
+
+
+def test_gui_send_message_resets_input_history_index() -> None:
+    service = FakeConversationService()
+    gui = _create_test_gui(service, input_text="naber")
+    gui._input_history = ["selam"]
+    gui._input_history_index = 0
+
+    gui.send_message()
+
+    assert gui._input_history_index == 2
+
+
+def test_gui_history_navigation_does_not_run_when_input_disabled() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._message_input = _FakeMessageInput(state="disabled")
+    gui._record_input_history("selam")
+
+    gui._navigate_input_history(-1)
+
+    assert gui._message_input.text == ""
+    assert gui._input_history_index == 1
+
+
 def test_fake_gui_memory_command_fast_response_resets_waiting_state() -> None:
     service = FakeConversationService(
         response_text="Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
@@ -467,6 +565,8 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
     gui._diagnostics_service = None
     gui._last_response_text = ""
     gui._message_ranges = []
+    gui._input_history = []
+    gui._input_history_index = 0
     gui.recorded_messages = []
     gui.waiting_states = []
     gui.input_was_cleared = False
@@ -493,6 +593,23 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
 class _FakeRoot:
     def after(self, delay_ms: int, callback, *args) -> None:
         callback(*args)
+
+
+class _FakeMessageInput:
+    def __init__(self, text: str = "", state: str = "normal") -> None:
+        self.text = text
+        self._state = state
+
+    def cget(self, key: str) -> str:
+        if key == "state":
+            return self._state
+        return ""
+
+    def delete(self, start: str, end: str) -> None:
+        self.text = ""
+
+    def insert(self, index: str, text: str) -> None:
+        self.text = text
 
 
 class _FakeChatLog:

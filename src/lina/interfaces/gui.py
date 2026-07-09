@@ -43,6 +43,8 @@ class LinaGui:
         self._diagnostics_service = diagnostics_service
         self._is_waiting_for_response = False
         self._last_response_text: str = ""
+        self._input_history: list[str] = []
+        self._input_history_index = 0
         self._root.title("Lina")
         self._root.geometry("820x660")
         self._root.minsize(540, 440)
@@ -103,6 +105,8 @@ class LinaGui:
         self._message_input = tk.Text(self._input_frame, height=3, width=56)
         self._message_input.grid(row=0, column=0, padx=(0, 8), sticky="ew")
         self._message_input.bind("<Return>", self._handle_enter)
+        self._message_input.bind("<Up>", self._handle_history_previous)
+        self._message_input.bind("<Down>", self._handle_history_next)
 
         self._send_button = ttk.Button(
             self._input_frame,
@@ -175,6 +179,7 @@ class LinaGui:
         if not message:
             return
 
+        self._record_input_history(message)
         self._clear_input()
         self._append_message("İlhan", message)
         self._append_message("Lina", "Yazıyor...")
@@ -247,11 +252,52 @@ class LinaGui:
         self.send_message()
         return "break"
 
+    def _handle_history_previous(self, event: tk.Event) -> str:
+        self._navigate_input_history(-1)
+        return "break"
+
+    def _handle_history_next(self, event: tk.Event) -> str:
+        self._navigate_input_history(1)
+        return "break"
+
     def _get_input_text(self) -> str:
         return self._message_input.get("1.0", tk.END).strip()
 
     def _clear_input(self) -> None:
         self._message_input.delete("1.0", tk.END)
+
+    def _set_input_text(self, text: str) -> None:
+        self._message_input.delete("1.0", tk.END)
+        self._message_input.insert("1.0", text)
+
+    def _record_input_history(self, message: str) -> None:
+        text = message.strip()
+        if not text:
+            return
+        if not self._input_history or self._input_history[-1] != text:
+            self._input_history.append(text)
+        self._input_history_index = len(self._input_history)
+
+    def _navigate_input_history(self, direction: int) -> None:
+        if self._is_waiting_for_response or not self._input_history:
+            return
+
+        if str(self._message_input.cget("state")) == str(tk.DISABLED):
+            return
+
+        if direction < 0:
+            self._input_history_index = max(0, self._input_history_index - 1)
+        elif direction > 0:
+            self._input_history_index = min(
+                len(self._input_history),
+                self._input_history_index + 1,
+            )
+
+        if self._input_history_index == len(self._input_history):
+            self._set_input_text("")
+            return
+
+        self._set_input_text(self._input_history[self._input_history_index])
 
     def _append_message(self, sender: str, message: str) -> None:
         self._chat_log.configure(state=tk.NORMAL)
