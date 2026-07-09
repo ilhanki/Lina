@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.4.1-alpha Memory UX / Recall Polish
+## Mevcut Durum: v0.5.0-alpha Files Capability v1
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -10,7 +10,9 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.4.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, Lina'nın ilk gerçek local-first kalıcı hafıza altyapısını ekledi.
 
-`v0.4.1-alpha` hattı Memory UX / Recall polish için açılmıştır. Bu hat, explicit memory komutlarının kullanıcıya daha anlaşılır cevap vermesini, hassas bilgi korumasını ve GUI input history davranışını kapsar.
+`v0.4.1-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, explicit memory komutlarının kullanıcıya daha anlaşılır cevap vermesini, hassas bilgi korumasını ve GUI input history davranışını kapsadı.
+
+`v0.5.0-alpha` hattı Files Capability v1 için açılmıştır. Bu hat, Lina'nın yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilmesini ve dosya içeriğini güvenli context olarak kullanabilmesini kapsar.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -26,6 +28,9 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - Memory recall/list cevapları daha okunabilir numaralı listeye dönüştürüldü.
 - Sensitive memory guard eklendi; şifre, token, API key, kimlik ve ödeme bilgisi gibi hassas içerikler saklanmaz.
 - GUI input history eklendi; `↑` ve `↓` ile session içi önceki mesajlar gezilebilir.
+- Read-only allowlisted `FileAccessService` eklendi.
+- File list/read/summarize/capability intentleri eklendi.
+- Dosya context'i prompt akışına güvenli ve sınırlı şekilde dahil edildi.
 
 Tamamlanan ana başlıklar:
 
@@ -308,17 +313,27 @@ Teknolojiler:
 
 Amaç:
 
-- Güvenli dosya listeleme, okuma ve sınırlı yazma işlemlerini desteklemek.
+- Güvenli, read-only ve allowlisted dosya listeleme/okuma işlemlerini desteklemek.
+- Dosya içeriğini kontrollü context olarak kullanmak.
 
 Neden bu sırada:
 
 Dosya yönetimi asistanın en temel pratik yeteneklerinden biridir; automation'dan önce güvenli permission modeli test edilir.
 
+Durum:
+
+- Uygulama aşamasında / `v0.5.0-alpha` hattında.
+- `FileAccessService` yalnız allowlist kapsamındaki proje dosyalarını okur.
+- Absolute path, path traversal ve allowlist dışı dosya istekleri reddedilir.
+- Dosya yazma, silme, taşıma, rename veya copy yeteneği yoktur.
+- LLM kendi başına dosya okuyamaz; dosya okuma deterministic `ConversationService -> FileAccessService` akışından geçer.
+
 Teknolojiler:
 
 - `pathlib`.
-- Tool system.
-- Permission checks.
+- Python standard library.
+- Deterministic intent routing.
+- Prompt context limitleri.
 
 ## Milestone 8: Speech Capability v1
 

@@ -1615,3 +1615,55 @@ Memory v1, `v0.4.0-alpha` tag için duplicate prevention hotfix ile daha stabil 
 ### Durum
 
 `v0.4.1-alpha` için Memory UX / Recall polish ve GUI input history geliştirmeleri tamamlandı. Manuel smoke test sonrası tag değerlendirmesi yapılabilir.
+
+## 2026-07-09 - Files Capability v1
+
+### Amaç
+
+`v0.5.0-alpha` hattında Lina'ya genel dosya sistemi erişimi vermeden, yalnızca izinli proje dosyalarını read-only okuyabilen güvenli bir Files Capability v1 eklemek hedeflendi.
+
+### Yapılanlar
+
+- `FileAccessService` eklendi.
+- Sabit ve küçük bir allowlist tanımlandı.
+- `README.md`, `contributing.md` ve izinli `docs/*.md` dosyaları için read-only erişim sağlandı.
+- Alias desteği eklendi: `readme`, `roadmap`, `development log`, `release notes v0.4.1` gibi ifadeler izinli dosyalara çözümlenir.
+- Absolute path istekleri reddedilir hale getirildi.
+- `../` ve backslash tabanlı path traversal istekleri reddedilir hale getirildi.
+- Unknown veya allowlist dışı dosya istekleri Brain/Ollama çağrılmadan güvenli cevapla reddedilir.
+- `FILE_LIST_ALLOWED`, `FILE_READ`, `FILE_SUMMARIZE` ve `FILE_CAPABILITIES` intentleri eklendi.
+- `FILE_READ`, Brain/Ollama çağırmadan güvenli preview döndürür.
+- `FILE_SUMMARIZE`, yalnız allowlisted dosya okunduktan sonra dosya context'ini Brain'e verir.
+- File context `PromptBuilder` içinde ayrı bir bölüm olarak eklendi.
+- Help/capabilities cevapları Files v1 sınırlarını ve örnek komutları gösterecek şekilde güncellendi.
+- GUI normal chat render path'i file command response için regression test ile korundu.
+
+### Güvenlik Sınırları
+
+- Genel dosya sistemi erişimi eklenmedi.
+- Proje dışı dosya erişimi eklenmedi.
+- Dosya yazma, silme, taşıma, rename veya copy capability eklenmedi.
+- Shell command execution eklenmedi.
+- LLM tool-calling veya LLM'in kendi başına dosya seçmesi eklenmedi.
+- Yeni dependency eklenmedi.
+
+### Test Sonucu
+
+- FileAccessService testleri: `14 passed`
+- Intent testleri: `89 passed`
+- Prompt/context testleri: `20 passed`
+- Conversation/bootstrap/file service testleri: `51 passed`
+- Deterministic response ve conversation service testleri: `44 passed`
+- GUI testleri: `48 passed`
+
+### Bilinen Eksikler
+
+- Files v1 semantic file search yapmaz.
+- Allowlist config üzerinden yönetilmiyor; v1 için kod içinde sabit tutuluyor.
+- Genel dosya capability yoktur.
+- Dosya yazma veya düzenleme yoktur.
+- Büyük dosyalar yalnız limitli context/preview olarak kullanılır.
+
+### Durum
+
+Files Capability v1 uygulandı. Final tam test ve manuel smoke test sonrasında `v0.5.0-alpha` tag değerlendirmesi yapılabilir.

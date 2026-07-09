@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda `v0.4.0-alpha` Memory Capability v1 geliştirme hattındadır. `v0.3.1-alpha` stabilization hotfix tag'i oluşturulmuş, ardından ilk local-first kalıcı hafıza altyapısı eklenmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir ve açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir.
+Bu depo şu anda `v0.5.0-alpha` Files Capability v1 geliştirme hattındadır. `v0.4.1-alpha` Memory UX / Recall Polish tag'i oluşturulmuş, ardından güvenli ve read-only dosya context yeteneği eklenmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
 
 ## Projenin Amacı
 
@@ -50,6 +50,7 @@ Mevcut çalışan özellikler:
 - Runtime conversation context.
 - Session içi geçici conversation history.
 - Local-first SQLite Memory Capability v1.
+- Read-only allowlisted Files Capability v1.
 - Explicit memory commands.
 - Rule-based intent analyzer.
 - Deterministic response flow.
@@ -63,7 +64,6 @@ Planlanan uzun vadeli özellikler:
 
 - Memory UX / Recall polish.
 - Daha gelişmiş tool sistemi.
-- Files capability.
 - Speech ve TTS.
 - Vision ve screen understanding.
 - Windows automation.
@@ -135,7 +135,7 @@ Masaüstü GUI arayüzünü çalıştırmak için:
 python gui.py
 ```
 
-Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar, bilgisayar kontrolüyle ilgili güvenlik soruları ve explicit memory komutları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar, bilgisayar kontrolüyle ilgili güvenlik soruları, explicit memory komutları ve güvenli dosya listeleme/okuma komutları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
 
 Memory komut örnekleri:
 
@@ -153,6 +153,28 @@ Memory v1 privacy notu:
 - Hassas bilgiler otomatik kaydedilmez.
 - Memory local SQLite dosyasında tutulur.
 - Varsayılan database yolu `data/lina_memory.sqlite3` değeridir ve Git'e eklenmez.
+
+### Files Capability v1
+
+Lina v1'de genel dosya sistemi erişimine sahip değildir. Sadece proje içindeki açıkça izin verilmiş dosyaları read-only okuyabilir.
+
+Örnek komutlar:
+
+```text
+hangi dosyaları okuyabiliyorsun
+README dosyasını oku
+roadmap dosyasını özetle
+development log'da son ne var
+docs/roadmap.md dosyasını oku
+```
+
+Güvenlik sınırları:
+
+- Lina rastgele bilgisayar dosyalarını okuyamaz.
+- `C:/Users/...` gibi absolute path istekleri reddedilir.
+- `../` path traversal istekleri reddedilir.
+- Dosya yazma, silme, taşıma, rename veya copy yeteneği yoktur.
+- Allowlist wildcard kullanmaz; tüm `docs/` klasörü otomatik açılmaz.
 
 ### Memory UX Notları
 
@@ -278,7 +300,7 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 ## Mevcut Sınırlamalar
 
 - Memory v1 yalnız explicit komutlarla kayıt yapar; otomatik memory extraction yoktur.
-- Genel dosya okuma/yazma capability'si yoktur.
+- Files v1 yalnız allowlist kapsamındaki proje dosyalarını read-only okuyabilir; genel dosya okuma/yazma capability'si yoktur.
 - Shell command execution yoktur.
 - Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
 - Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
@@ -287,6 +309,6 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.4.0-alpha Memory Capability v1 geliştirme hattı**
+Mevcut durum: **v0.5.0-alpha Files Capability v1 geliştirme hattı**
 
-Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli ve explicit local SQLite memory altyapısına sahip erken aşama bir masaüstü asistanıdır.
+Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır.
