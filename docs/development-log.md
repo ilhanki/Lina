@@ -1690,3 +1690,26 @@ GUI içinde `roadmap dosyasını özetle` komutu dosyayı başarıyla okuyordu, 
 ### Durum
 
 Files summarize akışı artık Ollama kullanılabilirken model cevabını döndürür. Ollama gerçekten erişilemezse güvenli preview fallback davranışı korunur.
+
+## 2026-07-09 - Files Summary Grounding Hotfix
+
+### Sorun
+
+Manuel GUI testte `selam naber` sonrasında `roadmap dosyasını özetle` komutu dosya içeriğini özetlemek yerine önceki casual greeting akışına benzeyen alakasız bir cevap üretebiliyordu.
+
+### Düzeltme
+
+- `FILE_SUMMARIZE` prompt'u dosya özetleme görevine özel ve daha kompakt hale getirildi.
+- File context prompt içinde birincil kaynak olarak güçlendirildi.
+- Dosya özetleme sırasında selamlama, sohbet sorusu ve meta başlık üretimi engellendi.
+- `FILE_SUMMARIZE` sırasında önceki casual conversation history'sinin modeli saptırması engellendi.
+- `selam naber` sonrası `roadmap dosyasını özetle` regression testi eklendi.
+
+### Test Sonucu
+
+- Hedefli testler: `136 passed`
+- Tam test paketi: `368 passed`
+
+### Durum
+
+Files summary akışı artık dosya bağlamını birincil kaynak olarak kullanacak şekilde daha güçlü biçimde yönlendiriliyor. `v0.5.0-alpha` tag öncesi manuel smoke test önerilir.
