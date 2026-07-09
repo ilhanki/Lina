@@ -103,6 +103,28 @@ def test_file_access_service_rejects_backslash_path_traversal(tmp_path: Path) ->
         service.read_allowed_file("..\\README.md")
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "../../README.md",
+        "docs/../README.md",
+        "C:/Users/Ilhan/Desktop/test.txt",
+        "C:\\Users\\Ilhan\\Desktop\\test.txt",
+        "/etc/passwd",
+        "./../README.md",
+    ],
+)
+def test_file_access_service_rejects_forbidden_path_syntax_before_alias(
+    tmp_path: Path,
+    path: str,
+) -> None:
+    (tmp_path / "README.md").write_text("Readme", encoding="utf-8")
+    service = FileAccessService(project_root=tmp_path, allowed_paths=("README.md",))
+
+    with pytest.raises(ForbiddenFilePathError):
+        service.read_allowed_file(path)
+
+
 def test_file_access_service_enforces_project_root_boundary(tmp_path: Path) -> None:
     with pytest.raises(ForbiddenFilePathError):
         FileAccessService(

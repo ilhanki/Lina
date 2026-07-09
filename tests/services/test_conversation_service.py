@@ -358,6 +358,28 @@ def test_conversation_service_rejects_forbidden_file_without_calling_brain() -> 
     response = service.handle_message("../README.md dosyasını oku")
 
     assert "Güvenlik nedeniyle" in response.text
+    assert service._file_access_service.read_requests == ["../README.md dosyasını oku"]
+    assert brain.messages == []
+
+
+def test_conversation_service_rejects_absolute_file_path_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+    from lina.files.models import ForbiddenFilePathError
+
+    brain = FakeBrain()
+    file_service = FakeFileAccessService(
+        should_reject=ForbiddenFilePathError("forbidden")
+    )
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_READ),
+        file_access_service=file_service,
+    )
+
+    response = service.handle_message("C:/Users/Ilhan/Desktop/test.txt dosyasını oku")
+
+    assert "Güvenlik nedeniyle" in response.text
+    assert file_service.read_requests == ["C:/Users/Ilhan/Desktop/test.txt dosyasını oku"]
     assert brain.messages == []
 
 

@@ -208,4 +208,14 @@ class IntentAnalyzer:
         return any(marker in message for marker in self._FILE_SUMMARIZE_MARKERS)
 
     def _contains_file_reference(self, message: str) -> bool:
-        return any(reference in message for reference in self._FILE_REFERENCES)
+        if any(reference in message for reference in self._FILE_REFERENCES):
+            return True
+        return self._contains_path_like_reference(message)
+
+    def _contains_path_like_reference(self, message: str) -> bool:
+        normalized_message = message.replace("\\", "/")
+        if ":/" in normalized_message:
+            return True
+        if ".." in normalized_message.split("/"):
+            return True
+        return False

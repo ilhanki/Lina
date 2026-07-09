@@ -252,6 +252,22 @@ def test_intent_analyzer_detects_file_read(message: str) -> None:
 @pytest.mark.parametrize(
     "message",
     [
+        "../README.md dosyasını oku",
+        "..\\README.md dosyasını oku",
+        "C:/Users/Ilhan/Desktop/test.txt dosyasını oku",
+    ],
+)
+def test_intent_analyzer_keeps_forbidden_file_reads_in_file_flow(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.FILE_READ
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
         "README dosyasını özetle",
         "roadmap dosyasını özetler misin",
         "development log'da son ne var",

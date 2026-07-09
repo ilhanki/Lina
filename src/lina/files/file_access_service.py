@@ -123,6 +123,8 @@ class FileAccessService:
         requested = path_or_alias.strip()
         if not requested:
             raise UnknownAllowedFileError("Empty file path")
+        if _contains_forbidden_path_syntax(requested):
+            raise ForbiddenFilePathError(f"Unsafe file path: {requested}")
 
         normalized_alias = _normalize_alias(requested)
         if normalized_alias in self._aliases:
@@ -160,9 +162,22 @@ def _normalize_allowed_path(path: str) -> str:
 
 def _normalize_requested_path(path: str) -> str:
     normalized = path.strip().replace("\\", "/")
+    if _contains_forbidden_path_syntax(normalized):
+        raise ForbiddenFilePathError(f"Unsafe file path: {path}")
     if normalized.startswith("/") or PureWindowsPath(normalized).is_absolute():
         raise ForbiddenFilePathError(f"Absolute paths are not allowed: {path}")
     if ".." in Path(normalized).parts:
         raise ForbiddenFilePathError(f"Path traversal is not allowed: {path}")
     return normalized
 
+
+def _contains_forbidden_path_syntax(value: str) -> bool:
+    normalized = value.strip().replace("\\", "/")
+    lower_value = normalized.casefold()
+    if not normalized:
+        return False
+    if normalized.startswith(("/", "~/", "~")):
+        return True
+    if len(normalized) >= 3 and normalized[1:3] == ":/":
+        return True
+    return ".." in Path(lower_value).parts

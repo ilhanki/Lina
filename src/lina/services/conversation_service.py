@@ -254,6 +254,8 @@ def _extract_memory_content(message: str) -> str:
 
 def _extract_file_reference(message: str) -> str:
     normalized = message.strip().casefold()
+    if _contains_forbidden_file_path(normalized):
+        return message.strip()
     known_references = (
         "docs/roadmap.md",
         "docs/development-log.md",
@@ -289,6 +291,17 @@ def _extract_file_reference(message: str) -> str:
     if ":\\" in message or ":/" in message or ".." in message:
         return message.strip()
     return ""
+
+
+def _contains_forbidden_file_path(message: str) -> bool:
+    normalized = message.strip().replace("\\", "/")
+    if not normalized:
+        return False
+    if normalized.startswith(("/", "~/", "~")):
+        return True
+    if ":/" in normalized:
+        return True
+    return ".." in normalized.split("/")
 
 
 def _format_file_context(path: str, text: str, truncated: bool) -> str:
