@@ -142,6 +142,8 @@ Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/defa
 `v0.5.1-alpha` ile Tkinter GUI profesyonel sohbet uygulaması düzenine taşınmıştır.
 
 - Sol tarafta sohbet listesi için sidebar bulunur.
+- GUI, `assets/branding` altındaki Lina logo/icon dosyalarını destekler.
+- Logo yoksa uygulama güvenli fallback ile yalnızca metin başlık kullanarak açılır.
 - `Yeni Sohbet` mevcut oturumu temizler.
 - Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir.
 - Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.

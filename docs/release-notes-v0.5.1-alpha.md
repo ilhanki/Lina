@@ -14,6 +14,7 @@ Bu sürüm, `v0.5.0-alpha` Files Capability v1 sonrasında gelen profesyonel GUI
 
 - Modern koyu tema.
 - Sol sidebar.
+- Lina logo/icon desteği.
 - Bubble-based chat layout.
 - Modern input composer.
 - `+`, `Mic` ve `Screen` placeholder action butonları.
@@ -34,6 +35,7 @@ Tkinter GUI artık tek düz metin alanı yerine daha profesyonel bir sohbet düz
 
 Sol sidebar şimdilik session odaklı bir UI alanıdır.
 
+- Logo dosyası varsa üst branding alanında gösterilir.
 - `Lina` başlığı.
 - `Yeni Sohbet` butonu.
 - Placeholder sohbet listesi.
@@ -77,6 +79,7 @@ Alt composer şu butonları içerir:
 
 - `+`, `Mic` ve `Screen` butonları gerçek dosya yükleme, mikrofon veya ekran capture başlatmaz.
 - Conversation persistence yoktur; sidebar sohbet listesi placeholder amaçlıdır.
+- Logo dosyası eksikse GUI metin başlıkla güvenli şekilde açılır.
 - GUI hâlâ Tkinter tabanlıdır; ileri sürümlerde daha gelişmiş desktop framework değerlendirilebilir.
 - Paketleme veya installer yoktur.
 - Speech, Vision, Camera, Browser Automation ve Windows Automation henüz yoktur.
