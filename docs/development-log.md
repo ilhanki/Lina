@@ -1745,3 +1745,30 @@ Ayrıca uzun sohbetlerde conversation history büyüdükçe model prompt'unun ge
 ### Durum
 
 Files v1 güvenlik sınırı path traversal ve absolute path denemelerine karşı daha net hale getirildi. Uzun sohbetlerde prompt büyümesini azaltan küçük stabilizasyon eklendi. Tag oluşturulmadı.
+
+## 2026-07-09 - Professional Chat UI Refresh
+
+### Amaç
+
+`v0.5.1-alpha` hattında mevcut Tkinter GUI daha profesyonel bir sohbet uygulaması görünümüne taşındı. Bu sprint yalnızca GUI/UX yenileme kapsamındadır; Brain, Memory, Files, Tool, Ollama, Settings ve Core mimarisi değiştirilmedi.
+
+### Yapılanlar
+
+- Sol sidebar eklendi.
+- `Yeni Sohbet` butonu mevcut oturumu temizleyen güvenli davranışa bağlandı.
+- Ana chat alanı bubble-based layout'a taşındı.
+- Lina mesajları sol tarafta, kullanıcı mesajları sağ tarafta gösterilecek şekilde ayrıştırıldı.
+- Alt composer modernleştirildi.
+- `+`, `Mic` ve `Screen` placeholder action butonları eklendi.
+- Placeholder action butonları gerçek capability başlatmadan Lina mesajı olarak güvenli bilgilendirme gösterir.
+- `Enter` ile gönderme, GUI input history, typing placeholder cleanup, status bar, model response background thread, error handling, Clear Chat ve Copy Last Response davranışları korundu.
+- Memory ve Files komut akışlarına dokunulmadı.
+
+### Test Sonucu
+
+- GUI hedefli testler: `50 passed`
+- Tam test paketi: `381 passed`
+
+### Durum
+
+Professional Chat UI Refresh tamamlandı. `v0.5.1-alpha` tag'i oluşturulmadı; manuel GUI smoke testten sonra ayrıca değerlendirilecektir.

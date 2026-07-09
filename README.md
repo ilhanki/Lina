@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda `v0.5.0-alpha` Files Capability v1 geliştirme hattındadır. `v0.4.1-alpha` Memory UX / Recall Polish tag'i oluşturulmuş, ardından güvenli ve read-only dosya context yeteneği eklenmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
+Bu depo şu anda `v0.5.1-alpha` Professional Chat UI Refresh geliştirme hattındadır. `v0.5.0-alpha` Files Capability v1 tag'i oluşturulmuş, ardından Tkinter GUI daha modern bir sohbet uygulaması düzenine taşınmıştır. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
 
 ## Projenin Amacı
 
@@ -57,7 +57,7 @@ Mevcut çalışan özellikler:
 - Sınırlı project awareness.
 - SAFE tool foundation ve current time tool routing.
 - CLI arayüzü.
-- Tkinter tabanlı masaüstü GUI.
+- Modern Tkinter masaüstü GUI; sidebar, chat bubbles, composer ve placeholder action butonları.
 - Unit test altyapısı.
 
 Planlanan uzun vadeli özellikler:
@@ -136,6 +136,17 @@ python gui.py
 ```
 
 Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar, bilgisayar kontrolüyle ilgili güvenlik soruları, explicit memory komutları ve güvenli dosya listeleme/okuma komutları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
+
+### Modern GUI
+
+`v0.5.1-alpha` ile Tkinter GUI profesyonel sohbet uygulaması düzenine taşınmıştır.
+
+- Sol tarafta sohbet listesi için sidebar bulunur.
+- `Yeni Sohbet` mevcut oturumu temizler.
+- Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir.
+- Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.
+- `+`, `Mic` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
+- `Enter` ile gönderme, `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
 
 Memory komut örnekleri:
 
@@ -305,10 +316,11 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 - Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
 - Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
 - Tool sistemi SAFE araçları çalıştırabilir, interaktif onay mekanizması (PermissionDecision UX) altyapısı vardır ancak UI entegrasyonu yoktur.
-- GUI Tkinter tabanlı asistan arayüzüdür (v2); paketleme veya installer yoktur.
+- GUI Tkinter tabanlı modern sohbet arayüzüdür; `+`, `Mic` ve `Screen` butonları şimdilik placeholder davranışına sahiptir.
+- Paketleme veya installer yoktur.
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.5.0-alpha Files Capability v1 geliştirme hattı**
+Mevcut durum: **v0.5.1-alpha Professional Chat UI Refresh geliştirme hattı**
 
-Lina şu anda CLI ve masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır.
+Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır.
