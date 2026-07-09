@@ -1713,3 +1713,35 @@ Manuel GUI testte `selam naber` sonrasında `roadmap dosyasını özetle` komutu
 ### Durum
 
 Files summary akışı artık dosya bağlamını birincil kaynak olarak kullanacak şekilde daha güçlü biçimde yönlendiriliyor. `v0.5.0-alpha` tag öncesi manuel smoke test önerilir.
+
+## 2026-07-09 - Files Path Traversal Security Hotfix
+
+### Sorun
+
+Manuel smoke testte `../README.md dosyasını oku` gibi path traversal içeren dosya isteklerinin, alias çözümleme sırasına bağlı olarak güvenli biçimde reddedilmeden allowlisted `README.md` dosyasına eşleşebilme riski görüldü.
+
+Ayrıca uzun sohbetlerde conversation history büyüdükçe model prompt'unun gereksiz şekilde şişebildiği ve bazı cevap kalitesi/stabilite sorunlarına zemin hazırlayabildiği değerlendirildi.
+
+### Düzeltme
+
+- `FileAccessService`, alias çözümlemeden önce traversal ve absolute path sözdizimini reddedecek şekilde güçlendirildi.
+- `ConversationService`, dosya referansı çıkarırken yasaklı path ifadelerini önce güvenlik kontrolüne yönlendirecek şekilde dar kapsamlı güncellendi.
+- `IntentAnalyzer`, `C:/...` ve `../...` gibi path benzeri dosya okuma isteklerini genel sohbet yerine dosya akışında tutacak şekilde düzeltildi.
+- Uzun conversation history alanları `PromptBuilder` içinde sınırlandırıldı; mevcut kullanıcı mesajı korunurken eski çok uzun mesajlar prompt içinde kısaltılıyor.
+
+### Regression Testleri
+
+- Traversal path istekleri alias çözümlemeden önce reddediliyor.
+- Absolute Windows path istekleri Brain çağrılmadan güvenli dosya hatasıyla sonuçlanıyor.
+- Yasaklı dosya okuma istekleri intent seviyesinde `FILE_READ` akışında kalıyor.
+- Uzun conversation history alanları prompt içinde tam metin olarak taşınmıyor.
+
+### Test Sonucu
+
+- Hedefli testler: `161 passed`
+- PromptBuilder hedefli testleri: `12 passed`
+- Tam test paketi: `379 passed`
+
+### Durum
+
+Files v1 güvenlik sınırı path traversal ve absolute path denemelerine karşı daha net hale getirildi. Uzun sohbetlerde prompt büyümesini azaltan küçük stabilizasyon eklendi. Tag oluşturulmadı.
