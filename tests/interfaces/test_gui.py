@@ -290,6 +290,23 @@ def test_fake_gui_memory_command_fast_response_resets_waiting_state() -> None:
     assert gui._status_updates[-1] == "Hazır"
 
 
+def test_fake_gui_file_command_response_renders_normally() -> None:
+    service = FakeConversationService(
+        response_text="README.md dosyasının içeriği:\n\n# Lina"
+    )
+    gui = _create_test_gui(service, input_text="README dosyasını oku")
+
+    gui.send_message()
+
+    assert service.messages == ["README dosyasını oku"]
+    assert gui.recorded_messages == [
+        ("İlhan", "README dosyasını oku"),
+        ("Lina", "Yazıyor..."),
+        ("Lina", "README.md dosyasının içeriği:\n\n# Lina"),
+    ]
+    assert gui.waiting_states == [True, False]
+
+
 def test_gui_does_not_send_while_waiting_for_response() -> None:
     service = FakeConversationService()
     gui = _create_test_gui(service, input_text="Hello")
