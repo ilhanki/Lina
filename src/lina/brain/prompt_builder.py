@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from typing import Sequence
 
 
+MAX_HISTORY_FIELD_CHARACTERS = 1200
+
+
 @dataclass(frozen=True)
 class ConversationTurn:
     """A completed user and assistant exchange."""
@@ -56,8 +59,12 @@ class PromptBuilder:
         if history:
             history_lines: list[str] = []
             for turn in history:
-                history_lines.append(f"User: {turn.user_message.strip()}")
-                history_lines.append(f"Assistant: {turn.assistant_response.strip()}")
+                history_lines.append(
+                    f"User: {_truncate_history_text(turn.user_message)}"
+                )
+                history_lines.append(
+                    f"Assistant: {_truncate_history_text(turn.assistant_response)}"
+                )
             sections.append("Conversation history:\n" + "\n".join(history_lines))
 
         sections.append(f"User:\n{message}")
@@ -115,3 +122,10 @@ class PromptBuilder:
             memory_context=context.memory_context,
             file_context=context.file_context,
         )
+
+
+def _truncate_history_text(text: str) -> str:
+    stripped_text = text.strip()
+    if len(stripped_text) <= MAX_HISTORY_FIELD_CHARACTERS:
+        return stripped_text
+    return stripped_text[:MAX_HISTORY_FIELD_CHARACTERS].rstrip() + "\n[geçmiş mesaj kısaltıldı]"

@@ -40,6 +40,27 @@ def test_prompt_builder_includes_conversation_history() -> None:
     )
 
 
+def test_prompt_builder_truncates_long_conversation_history_fields() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+    long_user_message = "u" * 1300
+    long_assistant_response = "a" * 1300
+
+    prompt = builder.build(
+        user_message="Continue",
+        history=[
+            ConversationTurn(
+                user_message=long_user_message,
+                assistant_response=long_assistant_response,
+            ),
+        ],
+    )
+
+    assert long_user_message not in prompt
+    assert long_assistant_response not in prompt
+    assert "[geçmiş mesaj kısaltıldı]" in prompt
+    assert "User:\nContinue" in prompt
+
+
 def test_prompt_builder_includes_project_context() -> None:
     builder = PromptBuilder(system_prompt="You are Lina.")
 
