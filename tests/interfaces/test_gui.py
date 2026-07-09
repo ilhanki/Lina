@@ -445,6 +445,33 @@ def test_gui_single_send_appends_single_final_response() -> None:
     assert gui.recorded_messages.count(("Lina", "Response: Hello")) == 1
 
 
+def test_gui_placeholder_feature_message_adds_assistant_message() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._show_placeholder_feature_message("Mikrofon özelliği henüz aktif değil İlhan.")
+
+    assert gui.recorded_messages == [
+        ("Lina", "Mikrofon özelliği henüz aktif değil İlhan."),
+    ]
+    assert gui._last_response_text == "Mikrofon özelliği henüz aktif değil İlhan."
+    assert gui._status_updates == ["Hazır"]
+
+
+def test_gui_new_chat_uses_clear_chat_flow() -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui.clear_count = 0
+    gui._status_updates = []
+    gui.clear_chat = lambda: setattr(gui, "clear_count", gui.clear_count + 1)
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_new_chat()
+
+    assert gui.clear_count == 1
+    assert gui._status_updates == ["Yeni sohbet mevcut oturumu temizledi."]
+
+
 # --- Chat controls tests ---
 
 
