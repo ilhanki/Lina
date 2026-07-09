@@ -1580,3 +1580,38 @@ Bunu zaten hatırlıyorum İlhan.
 ### Durum
 
 Memory v1, `v0.4.0-alpha` tag için duplicate prevention hotfix ile daha stabil hale getirildi.
+
+## 2026-07-09 - Memory UX / Recall Polish + GUI Input History
+
+### Amaç
+
+`v0.4.1-alpha` hattında Memory v1'in kullanıcı deneyimini iyileştirmek ve GUI içinde terminal benzeri input history davranışı eklemek hedeflendi.
+
+### Yapılanlar
+
+- Memory recall/list cevapları numaralı liste formatına taşındı.
+- Boş memory recall cevabı daha doğal ve kişisel hale getirildi.
+- Forget ve clear cevapları daha açık Türkçe ifadelerle güncellendi.
+- Aynı içerik farklı büyük/küçük harf veya boşluk kullanımıyla unutulmak istendiğinde normalize edilmiş eşleşme yapılır hale getirildi.
+- Sensitive memory guard eklendi; şifre, token, API key, kimlik ve ödeme bilgisi gibi hassas içerikler memory içine kaydedilmez.
+- GUI input history eklendi; mesaj alanında `↑` önceki mesajları, `↓` daha yeni mesajları getirir.
+- GUI input history session-only tasarlandı; SQLite memory sistemiyle karıştırılmadı.
+- Help/capabilities cevapları explicit memory komutlarını kısa şekilde gösterecek biçimde güncellendi.
+
+### Mimari Notlar
+
+- Memory UX iyileştirmeleri `ConversationService` ve `MemoryService` sınırları içinde tutuldu.
+- Yeni dependency eklenmedi.
+- Memory için vector database, embedding veya otomatik memory extraction eklenmedi.
+- GUI input history yalnızca arayüz state'i olarak tutuldu; business logic veya kalıcı memory katmanına taşınmadı.
+
+### Test Sonucu
+
+- Memory service ve conversation service testleri: `40 passed`
+- GUI testleri: `47 passed`
+- Deterministic response ve conversation service testleri: `36 passed`
+- Tam test paketi: `321 passed`
+
+### Durum
+
+`v0.4.1-alpha` için Memory UX / Recall polish ve GUI input history geliştirmeleri tamamlandı. Manuel smoke test sonrası tag değerlendirmesi yapılabilir.

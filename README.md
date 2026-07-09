@@ -154,6 +154,21 @@ Memory v1 privacy notu:
 - Memory local SQLite dosyasında tutulur.
 - Varsayılan database yolu `data/lina_memory.sqlite3` değeridir ve Git'e eklenmez.
 
+### Memory UX Notları
+
+- Lina yalnızca açık memory komutlarıyla kayıt yapar; normal sohbeti otomatik hafızaya yazmaz.
+- Şifre, token, API key, kimlik ve ödeme bilgisi gibi hassas içerikler memory kaydı olarak reddedilir.
+- Aynı bilgi art arda tekrar kaydedilmeye çalışılırsa Lina duplicate kayıt oluşturmaz.
+
+### GUI Input History
+
+Tkinter GUI içinde mesaj yazma alanındayken:
+
+- `↑` önceki gönderilen mesajı getirir.
+- `↓` daha yeni gönderilen mesaja döner.
+- History session-only çalışır; SQLite memory sistemiyle karışmaz.
+- Boş mesajlar ve art arda aynı mesajlar input history içine eklenmez.
+
 ## Runtime Configuration
 
 Temel çalışma ayarları `config/default.toml` içinde tutulur.

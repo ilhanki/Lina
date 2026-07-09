@@ -2,13 +2,15 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.4.0-alpha Memory Capability v1
+## Mevcut Durum: v0.4.1-alpha Memory UX / Recall Polish
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
 `v0.3.1-alpha` stabilization hotfix tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, `v0.3.0-alpha` sonrasında görülen küçük güvenilirlik ve konuşma kalitesi sorunlarını kapattı.
 
-`v0.4.0-alpha` hattında Memory Capability v1 geliştirilmektedir. Bu hat, Lina'nın ilk gerçek local-first kalıcı hafıza altyapısını ekler.
+`v0.4.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, Lina'nın ilk gerçek local-first kalıcı hafıza altyapısını ekledi.
+
+`v0.4.1-alpha` hattı Memory UX / Recall polish için açılmıştır. Bu hat, explicit memory komutlarının kullanıcıya daha anlaşılır cevap vermesini, hassas bilgi korumasını ve GUI input history davranışını kapsar.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -21,6 +23,9 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `MemoryService` eklendi.
 - Explicit memory intents ve deterministic memory command responses eklendi.
 - Memory context, normal chat prompt akışına sınırlı ve şeffaf şekilde dahil edildi.
+- Memory recall/list cevapları daha okunabilir numaralı listeye dönüştürüldü.
+- Sensitive memory guard eklendi; şifre, token, API key, kimlik ve ödeme bilgisi gibi hassas içerikler saklanmaz.
+- GUI input history eklendi; `↑` ve `↓` ile session içi önceki mesajlar gezilebilir.
 
 Tamamlanan ana başlıklar:
 
@@ -233,9 +238,9 @@ Teknolojiler:
 
 Durum:
 
-- Uygulama aşamasında / v0.4.0-alpha hattında.
+- Tamamlandı / `v0.4.0-alpha` tag'i oluşturuldu.
 - İlk local-first SQLite repository, MemoryService, explicit memory intents, ConversationService routing ve prompt memory context entegrasyonu tamamlandı.
-- Tag oluşturulmadan önce manuel GUI/CLI smoke test önerilir.
+- Memory UX polish çalışmaları `v0.4.1-alpha` hattında sürdürülür.
 
 Amaç:
 
