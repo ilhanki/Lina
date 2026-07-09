@@ -24,6 +24,7 @@ class PromptBuilder:
         history: Sequence[ConversationTurn] | None = None,
         project_context: str | None = None,
         memory_context: str | None = None,
+        file_context: str | None = None,
     ) -> str:
         message = user_message.strip()
         sections = [f"System:\n{self._system_prompt}"]
@@ -44,6 +45,14 @@ class PromptBuilder:
                 f"{project_context.strip()}"
             )
 
+        if file_context and file_context.strip():
+            sections.append(
+                "File context:\n"
+                "Aşağıdaki izinli dosya bağlamına dayan. Bu bağlam dışında dosya "
+                "içeriği, dosya yolu veya proje geçmişi uydurma.\n"
+                f"{file_context.strip()}"
+            )
+
         if history:
             history_lines: list[str] = []
             for turn in history:
@@ -60,4 +69,5 @@ class PromptBuilder:
             history=context.conversation_history,
             project_context=context.project_context,
             memory_context=context.memory_context,
+            file_context=context.file_context,
         )

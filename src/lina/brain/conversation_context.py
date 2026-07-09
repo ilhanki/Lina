@@ -14,4 +14,5 @@ class ConversationContext:
     conversation_history: Sequence[ConversationTurn]
     project_context: str | None = None
     memory_context: str | None = None
+    file_context: str | None = None
     system_notes: str | None = None
