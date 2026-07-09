@@ -29,9 +29,10 @@ class DeterministicResponseService:
                 text=(
                     "Şimdilik benimle sohbet edebilir, 'saat kaç', 'sen kimsin' "
                     "veya 'neler yapabiliyorsun' gibi temel sorular sorabilirsin. "
-                    "Memory için 'bunu hatırla: kısa cevapları seviyorum', "
-                    "'ne hatırlıyorsun' veya 'şunu unut: kısa cevapları seviyorum' "
-                    "yazabilirsin. Çıkmak için exit veya quit yazabilirsin."
+                    "Memory için 'bunu hatırla: kısa cevapları seviyorum' ve "
+                    "'ne hatırlıyorsun' yazabilirsin. Files için 'hangi dosyaları "
+                    "okuyabiliyorsun', 'README dosyasını oku' veya 'roadmap dosyasını "
+                    "özetle' yazabilirsin. Çıkmak için exit veya quit yazabilirsin."
                 )
             )
         if intent.type is IntentType.IDENTITY:
@@ -48,16 +49,16 @@ class DeterministicResponseService:
                     "ile yerel modele bağlanabiliyor, basit intent'leri LLM'e göndermeden "
                     "cevaplayabiliyor, session içi geçici konuşma geçmişi ve runtime "
                     "context kullanabiliyorum. Açık komutlarla yerel ve kalıcı memory "
-                    "kullanabiliyorum: 'bunu hatırla: kısa cevapları seviyorum', "
-                    "'ne hatırlıyorsun' ve 'şunu unut: kısa cevapları seviyorum'. "
-                    "İzinli proje dokümanlarından ve güvenli read-only Git bağlamından "
-                    "proje durumunu okuyabiliyorum. SAFE tool altyapısıyla saat gibi "
-                    "güvenli araçları çalıştırabiliyor ve Ollama/model bağlantı durumunu "
-                    "teşhis edebiliyorum. Henüz bilgisayarı genel olarak yönetemem; "
-                    "genel dosya erişimim, kamera, mikrofon, ekran görme, shell command "
-                    "execution veya browser automation yeteneğim yok. Git commit, push, "
-                    "reset, checkout veya merge işlemleri yapamam. LLM kendi kendine "
-                    "tehlikeli tool çalıştıramaz."
+                    "kullanabiliyorum. İzinli proje dosyalarını read-only okuyabiliyor "
+                    "ve allowlist kapsamındaki dosyaları context olarak kullanabiliyorum; "
+                    "rastgele bilgisayar dosyalarına erişemem, dosya yazma, silme veya "
+                    "taşıma yapamam; genel dosya erişimim yok. Güvenli read-only Git bağlamından proje durumunu "
+                    "okuyabiliyorum. SAFE tool altyapısıyla saat gibi güvenli araçları "
+                    "çalıştırabiliyor ve Ollama/model bağlantı durumunu teşhis edebiliyorum. "
+                    "Henüz bilgisayarı genel olarak yönetemem; kamera, mikrofon, ekran "
+                    "görme, shell command execution veya browser automation yeteneğim yok. "
+                    "Git commit, push, reset, checkout veya merge işlemleri yapamam. "
+                    "LLM kendi kendine tehlikeli tool çalıştıramaz."
                 )
             )
         if intent.type is IntentType.CURRENT_TIME:
