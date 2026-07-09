@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from lina.brain.model_provider import ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
 from lina.memory.repository import MemoryRepository
@@ -13,7 +15,7 @@ class FakeBrain:
         self.histories: list[list[ConversationTurn]] = []
         self.project_contexts: list[str | None] = []
         self.file_contexts: list[str | None] = []
-        self.should_fail = False
+        self.failure_message: str | None = None
 
     def respond(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
@@ -22,8 +24,8 @@ class FakeBrain:
     def respond_with_context(self, context) -> ModelResponse:
         from lina.brain.model_provider import ModelProviderError
 
-        if self.should_fail:
-            raise ModelProviderError("Ollama network error")
+        if self.failure_message is not None:
+            raise ModelProviderError(self.failure_message)
         self.messages.append(context.user_message)
         self.histories.append(list(context.conversation_history))
         self.project_contexts.append(context.project_context)
@@ -391,9 +393,12 @@ def test_conversation_service_routes_file_summarize_with_context_to_brain() -> N
 
     response = service.handle_message("roadmap dosyasını özetle")
 
-    assert response.text == "Response: roadmap dosyasını özetle"
+    assert response.text.startswith("Response: docs/roadmap.md dosyasını")
     assert file_service.context_requests == ["roadmap"]
-    assert brain.messages == ["roadmap dosyasını özetle"]
+    assert brain.messages == [
+        "docs/roadmap.md dosyasını, yalnızca verilen izinli dosya bağlamına dayanarak "
+        "kısa ve anlaşılır Türkçe ile özetle. Dosya içeriğinde olmayan bilgi uydurma."
+    ]
     assert "Dosya: docs/roadmap.md" in brain.file_contexts[0]
     assert "Roadmap content" in brain.file_contexts[0]
 
@@ -402,7 +407,7 @@ def test_conversation_service_file_summarize_falls_back_when_model_fails() -> No
     from lina.brain.intent import IntentType
 
     brain = FakeBrain()
-    brain.should_fail = True
+    brain.failure_message = "Ollama network error"
     service = ConversationService(
         brain=brain,
         intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_SUMMARIZE),
@@ -413,6 +418,22 @@ def test_conversation_service_file_summarize_falls_back_when_model_fails() -> No
 
     assert "Dosyayı okuyabildim" in response.text
     assert "Roadmap content" in response.text
+
+
+def test_conversation_service_file_summarize_does_not_use_unavailable_fallback_for_timeout() -> None:
+    from lina.brain.intent import IntentType
+    from lina.brain.model_provider import ModelProviderError
+
+    brain = FakeBrain()
+    brain.failure_message = "Ollama request timed out"
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.FILE_SUMMARIZE),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    with pytest.raises(ModelProviderError, match="timed out"):
+        service.handle_message("roadmap dosyasını özetle")
 
 
 def test_conversation_service_file_summarize_keeps_memory_history_context() -> None:

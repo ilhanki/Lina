@@ -218,7 +218,7 @@ class ConversationService:
                 return _format_file_access_error(error)
 
             context = self._context_manager.build_context(
-                user_message=user_message,
+                user_message=_build_file_summary_request(content.path),
                 intent=Intent(type=IntentType.CHAT),
                 conversation_history=self._history,
             )
@@ -232,7 +232,9 @@ class ConversationService:
             )
             try:
                 return self._brain.respond_with_context(context)
-            except ModelProviderError:
+            except ModelProviderError as error:
+                if not _is_model_unavailable_error(error):
+                    raise
                 return ModelResponse(
                     text=(
                         "Dosyayı okuyabildim ama özetlemek için yerel modele bağlı "
@@ -292,6 +294,25 @@ def _extract_file_reference(message: str) -> str:
 def _format_file_context(path: str, text: str, truncated: bool) -> str:
     suffix = "\n\nNot: Dosya uzun olduğu için yalnızca ilk bölüm kullanıldı." if truncated else ""
     return f"Dosya: {path}\nİçerik:\n{text}{suffix}"
+
+
+def _build_file_summary_request(path: str) -> str:
+    return (
+        f"{path} dosyasını, yalnızca verilen izinli dosya bağlamına dayanarak "
+        "kısa ve anlaşılır Türkçe ile özetle. Dosya içeriğinde olmayan bilgi uydurma."
+    )
+
+
+def _is_model_unavailable_error(error: ModelProviderError) -> bool:
+    error_text = str(error).casefold()
+    unavailable_markers = (
+        "network error",
+        "connection refused",
+        "not configured",
+        "http error: 404",
+        "not found",
+    )
+    return any(marker in error_text for marker in unavailable_markers)
 
 
 def _format_file_preview(path: str, text: str, truncated: bool) -> str:
