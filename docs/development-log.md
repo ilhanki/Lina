@@ -1667,3 +1667,26 @@ Memory v1, `v0.4.0-alpha` tag için duplicate prevention hotfix ile daha stabil 
 ### Durum
 
 Files Capability v1 uygulandı. Final tam test ve manuel smoke test sonrasında `v0.5.0-alpha` tag değerlendirmesi yapılabilir.
+
+## 2026-07-09 - Files Summarize Model Fallback Hotfix
+
+### Sorun
+
+GUI içinde `roadmap dosyasını özetle` komutu dosyayı başarıyla okuyordu, ancak bazı durumlarda `Dosyayı okuyabildim ama özetlemek için yerel modele bağlı değilim` fallback cevabına düşebiliyordu.
+
+### Düzeltme
+
+- `FILE_SUMMARIZE` akışında Brain'e gönderilen kullanıcı mesajı daha açık bir dosya özetleme talimatına dönüştürüldü.
+- File context aynı şekilde yalnız `FileAccessService` tarafından güvenli şekilde oluşturulmaya devam eder.
+- `ModelProviderError` fallback'i daraltıldı; yalnız gerçek model unavailable durumlarında preview fallback döner.
+- Timeout gibi bağlantı-dışı provider hataları artık yanlış şekilde `yerel modele bağlı değilim` diye etiketlenmez.
+
+### Doğrulama
+
+- `ollama list` içinde `llama3.2:3b` modelinin yüklü olduğu görüldü.
+- Gerçek servis çağrısıyla `roadmap dosyasını özetle` komutunun fallback'e düşmeden model cevabı döndürdüğü doğrulandı.
+- Tam test paketi: `366 passed`
+
+### Durum
+
+Files summarize akışı artık Ollama kullanılabilirken model cevabını döndürür. Ollama gerçekten erişilemezse güvenli preview fallback davranışı korunur.
