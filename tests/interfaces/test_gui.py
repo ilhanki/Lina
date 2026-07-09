@@ -1,5 +1,6 @@
 """Tests for Lina GUI interface."""
 
+import lina.interfaces.gui as gui_module
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.gui import (
     LinaGui,
@@ -529,6 +530,50 @@ def test_gui_updates_status_on_send() -> None:
     assert "Cevap bekleniyor..." in gui._status_updates
 
 
+# --- Branding tests ---
+
+
+def test_gui_branding_assets_fallback_when_logo_files_are_missing(tmp_path, monkeypatch) -> None:
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    monkeypatch.setattr(gui_module, "BRANDING_LOGO_PATH", tmp_path / "missing-logo.png")
+    monkeypatch.setattr(gui_module, "BRANDING_ICON_PATH", tmp_path / "missing-icon.png")
+
+    gui._load_branding_assets()
+
+    assert gui._logo_image is None
+    assert gui._icon_image is None
+    assert gui._root.icon_calls == []
+
+
+def test_gui_branding_assets_load_existing_logo_and_icon(tmp_path, monkeypatch) -> None:
+    logo_path = tmp_path / "lina-logo.png"
+    icon_path = tmp_path / "lina-icon.png"
+    logo_path.write_text("fake image", encoding="utf-8")
+    icon_path.write_text("fake image", encoding="utf-8")
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    monkeypatch.setattr(gui_module, "BRANDING_LOGO_PATH", logo_path)
+    monkeypatch.setattr(gui_module, "BRANDING_ICON_PATH", icon_path)
+    monkeypatch.setattr(gui_module.tk, "PhotoImage", _FakePhotoImage)
+
+    gui._load_branding_assets()
+
+    assert gui._logo_image is not None
+    assert gui._icon_image is not None
+    assert gui._root.icon_calls == [(True, gui._icon_image)]
+
+
+def test_gui_sidebar_branding_helper_uses_logo_when_available(monkeypatch) -> None:
+    created_widgets: list[_FakePackedWidget] = []
+    monkeypatch.setattr(gui_module.tk, "Frame", _make_fake_widget(created_widgets))
+    monkeypatch.setattr(gui_module.tk, "Label", _make_fake_widget(created_widgets))
+    gui = _create_test_gui(FakeConversationService(), input_text="")
+    gui._logo_image = object()
+
+    gui._build_sidebar_branding(_FakePackedWidget())
+
+    assert any(widget.kwargs.get("image") is gui._logo_image for widget in created_widgets)
+
+
 # --- Diagnostics tests ---
 
 
@@ -635,8 +680,49 @@ def _create_test_gui(service: FakeConversationService, input_text: str):
 
 
 class _FakeRoot:
+    def __init__(self) -> None:
+        self.icon_calls = []
+
     def after(self, delay_ms: int, callback, *args) -> None:
         callback(*args)
+
+    def iconphoto(self, default: bool, image) -> None:
+        self.icon_calls.append((default, image))
+
+
+class _FakePhotoImage:
+    def __init__(self, file: str) -> None:
+        self.file = file
+        self.subsample_calls: list[tuple[int, int]] = []
+
+    def width(self) -> int:
+        return 128
+
+    def height(self) -> int:
+        return 128
+
+    def subsample(self, x: int, y: int):
+        self.subsample_calls.append((x, y))
+        return self
+
+
+class _FakePackedWidget:
+    def __init__(self, *args, **kwargs) -> None:
+        self.args = args
+        self.kwargs = kwargs
+        self.pack_calls = []
+
+    def pack(self, *args, **kwargs) -> None:
+        self.pack_calls.append((args, kwargs))
+
+
+def _make_fake_widget(created_widgets: list[_FakePackedWidget]):
+    def create_widget(*args, **kwargs):
+        widget = _FakePackedWidget(*args, **kwargs)
+        created_widgets.append(widget)
+        return widget
+
+    return create_widget
 
 
 class _FakeMessageInput:

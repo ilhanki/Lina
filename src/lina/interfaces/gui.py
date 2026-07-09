@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import logging
+from pathlib import Path
 import re
 import threading
 import tkinter as tk
@@ -39,6 +40,10 @@ COLOR_ACCENT = "#5b8cff"
 COLOR_BORDER = "#2d3440"
 COLOR_BUTTON = "#252a34"
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
+BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
+
 
 class LinaGui:
     """Professional Tkinter chat window for Lina."""
@@ -67,8 +72,11 @@ class LinaGui:
         self._header_font = font.Font(family="Segoe UI", size=12, weight="bold")
         self._title_font = font.Font(family="Segoe UI", size=18, weight="bold")
         self._status_font = font.Font(family="Segoe UI", size=9)
+        self._logo_image: tk.PhotoImage | None = None
+        self._icon_image: tk.PhotoImage | None = None
 
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self._load_branding_assets()
         self._configure_theme()
         self._build_sidebar()
         self._build_main_area()
@@ -124,6 +132,35 @@ class LinaGui:
         self._root.clipboard_clear()
         self._root.clipboard_append(self._last_response_text)
 
+    def _load_branding_assets(self) -> None:
+        self._logo_image = self._load_photo_image(BRANDING_LOGO_PATH, max_size=72)
+        self._icon_image = self._load_photo_image(BRANDING_ICON_PATH, max_size=48)
+        if self._icon_image is None:
+            self._icon_image = self._logo_image
+
+        if self._icon_image is None:
+            return
+
+        try:
+            self._root.iconphoto(True, self._icon_image)
+        except tk.TclError:
+            _logger.debug("Window icon is not supported on this platform")
+
+    def _load_photo_image(self, path: Path, max_size: int) -> tk.PhotoImage | None:
+        if not path.exists():
+            return None
+
+        try:
+            image = tk.PhotoImage(file=str(path))
+        except (OSError, tk.TclError):
+            _logger.debug("Could not load branding image: %s", path)
+            return None
+
+        scale = max(1, image.width() // max_size, image.height() // max_size)
+        if scale == 1:
+            return image
+        return image.subsample(scale, scale)
+
     def _configure_theme(self) -> None:
         self._root.configure(bg=COLOR_BG)
         style = ttk.Style(self._root)
@@ -141,6 +178,7 @@ class LinaGui:
         self._sidebar = tk.Frame(self._root, bg=COLOR_SIDEBAR, width=250)
         self._sidebar.grid(row=0, column=0, sticky="nsew")
         self._sidebar.grid_propagate(False)
+        self._build_sidebar_branding(self._sidebar)
 
         title = tk.Label(
             self._sidebar,
@@ -154,7 +192,7 @@ class LinaGui:
 
         subtitle = tk.Label(
             self._sidebar,
-            text="Local mode",
+            text="Local AI Assistant",
             bg=COLOR_SIDEBAR,
             fg=COLOR_MUTED,
             font=self._status_font,
@@ -212,6 +250,20 @@ class LinaGui:
             anchor="sw",
         )
         footer.pack(side=tk.BOTTOM, fill=tk.X, padx=18, pady=18)
+
+    def _build_sidebar_branding(self, parent: tk.Widget) -> None:
+        branding_frame = tk.Frame(parent, bg=COLOR_SIDEBAR)
+        branding_frame.pack(fill=tk.X, padx=18, pady=(18, 0))
+
+        if self._logo_image is None:
+            return
+
+        logo = tk.Label(
+            branding_frame,
+            image=self._logo_image,
+            bg=COLOR_SIDEBAR,
+        )
+        logo.pack(anchor="w")
 
     def _build_main_area(self) -> None:
         self._main_frame = tk.Frame(self._root, bg=COLOR_BG)
