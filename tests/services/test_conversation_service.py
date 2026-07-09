@@ -103,6 +103,9 @@ class FakeMemoryService:
             return None
         return FakeMemory(content)
 
+    def is_sensitive_content(self, content: str) -> bool:
+        return "şifrem" in content or "api key" in content
+
     def list_memories(self):
         return tuple(self.memories)
 
@@ -271,6 +274,51 @@ def test_conversation_service_returns_duplicate_memory_response_without_calling_
     assert brain.messages == []
 
 
+def test_conversation_service_rejects_sensitive_memory_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_REMEMBER),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("bunu hatırla: şifrem 123456")
+
+    assert "Bunu hafızaya kaydetmem doğru olmaz İlhan" in response.text
+    assert memory_service.added == []
+    assert brain.messages == []
+
+
+def test_conversation_service_does_not_persist_rejected_sensitive_memory(
+    tmp_path: Path,
+) -> None:
+    from lina.brain.intent import IntentType
+
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    memory_service = MemoryService(repository=repository)
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.MEMORY_REMEMBER, IntentType.MEMORY_LIST]
+        ),
+        memory_service=memory_service,
+    )
+
+    try:
+        response = service.handle_message("bunu hatırla: api key abc")
+        listed = service.handle_message("hafızanı listele")
+
+        assert "hassas bilgileri saklamamalıyım" in response.text
+        assert listed.text == "Şu an hafızamda kayıtlı bir bilgi yok İlhan."
+        assert brain.messages == []
+    finally:
+        memory_service.close()
+
+
 def test_conversation_service_keeps_single_memory_for_duplicate_remember(
     tmp_path: Path,
 ) -> None:
@@ -298,7 +346,7 @@ def test_conversation_service_keeps_single_memory_for_duplicate_remember(
 
         assert first.text == "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
         assert second.text == "Bunu zaten hatırlıyorum İlhan."
-        assert listed.text == "Şunları hatırlıyorum:\n- kısa cevapları seviyorum"
+        assert listed.text == "Şunları hatırlıyorum:\n1. kısa cevapları seviyorum"
         assert brain.messages == []
     finally:
         memory_service.close()
@@ -330,7 +378,7 @@ def test_conversation_service_allows_remember_after_forget(tmp_path: Path) -> No
         listed = service.handle_message("hafızanı listele")
 
         assert response.text == "Tamam İlhan, bunu hatırlayacağım: kısa cevapları seviyorum."
-        assert listed.text == "Şunları hatırlıyorum:\n- kısa cevapları seviyorum"
+        assert listed.text == "Şunları hatırlıyorum:\n1. kısa cevapları seviyorum"
         assert brain.messages == []
     finally:
         memory_service.close()
@@ -355,8 +403,8 @@ def test_conversation_service_routes_memory_recall_without_calling_brain() -> No
 
     assert response.text == (
         "Şunları hatırlıyorum:\n"
-        "- kısa cevapları seviyorum\n"
-        "- Türkçe dokümantasyon istiyorum"
+        "1. kısa cevapları seviyorum\n"
+        "2. Türkçe dokümantasyon istiyorum"
     )
     assert brain.messages == []
 
@@ -373,7 +421,7 @@ def test_conversation_service_routes_empty_memory_recall_without_calling_brain()
 
     response = service.handle_message("ne hatırlıyorsun")
 
-    assert response.text == "Şu an hafızamda kayıtlı bir bilgi yok."
+    assert response.text == "Şu an hafızamda kayıtlı bir bilgi yok İlhan."
     assert brain.messages == []
 
 
@@ -390,7 +438,7 @@ def test_conversation_service_routes_memory_forget_without_calling_brain() -> No
 
     response = service.handle_message("şunu unut: kısa cevapları seviyorum")
 
-    assert response.text == "Tamam, bunu hafızamdan kaldırdım."
+    assert response.text == "Tamam İlhan, bunu hafızamdan kaldırdım."
     assert memory_service.forgotten == ["kısa cevapları seviyorum"]
     assert brain.messages == []
 
@@ -408,7 +456,26 @@ def test_conversation_service_routes_memory_clear_without_calling_brain() -> Non
 
     response = service.handle_message("hafızanı sıfırla")
 
-    assert response.text == "Hafızamdaki tüm kayıtları temizledim."
+    assert response.text == "Hafızam zaten boş İlhan."
+    assert memory_service.clear_count == 0
+    assert brain.messages == []
+
+
+def test_conversation_service_routes_memory_clear_with_records_without_calling_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    memory_service = FakeMemoryService()
+    memory_service.memories = [FakeMemory("kısa cevapları seviyorum")]
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(intent_type=IntentType.MEMORY_CLEAR),
+        memory_service=memory_service,
+    )
+
+    response = service.handle_message("hafızanı sıfırla")
+
+    assert response.text == "Hafızamdaki tüm kayıtları temizledim İlhan."
     assert memory_service.clear_count == 1
     assert brain.messages == []
 
@@ -431,7 +498,7 @@ def test_conversation_service_adds_memory_responses_to_history() -> None:
     assert brain.histories[0] == [
         ConversationTurn(
             user_message="ne hatırlıyorsun",
-            assistant_response="Şu an hafızamda kayıtlı bir bilgi yok.",
+            assistant_response="Şu an hafızamda kayıtlı bir bilgi yok İlhan.",
         )
     ]
 

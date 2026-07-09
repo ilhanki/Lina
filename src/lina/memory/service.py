@@ -48,6 +48,24 @@ class MemoryService:
             for memory in self.list_memories(active_only=True)
         )
 
+    def is_sensitive_content(self, content: str) -> bool:
+        """Return whether content looks too sensitive to store."""
+        normalized_content = _normalize_memory_content(content)
+        sensitive_keywords = (
+            "şifrem",
+            "parolam",
+            "password",
+            "token",
+            "api key",
+            "kredi kartı",
+            "kart numarası",
+            "tc kimlik",
+            "tckn",
+            "kimlik numaram",
+            "adresim",
+        )
+        return any(keyword in normalized_content for keyword in sensitive_keywords)
+
     def list_memories(self, active_only: bool = True) -> tuple[MemoryRecord, ...]:
         """List memories."""
         if active_only:
@@ -56,7 +74,12 @@ class MemoryService:
 
     def forget_memory_by_content(self, content: str) -> int:
         """Forget active memories matching content."""
-        return self._repository.deactivate_by_content(content)
+        normalized_content = _normalize_memory_content(content)
+        removed_count = 0
+        for memory in self.list_memories(active_only=True):
+            if _normalize_memory_content(memory.content) == normalized_content:
+                removed_count += self._repository.deactivate_by_content(memory.content)
+        return removed_count
 
     def clear_memories(self) -> int:
         """Forget all active memories."""

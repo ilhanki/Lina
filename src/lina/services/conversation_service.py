@@ -97,6 +97,13 @@ class ConversationService:
                         "Örnek: bunu hatırla: kısa cevapları seviyorum."
                     )
                 )
+            if self._memory_service.is_sensitive_content(content):
+                return ModelResponse(
+                    text=(
+                        "Bunu hafızaya kaydetmem doğru olmaz İlhan. Şifre, token, "
+                        "kimlik veya ödeme bilgisi gibi hassas bilgileri saklamamalıyım."
+                    )
+                )
             memory = self._memory_service.add_memory(
                 MemoryType.CONVERSATION_NOTE,
                 content,
@@ -109,9 +116,12 @@ class ConversationService:
         if intent_type in {IntentType.MEMORY_RECALL, IntentType.MEMORY_LIST}:
             memories = self._memory_service.list_memories()
             if not memories:
-                return ModelResponse(text="Şu an hafızamda kayıtlı bir bilgi yok.")
+                return ModelResponse(text="Şu an hafızamda kayıtlı bir bilgi yok İlhan.")
             lines = ["Şunları hatırlıyorum:"]
-            lines.extend(f"- {memory.content}" for memory in memories)
+            lines.extend(
+                f"{index}. {memory.content}"
+                for index, memory in enumerate(memories, start=1)
+            )
             return ModelResponse(text="\n".join(lines))
 
         if intent_type is IntentType.MEMORY_FORGET:
@@ -125,12 +135,14 @@ class ConversationService:
                 )
             removed_count = self._memory_service.forget_memory_by_content(content)
             if removed_count == 0:
-                return ModelResponse(text="Bunu hafızamda bulamadım.")
-            return ModelResponse(text="Tamam, bunu hafızamdan kaldırdım.")
+                return ModelResponse(text="Bunu hafızamda bulamadım İlhan.")
+            return ModelResponse(text="Tamam İlhan, bunu hafızamdan kaldırdım.")
 
         if intent_type is IntentType.MEMORY_CLEAR:
+            if not self._memory_service.list_memories():
+                return ModelResponse(text="Hafızam zaten boş İlhan.")
             self._memory_service.clear_memories()
-            return ModelResponse(text="Hafızamdaki tüm kayıtları temizledim.")
+            return ModelResponse(text="Hafızamdaki tüm kayıtları temizledim İlhan.")
 
         raise ValueError(f"Unsupported memory intent: {intent_type.value}")
 

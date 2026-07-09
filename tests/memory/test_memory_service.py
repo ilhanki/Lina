@@ -145,6 +145,21 @@ def test_memory_service_forgets_by_content(tmp_path: Path) -> None:
         repository.close()
 
 
+def test_memory_service_forgets_by_normalized_content(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "kısa cevapları seviyorum")
+
+        count = service.forget_memory_by_content(" Kısa   cevapları   seviyorum ")
+
+        assert count == 1
+        assert service.list_memories() == ()
+    finally:
+        repository.close()
+
+
 def test_memory_service_clears_memories(tmp_path: Path) -> None:
     repository = MemoryRepository(tmp_path / "memory.sqlite3")
     service = MemoryService(repository=repository)
@@ -157,6 +172,19 @@ def test_memory_service_clears_memories(tmp_path: Path) -> None:
 
         assert count == 2
         assert service.list_memories() == ()
+    finally:
+        repository.close()
+
+
+def test_memory_service_detects_sensitive_content(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+
+    try:
+        assert service.is_sensitive_content("şifrem 123456")
+        assert service.is_sensitive_content("api key abc")
+        assert service.is_sensitive_content("kredi kartı 1234")
+        assert not service.is_sensitive_content("kısa cevapları seviyorum")
     finally:
         repository.close()
 
