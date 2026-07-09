@@ -21,6 +21,10 @@ class IntentType(Enum):
     MEMORY_FORGET = "memory_forget"
     MEMORY_CLEAR = "memory_clear"
     MEMORY_LIST = "memory_list"
+    FILE_LIST_ALLOWED = "file_list_allowed"
+    FILE_READ = "file_read"
+    FILE_SUMMARIZE = "file_summarize"
+    FILE_CAPABILITIES = "file_capabilities"
     UNKNOWN = "unknown"
 
 

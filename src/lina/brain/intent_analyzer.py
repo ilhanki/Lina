@@ -102,9 +102,63 @@ class IntentAnalyzer:
         "bunu hafızandan sil:",
         "bunu hafızandan sil",
     )
+    _FILE_LIST_ALLOWED_MESSAGES = {
+        "hangi dosyaları okuyabiliyorsun",
+        "izinli dosyaları listele",
+        "okuyabildiğin dosyalar neler",
+        "hangi proje dosyalarına erişebiliyorsun",
+    }
+    _FILE_CAPABILITY_MESSAGES = {
+        "dosyalarımı okuyabiliyor musun",
+        "bilgisayarımdaki dosyaları görebiliyor musun",
+        "bilgisayarımdaki dosyaları okuyabiliyor musun",
+        "proje dosyalarına erişimin var mı",
+    }
+    _FILE_READ_MARKERS = (
+        "dosyasını oku",
+        "dosyasını göster",
+        "dosyayı oku",
+        "dosyayı göster",
+    )
+    _FILE_SUMMARIZE_MARKERS = (
+        "dosyasını özetle",
+        "dosyasını özetler misin",
+        "roadmap dosyasını özetle",
+        "development log",
+        "release notes",
+        "ne yazıyor",
+        "son ne var",
+        "mimari ne durumda",
+    )
+    _FILE_REFERENCES = (
+        "readme",
+        "roadmap",
+        "development log",
+        "dev log",
+        "architecture",
+        "contributing",
+        "vision",
+        "brain spec",
+        "conversation flow",
+        "release notes",
+        "docs/",
+        ".md",
+    )
 
     def analyze(self, message: str) -> Intent:
         normalized_message = self._normalize(message)
+
+        if normalized_message in self._COMPUTER_CONTROL_STATUS_MESSAGES:
+            return Intent(type=IntentType.COMPUTER_CONTROL_STATUS)
+
+        if normalized_message in self._FILE_LIST_ALLOWED_MESSAGES:
+            return Intent(type=IntentType.FILE_LIST_ALLOWED)
+        if normalized_message in self._FILE_CAPABILITY_MESSAGES:
+            return Intent(type=IntentType.FILE_CAPABILITIES)
+        if self._looks_like_file_read(normalized_message):
+            return Intent(type=IntentType.FILE_READ)
+        if self._looks_like_file_summarize(normalized_message):
+            return Intent(type=IntentType.FILE_SUMMARIZE)
 
         if self._starts_with_any(normalized_message, self._MEMORY_REMEMBER_PREFIXES):
             return Intent(type=IntentType.MEMORY_REMEMBER)
@@ -129,18 +183,29 @@ class IntentAnalyzer:
             return Intent(type=IntentType.PROJECT_STATUS)
         if normalized_message in self._PROJECT_SUMMARY_MESSAGES:
             return Intent(type=IntentType.PROJECT_SUMMARY)
-        if normalized_message in self._COMPUTER_CONTROL_STATUS_MESSAGES:
-            return Intent(type=IntentType.COMPUTER_CONTROL_STATUS)
         if normalized_message in self._CASUAL_GREETING_MESSAGES:
             return Intent(type=IntentType.CASUAL_GREETING)
 
         return Intent(type=IntentType.CHAT)
 
     def _normalize(self, message: str) -> str:
-        stripped_message = message.strip().lower()
+        stripped_message = message.strip().casefold()
         if stripped_message == "?":
             return stripped_message
         return stripped_message.rstrip("?!.,;:")
 
     def _starts_with_any(self, message: str, prefixes: tuple[str, ...]) -> bool:
         return any(message.startswith(prefix) for prefix in prefixes)
+
+    def _looks_like_file_read(self, message: str) -> bool:
+        if not self._contains_file_reference(message):
+            return False
+        return any(marker in message for marker in self._FILE_READ_MARKERS)
+
+    def _looks_like_file_summarize(self, message: str) -> bool:
+        if not self._contains_file_reference(message):
+            return False
+        return any(marker in message for marker in self._FILE_SUMMARIZE_MARKERS)
+
+    def _contains_file_reference(self, message: str) -> bool:
+        return any(reference in message for reference in self._FILE_REFERENCES)

@@ -6,14 +6,7 @@ from lina.brain.intent_analyzer import IntentAnalyzer
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "help",
-        "?",
-        "yardım",
-        "komutlar",
-        "ne yazabilirim",
-        "nasıl kullanılır",
-    ],
+    ["help", "?", "yardım", "komutlar", "ne yazabilirim", "nasıl kullanılır"],
 )
 def test_intent_analyzer_detects_help(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -25,12 +18,7 @@ def test_intent_analyzer_detects_help(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "sen kimsin",
-        "kimsin",
-        "kendini tanıt",
-        "lina kim",
-    ],
+    ["sen kimsin", "kimsin", "kendini tanıt", "lina kim"],
 )
 def test_intent_analyzer_detects_identity(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -59,12 +47,7 @@ def test_intent_analyzer_detects_capabilities(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "saat kaç",
-        "şu an saat kaç",
-        "zamanı söyler misin",
-        "bugünün saati ne",
-    ],
+    ["saat kaç", "şu an saat kaç", "zamanı söyler misin", "bugünün saati ne"],
 )
 def test_intent_analyzer_detects_current_time(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -76,11 +59,7 @@ def test_intent_analyzer_detects_current_time(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "lina projesinin durumu ne",
-        "lina roadmap ne durumda",
-        "projede ne var",
-    ],
+    ["lina projesinin durumu ne", "lina roadmap ne durumda", "projede ne var"],
 )
 def test_intent_analyzer_detects_project_status(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -131,10 +110,7 @@ def test_intent_analyzer_detects_casual_greeting(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "selam, bir bug var",
-        "selam lina bugün projede ne yaptık",
-    ],
+    ["selam, bir bug var", "selam lina bugün projede ne yaptık"],
 )
 def test_intent_analyzer_does_not_overmatch_casual_greeting(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -201,11 +177,7 @@ def test_intent_analyzer_detects_memory_recall(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "hafızanı listele",
-        "kayıtlı bilgileri göster",
-        "hatırladıklarını listele",
-    ],
+    ["hafızanı listele", "kayıtlı bilgileri göster", "hatırladıklarını listele"],
 )
 def test_intent_analyzer_detects_memory_list(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -233,11 +205,7 @@ def test_intent_analyzer_detects_memory_forget(message: str) -> None:
 
 @pytest.mark.parametrize(
     "message",
-    [
-        "tüm hafızanı temizle",
-        "hafızanı sıfırla",
-        "bütün kayıtlı bilgileri sil",
-    ],
+    ["tüm hafızanı temizle", "hafızanı sıfırla", "bütün kayıtlı bilgileri sil"],
 )
 def test_intent_analyzer_detects_memory_clear(message: str) -> None:
     analyzer = IntentAnalyzer()
@@ -245,6 +213,83 @@ def test_intent_analyzer_detects_memory_clear(message: str) -> None:
     intent = analyzer.analyze(message)
 
     assert intent.type is IntentType.MEMORY_CLEAR
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "hangi dosyaları okuyabiliyorsun",
+        "izinli dosyaları listele",
+        "okuyabildiğin dosyalar neler",
+        "hangi proje dosyalarına erişebiliyorsun",
+    ],
+)
+def test_intent_analyzer_detects_file_list_allowed(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.FILE_LIST_ALLOWED
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "README dosyasını oku",
+        "docs/roadmap.md dosyasını göster",
+        "release notes v0.4.1 dosyasını oku",
+        "contributing dosyasını oku",
+    ],
+)
+def test_intent_analyzer_detects_file_read(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.FILE_READ
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "README dosyasını özetle",
+        "roadmap dosyasını özetler misin",
+        "development log'da son ne var",
+        "release notes v0.4.1'de ne yazıyor",
+        "architecture dosyasına göre mimari ne durumda",
+    ],
+)
+def test_intent_analyzer_detects_file_summarize(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.FILE_SUMMARIZE
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "dosyalarımı okuyabiliyor musun",
+        "bilgisayarımdaki dosyaları görebiliyor musun",
+        "bilgisayarımdaki dosyaları okuyabiliyor musun",
+        "proje dosyalarına erişimin var mı",
+    ],
+)
+def test_intent_analyzer_detects_file_capabilities(message: str) -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze(message)
+
+    assert intent.type is IntentType.FILE_CAPABILITIES
+
+
+def test_intent_analyzer_prefers_file_summarize_over_casual_greeting() -> None:
+    analyzer = IntentAnalyzer()
+
+    intent = analyzer.analyze("selam README dosyasını özetler misin")
+
+    assert intent.type is IntentType.FILE_SUMMARIZE
 
 
 def test_intent_analyzer_falls_back_to_chat() -> None:

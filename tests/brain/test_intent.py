@@ -16,6 +16,10 @@ def test_intent_type_values_are_stable() -> None:
     assert IntentType.MEMORY_FORGET.value == "memory_forget"
     assert IntentType.MEMORY_CLEAR.value == "memory_clear"
     assert IntentType.MEMORY_LIST.value == "memory_list"
+    assert IntentType.FILE_LIST_ALLOWED.value == "file_list_allowed"
+    assert IntentType.FILE_READ.value == "file_read"
+    assert IntentType.FILE_SUMMARIZE.value == "file_summarize"
+    assert IntentType.FILE_CAPABILITIES.value == "file_capabilities"
     assert IntentType.UNKNOWN.value == "unknown"
 
 
