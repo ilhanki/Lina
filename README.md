@@ -58,13 +58,14 @@ Mevcut çalışan özellikler:
 - SAFE tool foundation ve current time tool routing.
 - CLI arayüzü.
 - Modern Tkinter masaüstü GUI; sidebar, chat bubbles, composer ve placeholder action butonları.
+- SpeechService skeleton, STT/TTS provider sözleşmeleri ve güvenli GUI Mic akışı.
 - Unit test altyapısı.
 
 Planlanan uzun vadeli özellikler:
 
 - Memory UX / Recall polish.
 - Daha gelişmiş tool sistemi.
-- Speech ve TTS.
+- Gerçek local STT ve TTS engine entegrasyonları.
 - Vision ve screen understanding.
 - Windows automation.
 - Browser automation.
@@ -147,14 +148,15 @@ Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/defa
 - `Yeni Sohbet` mevcut oturumu temizler.
 - Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir.
 - Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.
-- `+`, `Mic` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
+- `+` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
+- `Mic` butonu `SpeechService` akışına bağlıdır. Varsayılan NoOp sağlayıcı gerçek mikrofon erişimi başlatmadan açık bir unavailable mesajı gösterir.
 - `Enter` ile gönderme, `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
 
-### Speech Planlama Notu
+### Speech Skeleton
 
-Speech capability henüz aktif değildir. GUI içindeki `Mic` butonu şimdilik placeholder davranışına sahiptir ve gerçek mikrofon erişimi başlatmaz.
+`v0.6.0-alpha` Speech skeleton; `SpeechService`, STT/TTS provider sözleşmeleri, NoOp sağlayıcılar ve GUI Mic akışını içerir. Gerçek STT/TTS engine henüz yoktur ve hiçbir mikrofon erişimi başlatılmaz.
 
-`v0.6.0-alpha` için speech mimarisi `docs/speech-architecture-v1.md` içinde planlanmaktadır. Planın temel güvenlik çizgisi; always-on listening olmaması, ses dinlemenin yalnız açık kullanıcı eylemiyle başlaması, ses kaydının varsayılan olarak tutulmaması ve mümkün olduğunca local-first çalışmadır.
+Gelecekte bir STT engine bağlandığında transkripsiyon sonucu composer input alanına yazılacak, kullanıcı kontrolü olmadan otomatik gönderilmeyecektir. Mimari ve güvenlik sınırları [docs/speech-architecture-v1.md](docs/speech-architecture-v1.md) içinde tanımlanır.
 
 Memory komut örnekleri:
 
@@ -321,14 +323,14 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 - Memory v1 yalnız explicit komutlarla kayıt yapar; otomatik memory extraction yoktur.
 - Files v1 yalnız allowlist kapsamındaki proje dosyalarını read-only okuyabilir; genel dosya okuma/yazma capability'si yoktur.
 - Shell command execution yoktur.
-- Browser, camera, speech, vision ve Windows automation henüz uygulanmamıştır.
+- Gerçek microphone/STT/TTS engine, browser, camera, vision ve Windows automation henüz uygulanmamıştır.
 - Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
 - Tool sistemi SAFE araçları çalıştırabilir, interaktif onay mekanizması (PermissionDecision UX) altyapısı vardır ancak UI entegrasyonu yoktur.
-- GUI Tkinter tabanlı modern sohbet arayüzüdür; `+`, `Mic` ve `Screen` butonları şimdilik placeholder davranışına sahiptir.
+- GUI Tkinter tabanlı modern sohbet arayüzüdür; `Mic` SpeechService skeleton akışına bağlıdır, `+` ve `Screen` ise placeholder davranışındadır.
 - Paketleme veya installer yoktur.
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.6.0-alpha Speech Capability v1 planlama hattı**
+Mevcut durum: **v0.6.0-alpha Speech Skeleton + GUI Mic Flow tamamlandı**
 
-Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır. Speech capability henüz uygulanmamıştır; `v0.6.0-alpha` için mimari ve güvenlik planı hazırlanmıştır.
+Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı, read-only allowlisted proje dosyası erişimi ve test edilebilir SpeechService skeleton'ına sahip erken aşama bir masaüstü asistanıdır. Gerçek speech engine seçimi ve entegrasyonu sonraki sürüm hattına bırakılmıştır.

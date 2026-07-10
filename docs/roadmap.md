@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.6.0-alpha Speech Capability v1 Planning
+## Mevcut Durum: v0.6.0-alpha Speech Skeleton + GUI Mic Flow
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -18,7 +18,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.5.2-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, Lina logo asset'lerini, sidebar branding alanını ve window icon fallback desteğini kapsadı.
 
-`v0.6.0-alpha` hattı Speech Capability v1 için planlama aşamasındadır. Speech implementation başlamadan önce güvenlik ilkeleri, dependency politikası, GUI Mic butonu davranışı ve test stratejisi `docs/speech-architecture-v1.md` içinde netleştirilir.
+`v0.6.0-alpha` Speech skeleton tamamlandı. `SpeechService`, STT/TTS provider sözleşmeleri, güvenli NoOp sağlayıcılar ve GUI Mic akışı eklendi. Gerçek mikrofon, STT/TTS engine veya yeni dependency eklenmedi. Gelecekteki transkripsiyon sonucu kullanıcı onayı için input alanına yazılır ve otomatik gönderilmez.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -39,6 +39,8 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - Dosya context'i prompt akışına güvenli ve sınırlı şekilde dahil edildi.
 - Tkinter GUI modern sidebar, chat bubble layout ve composer düzenine taşındı.
 - GUI branding alanı, Lina logo asset'leri ve window icon fallback desteği eklendi.
+- SpeechService skeleton ve STT/TTS provider sözleşmeleri eklendi.
+- GUI Mic butonu güvenli unavailable fallback ve test edilebilir transkripsiyon akışına bağlandı.
 
 Tamamlanan ana başlıklar:
 
@@ -60,7 +62,7 @@ Henüz kapsam dışı olan büyük başlıklar:
 - Kalıcı Memory.
 - Genel dosya capability'si.
 - Shell command execution.
-- Browser, camera, speech, vision ve Windows automation.
+- Gerçek STT/TTS, browser, camera, vision ve Windows automation.
 - Multi-agent architecture.
 - Packaging, installer ve release automation.
 
@@ -132,7 +134,8 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.5.0-alpha`: Files Capability v1.
 - `v0.5.1-alpha`: Professional Chat UI Refresh.
 - `v0.5.2-alpha`: Branding Polish.
-- `v0.6.0-alpha`: Speech Capability v1 planning / implementation.
+- `v0.6.0-alpha`: Speech Skeleton + GUI Mic Flow.
+- `v0.6.1-alpha`: Local STT engine seçimi ve kontrollü entegrasyonu.
 - `v0.7.0-alpha`: Vision / Screen Awareness v1.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 
@@ -350,6 +353,7 @@ Teknolojiler:
 Amaç:
 
 - Speech-to-text ve text-to-speech için adapter altyapısını kurmak.
+- GUI Mic butonunu explicit kullanıcı eylemine bağlı, güvenli ve test edilebilir bir akışa bağlamak.
 
 Neden bu sırada:
 
@@ -357,8 +361,16 @@ Metin tabanlı conversation flow oturduktan sonra ses katmanı bir interface/cap
 
 Teknolojiler:
 
-- Whisper, faster-whisper, Vosk veya benzeri çözümler değerlendirilecektir.
-- TTS için Piper, pyttsx3 veya alternatifleri değerlendirilecektir.
+- Python standard library tabanlı `Protocol`, immutable veri modelleri ve servis orchestration.
+- Runtime varsayılanı olarak cihaz erişimi yapmayan NoOp sağlayıcılar.
+- Gerçek STT için Whisper, faster-whisper, Vosk veya benzeri çözümler `v0.6.1-alpha` öncesinde ayrıca değerlendirilecektir.
+- TTS için Piper, pyttsx3 veya alternatifleri ayrı bir dependency ve güvenlik kararı gerektirir.
+
+Durum:
+
+- `v0.6.0-alpha` Speech Skeleton + GUI Mic Flow tamamlandı.
+- Gerçek microphone/STT/TTS engine kapsam dışı bırakıldı.
+- Sonraki adım, local-first STT adaylarını dependency, Windows uyumluluğu, model boyutu ve mahremiyet açısından karşılaştırmaktır.
 
 ## Milestone 9: Vision Capability v1
 

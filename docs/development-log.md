@@ -1858,3 +1858,31 @@ Sıradaki büyük hedef `v0.6.0-alpha` Speech Capability v1 olacaktır. Speech g
 ### Durum
 
 Speech capability için mimari ve güvenlik planı hazırlandı. Implementation'a geçmeden önce TTS/STT önceliği, local-only zorunluluğu, yeni dependency izni ve transcription UX kararı kullanıcıyla netleştirilmelidir.
+
+## 2026-07-10 - Speech Skeleton + GUI Mic Flow
+
+### Yapılanlar
+
+- `SpeechService` ve speech state modeli eklendi.
+- STT/TTS provider sözleşmeleri ile güvenli `NoOpSTTProvider` ve `NoOpTTSProvider` varsayılanları eklendi.
+- GUI içindeki `Mic` butonu placeholder davranışından çıkarılıp `SpeechService` akışına bağlandı.
+- Kullanılabilir bir STT provider olduğunda transkripsiyon background thread üzerinde çalışacak ve sonuç otomatik gönderilmeden input alanına yazılacak şekilde tasarlandı.
+- Unavailable, boş sonuç ve provider exception yollarında GUI kontrollerinin ve status bilgisinin güvenli biçimde sıfırlanması sağlandı.
+- Bootstrap, SpeechService'i NoOp sağlayıcılarla oluşturup yalnız GUI'ye aktarıyor; CLI davranışı değiştirilmedi.
+
+### Güvenlik Sınırları
+
+- Gerçek mikrofon erişimi ve ses kaydı eklenmedi.
+- STT/TTS engine veya yeni dependency eklenmedi.
+- Always-on listening, background recording, cloud speech ve otomatik mesaj gönderme yoktur.
+- Testler gerçek cihaz veya mikrofon izni gerektirmez.
+
+### Test Sonucu
+
+- Speech unit testleri: `10 passed`
+- Hedefli Speech/GUI/bootstrap testleri: `71 passed`
+- Tam test paketi: `399 passed`
+
+### Durum
+
+`v0.6.0-alpha` Speech Skeleton + GUI Mic Flow tamamlandı. Gerçek STT engine seçimi ve dependency kararı `v0.6.1-alpha` öncesinde ayrı bir mimari ve güvenlik değerlendirmesi gerektirir.
