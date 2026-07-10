@@ -3,6 +3,7 @@
 from typing import Protocol
 
 from lina.speech.models import (
+    AudioRecordingResult,
     SpeechServiceError,
     SpeechSynthesisResult,
     SpeechTranscriptionResult,
@@ -15,8 +16,8 @@ class STTProvider(Protocol):
     def is_available(self) -> bool:
         """Return whether the provider can currently transcribe speech."""
 
-    def transcribe_once(self) -> SpeechTranscriptionResult:
-        """Transcribe one explicit user-initiated speech request."""
+    def transcribe(self, recording: AudioRecordingResult) -> SpeechTranscriptionResult:
+        """Transcribe audio captured by an explicit user request."""
 
 
 class TTSProvider(Protocol):
@@ -38,7 +39,7 @@ class NoOpSTTProvider:
     def is_available(self) -> bool:
         return False
 
-    def transcribe_once(self) -> SpeechTranscriptionResult:
+    def transcribe(self, recording: AudioRecordingResult) -> SpeechTranscriptionResult:
         raise SpeechServiceError("Speech-to-text provider is unavailable")
 
 
