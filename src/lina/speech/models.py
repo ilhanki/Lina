@@ -23,6 +23,18 @@ class SpeechTranscriptionResult:
     confidence: float | None
     source: str
     is_final: bool
+    language: str | None = None
+    duration_seconds: float | None = None
+
+
+@dataclass(frozen=True)
+class AudioRecordingResult:
+    """In-memory audio captured by an explicit recording request."""
+
+    audio_data: bytes
+    sample_rate: int
+    channels: int
+    duration_seconds: float
 
 
 @dataclass(frozen=True)
@@ -35,3 +47,15 @@ class SpeechSynthesisResult:
 
 class SpeechServiceError(Exception):
     """Raised when a controlled speech operation cannot be completed."""
+
+
+class SpeechUnavailableError(SpeechServiceError):
+    """Raised when a required speech component is unavailable."""
+
+
+class SpeechRecordingError(SpeechServiceError):
+    """Raised when an explicit microphone recording cannot be completed."""
+
+
+class SpeechTranscriptionError(SpeechServiceError):
+    """Raised when recorded audio cannot be transcribed."""

@@ -5,6 +5,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from lina.speech.models import (
+    AudioRecordingResult,
     SpeechState,
     SpeechSynthesisResult,
     SpeechTranscriptionResult,
@@ -44,3 +45,17 @@ def test_speech_synthesis_result_defaults_message_to_none() -> None:
 
     assert result.success is True
     assert result.message is None
+
+
+def test_audio_recording_result_keeps_audio_in_memory() -> None:
+    result = AudioRecordingResult(
+        audio_data=b"RIFFaudio",
+        sample_rate=16000,
+        channels=1,
+        duration_seconds=1.5,
+    )
+
+    assert result.audio_data == b"RIFFaudio"
+    assert result.sample_rate == 16000
+    assert result.channels == 1
+    assert result.duration_seconds == 1.5
