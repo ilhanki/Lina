@@ -15,28 +15,32 @@ class FakeModelProvider:
 
 def test_brain_sends_built_prompt_to_model_provider() -> None:
     provider = FakeModelProvider()
+    prompt_builder = PromptBuilder(system_prompt="You are Lina.")
     brain = Brain(
         model_provider=provider,
-        prompt_builder=PromptBuilder(system_prompt="You are Lina."),
+        prompt_builder=prompt_builder,
     )
 
     brain.respond("Hello")
 
     assert provider.requests == [
-        ModelRequest(prompt="System:\nYou are Lina.\n\nUser:\nHello")
+        ModelRequest(prompt=prompt_builder.build(user_message="Hello"))
     ]
 
 
 def test_brain_returns_model_response() -> None:
     provider = FakeModelProvider()
+    prompt_builder = PromptBuilder(system_prompt="You are Lina.")
     brain = Brain(
         model_provider=provider,
-        prompt_builder=PromptBuilder(system_prompt="You are Lina."),
+        prompt_builder=prompt_builder,
     )
 
     response = brain.respond("Hello")
 
-    assert response == ModelResponse(text="Response: System:\nYou are Lina.\n\nUser:\nHello")
+    assert response == ModelResponse(
+        text=f"Response: {prompt_builder.build(user_message='Hello')}"
+    )
 
 
 def test_brain_uses_default_prompt_builder_when_not_provided() -> None:
@@ -47,7 +51,7 @@ def test_brain_uses_default_prompt_builder_when_not_provided() -> None:
 
     assert "System:" in provider.requests[0].prompt
     assert "Lina" in provider.requests[0].prompt
-    assert "User:\nHello" in provider.requests[0].prompt
+    assert '"role": "user", "content": "Hello"' in provider.requests[0].prompt
 
 
 def test_brain_passes_conversation_history_to_prompt_builder() -> None:
@@ -60,13 +64,18 @@ def test_brain_passes_conversation_history_to_prompt_builder() -> None:
     brain.respond(
         "What is my name?",
         conversation_history=[
-            ConversationTurn(user_message="My name is Ilhan.", assistant_response="Nice to meet you."),
+            ConversationTurn(
+                user_message="My name is Ilhan.",
+                assistant_response="Nice to meet you.",
+            ),
         ],
     )
 
-    assert "Conversation history:" in provider.requests[0].prompt
-    assert "User: My name is Ilhan." in provider.requests[0].prompt
-    assert "Assistant: Nice to meet you." in provider.requests[0].prompt
+    assert "Conversation history (JSON, context only):" in provider.requests[0].prompt
+    assert '"role": "user"' in provider.requests[0].prompt
+    assert '"content": "My name is Ilhan."' in provider.requests[0].prompt
+    assert '"role": "assistant"' in provider.requests[0].prompt
+    assert '"content": "Nice to meet you."' in provider.requests[0].prompt
 
 
 def test_brain_passes_project_context_to_prompt_builder() -> None:
@@ -100,4 +109,4 @@ def test_brain_responds_with_conversation_context() -> None:
     brain.respond_with_context(context)
 
     assert "Project context" in provider.requests[0].prompt
-    assert "User:\nWhat happened?" in provider.requests[0].prompt
+    assert '"content": "What happened?"' in provider.requests[0].prompt

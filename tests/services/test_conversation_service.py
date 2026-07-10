@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from lina.brain.model_provider import ModelResponse
+from lina.brain.brain import Brain
+from lina.brain.model_provider import ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
 from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
@@ -31,6 +32,16 @@ class FakeBrain:
         self.project_contexts.append(context.project_context)
         self.file_contexts.append(context.file_context)
         return ModelResponse(text=f"Response: {context.user_message}")
+
+
+class CapturingModelProvider:
+    def __init__(self, responses: list[str]) -> None:
+        self._responses = list(responses)
+        self.requests: list[ModelRequest] = []
+
+    def generate(self, request: ModelRequest) -> ModelResponse:
+        self.requests.append(request)
+        return ModelResponse(text=self._responses.pop(0))
 
 
 class FakeIntentAnalyzer:
@@ -199,6 +210,65 @@ def test_conversation_service_sends_previous_turns_to_brain() -> None:
     assert brain.histories[1] == [
         ConversationTurn(user_message="Hello", assistant_response="Response: Hello")
     ]
+
+
+def test_chat_after_greeting_answers_latest_message_without_repeating_history() -> None:
+    from lina.brain.intent import IntentType
+
+    provider = CapturingModelProvider(
+        responses=["Önce fikrinin amacını ve hedef kullanıcısını netleştirelim İlhan."]
+    )
+    service = ConversationService(
+        brain=Brain(model_provider=provider),
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.CASUAL_GREETING, IntentType.CHAT]
+        ),
+    )
+
+    service.handle_message("selam")
+    response = service.handle_message(
+        "bir proje fikri düşünüyorum, bana birkaç soru sor"
+    )
+
+    assert response.text == (
+        "Önce fikrinin amacını ve hedef kullanıcısını netleştirelim İlhan."
+    )
+    assert len(provider.requests) == 1
+    prompt = provider.requests[0].prompt
+    assert '"role": "user",\n    "content": "selam"' in prompt
+    assert '"role": "assistant"' in prompt
+    assert '"content": "bir proje fikri düşünüyorum, bana birkaç soru sor"' in prompt
+    assert "Conversation history (JSON, context only)" in prompt
+    assert "Yalnız current user request içindeki son mesaja" in prompt
+
+
+def test_malformed_speech_text_is_not_used_as_user_name_in_next_model_request() -> None:
+    from lina.brain.intent import IntentType
+
+    provider = CapturingModelProvider(
+        responses=[
+            "Seni tam anlayamadım İlhan.",
+            "Aklımdaki fikir, önce küçük bir hedef seçip onu tamamlamak İlhan.",
+        ]
+    )
+    service = ConversationService(
+        brain=Brain(model_provider=provider),
+        intent_analyzer=SequenceIntentAnalyzer(
+            intent_types=[IntentType.CHAT, IntentType.CHAT]
+        ),
+    )
+
+    service.handle_message("Marrabalina Nesussan")
+    response = service.handle_message(
+        "bir şeyler yapmayı düşünüyorum senin aklındaki fikir nedir"
+    )
+
+    prompt = provider.requests[1].prompt
+    assert response.text.startswith("Aklımdaki fikir")
+    assert '"content": "Marrabalina Nesussan"' in prompt
+    assert "Marrabalina Nesussan:" not in prompt
+    assert "bilinen adı yalnızca İlhan'dır" in prompt
+    assert "Kullanıcı mesajından isim türetme" in prompt
 
 
 def test_conversation_service_limits_history() -> None:

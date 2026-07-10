@@ -53,6 +53,17 @@ def test_default_system_prompt_prevents_response_label_prefixes() -> None:
     assert '"Cevap:"' in DEFAULT_SYSTEM_PROMPT
 
 
+def test_default_system_prompt_fixes_user_identity_to_ilhan() -> None:
+    assert "bilinen adı yalnızca İlhan'dır" in DEFAULT_SYSTEM_PROMPT
+    assert "yeni bir kişi adı tahmin etme" in DEFAULT_SYSTEM_PROMPT
+
+
+def test_default_system_prompt_treats_history_as_context_only() -> None:
+    assert "Conversation history yalnız yardımcı bağlamdır" in DEFAULT_SYSTEM_PROMPT
+    assert "son kullanıcı mesajına doğrudan cevap ver" in DEFAULT_SYSTEM_PROMPT
+    assert "eski konuşma transcript'i üretme" in DEFAULT_SYSTEM_PROMPT
+
+
 def test_default_system_prompt_allows_technical_terms() -> None:
     assert "Commit, branch, repository, provider, prompt, CLI, GUI, tool" in DEFAULT_SYSTEM_PROMPT
 

@@ -7,7 +7,9 @@ def test_prompt_builder_combines_system_prompt_and_user_message() -> None:
 
     prompt = builder.build(user_message="Hello")
 
-    assert prompt == "System:\nYou are Lina.\n\nUser:\nHello"
+    assert "System:\nYou are Lina." in prompt
+    assert '"role": "user", "content": "Hello"' in prompt
+    assert "Yalnız current user request içindeki son mesaja" in prompt
 
 
 def test_prompt_builder_strips_outer_whitespace() -> None:
@@ -15,7 +17,7 @@ def test_prompt_builder_strips_outer_whitespace() -> None:
 
     prompt = builder.build(user_message="  Hello  ")
 
-    assert prompt == "System:\nYou are Lina.\n\nUser:\nHello"
+    assert '"role": "user", "content": "Hello"' in prompt
 
 
 def test_prompt_builder_includes_conversation_history() -> None:
@@ -31,13 +33,33 @@ def test_prompt_builder_includes_conversation_history() -> None:
         ],
     )
 
-    assert prompt == (
-        "System:\nYou are Lina.\n\n"
-        "Conversation history:\n"
-        "User: My name is Ilhan.\n"
-        "Assistant: Nice to meet you.\n\n"
-        "User:\nWhat is my name?"
+    assert "Conversation history (JSON, context only):" in prompt
+    assert '"role": "user"' in prompt
+    assert '"content": "My name is Ilhan."' in prompt
+    assert '"role": "assistant"' in prompt
+    assert '"content": "Nice to meet you."' in prompt
+    assert '"content": "What is my name?"' in prompt
+    assert "mesajları cevap olarak kopyalama" in prompt
+
+
+def test_prompt_builder_separates_history_roles_from_current_request() -> None:
+    builder = PromptBuilder(system_prompt="You are Lina.")
+
+    prompt = builder.build(
+        user_message="bir proje fikri düşünüyorum, bana birkaç soru sor",
+        history=[
+            ConversationTurn(
+                user_message="Marrabalina Nesussan",
+                assistant_response="Merhaba!",
+            )
+        ],
     )
+
+    assert '"role": "user",\n    "content": "Marrabalina Nesussan"' in prompt
+    assert '"role": "assistant",\n    "content": "Merhaba!"' in prompt
+    assert '"role": "user", "content": "bir proje fikri düşünüyorum' in prompt
+    assert "Marrabalina Nesussan:" not in prompt
+    assert "transcript'i devam ettirme" in prompt
 
 
 def test_prompt_builder_truncates_long_conversation_history_fields() -> None:
@@ -58,7 +80,7 @@ def test_prompt_builder_truncates_long_conversation_history_fields() -> None:
     assert long_user_message not in prompt
     assert long_assistant_response not in prompt
     assert "[geçmiş mesaj kısaltıldı]" in prompt
-    assert "User:\nContinue" in prompt
+    assert '"content": "Continue"' in prompt
 
 
 def test_prompt_builder_includes_project_context() -> None:
@@ -72,7 +94,7 @@ def test_prompt_builder_includes_project_context() -> None:
     assert "Project context:" in prompt
     assert "Aşağıdaki proje bağlamına dayan" in prompt
     assert "Sprint 5 completed." in prompt
-    assert "User:\nWhat happened in the project?" in prompt
+    assert '"content": "What happened in the project?"' in prompt
 
 
 def test_prompt_builder_includes_memory_context() -> None:
