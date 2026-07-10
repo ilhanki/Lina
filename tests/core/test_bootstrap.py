@@ -2,6 +2,8 @@ import pytest
 from pathlib import Path
 from lina.core.bootstrap import create_application_services
 from lina.speech.models import SpeechState
+from lina.speech.audio_recorder import SoundDeviceAudioRecorder
+from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 
 def test_bootstrap_wires_services_correctly(tmp_path: Path) -> None:
     config_path = tmp_path / "settings.toml"
@@ -82,3 +84,54 @@ enabled = false
     services = create_application_services(config_path, tmp_path)
 
     assert services.conversation_service._memory_service is None
+
+
+def test_bootstrap_wires_local_speech_without_loading_model(tmp_path: Path) -> None:
+    config_path = tmp_path / "settings.toml"
+    config_path.write_text("""
+[app]
+name = "Lina"
+environment = "test"
+
+[logging]
+level = "INFO"
+
+[paths]
+data = "data"
+logs = "logs"
+models = "models"
+cache = "cache"
+
+[ollama]
+base_url = "http://localhost:11434"
+default_model = "llama3"
+
+[memory]
+enabled = false
+
+[speech]
+enabled = true
+stt_provider = "faster_whisper"
+model_size = "base"
+language = "tr"
+device = "cpu"
+compute_type = "int8"
+sample_rate = 16000
+channels = 1
+max_recording_seconds = 8
+silence_threshold = 0.015
+silence_duration_seconds = 1.2
+auto_send = false
+    """, encoding="utf-8")
+
+    services = create_application_services(config_path, tmp_path)
+
+    assert isinstance(
+        services.speech_service._audio_recorder,
+        SoundDeviceAudioRecorder,
+    )
+    assert isinstance(
+        services.speech_service._stt_provider,
+        FasterWhisperSTTProvider,
+    )
+    assert services.speech_service._stt_provider._model is None

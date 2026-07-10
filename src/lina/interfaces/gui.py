@@ -18,7 +18,11 @@ from lina.services.model_diagnostics_service import (
     ModelDiagnosticsService,
     format_status_message,
 )
-from lina.speech.models import SpeechServiceError, SpeechTranscriptionResult
+from lina.speech.models import (
+    SpeechServiceError,
+    SpeechState,
+    SpeechTranscriptionResult,
+)
 from lina.speech.service import SpeechService
 
 if TYPE_CHECKING:
@@ -27,7 +31,7 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-APP_VERSION = "v0.5.1-alpha"
+APP_VERSION = "v0.6.1-alpha"
 
 COLOR_BG = "#111318"
 COLOR_SIDEBAR = "#0b0d12"
@@ -64,6 +68,7 @@ class LinaGui:
         self._diagnostics_service = diagnostics_service
         self._speech_service = speech_service
         self._is_waiting_for_response = False
+        self._is_closing = False
         self._last_response_text: str = ""
         self._input_history: list[str] = []
         self._input_history_index = 0
@@ -535,6 +540,13 @@ class LinaGui:
 
     def _handle_mic(self) -> None:
         if self._is_waiting_for_response:
+            if (
+                self._speech_service is not None
+                and self._speech_service.get_state() is SpeechState.LISTENING
+            ):
+                self._speech_service.stop_listening()
+                self._set_mic_button(text="Mic", enabled=False)
+                self._update_status_text("Konuşma metne çevriliyor...")
             return
 
         if self._speech_service is None:
@@ -553,45 +565,79 @@ class LinaGui:
             return
 
         self._set_waiting_state(True)
-        self._update_status_text("Konuşma metne çevriliyor...")
+        self._set_mic_button(text="Durdur", enabled=True)
+        self._update_status_text("Dinliyorum...")
         thread = self._thread_factory(
             target=self._transcribe_speech,
             args=(),
             daemon=True,
         )
         thread.start()
+        self._root.after(100, self._refresh_speech_status)
+
+    def _refresh_speech_status(self) -> None:
+        if not self._is_waiting_for_response or self._speech_service is None:
+            return
+
+        state = self._speech_service.get_state()
+        if state is SpeechState.LISTENING:
+            self._set_mic_button(text="Durdur", enabled=True)
+            self._update_status_text("Dinliyorum...")
+        elif state is SpeechState.TRANSCRIBING:
+            self._set_mic_button(text="Mic", enabled=False)
+            self._update_status_text(
+                "Konuşma metne çevriliyor; ilk kullanımda model hazırlanabilir..."
+            )
+        else:
+            return
+
+        self._root.after(100, self._refresh_speech_status)
 
     def _transcribe_speech(self) -> None:
         if self._speech_service is None:
-            self._root.after(0, self._show_speech_unavailable)
+            self._schedule_speech_callback(self._show_speech_unavailable)
             return
 
         try:
             result = self._speech_service.transcribe_once()
         except SpeechServiceError:
             _logger.exception("Speech transcription could not be completed")
-            self._root.after(0, self._show_speech_error)
+            self._schedule_speech_callback(self._show_speech_error)
             return
         except Exception:
             _logger.exception("Unexpected error while transcribing speech")
-            self._root.after(0, self._show_speech_error)
+            self._schedule_speech_callback(self._show_speech_error)
             return
 
-        self._root.after(0, self._show_transcription, result)
+        self._schedule_speech_callback(self._show_transcription, result)
+
+    def _schedule_speech_callback(self, callback, *args) -> None:
+        if self._is_closing:
+            return
+        try:
+            self._root.after(0, callback, *args)
+        except (RuntimeError, tk.TclError):
+            _logger.debug("Speech callback skipped because the GUI is closing")
 
     def _show_transcription(self, result: SpeechTranscriptionResult) -> None:
         text = result.text.strip()
         if not text:
-            self._show_speech_error()
+            self._show_empty_transcription()
             return
 
-        self._set_input_text(text)
+        current_text = self._get_input_text()
+        combined_text = f"{current_text.rstrip()} {text}" if current_text else text
+        self._set_input_text(combined_text)
         message = "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
         self._append_message("Lina", message)
         self._last_response_text = message
-        self._set_waiting_state(False)
-        self._update_status_text("Hazır")
-        self._focus_input()
+        self._reset_speech_ui("Metin hazır")
+
+    def _show_empty_transcription(self) -> None:
+        message = "Net bir konuşma algılayamadım İlhan. Tekrar deneyebilirsin."
+        self._append_message("Lina", message)
+        self._last_response_text = message
+        self._reset_speech_ui("Konuşma algılanamadı")
 
     def _show_speech_unavailable(self) -> None:
         message = (
@@ -600,17 +646,25 @@ class LinaGui:
         )
         self._append_message("Lina", message)
         self._last_response_text = message
-        self._set_waiting_state(False)
-        self._update_status_text("Speech kullanılamıyor")
-        self._focus_input()
+        self._reset_speech_ui("Speech kullanılamıyor")
 
     def _show_speech_error(self) -> None:
         message = "Konuşma metne çevrilemedi. Tekrar deneyebilirsin İlhan."
         self._append_message("Lina", message)
         self._last_response_text = message
+        self._reset_speech_ui("Speech hatası")
+
+    def _reset_speech_ui(self, status: str) -> None:
         self._set_waiting_state(False)
-        self._update_status_text("Speech hatası")
+        self._set_mic_button(text="Mic", enabled=True)
+        self._update_status_text(status)
         self._focus_input()
+
+    def _set_mic_button(self, text: str, enabled: bool) -> None:
+        if not hasattr(self, "_mic_button"):
+            return
+        state = tk.NORMAL if enabled else tk.DISABLED
+        self._mic_button.configure(text=text, state=state)
 
     def _show_placeholder_feature_message(self, message: str) -> None:
         self._append_message("Lina", message)
@@ -745,6 +799,12 @@ class LinaGui:
 
     def _on_close(self) -> None:
         """Handle window close gracefully."""
+        self._is_closing = True
+        if (
+            self._speech_service is not None
+            and self._speech_service.get_state() is SpeechState.LISTENING
+        ):
+            self._speech_service.stop_listening()
         self._root.destroy()
 
     def _run_initial_diagnostics(self) -> None:

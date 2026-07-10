@@ -9,7 +9,7 @@ from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
 from lina.core.paths import AppPaths
-from lina.core.settings import load_settings
+from lina.core.settings import SpeechSettings, load_settings
 from lina.files.file_access_service import FileAccessService
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.memory.repository import MemoryRepository
@@ -19,6 +19,8 @@ from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import ModelDiagnosticsService
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
+from lina.speech.audio_recorder import NoOpAudioRecorder, SoundDeviceAudioRecorder
+from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
 from lina.speech.service import SpeechService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
@@ -88,10 +90,7 @@ def create_application_services(
         model=settings.ollama.default_model,
         timeout=min(settings.ollama.request_timeout, 5.0),
     )
-    speech_service = SpeechService(
-        stt_provider=NoOpSTTProvider(),
-        tts_provider=NoOpTTSProvider(),
-    )
+    speech_service = _create_speech_service(settings.speech)
 
     return ApplicationServices(
         application=application,
@@ -117,3 +116,31 @@ def _create_memory_service(
 
     repository = MemoryRepository(resolved_database_path)
     return MemoryService(repository=repository)
+
+
+def _create_speech_service(settings: SpeechSettings) -> SpeechService:
+    if not settings.enabled or settings.stt_provider == "noop":
+        return SpeechService(
+            stt_provider=NoOpSTTProvider(),
+            tts_provider=NoOpTTSProvider(),
+            audio_recorder=NoOpAudioRecorder(),
+        )
+
+    recorder = SoundDeviceAudioRecorder(
+        sample_rate=settings.sample_rate,
+        channels=settings.channels,
+        max_recording_seconds=settings.max_recording_seconds,
+        silence_threshold=settings.silence_threshold,
+        silence_duration_seconds=settings.silence_duration_seconds,
+    )
+    provider = FasterWhisperSTTProvider(
+        model_size=settings.model_size,
+        language=settings.language,
+        device=settings.device,
+        compute_type=settings.compute_type,
+    )
+    return SpeechService(
+        stt_provider=provider,
+        tts_provider=NoOpTTSProvider(),
+        audio_recorder=recorder,
+    )

@@ -17,7 +17,9 @@ from lina.services.model_diagnostics_service import (
     format_status_message as format_diagnostics_message,
 )
 from lina.speech.models import (
+    AudioRecordingResult,
     SpeechServiceError,
+    SpeechState,
     SpeechSynthesisResult,
     SpeechTranscriptionResult,
 )
@@ -59,19 +61,24 @@ class ImmediateThread:
 
 
 class FakeSTTProvider:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        error: Exception | None = None,
+        text: str = "Merhaba Lina",
+    ) -> None:
         self._error = error
+        self._text = text
         self.call_count = 0
 
     def is_available(self) -> bool:
         return True
 
-    def transcribe_once(self) -> SpeechTranscriptionResult:
+    def transcribe(self, recording: AudioRecordingResult) -> SpeechTranscriptionResult:
         self.call_count += 1
         if self._error is not None:
             raise self._error
         return SpeechTranscriptionResult(
-            text="Merhaba Lina",
+            text=self._text,
             confidence=0.9,
             source="fake",
             is_final=True,
@@ -87,6 +94,33 @@ class FakeTTSProvider:
 
     def stop(self) -> None:
         return None
+
+
+class FakeAudioRecorder:
+    def is_available(self) -> bool:
+        return True
+
+    def record_once(self) -> AudioRecordingResult:
+        return AudioRecordingResult(
+            audio_data=b"RIFFaudio",
+            sample_rate=16000,
+            channels=1,
+            duration_seconds=1.0,
+        )
+
+    def stop(self) -> None:
+        return None
+
+
+class ListeningSpeechService:
+    def __init__(self) -> None:
+        self.stop_count = 0
+
+    def get_state(self) -> SpeechState:
+        return SpeechState.LISTENING
+
+    def stop_listening(self) -> None:
+        self.stop_count += 1
 
 
 # --- Format function tests ---
@@ -523,7 +557,7 @@ def test_gui_mic_with_noop_provider_shows_safe_unavailable_message() -> None:
 
 def test_gui_mic_writes_transcription_to_input_without_sending() -> None:
     provider = FakeSTTProvider()
-    speech_service = SpeechService(provider, FakeTTSProvider())
+    speech_service = SpeechService(provider, FakeTTSProvider(), FakeAudioRecorder())
     conversation_service = FakeConversationService()
     gui = _create_test_gui(
         conversation_service,
@@ -543,13 +577,52 @@ def test_gui_mic_writes_transcription_to_input_without_sending() -> None:
         ("Lina", "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin.")
     ]
     assert gui.waiting_states == [True, False]
-    assert gui._status_updates == ["Konuşma metne çevriliyor...", "Hazır"]
+    assert gui._status_updates == ["Dinliyorum...", "Metin hazır"]
     assert gui._is_waiting_for_response is False
+
+
+def test_gui_mic_appends_transcription_to_existing_draft() -> None:
+    speech_service = SpeechService(
+        FakeSTTProvider(text="devam ediyoruz"),
+        FakeTTSProvider(),
+        FakeAudioRecorder(),
+    )
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="Mevcut taslak",
+        speech_service=speech_service,
+    )
+    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+
+    gui._handle_mic()
+
+    assert gui.transcribed_input == "Mevcut taslak devam ediyoruz"
+
+
+def test_gui_empty_transcription_keeps_input_unchanged() -> None:
+    speech_service = SpeechService(
+        FakeSTTProvider(text="  "),
+        FakeTTSProvider(),
+        FakeAudioRecorder(),
+    )
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="Taslak",
+        speech_service=speech_service,
+    )
+    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+
+    gui._handle_mic()
+
+    assert not hasattr(gui, "transcribed_input")
+    assert gui.recorded_messages == [
+        ("Lina", "Net bir konuşma algılayamadım İlhan. Tekrar deneyebilirsin.")
+    ]
 
 
 def test_gui_mic_error_resets_controls_and_status() -> None:
     provider = FakeSTTProvider(SpeechServiceError("transcription failed"))
-    speech_service = SpeechService(provider, FakeTTSProvider())
+    speech_service = SpeechService(provider, FakeTTSProvider(), FakeAudioRecorder())
     gui = _create_test_gui(
         FakeConversationService(),
         input_text="",
@@ -567,10 +640,18 @@ def test_gui_mic_error_resets_controls_and_status() -> None:
     assert gui._status_updates[-1] == "Speech hatası"
     assert gui._is_waiting_for_response is False
     assert gui.input_focus_count == 1
+    assert gui._mic_button.configurations[-1] == {
+        "text": "Mic",
+        "state": gui_module.tk.NORMAL,
+    }
 
 
 def test_gui_mic_ignores_click_while_another_operation_is_running() -> None:
-    speech_service = SpeechService(FakeSTTProvider(), FakeTTSProvider())
+    speech_service = SpeechService(
+        FakeSTTProvider(),
+        FakeTTSProvider(),
+        FakeAudioRecorder(),
+    )
     gui = _create_test_gui(
         FakeConversationService(),
         input_text="",
@@ -581,6 +662,42 @@ def test_gui_mic_ignores_click_while_another_operation_is_running() -> None:
     gui._handle_mic()
 
     assert gui.recorded_messages == []
+
+
+def test_gui_second_mic_click_stops_active_recording() -> None:
+    speech_service = ListeningSpeechService()
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._is_waiting_for_response = True
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_mic()
+
+    assert speech_service.stop_count == 1
+    assert gui._mic_button.configurations[-1] == {
+        "text": "Mic",
+        "state": gui_module.tk.DISABLED,
+    }
+    assert gui._status_updates == ["Konuşma metne çevriliyor..."]
+
+
+def test_gui_close_stops_active_recording_and_marks_gui_closing() -> None:
+    speech_service = ListeningSpeechService()
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+
+    gui._on_close()
+
+    assert speech_service.stop_count == 1
+    assert gui._is_closing is True
+    assert gui._root.destroy_count == 1
 
 
 def test_gui_new_chat_uses_clear_chat_flow() -> None:
@@ -778,6 +895,7 @@ def _create_test_gui(
     gui._thread_factory = ImmediateThread
     gui._root = _FakeRoot()
     gui._is_waiting_for_response = False
+    gui._is_closing = False
     gui._diagnostics_service = None
     gui._speech_service = speech_service
     gui._last_response_text = ""
@@ -788,6 +906,7 @@ def _create_test_gui(
     gui.waiting_states = []
     gui.input_was_cleared = False
     gui.input_focus_count = 0
+    gui._mic_button = _FakeButton()
     gui._get_input_text = lambda: input_text.strip()
     gui._clear_input = lambda: setattr(gui, "input_was_cleared", True)
     gui._append_message = lambda sender, message: gui.recorded_messages.append(
@@ -810,12 +929,24 @@ def _create_test_gui(
 class _FakeRoot:
     def __init__(self) -> None:
         self.icon_calls = []
+        self.destroy_count = 0
 
     def after(self, delay_ms: int, callback, *args) -> None:
         callback(*args)
 
     def iconphoto(self, default: bool, image) -> None:
         self.icon_calls.append((default, image))
+
+    def destroy(self) -> None:
+        self.destroy_count += 1
+
+
+class _FakeButton:
+    def __init__(self) -> None:
+        self.configurations = []
+
+    def configure(self, **kwargs) -> None:
+        self.configurations.append(kwargs)
 
 
 class _FakePhotoImage:
