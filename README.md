@@ -1,344 +1,244 @@
+<p align="center">
+  <img src="assets/branding/lina-logo.png" alt="Lina Logo" width="180">
+</p>
+
 # Lina
+
+**Local-first çalışan, hafıza, güvenli proje dosyası erişimi, yerel konuşmayı metne çevirme ve modern masaüstü arayüzü sunan kişisel yapay zekâ asistanı.**
 
 > Bu proje kişisel kullanım amacıyla geliştirildiği için dokümantasyon dili Türkçedir. Kod tabanı ise uluslararası yazılım geliştirme standartlarına uygun olarak İngilizce yazılmaktadır.
 
-Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
+## Proje Durumu
 
-Bu depo şu anda `v0.6.2-alpha` Professional UI, Readability & Accessibility Polish geliştirme hattındadır. `v0.6.1-alpha` ile local push-to-talk STT ve structured Ollama chat akışı tamamlanmış; ardından Tkinter GUI, Windows DPI desteği, okunabilir font sistemi ve responsive sohbet düzeniyle güçlendirilmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, izinli proje dokümanlarından bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
+- **Sürüm:** `v0.6.2-alpha`
+- **Durum:** Alpha / aktif geliştirme
+- **Platform:** Windows masaüstü
+- **Çalışma modeli:** Local-first
 
-## Projenin Amacı
+Lina; Ollama üzerinden yerel model kullanır, konuşma rollerini structured `/api/chat` mesajlarıyla ayırır, açık kullanıcı komutlarıyla yerel hafızaya kayıt yapar, yalnız izinli proje dosyalarını read-only okuyabilir ve push-to-talk ile Türkçe konuşmayı yerelde metne çevirebilir. DPI-aware Tkinter arayüzü günlük masaüstü kullanımına odaklanırken capability sınırları privacy-first ve safety-first ilkeleriyle korunur.
 
-Lina'nın amacı, kişisel bilgisayarda çalışan güvenilir, modüler ve uzun ömürlü bir yapay zeka asistanı oluşturmaktır.
+## Öne Çıkan Özellikler
 
-Temel öncelikler:
+### Sohbet
 
-- Yerel öncelikli çalışma.
-- Modüler ve genişletilebilir mimari.
-- Gereksiz üçüncü parti bağımlılıklardan kaçınma.
-- Kod ile kullanıcı arayüzü arasında net ayrım.
-- Yetki, güvenlik ve kullanıcı onay mekanizmalarını erken tasarım kararı olarak ele alma.
-- Her yeni özelliği test edilebilir ve izole bir modül olarak geliştirme.
+- Ollama `/api/chat` entegrasyonu.
+- Ayrı `system`, `user` ve `assistant` rolleriyle structured mesajlaşma.
+- Oturum içi conversation history ve sınırlı history bounding.
+- Basit istekler için deterministic intent cevapları.
+- Model gerektirmeyen işlemler için no-model fallback.
+- Türkçe-first, kısa ve dürüst cevap davranışı.
 
-## Uzun Vadeli Vizyon
+### Memory
 
-Lina zamanla şu yeteneklere sahip bir masaüstü asistanına dönüşmelidir:
-
-- Yerel LLM sağlayıcılarıyla konuşma.
-- Farklı model sağlayıcılarını destekleme.
-- Konuşma ve kullanıcı hafızası.
-- Ses tanıma ve metinden sese konuşma.
-- Wake word desteği.
-- Ekran görüntüsü alma ve ekranı anlama.
-- Kamera ve görsel algı desteği.
-- Windows otomasyonu.
-- Dosya yönetimi.
-- Tarayıcı otomasyonu.
-- Araç ve plugin sistemi.
-- Çoklu ajan mimarisi.
-- Masaüstü GUI.
-- Gerekirse yerel API katmanı.
-- Kod geliştirme süreçlerinde yardımcı modüller.
-
-## Planlanan Özellikler
-
-Mevcut çalışan özellikler:
-
-- `Brain` orchestration katmanı.
-- `ModelProvider` contract.
-- Ollama provider entegrasyonu.
-- Default system prompt ve prompt builder.
-- Runtime conversation context.
-- Session içi geçici conversation history.
-- Local-first SQLite Memory Capability v1.
-- Read-only allowlisted Files Capability v1.
-- Explicit memory commands.
-- Rule-based intent analyzer.
-- Deterministic response flow.
-- Sınırlı project awareness.
-- SAFE tool foundation ve current time tool routing.
-- CLI arayüzü.
-- DPI-aware modern Tkinter GUI; responsive sidebar, okunabilir chat bubbles, erişilebilir composer ve placeholder action butonları.
-- Local push-to-talk STT, SpeechService ve güvenli GUI Mic akışı.
-- Unit test altyapısı.
-
-Planlanan uzun vadeli özellikler:
-
-- Memory UX / Recall polish.
-- Daha gelişmiş tool sistemi.
-- Gerçek local STT ve TTS engine entegrasyonları.
-- Vision ve screen understanding.
-- Windows automation.
-- Browser automation.
-- Multi-agent architecture.
-- Packaging ve release süreci.
-
-## Geliştirme Yol Haritası
-
-Ayrıntılı yol haritası [docs/roadmap.md](docs/roadmap.md) dosyasında tutulur.
-
-Mevcut release candidate, core altyapı, Brain v1, Ollama entegrasyonu, conversation flow, GUI v2, project awareness v2 (Git destekli) ve safe tool foundation v2 (PermissionDecision UX) aşamalarını içerir.
-
-## Kullanılan Teknolojiler
-
-Planlanan temel teknoloji tercihleri:
-
-- Python 3.11 veya üzeri.
-- `src` layout.
-- `pytest` test yapısı.
-- `ruff` lint ve format standardı.
-- Standart kütüphane öncelikli geliştirme.
-- Yerel yapılandırma için `toml` ve `.env` yaklaşımı.
-- İlk LLM entegrasyonu için Ollama.
-
-Üçüncü parti bağımlılıklar yalnızca gerçek ihtiyaç oluştuğunda ve mimari gerekçesi açıklandıktan sonra eklenecektir.
-
-## Kurulum
-
-Proje aktif alpha geliştirme aşamasındadır. Python 3.11 veya üzeri gerektirir.
-
-Önerilen geliştirme ortamı:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
-
-Runtime bağımlılıklarını kurmak için:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Geliştirme araçları için:
-
-```powershell
-pip install -r requirements-dev.txt
-```
-
-Yerel ortam değişkenleri için:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-## Kullanım
-
-CLI arayüzünü çalıştırmak için:
-
-```powershell
-python main.py
-```
-
-Masaüstü GUI arayüzünü çalıştırmak için:
-
-```powershell
-python gui.py
-```
-
-Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/default.toml` içinde yapılandırılmış modelin yerelde yüklü olması gerekir. `help`, `sen kimsin`, `neler yapabiliyorsun`, `saat kaç`, basit selamlaşmalar, bilgisayar kontrolüyle ilgili güvenlik soruları, explicit memory komutları ve güvenli dosya listeleme/okuma komutları gibi bazı temel istekler LLM'e gitmeden deterministik olarak cevaplanır.
-
-### Modern GUI
-
-`v0.6.2-alpha` geliştirme hattında Tkinter GUI; okunabilirlik, erişilebilirlik ve responsive kullanım açısından yenilenmiştir.
-
-- Sol tarafta daraltılıp genişletilebilen, yalnız mevcut oturumu dürüst biçimde gösteren sidebar bulunur.
-- GUI, `assets/branding` altındaki Lina logo/icon dosyalarını destekler.
-- Logo yoksa uygulama güvenli fallback ile yalnızca metin başlık kullanarak açılır.
-- `Yeni Sohbet` mevcut oturumu temizler.
-- Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir; balon genişliği pencereye göre güncellenir.
-- Her mesajda saat ve yalnız o mesajı panoya alan `Kopyala` aksiyonu bulunur.
-- Sidebar içindeki `A−` ve `A+` kontrolleri mesaj ve composer yazı boyutunu oturum boyunca `9–16` aralığında değiştirir.
-- Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.
-- `+` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
-- `Mic` butonu local push-to-talk STT akışına bağlıdır. İlk tıklama kaydı başlatır; kayıt sırasında ikinci tıklama kaydı sonlandırabilir.
-- `Enter` mesajı gönderir; `Shift+Enter` yeni satır ekler.
-- `Ctrl+L` composer'a odaklanır; `Ctrl+N` veya `Ctrl+K` yeni sohbet başlatır.
-- `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
-- Kullanıcı eski mesajları okurken zorla aşağı kaydırılmaz; alt bölgeye yakınken yeni mesaj otomatik görünür.
-
-### Local Push-to-Talk Speech-to-Text
-
-`v0.6.1-alpha`, `sounddevice` ile açık kullanıcı eylemine bağlı kısa ses kaydı ve `faster-whisper` ile local transcription desteği sunar. Varsayılan model `base` multilingual, dil `tr`, cihaz `cpu` ve compute type `int8` olarak yapılandırılmıştır.
-
-Transkripsiyon composer input alanına yazılır; mevcut taslak varsa sonuna eklenir ve hiçbir zaman otomatik gönderilmez. Ham ses yalnız bellekte işlenir, kalıcı ses dosyası oluşturulmaz ve ses verisi loglanmaz.
-
-İlk kullanımda `base` modelin indirilmesi ve yerel cache içinde hazırlanması zaman alabilir. Model cache'i proje repository'sine yazılmaz. Speech özelliği `config/default.toml` içindeki `[speech] enabled = false` ayarıyla kapatılabilir. Mimari ve güvenlik sınırları [docs/speech-architecture-v1.md](docs/speech-architecture-v1.md) içinde tanımlanır.
-
-Memory komut örnekleri:
+- Yerel SQLite tabanlı kalıcı hafıza.
+- Açık `remember`, `list`, `forget` ve `clear` işlemleri.
+- Duplicate kayıt önleme.
+- Sensitive memory guard.
+- Kullanıcı istemeden hassas bilgi kaydetmeme.
 
 ```text
 bunu hatırla: kısa cevapları seviyorum
 ne hatırlıyorsun
-hafızanı listele
 şunu unut: kısa cevapları seviyorum
 hafızanı sıfırla
 ```
 
-Memory v1 privacy notu:
+### Files
 
-- Lina v1'de yalnız explicit memory komutlarıyla kayıt yapar.
-- Hassas bilgiler otomatik kaydedilmez.
-- Memory local SQLite dosyasında tutulur.
-- Varsayılan database yolu `data/lina_memory.sqlite3` değeridir ve Git'e eklenmez.
-
-### Files Capability v1
-
-Lina v1'de genel dosya sistemi erişimine sahip değildir. Sadece proje içindeki açıkça izin verilmiş dosyaları read-only okuyabilir.
-
-Örnek komutlar:
+- Yalnız açıkça allowlist içine alınmış proje dosyalarına read-only erişim.
+- Path traversal ve absolute path reddi.
+- Dosya yazma, silme, taşıma veya yeniden adlandırma yeteneği yoktur.
+- Dosya özetlerinin okunan içerikle sınırlandırıldığı grounded summary akışı.
 
 ```text
 hangi dosyaları okuyabiliyorsun
 README dosyasını oku
 roadmap dosyasını özetle
 development log'da son ne var
-docs/roadmap.md dosyasını oku
 ```
 
-Güvenlik sınırları:
+### Speech
 
-- Lina rastgele bilgisayar dosyalarını okuyamaz.
-- `C:/Users/...` gibi absolute path istekleri reddedilir.
-- `../` path traversal istekleri reddedilir.
-- Dosya yazma, silme, taşıma, rename veya copy yeteneği yoktur.
-- Allowlist wildcard kullanmaz; tüm `docs/` klasörü otomatik açılmaz.
+- Kullanıcı eylemiyle başlayan local push-to-talk STT.
+- `sounddevice` ile sınırlı mikrofon kaydı.
+- `faster-whisper` ile yerel Türkçe transcription.
+- Varsayılan `base` model, `cpu` cihazı ve `int8` compute type.
+- Transcription mevcut input alanına yazılır, otomatik gönderilmez.
+- Ham ses kalıcı tutulmaz; always-on listening yoktur.
+- TTS henüz aktif değildir.
 
-### Memory UX Notları
+### Masaüstü Arayüzü
 
-- Lina yalnızca açık memory komutlarıyla kayıt yapar; normal sohbeti otomatik hafızaya yazmaz.
-- Şifre, token, API key, kimlik ve ödeme bilgisi gibi hassas içerikler memory kaydı olarak reddedilir.
-- Aynı bilgi art arda tekrar kaydedilmeye çalışılırsa Lina duplicate kayıt oluşturmaz.
+- Profesyonel koyu sohbet arayüzü ve Lina branding.
+- Windows DPI awareness ve güvenli font fallback.
+- Responsive sidebar, chat alanı ve composer.
+- Lina ve kullanıcı için ayrı chat bubbles.
+- Sidebar daraltma/genişletme.
+- Oturum içi `A−` / `A+` font kontrolleri.
+- Mesaj saatleri ve mesaj başına kopyalama.
+- Buton tooltips ve belirgin disabled durumları.
+- `↑` / `↓` ile input history.
+- `Enter`: Gönder.
+- `Shift+Enter`: Yeni satır.
+- `Ctrl+L`: Composer'a odaklan.
+- `Ctrl+N` veya `Ctrl+K`: Yeni sohbet.
 
-### GUI Input History
+## Güvenlik ve Gizlilik
 
-Tkinter GUI içinde mesaj yazma alanındayken:
+Lina'nın mevcut capability sınırları bilinçli olarak dardır:
 
-- `↑` önceki gönderilen mesajı getirir.
-- `↓` daha yeni gönderilen mesaja döner.
-- History session-only çalışır; SQLite memory sistemiyle karışmaz.
-- Boş mesajlar ve art arda aynı mesajlar input history içine eklenmez.
+- Genel dosya sistemi erişimi yoktur.
+- Shell command execution yoktur.
+- Dosya yazma, silme veya taşıma yoktur.
+- Kamera, screen capture ve ekran anlama henüz aktif değildir.
+- Browser veya Windows automation yoktur.
+- Always-on microphone yoktur; kayıt yalnız kullanıcı eylemiyle başlar.
+- Ses kayıtları kalıcı olarak saklanmaz.
+- Memory yalnız explicit komutlarla yazılır.
+- Hassas bilgiler otomatik kaydedilmez.
+- Cloud sync yoktur.
+- LLM kendi başına capability veya tool çalıştıramaz.
 
-## Runtime Configuration
+Bu sınırlar eksik özelliklerden ibaret değildir. Lina'nın ileride kazanacağı yeteneklerin kullanıcı kontrolü, açık izin ve denetlenebilir davranış üzerine kurulmasını sağlar.
 
-Temel çalışma ayarları `config/default.toml` içinde tutulur.
+## Kurulum
 
-Önemli ayarlar:
+### Gereksinimler
 
-- `logging.level`: Uygulama log seviyesi.
-- `ollama.base_url`: Ollama HTTP adresi.
-- `ollama.default_model`: Kullanılacak yerel model adı.
-- `ollama.request_timeout`: Ollama istek timeout değeri.
-- `runtime.conversation_history_limit`: Session içi konuşma geçmişi limiti.
-- `runtime.project_context_max_characters`: İzinli proje dokümanı başına okunacak maksimum karakter sayısı.
-- `memory.enabled`: Memory capability açık/kapalı durumu.
-- `memory.database_path`: Local SQLite memory dosyasının yolu.
-- `memory.max_context_items`: Prompt'a eklenecek maksimum memory kaydı.
-- `memory.max_context_characters`: Prompt'a eklenecek maksimum memory context karakter sayısı.
+- Windows 10 veya üzeri.
+- Python `3.11` veya üzeri.
+- Yerel olarak çalışan [Ollama](https://ollama.com/).
+- Speech için kullanılabilir bir mikrofon ve Windows mikrofon izni.
 
-Eksik optional runtime ayarları güvenli default değerleriyle çalışır.
+```powershell
+git clone https://github.com/ilhanki/Lina.git
+cd Lina
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
 
-## Testler
+Geliştirme ve test bağımlılıkları:
 
-Tam test paketini çalıştırmak için:
+```powershell
+python -m pip install -r requirements-dev.txt
+```
+
+Varsayılan Ollama modelini hazırlamak için:
+
+```powershell
+ollama pull llama3.2:3b
+ollama run llama3.2:3b
+```
+
+## Çalıştırma
+
+Masaüstü GUI:
+
+```powershell
+python gui.py
+```
+
+Terminal arayüzü:
+
+```powershell
+python main.py
+```
+
+Testler:
 
 ```powershell
 python -m pytest
 ```
 
-Manuel doğrulama adımları için [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md) dosyasına bakın.
+## Speech İlk Kullanım Notu
 
-## Proje Yapısı
+İlk `Mic` kullanımında `faster-whisper` modeli indirilebilir veya yerel kullanım için hazırlanabilir. Bu işlem bağlantı ve sistem performansına göre zaman alabilir; sonraki kullanımlar local cache üzerinden devam eder. Model cache'i repository'ye commitlenmez.
+
+Windows mikrofon izni gerekebilir. Transcription yalnız composer input alanına yazılır; kullanıcı kontrol etmeden otomatik gönderilmez.
+
+## Konfigürasyon
+
+Varsayılan ayarlar [`config/default.toml`](config/default.toml) içinde tutulur.
+
+| Bölüm | Mevcut ayarlar | Amaç |
+| --- | --- | --- |
+| `ollama` | `base_url`, `default_model`, `request_timeout` | Ollama adresi, model ve HTTP timeout değeri |
+| `runtime` | `conversation_history_limit`, `project_context_max_characters` | Oturum geçmişi ve proje context sınırları |
+| `memory` | `enabled`, `database_path`, `max_context_items`, `max_context_characters` | Yerel memory deposu ve prompt context sınırları |
+| `speech` | `enabled`, `stt_provider`, `model_size`, `language`, `device`, `compute_type`, kayıt ve sessizlik sınırları, `auto_send` | Yerel STT çalışma ve güvenlik ayarları |
+| `logging` | `level` | Uygulama log seviyesi |
+| `paths` | `data`, `logs`, `models`, `cache` | Uygulama çalışma dizinleri |
+
+Files allowlist için şu anda ayrı bir `[files]` config bölümü yoktur. İzin verilen yollar uygulama tarafından açık ve sabit bir read-only listeyle yönetilir; genel dosya erişimine dönüşmez.
+
+## Mimari
+
+Lina, business logic ile kullanıcı arayüzünü ayıran modüler bir `src` yapısı kullanır:
+
+- `core`: Application lifecycle, settings, paths, logging ve bootstrap.
+- `brain`: Provider-independent orchestration, intent ve prompt contract'ları.
+- `services`: Conversation ve capability koordinasyonu.
+- `memory`: SQLite repository ve explicit memory işlemleri.
+- `files`: Güvenli read-only allowlisted proje dosyası erişimi.
+- `speech`: Kayıt, STT/TTS provider contract'ları ve speech orchestration.
+- `integrations`: Ollama gibi dış sistem adapter'ları.
+- `interfaces`: CLI ve Tkinter GUI.
+
+Ayrıntılı dokümanlar:
+
+- [Mimari](docs/architecture.md)
+- [Brain Specification v1](docs/brain-specification-v1.md)
+- [Conversation Flow v1](docs/conversation-flow-v1.md)
+- [Speech Architecture v1](docs/speech-architecture-v1.md)
+- [Roadmap](docs/roadmap.md)
+- [Development Log](docs/development-log.md)
+
+## Roadmap Özeti
+
+- `v0.4.x`: Local-first Memory Capability.
+- `v0.5.x`: Files Capability, Professional GUI ve Branding.
+- `v0.6.0-alpha`: Speech Skeleton ve GUI Mic Flow.
+- `v0.6.1-alpha`: Local Push-to-Talk STT ve Structured Chat.
+- `v0.6.2-alpha`: UI Readability & Accessibility Polish.
+- `v0.7.0-alpha`: Vision / Screen Awareness planlaması.
+
+Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
+
+## Bilinen Sınırlar
+
+- Proje alpha aşamasındadır; API ve kullanıcı deneyimi değişebilir.
+- Speech doğruluğu modele, mikrofona, işlemciye ve ortam gürültüsüne bağlıdır.
+- TTS yoktur.
+- Screen capture ve Vision yoktur.
+- Kalıcı multi-session conversation history yoktur.
+- Genel dosya sistemi erişimi yoktur.
+- Browser ve Windows automation yoktur.
+- GUI halen standart kütüphane tabanlı Tkinter kullanır.
+- Gelecekte CustomTkinter migration değerlendirilebilir; mevcut sürümde başlatılmamıştır.
+
+## Test Durumu
+
+`v0.6.2-alpha` release doğrulamasında tam test paketi:
 
 ```text
-Lina/
-  config/
-  data/
-  docs/
-  logs/
-  models/
-  cache/
-  scripts/
-  src/
-    lina/
-      agents/
-      automation/
-      core/
-      integrations/
-      interfaces/
-      memory/
-      services/
-      speech/
-      tools/
-      utils/
-      vision/
-  tests/
+459 passed
 ```
 
-Kısa açıklama:
+Testler gerçek Ollama, mikrofon veya Tkinter mainloop başlatmadan izole fake provider ve servislerle çalışır.
 
-- `src/lina/core`: Config, logging, lifecycle ve ortak kontratlar.
-- `src/lina/services`: Uygulama use-case akışları.
-- `src/lina/integrations`: Dış sistem adapter'ları.
-- `src/lina/interfaces`: CLI, GUI veya API gibi kullanıcıya dönük katmanlar.
-- `src/lina/tools`: Lina'nın kontrollü çalıştırabileceği araç altyapısı.
-- `src/lina/agents`: Gelecekteki çoklu ajan yapısı.
-- `src/lina/memory`: Hafıza ve geri çağırma sistemleri.
-- `src/lina/speech`: Ses tanıma, TTS ve wake word altyapısı.
-- `src/lina/vision`: Ekran, OCR ve görsel algı altyapısı.
-- `src/lina/automation`: Windows otomasyonu.
-- `tests`: Kaynak yapısını takip eden testler.
+## Geliştirme İlkeleri
 
-Mimari yön güncellendikçe bu yapı kontrollü şekilde `brain` ve `capabilities` katmanlarıyla genişletilecektir.
+- Python `>=3.11` ve type hints.
+- Standard library first yaklaşımı.
+- YAGNI, küçük ve tek sorumluluklu commitler.
+- Conventional Commits.
+- Kod değişiklikleriyle birlikte zorunlu testler.
+- Repository içinde secret, token veya kişisel veri tutmama.
+- Local-first, privacy-first ve safety-first kararlar.
 
-## Geliştirme Standartları
-
-Geliştirme kuralları [contributing.md](contributing.md) dosyasında tanımlanır.
-
-Temel kurallar:
-
-- Dokümantasyon Türkçe yazılır.
-- Kod, dosya adları, klasör adları ve API isimleri İngilizce yazılır.
-- Python kodunda type hint kullanılır.
-- Her modül tek sorumluluk prensibine göre tasarlanır.
-- Yeni bağımlılık eklenmeden önce gerekçesi açıklanır.
-- Runtime bağımlılıkları ve geliştirme bağımlılıkları ayrı tutulur.
-- Business logic UI katmanından ayrı tutulur.
-- Test edilebilirlik mimari kararların parçasıdır.
-- YAGNI prensibi uygulanır; kullanılmayan soyutlama eklenmez.
-
-## Katkıda Bulunma
-
-Bu proje kişisel kullanım amacıyla geliştirilmektedir. Katkı kuralları ve kod standardı için [contributing.md](contributing.md) dosyasına bakın.
-
-Commit mesajları İngilizce ve Conventional Commits formatında yazılmalıdır.
-
-Örnek:
-
-```text
-docs: update architecture roadmap
-feat: add configuration loader
-test: cover event bus behavior
-```
+Katkı kuralları için [contributing.md](contributing.md) dosyasına bakın.
 
 ## Lisans
 
-Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Proprietary` olarak kabul edilmektedir.
-
-## Mevcut Sınırlamalar
-
-- Memory v1 yalnız explicit komutlarla kayıt yapar; otomatik memory extraction yoktur.
-- Files v1 yalnız allowlist kapsamındaki proje dosyalarını read-only okuyabilir; genel dosya okuma/yazma capability'si yoktur.
-- Shell command execution yoktur.
-- TTS, browser, camera, vision ve Windows automation henüz uygulanmamıştır.
-- STT v1 yerel `faster-whisper` model kalitesine, CPU performansına ve kullanılabilir input cihazına bağlıdır.
-- Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
-- Tool sistemi SAFE araçları çalıştırabilir, interaktif onay mekanizması (PermissionDecision UX) altyapısı vardır ancak UI entegrasyonu yoktur.
-- GUI Tkinter tabanlı modern sohbet arayüzüdür; `Mic` local push-to-talk akışına bağlıdır, `+` ve `Screen` ise placeholder davranışındadır.
-- Paketleme veya installer yoktur.
-
-## Geliştirme Durumu
-
-Mevcut durum: **v0.6.2-alpha Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve tag bekleniyor**
-
-Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı, read-only allowlisted proje dosyası erişimi ve local push-to-talk STT desteğine sahip erken aşama bir masaüstü asistanıdır.
+Bu proje şu anda kişisel kullanım amacıyla geliştirilen proprietary bir projedir. Kullanım ve dağıtım koşulları proje sahibi tarafından belirlenir.

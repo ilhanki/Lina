@@ -6,6 +6,7 @@
 
 ## Öne Çıkanlar
 
+- README; güncel capability'ler, kurulum, güvenlik sınırları, roadmap ve bilinen sınırlamalarla release öncesinde yenilendi.
 - Windows DPI awareness ve sınırlı Tk scaling desteği eklendi.
 - Kurulu fontları denetleyen güvenli font fallback zinciri eklendi.
 - Koyu tema renkleri okunabilir semantik sabitlerde toplandı.

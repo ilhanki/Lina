@@ -2007,3 +2007,11 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 - Hedefli GUI testleri: `84 passed`
 - Tam test paketi: `459 passed`
 - Testlerde gerçek Ollama, mikrofon veya Tkinter mainloop başlatılmadı.
+
+## 2026-07-10 - README Refresh for v0.6.2-alpha
+
+- README güncel capability'lere ve `v0.6.2-alpha` release durumuna göre yenilendi.
+- Memory, Files, Speech, Structured Chat ve Professional GUI bölümleri güncellendi.
+- Kurulum, çalıştırma, gerçek konfigürasyon anahtarları, güvenlik sınırları, roadmap ve bilinen sınırlamalar netleştirildi.
+- Lina logosu repository-relative asset yoluyla README üst bölümüne eklendi.
+- Final test sonucu: `459 passed`.
