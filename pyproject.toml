@@ -12,7 +12,10 @@ license = { text = "Proprietary" }
 authors = [
   { name = "Lina Project" }
 ]
-dependencies = []
+dependencies = [
+  "faster-whisper",
+  "sounddevice",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -24,4 +27,3 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-

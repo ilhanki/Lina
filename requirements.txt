@@ -1,2 +1,2 @@
-# Runtime dependencies will be added as Lina modules are implemented.
-
+faster-whisper
+sounddevice

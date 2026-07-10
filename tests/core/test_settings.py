@@ -49,6 +49,16 @@ def test_load_settings_reads_valid_toml_file(tmp_path: Path) -> None:
     assert settings.memory.database_path == "data/lina_memory.sqlite3"
     assert settings.memory.max_context_items == 8
     assert settings.memory.max_context_characters == 1200
+    assert settings.speech.enabled is False
+    assert settings.speech.stt_provider == "faster_whisper"
+    assert settings.speech.model_size == "base"
+    assert settings.speech.language == "tr"
+    assert settings.speech.device == "cpu"
+    assert settings.speech.compute_type == "int8"
+    assert settings.speech.sample_rate == 16000
+    assert settings.speech.channels == 1
+    assert settings.speech.max_recording_seconds == 12.0
+    assert settings.speech.auto_send is False
 
 
 def test_load_settings_reads_optional_runtime_settings(tmp_path: Path) -> None:
@@ -121,6 +131,97 @@ def test_load_settings_reads_optional_memory_settings(tmp_path: Path) -> None:
     assert settings.memory.database_path == "data/test_memory.sqlite3"
     assert settings.memory.max_context_items == 3
     assert settings.memory.max_context_characters == 400
+
+
+def test_load_settings_reads_local_speech_settings(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [speech]
+        enabled = true
+        stt_provider = "faster_whisper"
+        model_size = "small"
+        language = "tr"
+        device = "cpu"
+        compute_type = "int8"
+        sample_rate = 16000
+        channels = 1
+        max_recording_seconds = 8
+        silence_threshold = 0.02
+        silence_duration_seconds = 1.0
+        auto_send = false
+        """,
+    )
+
+    settings = load_settings(config_path).speech
+
+    assert settings.enabled is True
+    assert settings.model_size == "small"
+    assert settings.max_recording_seconds == 8.0
+    assert settings.silence_threshold == 0.02
+
+
+@pytest.mark.parametrize(
+    ("speech_config", "error_message"),
+    [
+        ('channels = 2', "speech.channels must be 1"),
+        ('max_recording_seconds = 31', "must be between 1 and 30"),
+        ('sample_rate = 0', "positive integer"),
+        ('auto_send = true', "speech.auto_send must be false"),
+        ('device = "cuda"', "speech.device must be cpu"),
+        ('model_size = "base.en"', "must be multilingual"),
+        ('stt_provider = "cloud"', "Unsupported speech.stt_provider"),
+    ],
+)
+def test_invalid_speech_settings_raise_configuration_error(
+    tmp_path: Path,
+    speech_config: str,
+    error_message: str,
+) -> None:
+    config_path = _write_config(
+        tmp_path,
+        f"""
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [speech]
+        {speech_config}
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match=error_message):
+        load_settings(config_path)
 
 
 def test_settings_are_immutable(tmp_path: Path) -> None:

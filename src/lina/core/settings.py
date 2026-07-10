@@ -61,6 +61,24 @@ class MemorySettings:
 
 
 @dataclass(frozen=True)
+class SpeechSettings:
+    """Local speech capability settings."""
+
+    enabled: bool = False
+    stt_provider: str = "faster_whisper"
+    model_size: str = "base"
+    language: str = "tr"
+    device: str = "cpu"
+    compute_type: str = "int8"
+    sample_rate: int = 16000
+    channels: int = 1
+    max_recording_seconds: float = 12.0
+    silence_threshold: float = 0.015
+    silence_duration_seconds: float = 1.2
+    auto_send: bool = False
+
+
+@dataclass(frozen=True)
 class AppSettings:
     """Typed application settings."""
 
@@ -70,6 +88,7 @@ class AppSettings:
     ollama: OllamaSettings
     runtime: RuntimeSettings = field(default_factory=RuntimeSettings)
     memory: MemorySettings = field(default_factory=MemorySettings)
+    speech: SpeechSettings = field(default_factory=SpeechSettings)
 
 
 def load_settings(config_path: Path) -> AppSettings:
@@ -143,7 +162,72 @@ def load_settings(config_path: Path) -> AppSettings:
                 1200,
             ),
         ),
+        speech=_load_speech_settings(raw_settings),
     )
+
+
+def _load_speech_settings(settings: dict[str, Any]) -> SpeechSettings:
+    speech = SpeechSettings(
+        enabled=_optional_bool(settings, "speech", "enabled", False),
+        stt_provider=_optional_string(
+            settings,
+            "speech",
+            "stt_provider",
+            "faster_whisper",
+        ),
+        model_size=_optional_string(settings, "speech", "model_size", "base"),
+        language=_optional_string(settings, "speech", "language", "tr"),
+        device=_optional_string(settings, "speech", "device", "cpu"),
+        compute_type=_optional_string(settings, "speech", "compute_type", "int8"),
+        sample_rate=_optional_positive_int(settings, "speech", "sample_rate", 16000),
+        channels=_optional_positive_int(settings, "speech", "channels", 1),
+        max_recording_seconds=_optional_positive_float(
+            settings,
+            "speech",
+            "max_recording_seconds",
+            12.0,
+        ),
+        silence_threshold=_optional_positive_float(
+            settings,
+            "speech",
+            "silence_threshold",
+            0.015,
+        ),
+        silence_duration_seconds=_optional_positive_float(
+            settings,
+            "speech",
+            "silence_duration_seconds",
+            1.2,
+        ),
+        auto_send=_optional_bool(settings, "speech", "auto_send", False),
+    )
+    _validate_speech_settings(speech)
+    return speech
+
+
+def _validate_speech_settings(settings: SpeechSettings) -> None:
+    if settings.stt_provider not in {"faster_whisper", "noop"}:
+        raise ConfigurationError("Unsupported speech.stt_provider")
+    if settings.model_size.casefold().endswith(".en"):
+        raise ConfigurationError("speech.model_size must be multilingual")
+    if settings.language.casefold() != "tr":
+        raise ConfigurationError("speech.language must be tr")
+    if settings.device.casefold() != "cpu":
+        raise ConfigurationError("speech.device must be cpu")
+    if settings.channels != 1:
+        raise ConfigurationError("speech.channels must be 1")
+    if not 1.0 <= settings.max_recording_seconds <= 30.0:
+        raise ConfigurationError(
+            "speech.max_recording_seconds must be between 1 and 30"
+        )
+    if not 0.0 < settings.silence_threshold <= 1.0:
+        raise ConfigurationError("speech.silence_threshold must be between 0 and 1")
+    if settings.silence_duration_seconds > settings.max_recording_seconds:
+        raise ConfigurationError(
+            "speech.silence_duration_seconds cannot exceed max recording duration"
+        )
+    if settings.auto_send:
+        raise ConfigurationError("speech.auto_send must be false")
 
 
 def _require_string(settings: dict[str, Any], section_name: str, key: str) -> str:
