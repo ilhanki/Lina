@@ -15,8 +15,13 @@ from lina.speech.service import SpeechService
 
 
 class FakeSTTProvider:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        error: Exception | None = None,
+        text: str = "Merhaba Lina",
+    ) -> None:
         self._error = error
+        self._text = text
         self.call_count = 0
         self.state_reader = None
         self.observed_state = None
@@ -31,7 +36,7 @@ class FakeSTTProvider:
         if self._error is not None:
             raise self._error
         return SpeechTranscriptionResult(
-            text="Merhaba Lina",
+            text=self._text,
             confidence=0.95,
             source="fake",
             is_final=True,
@@ -160,6 +165,19 @@ def test_transcribe_once_does_not_send_or_transform_text() -> None:
         source="fake",
         is_final=True,
     )
+
+
+def test_transcribe_once_preserves_empty_provider_result() -> None:
+    service = _create_service(
+        stt_provider=FakeSTTProvider(text=""),
+        audio_recorder=FakeAudioRecorder(),
+    )
+
+    result = service.transcribe_once()
+
+    assert result.text == ""
+    assert result.is_final is True
+    assert service.get_state() is SpeechState.IDLE
 
 
 def test_provider_exception_does_not_leave_transcription_state_stuck() -> None:

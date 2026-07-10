@@ -625,19 +625,59 @@ class LinaGui:
             self._show_empty_transcription()
             return
 
-        current_text = self._get_input_text()
-        combined_text = f"{current_text.rstrip()} {text}" if current_text else text
-        self._set_input_text(combined_text)
+        if not self._append_transcription_to_input(text):
+            self._show_speech_input_error()
+            return
+
         message = "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
         self._append_message("Lina", message)
         self._last_response_text = message
         self._reset_speech_ui("Metin hazır")
+
+    def _append_transcription_to_input(self, text: str) -> bool:
+        transcription = text.strip()
+        if not transcription:
+            return False
+
+        original_state = str(self._message_input.cget("state"))
+        try:
+            if original_state == str(tk.DISABLED):
+                self._message_input.configure(state=tk.NORMAL)
+
+            current_text = self._get_input_text()
+            combined_text = (
+                f"{current_text.rstrip()} {transcription}"
+                if current_text
+                else transcription
+            )
+            self._set_input_text(combined_text)
+            self._message_input.mark_set(tk.INSERT, tk.END)
+            self._message_input.see(tk.END)
+            return self._get_input_text() == combined_text
+        except (RuntimeError, tk.TclError):
+            _logger.exception("Could not write speech transcription into GUI input")
+            return False
+        finally:
+            if original_state == str(tk.DISABLED):
+                try:
+                    self._message_input.configure(state=tk.DISABLED)
+                except tk.TclError:
+                    _logger.debug("GUI input state could not be restored")
 
     def _show_empty_transcription(self) -> None:
         message = "Net bir konuşma algılayamadım İlhan. Tekrar deneyebilirsin."
         self._append_message("Lina", message)
         self._last_response_text = message
         self._reset_speech_ui("Konuşma algılanamadı")
+
+    def _show_speech_input_error(self) -> None:
+        message = (
+            "Konuşmanı metne çevirdim ancak giriş alanına yazamadım İlhan. "
+            "Tekrar deneyebilirsin."
+        )
+        self._append_message("Lina", message)
+        self._last_response_text = message
+        self._reset_speech_ui("Metin girişine yazılamadı")
 
     def _show_speech_unavailable(self) -> None:
         message = (

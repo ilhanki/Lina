@@ -564,21 +564,29 @@ def test_gui_mic_writes_transcription_to_input_without_sending() -> None:
         input_text="",
         speech_service=speech_service,
     )
-    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+    gui._message_input = _FakeMessageInput()
+    gui._send_button = _FakeButton()
+    gui._set_waiting_state = LinaGui._set_waiting_state.__get__(gui, LinaGui)
+    gui._get_input_text = LinaGui._get_input_text.__get__(gui, LinaGui)
+    gui._set_input_text = LinaGui._set_input_text.__get__(gui, LinaGui)
     gui._status_updates = []
     gui._update_status_text = lambda text: gui._status_updates.append(text)
 
     gui._handle_mic()
 
     assert provider.call_count == 1
-    assert gui.transcribed_input == "Merhaba Lina"
+    assert gui._message_input.text == "Merhaba Lina"
+    assert gui._message_input.mark == (gui_module.tk.INSERT, gui_module.tk.END)
+    assert gui._message_input.seen_index == gui_module.tk.END
     assert conversation_service.messages == []
     assert gui.recorded_messages == [
         ("Lina", "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin.")
     ]
-    assert gui.waiting_states == [True, False]
     assert gui._status_updates == ["Dinliyorum...", "Metin hazır"]
     assert gui._is_waiting_for_response is False
+    assert gui._input_history == []
+    assert gui._message_input.cget("state") == gui_module.tk.NORMAL
+    assert gui._send_button.configurations[-1] == {"state": gui_module.tk.NORMAL}
 
 
 def test_gui_mic_appends_transcription_to_existing_draft() -> None:
@@ -592,11 +600,15 @@ def test_gui_mic_appends_transcription_to_existing_draft() -> None:
         input_text="Mevcut taslak",
         speech_service=speech_service,
     )
-    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+    gui._message_input = _FakeMessageInput(text="Mevcut taslak")
+    gui._send_button = _FakeButton()
+    gui._set_waiting_state = LinaGui._set_waiting_state.__get__(gui, LinaGui)
+    gui._get_input_text = LinaGui._get_input_text.__get__(gui, LinaGui)
+    gui._set_input_text = LinaGui._set_input_text.__get__(gui, LinaGui)
 
     gui._handle_mic()
 
-    assert gui.transcribed_input == "Mevcut taslak devam ediyoruz"
+    assert gui._message_input.text == "Mevcut taslak devam ediyoruz"
 
 
 def test_gui_empty_transcription_keeps_input_unchanged() -> None:
@@ -610,14 +622,58 @@ def test_gui_empty_transcription_keeps_input_unchanged() -> None:
         input_text="Taslak",
         speech_service=speech_service,
     )
-    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+    gui._message_input = _FakeMessageInput(text="Taslak")
+    gui._send_button = _FakeButton()
+    gui._set_waiting_state = LinaGui._set_waiting_state.__get__(gui, LinaGui)
+    gui._get_input_text = LinaGui._get_input_text.__get__(gui, LinaGui)
+    gui._set_input_text = LinaGui._set_input_text.__get__(gui, LinaGui)
 
     gui._handle_mic()
 
-    assert not hasattr(gui, "transcribed_input")
+    assert gui._message_input.text == "Taslak"
     assert gui.recorded_messages == [
         ("Lina", "Net bir konuşma algılayamadım İlhan. Tekrar deneyebilirsin.")
     ]
+
+
+def test_gui_input_update_failure_does_not_show_success_message() -> None:
+    speech_service = SpeechService(
+        FakeSTTProvider(text="Merhaba Lina"),
+        FakeTTSProvider(),
+        FakeAudioRecorder(),
+    )
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._message_input = _FailingMessageInput()
+    gui._send_button = _FakeButton()
+    gui._set_waiting_state = LinaGui._set_waiting_state.__get__(gui, LinaGui)
+    gui._get_input_text = LinaGui._get_input_text.__get__(gui, LinaGui)
+    gui._set_input_text = LinaGui._set_input_text.__get__(gui, LinaGui)
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_mic()
+
+    assert gui.recorded_messages == [
+        (
+            "Lina",
+            "Konuşmanı metne çevirdim ancak giriş alanına yazamadım İlhan. "
+            "Tekrar deneyebilirsin.",
+        )
+    ]
+    assert all(
+        "Kontrol edip gönderebilirsin" not in message
+        for _, message in gui.recorded_messages
+    )
+    assert gui._status_updates[-1] == "Metin girişine yazılamadı"
+    assert gui._is_waiting_for_response is False
+    assert gui._mic_button.configurations[-1] == {
+        "text": "Mic",
+        "state": gui_module.tk.NORMAL,
+    }
 
 
 def test_gui_mic_error_resets_controls_and_status() -> None:
@@ -994,11 +1050,33 @@ class _FakeMessageInput:
             return self._state
         return ""
 
+    def configure(self, **kwargs) -> None:
+        if "state" in kwargs:
+            self._state = kwargs["state"]
+
+    def get(self, start: str, end: str) -> str:
+        return self.text
+
     def delete(self, start: str, end: str) -> None:
+        if self._state == gui_module.tk.DISABLED:
+            return
         self.text = ""
 
     def insert(self, index: str, text: str) -> None:
+        if self._state == gui_module.tk.DISABLED:
+            return
         self.text = text
+
+    def mark_set(self, mark: str, index: str) -> None:
+        self.mark = (mark, index)
+
+    def see(self, index: str) -> None:
+        self.seen_index = index
+
+
+class _FailingMessageInput(_FakeMessageInput):
+    def insert(self, index: str, text: str) -> None:
+        raise gui_module.tk.TclError("input update failed")
 
 
 class _FakeChatLog:
