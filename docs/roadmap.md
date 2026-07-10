@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.6.1-alpha Local Push-to-Talk STT Integration
+## Mevcut Durum: v0.6.2-alpha Professional UI, Readability & Accessibility Polish
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -21,6 +21,8 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 `v0.6.0-alpha` Speech skeleton tamamlandı. `SpeechService`, STT/TTS provider sözleşmeleri, güvenli NoOp sağlayıcılar ve GUI Mic akışı eklendi. Gerçek mikrofon, STT/TTS engine veya yeni dependency eklenmedi. Gelecekteki transkripsiyon sonucu kullanıcı onayı için input alanına yazılır ve otomatik gönderilmez.
 
 `v0.6.1-alpha` Local Push-to-Talk STT Integration tamamlandı. `sounddevice` ile sınırlandırılmış ve yalnız kullanıcı eylemiyle başlayan kayıt, `faster-whisper` ile Türkçe local transcription, lazy model loading ve GUI Mic kayıt/durdurma akışı eklendi. Ham ses kalıcı olarak saklanmaz ve transkripsiyon otomatik gönderilmez.
+
+`v0.6.2-alpha` Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve release tag'i bekleniyor. Windows DPI awareness, güvenli font fallback zinciri, semantik koyu tema, responsive sidebar/chat/composer düzeni, mesaj başına kopyalama, font boyutu kontrolleri ve composer klavye kısayolları eklendi. Brain, Memory, Files, Speech ve Ollama backend davranışları değiştirilmedi.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -138,7 +140,7 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.5.2-alpha`: Branding Polish.
 - `v0.6.0-alpha`: Speech Skeleton + GUI Mic Flow.
 - `v0.6.1-alpha`: Local Push-to-Talk STT Integration.
-- `v0.6.2-alpha`: Speech UX ve hata mesajı polish veya TTS mimari değerlendirmesi.
+- `v0.6.2-alpha`: Professional UI, Readability & Accessibility Polish.
 - `v0.7.0-alpha`: Vision / Screen Awareness v1.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 
@@ -373,7 +375,8 @@ Durum:
 
 - `v0.6.0-alpha` Speech Skeleton + GUI Mic Flow tamamlandı.
 - `v0.6.1-alpha` Local Push-to-Talk STT Integration tamamlandı.
-- Sonraki adım, manuel mikrofon smoke testi sonrası Speech UX polish veya TTS mimari değerlendirmesidir.
+- `v0.6.2-alpha` Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve tag bekleniyor.
+- Sonraki büyük hedef `v0.7.0-alpha` Vision / Screen Awareness v1 için mimari ve güvenlik planlamasıdır.
 
 ## Milestone 9: Vision Capability v1
 

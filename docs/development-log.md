@@ -1984,3 +1984,26 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 - Tam test paketi: `439 passed`
 - Gerçek yerel `llama3.2:3b` smoke testinde model geçmiş selamı ve meta başlığı tekrarlamadan son kullanıcı isteğine doğrudan cevap verdi.
 - Cevap çıktısına filtre veya post-processing uygulanmadı.
+
+## 2026-07-10 - Professional UI, Readability & Accessibility Polish
+
+### Yapılanlar
+
+- Windows'ta Tk root oluşturulmadan önce güvenli DPI awareness fallback zinciri eklendi.
+- Tk scaling değeri ekran DPI bilgisine göre güvenli sınırlar içinde ayarlanır hale getirildi.
+- `Segoe UI Variable`, `Segoe UI`, `Arial` ve `TkDefaultFont` sırasını kullanan font fallback sistemi eklendi.
+- Dağınık GUI renkleri, yüksek kontrastlı semantik koyu tema sabitlerinde toplandı.
+- Sidebar, header, chat alanı ve composer responsive yerleşim için yenilendi.
+- Sidebar daraltma/genişletme, dürüst mevcut oturum görünümü ve deterministik session başlığı eklendi.
+- Mesaj balonlarına saat ve mesaj başına kopyalama aksiyonu eklendi; uzun mesaj wrap değeri pencere genişliğine bağlandı.
+- Kullanıcı eski mesajları okurken scroll konumunu koruyan, yalnız alt bölgeye yakınken çalışan auto-scroll davranışı eklendi.
+- Composer placeholder, boş mesajda disabled gönderme durumu, `Enter` / `Shift+Enter`, `Ctrl+L`, `Ctrl+N` ve `Ctrl+K` davranışları eklendi.
+- `+`, `Mic`, `Screen` ve `Gönder` kontrollerine dependency gerektirmeyen tooltip desteği eklendi.
+- Oturum içi `A−` / `A+` font boyutu kontrolleri `9–16` sınırlarıyla eklendi.
+- Memory, Files, Speech, structured Ollama chat ve background thread davranışları değiştirilmeden korundu.
+
+### Test Sonucu
+
+- Hedefli GUI testleri: `84 passed`
+- Tam test paketi: `459 passed`
+- Testlerde gerçek Ollama, mikrofon veya Tkinter mainloop başlatılmadı.

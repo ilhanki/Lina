@@ -4,7 +4,7 @@
 
 Lina, Windows üzerinde yerel öncelikli çalışan kişisel yapay zeka asistanı projesidir. Projenin hedefi yalnızca sohbet eden bir bot oluşturmak değil; zaman içinde konuşabilen, ekranı anlayabilen, bilgisayarı kontrollü şekilde kullanabilen, yerel modellerle çalışabilen, hafızası olan ve geliştirici iş akışlarında yardımcı olabilen profesyonel bir masaüstü asistan geliştirmektir.
 
-Bu depo şu anda `v0.5.1-alpha` Professional Chat UI Refresh geliştirme hattındadır. `v0.5.0-alpha` Files Capability v1 tag'i oluşturulmuş, ardından Tkinter GUI daha modern bir sohbet uygulaması düzenine taşınmıştır. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, sınırlı proje farkındalığı için izinli dokümanlardan bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
+Bu depo şu anda `v0.6.2-alpha` Professional UI, Readability & Accessibility Polish geliştirme hattındadır. `v0.6.1-alpha` ile local push-to-talk STT ve structured Ollama chat akışı tamamlanmış; ardından Tkinter GUI, Windows DPI desteği, okunabilir font sistemi ve responsive sohbet düzeniyle güçlendirilmiştir. Lina terminal ve Tkinter tabanlı masaüstü arayüz üzerinden çalışabilir, Ollama ile yerel modele bağlanabilir, bazı basit intent'leri deterministik olarak cevaplayabilir, izinli proje dokümanlarından bağlam alabilir, açık kullanıcı komutlarıyla yerel SQLite hafızasına bilgi kaydedebilir ve yalnızca allowlist kapsamındaki proje dosyalarını read-only okuyabilir.
 
 ## Projenin Amacı
 
@@ -57,7 +57,7 @@ Mevcut çalışan özellikler:
 - Sınırlı project awareness.
 - SAFE tool foundation ve current time tool routing.
 - CLI arayüzü.
-- Modern Tkinter masaüstü GUI; sidebar, chat bubbles, composer ve placeholder action butonları.
+- DPI-aware modern Tkinter GUI; responsive sidebar, okunabilir chat bubbles, erişilebilir composer ve placeholder action butonları.
 - Local push-to-talk STT, SpeechService ve güvenli GUI Mic akışı.
 - Unit test altyapısı.
 
@@ -140,17 +140,22 @@ Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/defa
 
 ### Modern GUI
 
-`v0.5.1-alpha` ile Tkinter GUI profesyonel sohbet uygulaması düzenine taşınmıştır.
+`v0.6.2-alpha` geliştirme hattında Tkinter GUI; okunabilirlik, erişilebilirlik ve responsive kullanım açısından yenilenmiştir.
 
-- Sol tarafta sohbet listesi için sidebar bulunur.
+- Sol tarafta daraltılıp genişletilebilen, yalnız mevcut oturumu dürüst biçimde gösteren sidebar bulunur.
 - GUI, `assets/branding` altındaki Lina logo/icon dosyalarını destekler.
 - Logo yoksa uygulama güvenli fallback ile yalnızca metin başlık kullanarak açılır.
 - `Yeni Sohbet` mevcut oturumu temizler.
-- Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir.
+- Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir; balon genişliği pencereye göre güncellenir.
+- Her mesajda saat ve yalnız o mesajı panoya alan `Kopyala` aksiyonu bulunur.
+- Sidebar içindeki `A−` ve `A+` kontrolleri mesaj ve composer yazı boyutunu oturum boyunca `9–16` aralığında değiştirir.
 - Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.
 - `+` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
 - `Mic` butonu local push-to-talk STT akışına bağlıdır. İlk tıklama kaydı başlatır; kayıt sırasında ikinci tıklama kaydı sonlandırabilir.
-- `Enter` ile gönderme, `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
+- `Enter` mesajı gönderir; `Shift+Enter` yeni satır ekler.
+- `Ctrl+L` composer'a odaklanır; `Ctrl+N` veya `Ctrl+K` yeni sohbet başlatır.
+- `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
+- Kullanıcı eski mesajları okurken zorla aşağı kaydırılmaz; alt bölgeye yakınken yeni mesaj otomatik görünür.
 
 ### Local Push-to-Talk Speech-to-Text
 
@@ -334,6 +339,6 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.6.1-alpha Local Push-to-Talk STT Integration tamamlandı**
+Mevcut durum: **v0.6.2-alpha Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve tag bekleniyor**
 
 Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı, read-only allowlisted proje dosyası erişimi ve local push-to-talk STT desteğine sahip erken aşama bir masaüstü asistanıdır.
