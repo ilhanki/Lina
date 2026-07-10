@@ -39,14 +39,20 @@ class OllamaProvider(ModelProvider):
 
         payload = {
             "model": self._model,
-            "prompt": request.prompt,
+            "messages": [
+                {"role": message.role, "content": message.content}
+                for message in request.messages
+            ],
             "stream": False,
             "options": {
                 "temperature": 0.1,
             },
         }
-        response_data = self._post_json("/api/generate", payload)
-        response_text = response_data.get("response")
+        response_data = self._post_json("/api/chat", payload)
+        response_message = response_data.get("message")
+        if not isinstance(response_message, dict):
+            raise OllamaProviderError("Ollama response is missing message content")
+        response_text = response_message.get("content")
 
         if not isinstance(response_text, str):
             raise OllamaProviderError("Ollama response is missing text content")

@@ -5,6 +5,7 @@ import pytest
 from lina.brain.model_provider import (
     ModelProvider,
     ModelProviderError,
+    ModelMessage,
     ModelRequest,
     ModelResponse,
 )
@@ -12,22 +13,33 @@ from lina.brain.model_provider import (
 
 class FakeModelProvider:
     def generate(self, request: ModelRequest) -> ModelResponse:
-        return ModelResponse(text=f"Echo: {request.prompt}")
+        return ModelResponse(text=f"Echo: {request.messages[-1].content}")
 
 
 def test_model_provider_contract_accepts_provider_implementation() -> None:
     provider: ModelProvider = FakeModelProvider()
 
-    response = provider.generate(ModelRequest(prompt="Hello"))
+    response = provider.generate(
+        ModelRequest(messages=(ModelMessage(role="user", content="Hello"),))
+    )
 
     assert response == ModelResponse(text="Echo: Hello")
 
 
 def test_model_request_is_immutable() -> None:
-    request = ModelRequest(prompt="Hello")
+    request = ModelRequest(
+        messages=(ModelMessage(role="user", content="Hello"),)
+    )
 
     with pytest.raises(FrozenInstanceError):
-        request.prompt = "Other"
+        request.messages = ()
+
+
+def test_model_message_is_immutable() -> None:
+    message = ModelMessage(role="user", content="Hello")
+
+    with pytest.raises(FrozenInstanceError):
+        message.content = "Other"
 
 
 def test_model_response_is_immutable() -> None:

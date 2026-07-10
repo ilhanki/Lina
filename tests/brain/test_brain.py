@@ -1,6 +1,6 @@
 from lina.brain.brain import Brain
 from lina.brain.conversation_context import ConversationContext
-from lina.brain.model_provider import ModelRequest, ModelResponse
+from lina.brain.model_provider import ModelMessage, ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 
 
@@ -10,7 +10,7 @@ class FakeModelProvider:
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         self.requests.append(request)
-        return ModelResponse(text=f"Response: {request.prompt}")
+        return ModelResponse(text=f"Response: {request.messages[-1].content}")
 
 
 def test_brain_sends_built_prompt_to_model_provider() -> None:
@@ -24,7 +24,7 @@ def test_brain_sends_built_prompt_to_model_provider() -> None:
     brain.respond("Hello")
 
     assert provider.requests == [
-        ModelRequest(prompt=prompt_builder.build(user_message="Hello"))
+        ModelRequest(messages=prompt_builder.build(user_message="Hello"))
     ]
 
 
@@ -38,9 +38,7 @@ def test_brain_returns_model_response() -> None:
 
     response = brain.respond("Hello")
 
-    assert response == ModelResponse(
-        text=f"Response: {prompt_builder.build(user_message='Hello')}"
-    )
+    assert response == ModelResponse(text="Response: Hello")
 
 
 def test_brain_uses_default_prompt_builder_when_not_provided() -> None:
@@ -49,9 +47,12 @@ def test_brain_uses_default_prompt_builder_when_not_provided() -> None:
 
     brain.respond("Hello")
 
-    assert "System:" in provider.requests[0].prompt
-    assert "Lina" in provider.requests[0].prompt
-    assert '"role": "user", "content": "Hello"' in provider.requests[0].prompt
+    assert provider.requests[0].messages[0].role == "system"
+    assert "Lina" in provider.requests[0].messages[0].content
+    assert provider.requests[0].messages[-1] == ModelMessage(
+        role="user",
+        content="Hello",
+    )
 
 
 def test_brain_passes_conversation_history_to_prompt_builder() -> None:
@@ -71,11 +72,11 @@ def test_brain_passes_conversation_history_to_prompt_builder() -> None:
         ],
     )
 
-    assert "Conversation history (JSON, context only):" in provider.requests[0].prompt
-    assert '"role": "user"' in provider.requests[0].prompt
-    assert '"content": "My name is Ilhan."' in provider.requests[0].prompt
-    assert '"role": "assistant"' in provider.requests[0].prompt
-    assert '"content": "Nice to meet you."' in provider.requests[0].prompt
+    assert provider.requests[0].messages[1:] == (
+        ModelMessage(role="user", content="My name is Ilhan."),
+        ModelMessage(role="assistant", content="Nice to meet you."),
+        ModelMessage(role="user", content="What is my name?"),
+    )
 
 
 def test_brain_passes_project_context_to_prompt_builder() -> None:
@@ -90,8 +91,8 @@ def test_brain_passes_project_context_to_prompt_builder() -> None:
         project_context="Sprint 5 completed.",
     )
 
-    assert "Project context:" in provider.requests[0].prompt
-    assert "Sprint 5 completed." in provider.requests[0].prompt
+    assert "Project context:" in provider.requests[0].messages[0].content
+    assert "Sprint 5 completed." in provider.requests[0].messages[0].content
 
 
 def test_brain_responds_with_conversation_context() -> None:
@@ -108,5 +109,8 @@ def test_brain_responds_with_conversation_context() -> None:
 
     brain.respond_with_context(context)
 
-    assert "Project context" in provider.requests[0].prompt
-    assert '"content": "What happened?"' in provider.requests[0].prompt
+    assert "Project context" in provider.requests[0].messages[0].content
+    assert provider.requests[0].messages[-1] == ModelMessage(
+        role="user",
+        content="What happened?",
+    )

@@ -27,14 +27,16 @@ class Brain:
         conversation_history: Sequence[ConversationTurn] | None = None,
         project_context: str | None = None,
     ) -> ModelResponse:
-        prompt = self._prompt_builder.build(
+        messages = self._prompt_builder.build(
             user_message=user_message,
             history=conversation_history,
             project_context=project_context,
         )
-        request = ModelRequest(prompt=prompt)
+        request = ModelRequest(messages=messages)
         return self._model_provider.generate(request)
 
     def respond_with_context(self, context: ConversationContext) -> ModelResponse:
-        request = ModelRequest(prompt=self._prompt_builder.build_from_context(context))
+        request = ModelRequest(
+            messages=self._prompt_builder.build_from_context(context)
+        )
         return self._model_provider.generate(request)

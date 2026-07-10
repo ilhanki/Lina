@@ -234,12 +234,14 @@ def test_chat_after_greeting_answers_latest_message_without_repeating_history() 
         "Önce fikrinin amacını ve hedef kullanıcısını netleştirelim İlhan."
     )
     assert len(provider.requests) == 1
-    prompt = provider.requests[0].prompt
-    assert '"role": "user",\n    "content": "selam"' in prompt
-    assert '"role": "assistant"' in prompt
-    assert '"content": "bir proje fikri düşünüyorum, bana birkaç soru sor"' in prompt
-    assert "Conversation history (JSON, context only)" in prompt
-    assert "Yalnız current user request içindeki son mesaja" in prompt
+    messages = provider.requests[0].messages
+    assert messages[1].role == "user"
+    assert messages[1].content == "selam"
+    assert messages[2].role == "assistant"
+    assert messages[-1].content == (
+        "bir proje fikri düşünüyorum, bana birkaç soru sor"
+    )
+    assert "Yalnız son user mesajına" in messages[0].content
 
 
 def test_malformed_speech_text_is_not_used_as_user_name_in_next_model_request() -> None:
@@ -263,12 +265,16 @@ def test_malformed_speech_text_is_not_used_as_user_name_in_next_model_request() 
         "bir şeyler yapmayı düşünüyorum senin aklındaki fikir nedir"
     )
 
-    prompt = provider.requests[1].prompt
+    messages = provider.requests[1].messages
     assert response.text.startswith("Aklımdaki fikir")
-    assert '"content": "Marrabalina Nesussan"' in prompt
-    assert "Marrabalina Nesussan:" not in prompt
-    assert "bilinen adı yalnızca İlhan'dır" in prompt
-    assert "Kullanıcı mesajından isim türetme" in prompt
+    assert messages[1].role == "user"
+    assert messages[1].content == "Marrabalina Nesussan"
+    assert messages[2].role == "assistant"
+    assert messages[-1].content == (
+        "bir şeyler yapmayı düşünüyorum senin aklındaki fikir nedir"
+    )
+    assert "bilinen adı yalnızca İlhan'dır" in messages[0].content
+    assert "Kullanıcı mesajından isim türetme" in messages[0].content
 
 
 def test_conversation_service_limits_history() -> None:

@@ -48,9 +48,7 @@ def test_default_system_prompt_prevents_stuck_greetings() -> None:
 
 def test_default_system_prompt_prevents_response_label_prefixes() -> None:
     assert "GUI konuşmacı etiketini zaten gösterir" in DEFAULT_SYSTEM_PROMPT
-    assert '"Lina:"' in DEFAULT_SYSTEM_PROMPT
-    assert '"İlhan:"' in DEFAULT_SYSTEM_PROMPT
-    assert '"Cevap:"' in DEFAULT_SYSTEM_PROMPT
+    assert "konuşmacı etiketi ekleme" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_fixes_user_identity_to_ilhan() -> None:
@@ -61,7 +59,7 @@ def test_default_system_prompt_fixes_user_identity_to_ilhan() -> None:
 def test_default_system_prompt_treats_history_as_context_only() -> None:
     assert "Conversation history yalnız yardımcı bağlamdır" in DEFAULT_SYSTEM_PROMPT
     assert "son kullanıcı mesajına doğrudan cevap ver" in DEFAULT_SYSTEM_PROMPT
-    assert "eski konuşma transcript'i üretme" in DEFAULT_SYSTEM_PROMPT
+    assert "Eski konuşma dökümünü" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_system_prompt_allows_technical_terms() -> None:

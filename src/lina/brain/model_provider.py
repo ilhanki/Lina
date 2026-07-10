@@ -1,14 +1,25 @@
 """Model provider contract for Lina's Brain."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
+
+
+ModelRole = Literal["system", "user", "assistant"]
+
+
+@dataclass(frozen=True)
+class ModelMessage:
+    """A role-bound message sent to a conversational model."""
+
+    role: ModelRole
+    content: str
 
 
 @dataclass(frozen=True)
 class ModelRequest:
     """Request sent to a model provider."""
 
-    prompt: str
+    messages: tuple[ModelMessage, ...]
 
 
 @dataclass(frozen=True)
