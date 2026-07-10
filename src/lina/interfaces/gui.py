@@ -18,6 +18,16 @@ from lina.services.model_diagnostics_service import (
     ModelDiagnosticsService,
     format_status_message,
 )
+from lina.interfaces.gui_theme import (
+    FONT_HEADER,
+    FONT_LABEL,
+    FONT_MESSAGE_DEFAULT,
+    FONT_MUTED,
+    FONT_TITLE,
+    configure_tk_scaling,
+    configure_windows_dpi_awareness,
+    resolve_font_family,
+)
 from lina.speech.models import (
     SpeechServiceError,
     SpeechState,
@@ -63,7 +73,9 @@ class LinaGui:
         speech_service: SpeechService | None = None,
     ) -> None:
         self._conversation_service = conversation_service
+        configure_windows_dpi_awareness()
         self._root = root or tk.Tk()
+        configure_tk_scaling(self._root)
         self._thread_factory = thread_factory
         self._diagnostics_service = diagnostics_service
         self._speech_service = speech_service
@@ -77,10 +89,36 @@ class LinaGui:
         self._root.minsize(840, 560)
         self._message_ranges: list[tuple[str, str]] = []
         self._message_widgets: list[tk.Widget] = []
-        self._chat_font = font.Font(family="Segoe UI", size=10)
-        self._header_font = font.Font(family="Segoe UI", size=12, weight="bold")
-        self._title_font = font.Font(family="Segoe UI", size=18, weight="bold")
-        self._status_font = font.Font(family="Segoe UI", size=9)
+        self._font_family = resolve_font_family(font.families(self._root))
+        self._message_font_size = FONT_MESSAGE_DEFAULT
+        self._chat_font = font.Font(
+            root=self._root,
+            family=self._font_family,
+            size=self._message_font_size,
+        )
+        self._header_font = font.Font(
+            root=self._root,
+            family=self._font_family,
+            size=FONT_HEADER,
+            weight="bold",
+        )
+        self._title_font = font.Font(
+            root=self._root,
+            family=self._font_family,
+            size=FONT_TITLE,
+            weight="bold",
+        )
+        self._status_font = font.Font(
+            root=self._root,
+            family=self._font_family,
+            size=FONT_MUTED,
+        )
+        self._label_font = font.Font(
+            root=self._root,
+            family=self._font_family,
+            size=FONT_LABEL,
+            weight="bold",
+        )
         self._logo_image: tk.PhotoImage | None = None
         self._icon_image: tk.PhotoImage | None = None
 
