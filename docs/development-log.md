@@ -1918,3 +1918,23 @@ Speech capability için mimari ve güvenlik planı hazırlandı. Implementation'
 - İlk kullanımda `base` modelin indirilmesi ve hazırlanması zaman alabilir.
 - Transcription hızı ve kalitesi CPU performansına, mikrofona ve ortam gürültüsüne bağlıdır.
 - TTS, wake word, cihaz seçimi ve ses ayarı GUI'si henüz yoktur.
+
+## 2026-07-10 - Speech Input Injection Hotfix
+
+### Sorun ve Kök Neden
+
+Gerçek mikrofon testinde transcription başarıyla üretilmesine rağmen disabled durumdaki Tkinter `Text` widget üzerinde `delete` ve `insert` işlemleri sessizce uygulanmıyordu. Exception oluşmadığı için input boş kalırken başarı mesajı gösteriliyordu. Önceki test, gerçek `_set_input_text` yolunu lambda ile değiştirdiği için bu davranışı yakalamıyordu.
+
+### Düzeltme
+
+- Transcription Tkinter ana thread callback'i içinde, input geçici olarak etkinleştirilerek yazılıyor.
+- Mevcut taslak korunuyor ve transcription uygun boşlukla sonuna ekleniyor.
+- Yazılan değer widget üzerinden geri okunarak doğrulanıyor; başarı mesajı yalnız doğrulama sonrasında gösteriliyor.
+- Empty transcription ile input update failure ayrı kullanıcı mesajları ve status durumlarıyla ele alınıyor.
+- Input update failure sonrasında Mic, input ve gönderme kontrolleri tekrar kullanılabilir hale geliyor.
+- Gerçek disabled widget davranışını taklit eden regression testi eklendi.
+
+### Test Sonucu
+
+- Hedefli GUI/Speech testleri: `80 passed`
+- Tam test paketi: `432 passed`
