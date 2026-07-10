@@ -1,2 +1,1 @@
-"""Speech recognition, text-to-speech, and wake word capabilities."""
-
+"""Safe speech capability contracts and orchestration."""
