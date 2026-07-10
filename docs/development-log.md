@@ -1960,3 +1960,27 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 
 - Hedefli Brain/Prompt/Conversation testleri: `77 passed`
 - Tam test paketi: `437 passed`
+
+## 2026-07-10 - Ollama Structured Chat Grounding Hotfix
+
+### Kök Neden
+
+Önceki grounding düzeltmesi history'yi JSON olarak ayırsa da Ollama'nın `/api/generate` endpoint'ine tek bir raw prompt gönderiliyordu. `llama3.2:3b`, system talimatı, geçmiş mesajlar ve son kullanıcı isteği arasındaki sınırları güvenilir biçimde koruyamıyor; geçmiş selamı kopyalıyor ve prompt içinde geçen yasaklı meta başlık örneklerini üretebiliyordu.
+
+### Düzeltme
+
+- Provider-independent `ModelMessage` contract'ı eklendi.
+- `ModelRequest`, raw prompt yerine immutable structured message dizisi taşır hale getirildi.
+- PromptBuilder; system context, bounded user/assistant history ve son user isteğini gerçek rollerle üretir hale getirildi.
+- Brain, structured message request'i doğrudan provider'a iletiyor.
+- OllamaProvider `/api/generate` yerine `/api/chat` kullanacak şekilde güncellendi.
+- Ollama chat response içindeki `message.content` kontrollü biçimde okunuyor.
+- Kötü çıktı kalıplarını prompt içinde tekrar eden negatif örnekler kaldırıldı; kısa ve pozitif davranış kuralları korundu.
+- Files, Memory, Speech ve history bounding davranışları korundu.
+
+### Doğrulama
+
+- Hedefli contract/Brain/Prompt/Ollama/Conversation testleri: `90 passed`
+- Tam test paketi: `439 passed`
+- Gerçek yerel `llama3.2:3b` smoke testinde model geçmiş selamı ve meta başlığı tekrarlamadan son kullanıcı isteğine doğrudan cevap verdi.
+- Cevap çıktısına filtre veya post-processing uygulanmadı.
