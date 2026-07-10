@@ -1,8 +1,10 @@
 """Tests for speech capability orchestration."""
 
 import pytest
+import threading
 
 from lina.speech.models import (
+    AudioRecordingResult,
     SpeechServiceError,
     SpeechState,
     SpeechSynthesisResult,
@@ -22,7 +24,7 @@ class FakeSTTProvider:
     def is_available(self) -> bool:
         return True
 
-    def transcribe_once(self) -> SpeechTranscriptionResult:
+    def transcribe(self, recording: AudioRecordingResult) -> SpeechTranscriptionResult:
         self.call_count += 1
         if self.state_reader is not None:
             self.observed_state = self.state_reader()
@@ -52,13 +54,57 @@ class FakeTTSProvider:
         self.stop_count += 1
 
 
+class FakeAudioRecorder:
+    def __init__(self, error: Exception | None = None) -> None:
+        self._error = error
+        self.state_reader = None
+        self.observed_state = None
+        self.stop_count = 0
+
+    def is_available(self) -> bool:
+        return True
+
+    def record_once(self) -> AudioRecordingResult:
+        if self.state_reader is not None:
+            self.observed_state = self.state_reader()
+        if self._error is not None:
+            raise self._error
+        return AudioRecordingResult(
+            audio_data=b"RIFFaudio",
+            sample_rate=16000,
+            channels=1,
+            duration_seconds=1.0,
+        )
+
+    def stop(self) -> None:
+        self.stop_count += 1
+
+
+class BlockingAudioRecorder(FakeAudioRecorder):
+    def __init__(self) -> None:
+        super().__init__()
+        self.started = threading.Event()
+        self.stopped = threading.Event()
+
+    def record_once(self) -> AudioRecordingResult:
+        self.started.set()
+        self.stopped.wait(timeout=2)
+        return super().record_once()
+
+    def stop(self) -> None:
+        super().stop()
+        self.stopped.set()
+
+
 def _create_service(
     stt_provider=None,
     tts_provider=None,
+    audio_recorder=None,
 ) -> SpeechService:
     return SpeechService(
         stt_provider=stt_provider or NoOpSTTProvider(),
         tts_provider=tts_provider or NoOpTTSProvider(),
+        audio_recorder=audio_recorder,
     )
 
 
@@ -86,19 +132,25 @@ def test_default_noop_tts_is_unavailable() -> None:
 
 def test_transcribe_once_returns_fake_provider_result() -> None:
     provider = FakeSTTProvider()
-    service = _create_service(stt_provider=provider)
+    recorder = FakeAudioRecorder()
+    service = _create_service(stt_provider=provider, audio_recorder=recorder)
     provider.state_reader = service.get_state
+    recorder.state_reader = service.get_state
 
     result = service.transcribe_once()
 
     assert result.text == "Merhaba Lina"
     assert provider.call_count == 1
+    assert recorder.observed_state is SpeechState.LISTENING
     assert provider.observed_state is SpeechState.TRANSCRIBING
     assert service.get_state() is SpeechState.IDLE
 
 
 def test_transcribe_once_does_not_send_or_transform_text() -> None:
-    service = _create_service(stt_provider=FakeSTTProvider())
+    service = _create_service(
+        stt_provider=FakeSTTProvider(),
+        audio_recorder=FakeAudioRecorder(),
+    )
 
     result = service.transcribe_once()
 
@@ -111,12 +163,63 @@ def test_transcribe_once_does_not_send_or_transform_text() -> None:
 
 
 def test_provider_exception_does_not_leave_transcription_state_stuck() -> None:
-    service = _create_service(stt_provider=FakeSTTProvider(RuntimeError("failure")))
+    service = _create_service(
+        stt_provider=FakeSTTProvider(RuntimeError("failure")),
+        audio_recorder=FakeAudioRecorder(),
+    )
 
     with pytest.raises(SpeechServiceError, match="transcription failed"):
         service.transcribe_once()
 
-    assert service.get_state() is SpeechState.ERROR
+    assert service.get_state() is SpeechState.IDLE
+
+
+def test_recorder_exception_does_not_leave_listening_state_stuck() -> None:
+    service = _create_service(
+        stt_provider=FakeSTTProvider(),
+        audio_recorder=FakeAudioRecorder(SpeechServiceError("recording failed")),
+    )
+
+    with pytest.raises(SpeechServiceError, match="recording failed"):
+        service.transcribe_once()
+
+    assert service.get_state() is SpeechState.IDLE
+
+
+def test_stop_listening_stops_active_recorder() -> None:
+    recorder = BlockingAudioRecorder()
+    service = _create_service(
+        stt_provider=FakeSTTProvider(),
+        audio_recorder=recorder,
+    )
+    thread = threading.Thread(target=service.transcribe_once)
+    thread.start()
+    assert recorder.started.wait(timeout=1)
+
+    service.stop_listening()
+    thread.join(timeout=1)
+
+    assert recorder.stop_count == 1
+    assert thread.is_alive() is False
+    assert service.get_state() is SpeechState.IDLE
+
+
+def test_duplicate_transcription_request_is_rejected() -> None:
+    recorder = BlockingAudioRecorder()
+    service = _create_service(
+        stt_provider=FakeSTTProvider(),
+        audio_recorder=recorder,
+    )
+    thread = threading.Thread(target=service.transcribe_once)
+    thread.start()
+    assert recorder.started.wait(timeout=1)
+
+    with pytest.raises(SpeechServiceError, match="already active"):
+        service.transcribe_once()
+
+    service.stop_listening()
+    thread.join(timeout=1)
+    assert service.get_state() is SpeechState.IDLE
 
 
 def test_speak_uses_available_provider_and_returns_to_idle() -> None:
