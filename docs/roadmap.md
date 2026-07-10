@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.5.2-alpha Branding Polish
+## Mevcut Durum: v0.6.0-alpha Speech Capability v1 Planning
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -16,7 +16,9 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.5.1-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, mevcut Tkinter GUI'yi daha modern bir sohbet uygulaması düzenine taşıdı; sidebar, chat bubbles, composer ve pasif placeholder action butonlarını kapsadı.
 
-`v0.5.2-alpha` hattı Branding Polish için hazırlanmıştır. Bu hat, Lina logo asset'lerini, sidebar branding alanını ve window icon fallback desteğini kapsar.
+`v0.5.2-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu sürüm, Lina logo asset'lerini, sidebar branding alanını ve window icon fallback desteğini kapsadı.
+
+`v0.6.0-alpha` hattı Speech Capability v1 için planlama aşamasındadır. Speech implementation başlamadan önce güvenlik ilkeleri, dependency politikası, GUI Mic butonu davranışı ve test stratejisi `docs/speech-architecture-v1.md` içinde netleştirilir.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -130,7 +132,7 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.5.0-alpha`: Files Capability v1.
 - `v0.5.1-alpha`: Professional Chat UI Refresh.
 - `v0.5.2-alpha`: Branding Polish.
-- `v0.6.0-alpha`: Speech Capability v1.
+- `v0.6.0-alpha`: Speech Capability v1 planning / implementation.
 - `v0.7.0-alpha`: Vision / Screen Awareness v1.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 

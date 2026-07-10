@@ -1824,3 +1824,37 @@ Branding Polish tamamlandı. Tag oluşturulmadı.
 ### Sonraki Büyük Hedef
 
 Sıradaki büyük hedef `v0.6.0-alpha` Speech Capability v1 olacaktır. Speech geliştirmesine geçmeden önce kısa bir Speech Architecture & Safety Planning sprinti yapılmalıdır.
+
+## 2026-07-10 - Speech Architecture & Safety Planning
+
+### Amaç
+
+`v0.6.0-alpha` Speech Capability v1 implementation başlamadan önce speech kapsamı, güvenlik sınırları, GUI Mic butonu davranışı, dependency politikası ve test stratejisi planlandı.
+
+### Alınan Kararlar
+
+- Always-on listening yasaklandı.
+- Mikrofon erişiminin yalnız explicit user action ile başlaması planlandı.
+- Ses verisinin varsayılan olarak kaydedilmemesi ilkesi belirlendi.
+- Local-first speech yaklaşımı önceliklendirildi.
+- Speech engine yoksa graceful fallback davranışı tanımlandı.
+- GUI içinde mikrofon aktifken net visual status gösterilmesi gerektiği yazıldı.
+- SpeechService, STTProvider ve TTSProvider taslak sorumlulukları planlandı.
+- `IDLE`, `LISTENING`, `TRANSCRIBING`, `SPEAKING`, `ERROR` ve `UNAVAILABLE` speech state modeli tanımlandı.
+- İlk implementation için `Push-to-talk STT skeleton + optional no-op TTS interface` önerildi.
+
+### Kapsam Dışı
+
+- Mikrofon erişimi eklenmedi.
+- Ses kaydı alınmadı.
+- STT/TTS implementation yapılmadı.
+- Yeni dependency eklenmedi.
+- Always-on listening tasarlanmadı.
+
+### Test Sonucu
+
+- Tam test paketi: `384 passed`
+
+### Durum
+
+Speech capability için mimari ve güvenlik planı hazırlandı. Implementation'a geçmeden önce TTS/STT önceliği, local-only zorunluluğu, yeni dependency izni ve transcription UX kararı kullanıcıyla netleştirilmelidir.

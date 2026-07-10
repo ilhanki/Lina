@@ -150,6 +150,12 @@ Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/defa
 - `+`, `Mic` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
 - `Enter` ile gönderme, `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
 
+### Speech Planlama Notu
+
+Speech capability henüz aktif değildir. GUI içindeki `Mic` butonu şimdilik placeholder davranışına sahiptir ve gerçek mikrofon erişimi başlatmaz.
+
+`v0.6.0-alpha` için speech mimarisi `docs/speech-architecture-v1.md` içinde planlanmaktadır. Planın temel güvenlik çizgisi; always-on listening olmaması, ses dinlemenin yalnız açık kullanıcı eylemiyle başlaması, ses kaydının varsayılan olarak tutulmaması ve mümkün olduğunca local-first çalışmadır.
+
 Memory komut örnekleri:
 
 ```text
@@ -323,6 +329,6 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.5.1-alpha Professional Chat UI Refresh geliştirme hattı**
+Mevcut durum: **v0.6.0-alpha Speech Capability v1 planlama hattı**
 
-Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır.
+Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı ve read-only allowlisted proje dosyası erişimine sahip erken aşama bir masaüstü asistanıdır. Speech capability henüz uygulanmamıştır; `v0.6.0-alpha` için mimari ve güvenlik planı hazırlanmıştır.
