@@ -1886,3 +1886,35 @@ Speech capability için mimari ve güvenlik planı hazırlandı. Implementation'
 ### Durum
 
 `v0.6.0-alpha` Speech Skeleton + GUI Mic Flow tamamlandı. Gerçek STT engine seçimi ve dependency kararı `v0.6.1-alpha` öncesinde ayrı bir mimari ve güvenlik değerlendirmesi gerektirir.
+
+## 2026-07-10 - Local Push-to-Talk STT Integration
+
+### Yapılanlar
+
+- Runtime dependency olarak yalnız `faster-whisper` ve `sounddevice` eklendi.
+- `SoundDeviceAudioRecorder`, sınırlandırılmış mono kaydı kalıcı dosya oluşturmadan bellekte WAV verisine dönüştürecek şekilde eklendi.
+- Sessizlik algılama, maksimum kayıt süresi ve kullanıcı kontrollü stop desteği eklendi.
+- `FasterWhisperSTTProvider`, lazy model loading ve fake model factory ile test edilebilir biçimde eklendi.
+- Varsayılan STT ayarları multilingual `base`, `tr`, `cpu` ve `int8` olarak belirlendi.
+- `SpeechService` akışı `IDLE -> LISTENING -> TRANSCRIBING -> IDLE` olarak genişletildi; duplicate kayıt engellendi.
+- GUI Mic butonu kayıt/durdurma durumlarına bağlandı; transkripsiyon mevcut taslağın sonuna ekleniyor ve otomatik gönderilmiyor.
+- Pencere aktif kayıt sırasında kapanırsa recorder'ın durdurulması ve geç GUI callback'lerinin atlanması sağlandı.
+
+### Privacy ve Güvenlik
+
+- Always-on listening ve kullanıcı eylemi olmadan kayıt yoktur.
+- Ham ses yalnız bellekte işlenir; temp veya kalıcı ses dosyası oluşturulmaz.
+- Ham ses ve transcription debug loglarına yazılmaz.
+- Cloud speech, CUDA, TTS ve otomatik mesaj gönderme eklenmedi.
+
+### Test Sonucu
+
+- Hedefli Speech/GUI/bootstrap testleri: `94 passed`
+- Tam test paketi: `430 passed`
+- Otomatik testlerde gerçek mikrofon açılmadı ve gerçek model indirilmedi.
+
+### Bilinen Sınırlamalar
+
+- İlk kullanımda `base` modelin indirilmesi ve hazırlanması zaman alabilir.
+- Transcription hızı ve kalitesi CPU performansına, mikrofona ve ortam gürültüsüne bağlıdır.
+- TTS, wake word, cihaz seçimi ve ses ayarı GUI'si henüz yoktur.

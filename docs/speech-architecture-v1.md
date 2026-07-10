@@ -193,7 +193,7 @@ Bu yaklaşım, Lina'nın kişisel asistan kimliğiyle uyumludur. Kullanıcının
 
 ## Dependency Politikası
 
-Bu sprintte yeni dependency eklenmez.
+`v0.6.0-alpha` skeleton aşamasında yeni dependency eklenmemiştir. `v0.6.1-alpha` için açık onayla yalnız `faster-whisper` ve `sounddevice` runtime dependency olarak eklenmiştir. TTS, cloud speech, Torch/CUDA veya alternatif STT paketleri bu kararın parçası değildir.
 
 Gelecek sprintte speech engine seçimi yapılırken her dependency şu sorularla değerlendirilmelidir:
 
@@ -274,7 +274,7 @@ src/lina/speech/
   tts_provider.py
 ```
 
-Bu dosyalar bu sprintte oluşturulmaz. Implementation sprintinde gerçekten ihtiyaç doğarsa eklenmelidir.
+Bu sınırlar `v0.6.0-alpha` ve `v0.6.1-alpha` implementationlarında somutlaştırılmıştır. Provider, recorder, model ve servis sorumlulukları speech paketi içinde ayrı tutulur.
 
 ### SpeechService
 
@@ -333,16 +333,17 @@ Bu state'ler GUI status bar ve testler için önemlidir. Kullanıcı, speech sis
 
 ## GUI Mic Button Planı
 
-Mevcut durumda Mic butonu placeholder davranışına sahiptir ve bu davranış korunur.
+`v0.6.1-alpha` ile Mic butonu local push-to-talk akışına bağlanmıştır.
 
 Speech implementation geldiğinde önerilen davranış:
 
 1. Kullanıcı Mic butonuna basar.
 2. GUI status bar `Dinliyorum...` durumuna geçer.
-3. SpeechService tek seferlik transcription başlatır.
-4. Transcription tamamlanınca metin input alanına yazılır.
-5. Kullanıcı metni kontrol eder.
-6. Kullanıcı Enter veya Gönder ile mesajı gönderir.
+3. Kullanıcı ikinci kez Mic butonuna basabilir; sessizlik veya maksimum süre sınırı da kaydı bitirebilir.
+4. SpeechService kaydı yerel modele iletir.
+5. Transcription tamamlanınca metin input alanına veya mevcut taslağın sonuna yazılır.
+6. Kullanıcı metni kontrol eder.
+7. Kullanıcı Enter veya Gönder ile mesajı gönderir.
 
 İlk sürümde otomatik gönderme önerilmez. Kullanıcının konuşmasının yanlış algılanması mümkündür; bu nedenle transcription sonucunu input alanına yazmak daha güvenli bir UX sağlar.
 
@@ -408,7 +409,7 @@ Bu doküman oluşturulur. Güvenlik ilkeleri, scope ve dependency değerlendirme
 
 ### Implementation Sprint 2
 
-Kullanıcı onayıyla engine seçimi yapılır.
+Kullanıcı onayıyla `faster-whisper` ve `sounddevice` seçildi. Türkçe multilingual `base` model, CPU ve int8 varsayılanlarıyla local push-to-talk implementation tamamlandı.
 
 Bu sprintte şu kararlar gerekir:
 
@@ -425,12 +426,15 @@ Bu sprintte şu kararlar gerekir:
 - Engine unavailable fallback doğrulaması.
 - Privacy ve logging kontrolü.
 
-## Open Questions
+## Karara Bağlanan Sorular
 
-1. `v0.6.0-alpha` içinde önce TTS mi, STT mi uygulanmalı?
-2. Speech ilk sürümde yalnız local-only mi olmalı?
-3. Yeni dependency eklenmesine izin verilecek mi?
-4. Transcription sonucu input alanına mı yazılmalı, yoksa otomatik gönderme opsiyonu olmalı mı?
+1. İlk gerçek engine STT olarak seçildi; TTS sonraki değerlendirmeye bırakıldı.
+2. İlk sürüm local-first çalışır ve cloud speech kullanmaz.
+3. Yalnız `faster-whisper` ve `sounddevice` dependency'lerine izin verildi.
+4. Transcription input alanına yazılır ve otomatik gönderilmez.
+
+## Açık Sorular
+
 5. TTS cevapları varsayılan olarak açık mı olmalı, kullanıcı toggle'ı mı gerektirmeli?
 6. Speech state GUI dışında ileride event bus ile yayınlanmalı mı?
 7. Wake word hangi milestone'a kadar kesin kapsam dışı kalmalı?
@@ -441,6 +445,6 @@ Speech Capability v1, Lina'nın masaüstü asistan kimliğini güçlendirecek ö
 
 Bu nedenle önerilen yön, `v0.6.0-alpha` için güvenli ve küçük başlamaktır:
 
-**Push-to-talk STT skeleton + optional no-op TTS interface.**
+`v0.6.0-alpha` ile push-to-talk skeleton, `v0.6.1-alpha` ile local `faster-whisper` STT ve `sounddevice` recorder tamamlanmıştır. TTS hâlâ NoOp sözleşme olarak kalır.
 
-Gerçek engine ve dependency seçimi, ayrı bir kullanıcı onayı ve teknik değerlendirme sprintiyle yapılmalıdır.
+Gelecekteki TTS, wake word veya farklı speech engine kararları ayrı kullanıcı onayı ve teknik değerlendirme sprinti gerektirir.

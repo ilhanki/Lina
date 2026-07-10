@@ -58,7 +58,7 @@ Mevcut çalışan özellikler:
 - SAFE tool foundation ve current time tool routing.
 - CLI arayüzü.
 - Modern Tkinter masaüstü GUI; sidebar, chat bubbles, composer ve placeholder action butonları.
-- SpeechService skeleton, STT/TTS provider sözleşmeleri ve güvenli GUI Mic akışı.
+- Local push-to-talk STT, SpeechService ve güvenli GUI Mic akışı.
 - Unit test altyapısı.
 
 Planlanan uzun vadeli özellikler:
@@ -94,7 +94,7 @@ Planlanan temel teknoloji tercihleri:
 
 ## Kurulum
 
-Bu aşamada proje yalnızca mimari ve dokümantasyon iskeletidir.
+Proje aktif alpha geliştirme aşamasındadır. Python 3.11 veya üzeri gerektirir.
 
 Önerilen geliştirme ortamı:
 
@@ -104,7 +104,7 @@ python -m venv .venv
 python -m pip install --upgrade pip
 ```
 
-Gelecekte bağımlılıklar eklendiğinde:
+Runtime bağımlılıklarını kurmak için:
 
 ```powershell
 pip install -r requirements.txt
@@ -149,14 +149,16 @@ Normal sohbet cevapları için Ollama'nın çalışıyor olması ve `config/defa
 - Ana alanda Lina mesajları solda, kullanıcı mesajları sağda bubble görünümüyle gösterilir.
 - Alt composer içinde `+`, `Mic`, `Screen` ve `Gönder` butonları bulunur.
 - `+` ve `Screen` butonları şimdilik gerçek capability başlatmaz; güvenli placeholder Lina mesajı gösterir.
-- `Mic` butonu `SpeechService` akışına bağlıdır. Varsayılan NoOp sağlayıcı gerçek mikrofon erişimi başlatmadan açık bir unavailable mesajı gösterir.
+- `Mic` butonu local push-to-talk STT akışına bağlıdır. İlk tıklama kaydı başlatır; kayıt sırasında ikinci tıklama kaydı sonlandırabilir.
 - `Enter` ile gönderme, `↑` / `↓` input history, `Sohbeti Temizle`, `Son Cevabı Kopyala`, typing placeholder ve background model response akışı korunur.
 
-### Speech Skeleton
+### Local Push-to-Talk Speech-to-Text
 
-`v0.6.0-alpha` Speech skeleton; `SpeechService`, STT/TTS provider sözleşmeleri, NoOp sağlayıcılar ve GUI Mic akışını içerir. Gerçek STT/TTS engine henüz yoktur ve hiçbir mikrofon erişimi başlatılmaz.
+`v0.6.1-alpha`, `sounddevice` ile açık kullanıcı eylemine bağlı kısa ses kaydı ve `faster-whisper` ile local transcription desteği sunar. Varsayılan model `base` multilingual, dil `tr`, cihaz `cpu` ve compute type `int8` olarak yapılandırılmıştır.
 
-Gelecekte bir STT engine bağlandığında transkripsiyon sonucu composer input alanına yazılacak, kullanıcı kontrolü olmadan otomatik gönderilmeyecektir. Mimari ve güvenlik sınırları [docs/speech-architecture-v1.md](docs/speech-architecture-v1.md) içinde tanımlanır.
+Transkripsiyon composer input alanına yazılır; mevcut taslak varsa sonuna eklenir ve hiçbir zaman otomatik gönderilmez. Ham ses yalnız bellekte işlenir, kalıcı ses dosyası oluşturulmaz ve ses verisi loglanmaz.
+
+İlk kullanımda `base` modelin indirilmesi ve yerel cache içinde hazırlanması zaman alabilir. Model cache'i proje repository'sine yazılmaz. Speech özelliği `config/default.toml` içindeki `[speech] enabled = false` ayarıyla kapatılabilir. Mimari ve güvenlik sınırları [docs/speech-architecture-v1.md](docs/speech-architecture-v1.md) içinde tanımlanır.
 
 Memory komut örnekleri:
 
@@ -323,14 +325,15 @@ Bu aşamada proje özel kullanım için geliştirilmekte ve lisans durumu `Propr
 - Memory v1 yalnız explicit komutlarla kayıt yapar; otomatik memory extraction yoktur.
 - Files v1 yalnız allowlist kapsamındaki proje dosyalarını read-only okuyabilir; genel dosya okuma/yazma capability'si yoktur.
 - Shell command execution yoktur.
-- Gerçek microphone/STT/TTS engine, browser, camera, vision ve Windows automation henüz uygulanmamıştır.
+- TTS, browser, camera, vision ve Windows automation henüz uygulanmamıştır.
+- STT v1 yerel `faster-whisper` model kalitesine, CPU performansına ve kullanılabilir input cihazına bağlıdır.
 - Project awareness izinli dokümanlar ve okunabilir Git context (status, log, branch) ile sınırlıdır.
 - Tool sistemi SAFE araçları çalıştırabilir, interaktif onay mekanizması (PermissionDecision UX) altyapısı vardır ancak UI entegrasyonu yoktur.
-- GUI Tkinter tabanlı modern sohbet arayüzüdür; `Mic` SpeechService skeleton akışına bağlıdır, `+` ve `Screen` ise placeholder davranışındadır.
+- GUI Tkinter tabanlı modern sohbet arayüzüdür; `Mic` local push-to-talk akışına bağlıdır, `+` ve `Screen` ise placeholder davranışındadır.
 - Paketleme veya installer yoktur.
 
 ## Geliştirme Durumu
 
-Mevcut durum: **v0.6.0-alpha Speech Skeleton + GUI Mic Flow tamamlandı**
+Mevcut durum: **v0.6.1-alpha Local Push-to-Talk STT Integration tamamlandı**
 
-Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı, read-only allowlisted proje dosyası erişimi ve test edilebilir SpeechService skeleton'ına sahip erken aşama bir masaüstü asistanıdır. Gerçek speech engine seçimi ve entegrasyonu sonraki sürüm hattına bırakılmıştır.
+Lina şu anda CLI ve modern Tkinter masaüstü GUI üzerinden çalışabilen, Ollama ile yerel model cevabı alabilen, sınırlı intent routing, güvenilir cevap mekanizması (groundedness), Git proje farkındalığı, güvenli tool temeli, explicit local SQLite memory altyapısı, read-only allowlisted proje dosyası erişimi ve local push-to-talk STT desteğine sahip erken aşama bir masaüstü asistanıdır.
