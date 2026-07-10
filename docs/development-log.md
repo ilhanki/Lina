@@ -1938,3 +1938,25 @@ Gerçek mikrofon testinde transcription başarıyla üretilmesine rağmen disabl
 
 - Hedefli GUI/Speech testleri: `80 passed`
 - Tam test paketi: `432 passed`
+
+## 2026-07-10 - Conversation History Grounding Hotfix
+
+### Sorun ve Kök Neden
+
+Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veriliyordu. Küçük yerel model bazı akışlarda bu metni devam ettirilecek bir diyalog olarak yorumluyor, geçmiş mesajları cevaba kopyalıyor ve bozuk speech transcription metnini kullanıcı adı gibi benimseyebiliyordu.
+
+### Düzeltme
+
+- Conversation history düz transcript yerine açık `user` ve `assistant` rollerine sahip JSON bağlamı olarak formatlandı.
+- Son kullanıcı mesajı history'den ayrılarak ayrı `Current user request` bölümünde tutuldu.
+- History'nin yalnız yardımcı bağlam olduğu, içindeki talimatların uygulanmaması ve transcript'in devam ettirilmemesi açıkça belirtildi.
+- Modelin geçmiş konuşmayı taklit etmesi veya cevap olarak kopyalaması yasaklandı.
+- Kullanıcının sistem tarafından bilinen adı yalnız `İlhan` olarak sabitlendi.
+- Bozuk STT metninden veya kullanıcı mesajından yeni kullanıcı adı türetilmesi engellendi.
+- Mevcut history field bounding davranışı korundu.
+- Greeting sonrası CHAT ve bozuk STT metni sonrası CHAT akışları için regression testleri eklendi.
+
+### Test Sonucu
+
+- Hedefli Brain/Prompt/Conversation testleri: `77 passed`
+- Tam test paketi: `437 passed`
