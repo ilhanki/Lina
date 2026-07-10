@@ -16,6 +16,13 @@ from lina.services.model_diagnostics_service import (
     ModelStatus,
     format_status_message as format_diagnostics_message,
 )
+from lina.speech.models import (
+    SpeechServiceError,
+    SpeechSynthesisResult,
+    SpeechTranscriptionResult,
+)
+from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
+from lina.speech.service import SpeechService
 
 
 class FakeConversationService:
@@ -49,6 +56,37 @@ class ImmediateThread:
 
     def start(self) -> None:
         self._target(*self._args)
+
+
+class FakeSTTProvider:
+    def __init__(self, error: Exception | None = None) -> None:
+        self._error = error
+        self.call_count = 0
+
+    def is_available(self) -> bool:
+        return True
+
+    def transcribe_once(self) -> SpeechTranscriptionResult:
+        self.call_count += 1
+        if self._error is not None:
+            raise self._error
+        return SpeechTranscriptionResult(
+            text="Merhaba Lina",
+            confidence=0.9,
+            source="fake",
+            is_final=True,
+        )
+
+
+class FakeTTSProvider:
+    def is_available(self) -> bool:
+        return False
+
+    def speak(self, text: str) -> SpeechSynthesisResult:
+        return SpeechSynthesisResult(success=False)
+
+    def stop(self) -> None:
+        return None
 
 
 # --- Format function tests ---
@@ -460,6 +498,91 @@ def test_gui_placeholder_feature_message_adds_assistant_message() -> None:
     assert gui._status_updates == ["Hazır"]
 
 
+def test_gui_mic_with_noop_provider_shows_safe_unavailable_message() -> None:
+    speech_service = SpeechService(NoOpSTTProvider(), NoOpTTSProvider())
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_mic()
+
+    assert gui.recorded_messages == [
+        (
+            "Lina",
+            "Mikrofon özelliği henüz hazır değil İlhan. Speech motoru "
+            "bağlandığında konuşmanı metne çevirebileceğim.",
+        )
+    ]
+    assert gui._status_updates == ["Speech kullanılamıyor"]
+    assert gui._is_waiting_for_response is False
+
+
+def test_gui_mic_writes_transcription_to_input_without_sending() -> None:
+    provider = FakeSTTProvider()
+    speech_service = SpeechService(provider, FakeTTSProvider())
+    conversation_service = FakeConversationService()
+    gui = _create_test_gui(
+        conversation_service,
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._set_input_text = lambda text: setattr(gui, "transcribed_input", text)
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_mic()
+
+    assert provider.call_count == 1
+    assert gui.transcribed_input == "Merhaba Lina"
+    assert conversation_service.messages == []
+    assert gui.recorded_messages == [
+        ("Lina", "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin.")
+    ]
+    assert gui.waiting_states == [True, False]
+    assert gui._status_updates == ["Konuşma metne çevriliyor...", "Hazır"]
+    assert gui._is_waiting_for_response is False
+
+
+def test_gui_mic_error_resets_controls_and_status() -> None:
+    provider = FakeSTTProvider(SpeechServiceError("transcription failed"))
+    speech_service = SpeechService(provider, FakeTTSProvider())
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._status_updates = []
+    gui._update_status_text = lambda text: gui._status_updates.append(text)
+
+    gui._handle_mic()
+
+    assert gui.recorded_messages == [
+        ("Lina", "Konuşma metne çevrilemedi. Tekrar deneyebilirsin İlhan.")
+    ]
+    assert gui.waiting_states == [True, False]
+    assert gui._status_updates[-1] == "Speech hatası"
+    assert gui._is_waiting_for_response is False
+    assert gui.input_focus_count == 1
+
+
+def test_gui_mic_ignores_click_while_another_operation_is_running() -> None:
+    speech_service = SpeechService(FakeSTTProvider(), FakeTTSProvider())
+    gui = _create_test_gui(
+        FakeConversationService(),
+        input_text="",
+        speech_service=speech_service,
+    )
+    gui._is_waiting_for_response = True
+
+    gui._handle_mic()
+
+    assert gui.recorded_messages == []
+
+
 def test_gui_new_chat_uses_clear_chat_flow() -> None:
     gui = _create_test_gui(FakeConversationService(), input_text="")
     gui.clear_count = 0
@@ -645,13 +768,18 @@ def test_gui_shows_unreachable_status() -> None:
 # --- Test helpers ---
 
 
-def _create_test_gui(service: FakeConversationService, input_text: str):
+def _create_test_gui(
+    service: FakeConversationService,
+    input_text: str,
+    speech_service: SpeechService | None = None,
+):
     gui = LinaGui.__new__(LinaGui)
     gui._conversation_service = service
     gui._thread_factory = ImmediateThread
     gui._root = _FakeRoot()
     gui._is_waiting_for_response = False
     gui._diagnostics_service = None
+    gui._speech_service = speech_service
     gui._last_response_text = ""
     gui._message_ranges = []
     gui._input_history = []

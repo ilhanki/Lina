@@ -18,6 +18,8 @@ from lina.services.model_diagnostics_service import (
     ModelDiagnosticsService,
     format_status_message,
 )
+from lina.speech.models import SpeechServiceError, SpeechTranscriptionResult
+from lina.speech.service import SpeechService
 
 if TYPE_CHECKING:
     from lina.services.model_diagnostics_service import DiagnosticsResult
@@ -54,11 +56,13 @@ class LinaGui:
         root: tk.Tk | None = None,
         thread_factory: Callable[..., threading.Thread] = threading.Thread,
         diagnostics_service: ModelDiagnosticsService | None = None,
+        speech_service: SpeechService | None = None,
     ) -> None:
         self._conversation_service = conversation_service
         self._root = root or tk.Tk()
         self._thread_factory = thread_factory
         self._diagnostics_service = diagnostics_service
+        self._speech_service = speech_service
         self._is_waiting_for_response = False
         self._last_response_text: str = ""
         self._input_history: list[str] = []
@@ -383,9 +387,7 @@ class LinaGui:
         self._mic_button = tk.Button(
             self._composer_frame,
             text="Mic",
-            command=lambda: self._show_placeholder_feature_message(
-                "Mikrofon özelliği henüz aktif değil İlhan."
-            ),
+            command=self._handle_mic,
             bg=COLOR_BUTTON,
             fg=COLOR_TEXT,
             activebackground=COLOR_PANEL,
@@ -530,6 +532,85 @@ class LinaGui:
         self._show_placeholder_feature_message(
             "Sohbet geçmişi özelliği henüz aktif değil İlhan."
         )
+
+    def _handle_mic(self) -> None:
+        if self._is_waiting_for_response:
+            return
+
+        if self._speech_service is None:
+            self._show_speech_unavailable()
+            return
+
+        try:
+            is_available = self._speech_service.is_stt_available()
+        except Exception:
+            _logger.exception("Could not check speech-to-text availability")
+            self._show_speech_error()
+            return
+
+        if not is_available:
+            self._show_speech_unavailable()
+            return
+
+        self._set_waiting_state(True)
+        self._update_status_text("Konuşma metne çevriliyor...")
+        thread = self._thread_factory(
+            target=self._transcribe_speech,
+            args=(),
+            daemon=True,
+        )
+        thread.start()
+
+    def _transcribe_speech(self) -> None:
+        if self._speech_service is None:
+            self._root.after(0, self._show_speech_unavailable)
+            return
+
+        try:
+            result = self._speech_service.transcribe_once()
+        except SpeechServiceError:
+            _logger.exception("Speech transcription could not be completed")
+            self._root.after(0, self._show_speech_error)
+            return
+        except Exception:
+            _logger.exception("Unexpected error while transcribing speech")
+            self._root.after(0, self._show_speech_error)
+            return
+
+        self._root.after(0, self._show_transcription, result)
+
+    def _show_transcription(self, result: SpeechTranscriptionResult) -> None:
+        text = result.text.strip()
+        if not text:
+            self._show_speech_error()
+            return
+
+        self._set_input_text(text)
+        message = "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
+        self._append_message("Lina", message)
+        self._last_response_text = message
+        self._set_waiting_state(False)
+        self._update_status_text("Hazır")
+        self._focus_input()
+
+    def _show_speech_unavailable(self) -> None:
+        message = (
+            "Mikrofon özelliği henüz hazır değil İlhan. Speech motoru "
+            "bağlandığında konuşmanı metne çevirebileceğim."
+        )
+        self._append_message("Lina", message)
+        self._last_response_text = message
+        self._set_waiting_state(False)
+        self._update_status_text("Speech kullanılamıyor")
+        self._focus_input()
+
+    def _show_speech_error(self) -> None:
+        message = "Konuşma metne çevrilemedi. Tekrar deneyebilirsin İlhan."
+        self._append_message("Lina", message)
+        self._last_response_text = message
+        self._set_waiting_state(False)
+        self._update_status_text("Speech hatası")
+        self._focus_input()
 
     def _show_placeholder_feature_message(self, message: str) -> None:
         self._append_message("Lina", message)

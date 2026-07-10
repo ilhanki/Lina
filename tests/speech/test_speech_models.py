@@ -1,5 +1,9 @@
 """Tests for speech capability models."""
 
+from dataclasses import FrozenInstanceError
+
+import pytest
+
 from lina.speech.models import (
     SpeechState,
     SpeechSynthesisResult,
@@ -30,6 +34,9 @@ def test_speech_transcription_result_is_immutable() -> None:
     assert result.confidence == 0.9
     assert result.source == "fake"
     assert result.is_final is True
+
+    with pytest.raises(FrozenInstanceError):
+        result.text = "Changed"
 
 
 def test_speech_synthesis_result_defaults_message_to_none() -> None:

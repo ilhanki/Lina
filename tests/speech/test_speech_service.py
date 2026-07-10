@@ -16,12 +16,16 @@ class FakeSTTProvider:
     def __init__(self, error: Exception | None = None) -> None:
         self._error = error
         self.call_count = 0
+        self.state_reader = None
+        self.observed_state = None
 
     def is_available(self) -> bool:
         return True
 
     def transcribe_once(self) -> SpeechTranscriptionResult:
         self.call_count += 1
+        if self.state_reader is not None:
+            self.observed_state = self.state_reader()
         if self._error is not None:
             raise self._error
         return SpeechTranscriptionResult(
@@ -83,11 +87,13 @@ def test_default_noop_tts_is_unavailable() -> None:
 def test_transcribe_once_returns_fake_provider_result() -> None:
     provider = FakeSTTProvider()
     service = _create_service(stt_provider=provider)
+    provider.state_reader = service.get_state
 
     result = service.transcribe_once()
 
     assert result.text == "Merhaba Lina"
     assert provider.call_count == 1
+    assert provider.observed_state is SpeechState.TRANSCRIBING
     assert service.get_state() is SpeechState.IDLE
 
 

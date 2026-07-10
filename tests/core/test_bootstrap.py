@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 from lina.core.bootstrap import create_application_services
+from lina.speech.models import SpeechState
 
 def test_bootstrap_wires_services_correctly(tmp_path: Path) -> None:
     config_path = tmp_path / "settings.toml"
@@ -40,6 +41,10 @@ max_context_characters = 500
         assert services.application is not None
         assert services.conversation_service is not None
         assert services.diagnostics_service is not None
+        assert services.speech_service is not None
+        assert services.speech_service.is_stt_available() is False
+        assert services.speech_service.is_tts_available() is False
+        assert services.speech_service.get_state() is SpeechState.IDLE
         assert services.conversation_service._history_limit == 5
         assert services.diagnostics_service._timeout == 5.0  # Min check in bootstrap
         assert services.conversation_service._memory_service is not None

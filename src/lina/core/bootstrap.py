@@ -19,6 +19,8 @@ from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import ModelDiagnosticsService
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
+from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
+from lina.speech.service import SpeechService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
 from lina.tools.registry import ToolRegistry
 
@@ -30,6 +32,7 @@ class ApplicationServices:
     application: LinaApplication
     conversation_service: ConversationService
     diagnostics_service: ModelDiagnosticsService
+    speech_service: SpeechService
 
 
 def create_application_services(
@@ -85,11 +88,16 @@ def create_application_services(
         model=settings.ollama.default_model,
         timeout=min(settings.ollama.request_timeout, 5.0),
     )
+    speech_service = SpeechService(
+        stt_provider=NoOpSTTProvider(),
+        tts_provider=NoOpTTSProvider(),
+    )
 
     return ApplicationServices(
         application=application,
         conversation_service=conversation_service,
         diagnostics_service=diagnostics_service,
+        speech_service=speech_service,
     )
 
 

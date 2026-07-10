@@ -41,6 +41,7 @@ def _launch_tkinter_gui(services: ApplicationServices) -> None:
     gui = LinaGui(
         conversation_service=services.conversation_service,
         diagnostics_service=services.diagnostics_service,
+        speech_service=services.speech_service,
     )
     gui.run()
 
