@@ -517,11 +517,13 @@ class LinaMainWindow(QMainWindow):
     def _schedule_scroll_to_bottom(self) -> None:
         self._pending_scroll_to_bottom = True
         self._pending_scroll_to_top = False
-        self._scroll_retry_count = 4
+        self._scroll_retry_count = 8
         self._message_container.layout().activate()
         QTimer.singleShot(0, self._scroll_to_bottom)
         QTimer.singleShot(25, self._scroll_to_bottom)
         QTimer.singleShot(75, self._scroll_to_bottom)
+        QTimer.singleShot(150, self._scroll_to_bottom)
+        QTimer.singleShot(250, self._scroll_to_bottom)
 
     def _schedule_scroll_to_top(self) -> None:
         self._pending_scroll_to_top = True
@@ -543,7 +545,7 @@ class LinaMainWindow(QMainWindow):
             bar.setValue(bar.maximum())
         finally:
             self._is_programmatic_scroll = False
-        if bar.value() >= bar.maximum() or self._scroll_retry_count <= 0:
+        if self._scroll_retry_count <= 0:
             self._pending_scroll_to_bottom = False
             self._scroll_retry_count = 0
             self._auto_scroll_enabled = True

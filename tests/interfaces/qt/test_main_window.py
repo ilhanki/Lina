@@ -259,6 +259,30 @@ def test_auto_scroll_retries_for_long_assistant_messages(qtbot) -> None:
     qtbot.waitUntil(lambda: bar.value() == bar.maximum())
 
 
+def test_auto_scroll_tracks_assistant_bubble_growth_after_initial_scroll(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1040, 640)
+    window.show()
+
+    message = window._append_assistant_message("Kısa cevap")
+    bar = window._scroll.verticalScrollBar()
+    qtbot.wait(30)
+
+    message.text_label.setText("Geç büyüyen Lina cevabı\n" * 120)
+    message.raw_text = message.text_label.text()
+    window._message_container.layout().activate()
+    window._schedule_scroll_to_bottom()
+
+    qtbot.waitUntil(lambda: bar.maximum() > 0)
+    qtbot.waitUntil(lambda: bar.value() == bar.maximum())
+
+
 def test_auto_scroll_preserves_position_when_user_reads_old_messages(qtbot) -> None:
     window = LinaMainWindow(
         conversation_service=FakeConversationService(),
