@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.6.3-alpha PySide6 Desktop UI Migration
+## Mevcut Durum: v0.6.4-alpha PySide6 UI Refinement & Chat Experience
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -26,6 +26,8 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.6.3-alpha` PySide6 Desktop UI Migration tamamlandı. `python gui.py` artık PySide6 tabanlı modern masaüstü arayüzünü başlatır. Legacy Tkinter GUI silinmedi ve geçici geri dönüş yolu olarak korunur. Migration yalnız interface katmanında tutuldu; Brain, Ollama `/api/chat`, Memory, Files, Speech ve core bootstrap davranışları korunur.
 
+`v0.6.4-alpha` PySide6 UI Refinement & Chat Experience tamamlandı. Mesaj balonları, metadata footer, composer, action button hizaları, smart auto-scroll, sade sidebar, kompakt header/status chipleri ve alt status bar düzeni iyileştirildi. Bu sprint yalnız PySide6 presentation katmanında tutuldu; backend davranışları ve dependency listesi değiştirilmedi.
+
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
 - GUI typing placeholder silme akışı düzeltildi; `Yazıyor...` mesajı gerçek cevap gelince tamamen kaldırılır.
@@ -48,6 +50,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - SpeechService skeleton ve STT/TTS provider sözleşmeleri eklendi.
 - GUI Mic butonu güvenli unavailable fallback ve test edilebilir transkripsiyon akışına bağlandı.
 - PySide6 GUI shell, sidebar, chat bubbles, composer, diagnostics chip, mic flow ve regression testleri eklendi.
+- PySide6 chat experience refinement ile mesaj okuma, auto-scroll, composer yoğunluğu ve sidebar sadeliği iyileştirildi.
 
 Tamamlanan ana başlıklar:
 
@@ -59,6 +62,7 @@ Tamamlanan ana başlıklar:
 - CLI arayüzü.
 - Tkinter Desktop UI v2 (legacy fallback).
 - PySide6 Desktop UI v1.
+- PySide6 Chat Experience Refinement.
 - Runtime conversation context.
 - Memory Capability v1 (explicit local SQLite memory).
 - Project awareness v2 (İzinli dokümanlar ve Git desteği).
@@ -146,6 +150,7 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.6.1-alpha`: Local Push-to-Talk STT Integration.
 - `v0.6.2-alpha`: Professional UI, Readability & Accessibility Polish.
 - `v0.6.3-alpha`: PySide6 Desktop UI Migration.
+- `v0.6.4-alpha`: PySide6 UI Refinement & Chat Experience.
 - `v0.7.0-alpha`: Vision / Screen Awareness v1.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 

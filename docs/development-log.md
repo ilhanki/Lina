@@ -2045,3 +2045,30 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 ### Durum
 
 `v0.6.3-alpha` PySide6 Desktop UI Migration kod tarafında tamamlandı. Tag oluşturulmadı. Sıradaki adım manuel PySide6 GUI smoke testi ve ardından release değerlendirmesidir.
+
+## 2026-07-11 - PySide6 Chat Experience Refinement
+
+### Yapılanlar
+
+- Mesaj balonları yeniden tasarlandı; Lina etiketi, mesaj metni, timestamp ve `Kopyala` aksiyonu daha bütünlüklü hale getirildi.
+- Composer başlangıç yüksekliği kompakt hale getirildi ve multiline büyüme maksimum yükseklikle sınırlandı.
+- `+`, `Mic`, `Screen` ve `Gönder` action butonları eşit yükseklik ve tutarlı spacing ile hizalandı.
+- Smart auto-scroll davranışı `bottom mode` eşiği ve Qt layout/rangeChanged akışıyla güçlendirildi.
+- Kullanıcı eski mesajları okumak için yukarıdaysa scroll konumu korunur; tekrar alta dönüldüğünde auto-scroll yeniden aktif olur.
+- Sidebar sadeleştirildi; `A-`, `A+` ve collapse kontrolleri kaldırıldı.
+- Local mode bilgisi ve header model/mic status chipleri daha kompakt hale getirildi.
+- Alt status bar daha ince bir satıra dönüştürüldü.
+- Plus ve Screen placeholder aksiyonları chat'e tekrar tekrar mesaj eklemeden status feedback verir.
+- Speech UI buton durumları `Mic`, `Durdur` ve `Çevriliyor` akışlarına uygun hale getirildi.
+
+### Mimari Sınırlar
+
+- Değişiklikler yalnız PySide6 presentation katmanında tutuldu.
+- Brain, Ollama `/api/chat`, Memory, Files, Speech backend ve Core davranışları değiştirilmedi.
+- Yeni dependency eklenmedi.
+- Tag oluşturulmadı.
+
+### Test Sonucu
+
+- PySide6 hedefli testler: `20 passed`
+- Tam test paketi: `479 passed`
