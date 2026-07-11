@@ -18,8 +18,11 @@ from lina.files.models import (
 from lina.memory.models import MemoryType
 from lina.memory.service import MemoryService
 from lina.services.deterministic_response_service import DeterministicResponseService
+from lina.services.conversation_models import ConversationInput, ConversationResult
+from lina.services.model_diagnostics_service import VisionDiagnosticsService, VisionStatus
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionError, ToolExecutionService
+from lina.vision.models import VisionRequestError
 
 
 class ConversationService:
@@ -35,6 +38,9 @@ class ConversationService:
         tool_execution_service: ToolExecutionService | None = None,
         memory_service: MemoryService | None = None,
         file_access_service: FileAccessService | None = None,
+        vision_brain: Brain | None = None,
+        vision_diagnostics_service: VisionDiagnosticsService | None = None,
+        consume_vision_attachment_on_success: bool = True,
         history_limit: int = 6,
     ) -> None:
         self._brain = brain
@@ -49,11 +55,25 @@ class ConversationService:
         self._tool_execution_service = tool_execution_service
         self._memory_service = memory_service
         self._file_access_service = file_access_service
+        self._vision_brain = vision_brain
+        self._vision_diagnostics_service = vision_diagnostics_service
+        self._consume_vision_attachment_on_success = (
+            consume_vision_attachment_on_success
+        )
         self._history_limit = history_limit
         self._history: list[ConversationTurn] = []
 
     def handle_message(self, user_message: str) -> ModelResponse:
+        """Handle a text-only message through the existing conversation flow."""
+        return self.handle_input(ConversationInput(text=user_message)).response
+
+    def handle_input(self, conversation_input: ConversationInput) -> ConversationResult:
+        """Handle text with at most one explicit image attachment."""
+        user_message = conversation_input.text.strip()
+        if not user_message:
+            raise ValueError("Conversation input text must not be empty")
         intent = self._intent_analyzer.analyze(user_message)
+        attachment_consumed = False
 
         if intent.type in {
             IntentType.MEMORY_REMEMBER,
@@ -85,7 +105,17 @@ class ConversationService:
                 intent=intent,
                 conversation_history=self._history,
             )
-            response = self._brain.respond_with_context(context)
+            if conversation_input.image_attachment is None:
+                response = self._brain.respond_with_context(context)
+            else:
+                self._ensure_vision_ready()
+                if self._vision_brain is None:
+                    raise VisionRequestError("Vision servisi yapılandırılmamış.")
+                response = self._vision_brain.respond_with_image(
+                    context,
+                    conversation_input.image_attachment,
+                )
+                attachment_consumed = self._consume_vision_attachment_on_success
 
         self._history.append(
             ConversationTurn(
@@ -94,7 +124,17 @@ class ConversationService:
             )
         )
         self._history = self._history[-self._history_limit :]
-        return response
+        return ConversationResult(
+            response=response,
+            attachment_consumed=attachment_consumed,
+        )
+
+    def _ensure_vision_ready(self) -> None:
+        if self._vision_diagnostics_service is None:
+            raise VisionRequestError("Vision diagnostics yapılandırılmamış.")
+        result = self._vision_diagnostics_service.check_status()
+        if result.status is not VisionStatus.READY:
+            raise VisionRequestError(result.message)
 
     def _handle_memory_intent(
         self,

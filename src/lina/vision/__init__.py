@@ -1,5 +1,5 @@
 """Screen capture and computer vision capabilities."""
 
-from lina.vision.models import ImageAttachment, ImageValidationError
+from lina.vision.models import ImageAttachment, ImageValidationError, VisionRequestError
 
-__all__ = ["ImageAttachment", "ImageValidationError"]
+__all__ = ["ImageAttachment", "ImageValidationError", "VisionRequestError"]

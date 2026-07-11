@@ -1,7 +1,10 @@
+from datetime import datetime
+
 from lina.brain.brain import Brain
 from lina.brain.conversation_context import ConversationContext
 from lina.brain.model_provider import ModelMessage, ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
+from lina.vision.models import ImageAttachment, PNG_SIGNATURE
 
 
 class FakeModelProvider:
@@ -114,3 +117,29 @@ def test_brain_responds_with_conversation_context() -> None:
         role="user",
         content="What happened?",
     )
+
+
+def test_brain_passes_image_attachment_to_provider() -> None:
+    provider = FakeModelProvider()
+    brain = Brain(
+        model_provider=provider,
+        prompt_builder=PromptBuilder(system_prompt="Vision guidance"),
+    )
+    context = ConversationContext(
+        user_message="Bu ekranda ne var?",
+        conversation_history=[],
+    )
+    attachment = ImageAttachment(
+        mime_type="image/png",
+        data=PNG_SIGNATURE + b"image",
+        width=640,
+        height=360,
+        captured_at=datetime(2026, 7, 11, 23, 50),
+        source="screen_capture",
+        display_name="Display 1",
+    )
+
+    brain.respond_with_image(context, attachment)
+
+    assert provider.requests[0].image_attachment is attachment
+    assert provider.requests[0].messages[-1].content == "Bu ekranda ne var?"

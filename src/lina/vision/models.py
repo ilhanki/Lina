@@ -13,6 +13,10 @@ class ImageValidationError(ValueError):
     """Raised when an image attachment is unsafe or malformed."""
 
 
+class VisionRequestError(RuntimeError):
+    """Raised when a local vision request cannot safely start."""
+
+
 @dataclass(frozen=True, slots=True)
 class ImageAttachment:
     """One in-memory PNG attachment for a single conversation request."""

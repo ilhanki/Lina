@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,12 @@ from lina.brain.prompt_builder import ConversationTurn
 from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
+from lina.services.conversation_models import ConversationInput
+from lina.services.model_diagnostics_service import (
+    VisionDiagnosticsResult,
+    VisionStatus,
+)
+from lina.vision.models import ImageAttachment, PNG_SIGNATURE, VisionRequestError
 
 
 class FakeBrain:
@@ -17,6 +24,7 @@ class FakeBrain:
         self.project_contexts: list[str | None] = []
         self.file_contexts: list[str | None] = []
         self.failure_message: str | None = None
+        self.image_attachments: list[ImageAttachment] = []
 
     def respond(self, user_message: str) -> ModelResponse:
         self.messages.append(user_message)
@@ -32,6 +40,47 @@ class FakeBrain:
         self.project_contexts.append(context.project_context)
         self.file_contexts.append(context.file_context)
         return ModelResponse(text=f"Response: {context.user_message}")
+
+    def respond_with_image(self, context, attachment) -> ModelResponse:
+        self.messages.append(context.user_message)
+        self.histories.append(list(context.conversation_history))
+        self.image_attachments.append(attachment)
+        return ModelResponse(text=f"Vision response: {context.user_message}")
+
+
+class FakeVisionDiagnosticsService:
+    def __init__(self, status: VisionStatus = VisionStatus.READY) -> None:
+        self.status = status
+        self.calls = 0
+
+    def check_status(self) -> VisionDiagnosticsResult:
+        self.calls += 1
+        messages = {
+            VisionStatus.READY: "Vision hazır.",
+            VisionStatus.MODEL_NOT_AVAILABLE: (
+                "Görüntü analizi için vision modeli kurulu değil."
+            ),
+            VisionStatus.VISION_NOT_SUPPORTED: (
+                "Seçili Ollama modeli görüntü desteğine sahip değil."
+            ),
+        }
+        return VisionDiagnosticsResult(
+            status=self.status,
+            model_name="qwen3-vl:2b",
+            message=messages.get(self.status, "Vision kullanılamıyor."),
+        )
+
+
+def _image_attachment() -> ImageAttachment:
+    return ImageAttachment(
+        mime_type="image/png",
+        data=PNG_SIGNATURE + b"temporary-image",
+        width=1920,
+        height=1080,
+        captured_at=datetime(2026, 7, 11, 23, 55),
+        source="screen_capture",
+        display_name="Display 1",
+    )
 
 
 class CapturingModelProvider:
@@ -991,3 +1040,145 @@ def test_conversation_service_uses_provided_context_manager() -> None:
     assert response == ModelResponse(text="Response: Lina durumu?")
     assert len(brain.project_contexts) == 1
     assert brain.project_contexts[0] == "Injected ContextManager output"
+
+
+def test_conversation_input_with_image_uses_vision_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    text_brain = FakeBrain()
+    vision_brain = FakeBrain()
+    diagnostics = FakeVisionDiagnosticsService()
+    service = ConversationService(
+        brain=text_brain,
+        vision_brain=vision_brain,
+        vision_diagnostics_service=diagnostics,
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+    attachment = _image_attachment()
+
+    result = service.handle_input(
+        ConversationInput(
+            text="Bu ekrandaki hatayı açıkla",
+            image_attachment=attachment,
+        )
+    )
+
+    assert result.response.text == "Vision response: Bu ekrandaki hatayı açıkla"
+    assert result.attachment_consumed is True
+    assert vision_brain.image_attachments == [attachment]
+    assert text_brain.messages == []
+    assert diagnostics.calls == 1
+    assert service._history[-1].user_message == "Bu ekrandaki hatayı açıkla"
+    assert attachment.data not in repr(service._history).encode("utf-8")
+
+
+def test_text_only_input_preserves_existing_text_brain_flow() -> None:
+    from lina.brain.intent import IntentType
+
+    text_brain = FakeBrain()
+    vision_brain = FakeBrain()
+    diagnostics = FakeVisionDiagnosticsService()
+    service = ConversationService(
+        brain=text_brain,
+        vision_brain=vision_brain,
+        vision_diagnostics_service=diagnostics,
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+
+    response = service.handle_message("Normal sohbet")
+
+    assert response.text == "Response: Normal sohbet"
+    assert text_brain.messages == ["Normal sohbet"]
+    assert vision_brain.messages == []
+    assert diagnostics.calls == 0
+
+
+def test_deterministic_intent_does_not_consume_or_send_image() -> None:
+    from lina.brain.intent import IntentType
+
+    vision_brain = FakeBrain()
+    diagnostics = FakeVisionDiagnosticsService()
+    service = ConversationService(
+        brain=FakeBrain(),
+        vision_brain=vision_brain,
+        vision_diagnostics_service=diagnostics,
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CASUAL_GREETING),
+        deterministic_response_service=FakeDeterministicResponseService(True),
+    )
+
+    result = service.handle_input(
+        ConversationInput(text="selam", image_attachment=_image_attachment())
+    )
+
+    assert result.response.text == "Deterministic response"
+    assert result.attachment_consumed is False
+    assert vision_brain.image_attachments == []
+    assert diagnostics.calls == 0
+
+
+def test_memory_intent_keeps_image_attachment_ready() -> None:
+    from lina.brain.intent import IntentType
+
+    vision_brain = FakeBrain()
+    service = ConversationService(
+        brain=FakeBrain(),
+        vision_brain=vision_brain,
+        vision_diagnostics_service=FakeVisionDiagnosticsService(),
+        intent_analyzer=FakeIntentAnalyzer(IntentType.MEMORY_RECALL),
+        memory_service=FakeMemoryService(),
+    )
+
+    result = service.handle_input(
+        ConversationInput(text="ne hatırlıyorsun", image_attachment=_image_attachment())
+    )
+
+    assert result.attachment_consumed is False
+    assert vision_brain.image_attachments == []
+
+
+def test_file_intent_keeps_image_attachment_ready() -> None:
+    from lina.brain.intent import IntentType
+
+    vision_brain = FakeBrain()
+    service = ConversationService(
+        brain=FakeBrain(),
+        vision_brain=vision_brain,
+        vision_diagnostics_service=FakeVisionDiagnosticsService(),
+        intent_analyzer=FakeIntentAnalyzer(IntentType.FILE_READ),
+        file_access_service=FakeFileAccessService(),
+    )
+
+    result = service.handle_input(
+        ConversationInput(
+            text="README dosyasını oku",
+            image_attachment=_image_attachment(),
+        )
+    )
+
+    assert result.attachment_consumed is False
+    assert vision_brain.image_attachments == []
+
+
+def test_unavailable_vision_never_falls_back_to_text_brain() -> None:
+    from lina.brain.intent import IntentType
+
+    text_brain = FakeBrain()
+    service = ConversationService(
+        brain=text_brain,
+        vision_brain=FakeBrain(),
+        vision_diagnostics_service=FakeVisionDiagnosticsService(
+            VisionStatus.MODEL_NOT_AVAILABLE
+        ),
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+
+    with pytest.raises(VisionRequestError, match="vision modeli kurulu değil"):
+        service.handle_input(
+            ConversationInput(text="Ekranı açıkla", image_attachment=_image_attachment())
+        )
+
+    assert text_brain.messages == []
+    assert service._history == []

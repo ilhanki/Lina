@@ -6,6 +6,7 @@ from lina.brain.conversation_context import ConversationContext
 from lina.brain.model_provider import ModelProvider, ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 from lina.brain.prompts import DEFAULT_SYSTEM_PROMPT
+from lina.vision.models import ImageAttachment
 
 
 class Brain:
@@ -38,5 +39,17 @@ class Brain:
     def respond_with_context(self, context: ConversationContext) -> ModelResponse:
         request = ModelRequest(
             messages=self._prompt_builder.build_from_context(context)
+        )
+        return self._model_provider.generate(request)
+
+    def respond_with_image(
+        self,
+        context: ConversationContext,
+        attachment: ImageAttachment,
+    ) -> ModelResponse:
+        """Generate one grounded response from an explicit image attachment."""
+        request = ModelRequest(
+            messages=self._prompt_builder.build_from_context(context),
+            image_attachment=attachment,
         )
         return self._model_provider.generate(request)
