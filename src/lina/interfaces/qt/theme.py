@@ -5,22 +5,31 @@ from __future__ import annotations
 from PySide6.QtGui import QFontDatabase
 
 
-APP_BG = "#0f1117"
-SIDEBAR_BG = "#0a0c11"
-PANEL_BG = "#181c24"
-COMPOSER_BG = "#1d222c"
-ASSISTANT_BUBBLE = "#222833"
-USER_BUBBLE = "#315fe8"
-TEXT_PRIMARY = "#f5f7fb"
-TEXT_SECONDARY = "#d4dae4"
-TEXT_MUTED = "#aab4c3"
-ACCENT = "#5f86ff"
-ACCENT_HOVER = "#7396ff"
-BORDER = "#343c49"
-SUCCESS = "#65d69e"
-WARNING = "#f2c66d"
-ERROR = "#ff7b86"
-DISABLED = "#697386"
+APP_BG = "#0e1117"
+SIDEBAR_BG = "#0b0e14"
+PANEL_BG = "#171b23"
+ELEVATED_BG = "#1c222d"
+COMPOSER_BG = "#151a22"
+ASSISTANT_BUBBLE = "#202631"
+USER_BUBBLE = "#2f5fd7"
+TEXT_PRIMARY = "#f4f7fb"
+TEXT_SECONDARY = "#d7dde7"
+TEXT_MUTED = "#9faabc"
+ACCENT = "#6f8fff"
+ACCENT_HOVER = "#7f9cff"
+BORDER = "#2b3340"
+SOFT_BORDER = "#394252"
+SUCCESS = "#69d79b"
+WARNING = "#f0c76e"
+ERROR = "#ff7d88"
+DISABLED = "#7b8493"
+
+SPACE_XS = 4
+SPACE_SM = 8
+SPACE_MD = 12
+SPACE_LG = 16
+SPACE_XL = 24
+SPACE_XXL = 32
 
 FONT_PREFERENCES = ("Segoe UI Variable", "Segoe UI", "Arial")
 MESSAGE_FONT_MIN = 9
@@ -58,50 +67,69 @@ def build_stylesheet(font_family: str) -> str:
             background: {SIDEBAR_BG};
             border-right: 1px solid {BORDER};
         }}
-        QWidget#header, QWidget#composerPanel, QWidget#statusPanel {{
+        QWidget#header {{
             background: {PANEL_BG};
             border: 1px solid {BORDER};
-            border-radius: 8px;
+            border-radius: 10px;
         }}
-        QLabel#mutedLabel {{ color: {TEXT_MUTED}; }}
-        QLabel#statusChip {{
+        QWidget#composerPanel {{
             background: {PANEL_BG};
-            color: {TEXT_SECONDARY};
             border: 1px solid {BORDER};
-            border-radius: 8px;
-            padding: 5px 10px;
+            border-radius: 12px;
         }}
-        QLabel#assistantBubble {{
+        QWidget#statusPanel {{
+            background: transparent;
+            border: none;
+        }}
+        QWidget#assistantBubble {{
             background: {ASSISTANT_BUBBLE};
             border: 1px solid {BORDER};
-            border-radius: 8px;
-            padding: 12px;
+            border-radius: 14px;
         }}
-        QLabel#userBubble {{
+        QWidget#userBubble {{
             background: {USER_BUBBLE};
-            border-radius: 8px;
-            padding: 12px;
+            border: 1px solid #3b6bed;
+            border-radius: 14px;
+        }}
+        QLabel#bubbleText {{
+            background: transparent;
+            border: none;
+            padding: 0;
+        }}
+        QLabel#mutedLabel {{ color: {TEXT_MUTED}; }}
+        QLabel#senderLabel {{
+            color: {TEXT_MUTED};
+            font-weight: 600;
+            font-size: 9pt;
+        }}
+        QLabel#statusChip {{
+            background: {ELEVATED_BG};
+            color: {TEXT_SECONDARY};
+            border: 1px solid {BORDER};
+            border-radius: 13px;
+            padding: 4px 9px;
+            max-height: 28px;
         }}
         QPlainTextEdit {{
             background: {COMPOSER_BG};
             color: {TEXT_PRIMARY};
-            border: 1px solid {BORDER};
-            border-radius: 8px;
-            padding: 9px;
+            border: 1px solid {SOFT_BORDER};
+            border-radius: 10px;
+            padding: 8px 10px;
             selection-background-color: {ACCENT};
         }}
         QPlainTextEdit:focus {{ border: 1px solid {ACCENT}; }}
         QPushButton {{
-            background: {PANEL_BG};
+            background: {ELEVATED_BG};
             color: {TEXT_PRIMARY};
             border: 1px solid {BORDER};
-            border-radius: 7px;
-            min-height: 34px;
-            padding: 4px 11px;
+            border-radius: 9px;
+            min-height: 32px;
+            padding: 4px 10px;
         }}
-        QPushButton:hover {{ background: #252b36; border-color: {ACCENT}; }}
-        QPushButton:pressed {{ background: #313946; }}
-        QPushButton:disabled {{ color: {DISABLED}; border-color: #282e38; }}
+        QPushButton:hover {{ background: #252c38; border-color: {ACCENT}; }}
+        QPushButton:pressed {{ background: #303846; }}
+        QPushButton:disabled {{ color: {DISABLED}; border-color: #252b35; }}
         QPushButton#accentButton {{
             background: {ACCENT};
             color: {TEXT_PRIMARY};
@@ -109,12 +137,25 @@ def build_stylesheet(font_family: str) -> str:
             font-weight: 600;
         }}
         QPushButton#accentButton:hover {{ background: {ACCENT_HOVER}; }}
+        QPushButton#composerActionButton {{
+            min-height: 46px;
+            max-height: 46px;
+            padding: 0 13px;
+        }}
         QPushButton#copyButton {{
             background: transparent;
-            color: {TEXT_SECONDARY};
+            color: {TEXT_MUTED};
             border: none;
-            min-height: 24px;
-            padding: 2px 4px;
+            min-height: 20px;
+            padding: 0 2px;
+            font-size: 9pt;
+        }}
+        QPushButton#copyButton:hover {{ color: {TEXT_PRIMARY}; }}
+        QPushButton#secondaryButton {{
+            background: transparent;
+            color: {TEXT_SECONDARY};
+            min-height: 28px;
+            padding: 2px 9px;
         }}
         QScrollArea {{ border: none; background: {APP_BG}; }}
         QScrollBar:vertical {{

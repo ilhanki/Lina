@@ -25,11 +25,7 @@ from lina.interfaces.qt.formatting import (
     friendly_error_message,
     normalize_assistant_text,
 )
-from lina.interfaces.qt.theme import (
-    MESSAGE_FONT_DEFAULT,
-    clamp_message_font_size,
-    resolve_font_family,
-)
+from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
@@ -37,7 +33,6 @@ from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
     ModelDiagnosticsService,
     ModelStatus,
-    format_status_message,
 )
 from lina.speech.models import (
     SpeechServiceError,
@@ -52,6 +47,7 @@ APP_VERSION = "v0.6.3-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
+AUTO_SCROLL_THRESHOLD_PX = 110
 
 
 class LinaMainWindow(QMainWindow):
@@ -78,12 +74,14 @@ class LinaMainWindow(QMainWindow):
         self._input_history_index = 0
         self._is_waiting = False
         self._is_speech_busy = False
+        self._auto_scroll_enabled = True
+        self._pending_scroll_to_bottom = False
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
 
         self.setWindowTitle("Lina")
-        self.setMinimumSize(1040, 680)
+        self.setMinimumSize(1040, 640)
         self.resize(1240, 780)
         self._apply_window_icon()
         self._build_layout()
@@ -116,7 +114,7 @@ class LinaMainWindow(QMainWindow):
         panel = QWidget(self)
         panel.setObjectName("chatPanel")
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(18, 18, 18, 18)
+        panel_layout.setContentsMargins(16, 14, 16, 14)
         panel_layout.setSpacing(12)
         root_layout.addWidget(panel, 1)
 
@@ -126,15 +124,12 @@ class LinaMainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self._sidebar.new_chat_requested.connect(self.clear_chat)
-        self._sidebar.collapse_requested.connect(self._sidebar.toggle)
-        self._sidebar.font_decrease_requested.connect(lambda: self._change_font_size(-1))
-        self._sidebar.font_increase_requested.connect(lambda: self._change_font_size(1))
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
         header.setObjectName("header")
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(14, 9, 14, 9)
         layout.setSpacing(10)
 
         titles = QVBoxLayout()
@@ -150,7 +145,7 @@ class LinaMainWindow(QMainWindow):
         self._model_status.setObjectName("statusChip")
         layout.addWidget(self._model_status)
 
-        self._speech_status = QLabel("Mic: hazırlanıyor", header)
+        self._speech_status = QLabel("Mic · hazırlanıyor", header)
         self._speech_status.setObjectName("statusChip")
         layout.addWidget(self._speech_status)
         parent_layout.addWidget(header)
@@ -160,10 +155,12 @@ class LinaMainWindow(QMainWindow):
         self._scroll.setWidgetResizable(True)
         self._message_container = QWidget(self._scroll)
         self._message_layout = QVBoxLayout(self._message_container)
-        self._message_layout.setContentsMargins(4, 4, 4, 4)
+        self._message_layout.setContentsMargins(24, 14, 24, 14)
         self._message_layout.setSpacing(14)
         self._message_layout.addStretch(1)
         self._scroll.setWidget(self._message_container)
+        self._scroll.verticalScrollBar().valueChanged.connect(self._update_auto_scroll_state)
+        self._scroll.verticalScrollBar().rangeChanged.connect(self._handle_scroll_range_changed)
         parent_layout.addWidget(self._scroll, 1)
 
     def _build_footer(self, parent_layout: QVBoxLayout) -> None:
@@ -177,7 +174,7 @@ class LinaMainWindow(QMainWindow):
         footer = QWidget(self)
         footer.setObjectName("statusPanel")
         layout = QHBoxLayout(footer)
-        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setContentsMargins(4, 0, 4, 0)
         layout.setSpacing(8)
 
         self._status_label = QLabel("Hazır", footer)
@@ -185,11 +182,13 @@ class LinaMainWindow(QMainWindow):
         layout.addWidget(self._status_label, 1)
 
         clear_button = QPushButton("Temizle", footer)
+        clear_button.setObjectName("secondaryButton")
         clear_button.setToolTip("Görünür sohbeti temizle")
         clear_button.clicked.connect(self.clear_chat)
         layout.addWidget(clear_button)
 
         copy_button = QPushButton("Son cevabı kopyala", footer)
+        copy_button.setObjectName("secondaryButton")
         copy_button.clicked.connect(self.copy_last_response)
         layout.addWidget(copy_button)
         parent_layout.addWidget(footer)
@@ -197,10 +196,10 @@ class LinaMainWindow(QMainWindow):
         self._composer.send_requested.connect(self.send_message)
         self._composer.history_requested.connect(self._navigate_input_history)
         self._composer.attachment_requested.connect(
-            lambda: self._set_status("Dosya ekleme henüz aktif değil.")
+            lambda: self._set_status("Dosya yükleme özelliği henüz aktif değil İlhan.")
         )
         self._composer.screen_requested.connect(
-            lambda: self._set_status("Ekran bağlamı henüz aktif değil.")
+            lambda: self._set_status("Ekran bağlamı özelliği henüz aktif değil İlhan.")
         )
         self._composer.mic_requested.connect(self.handle_mic_request)
 
@@ -279,7 +278,7 @@ class LinaMainWindow(QMainWindow):
             return
 
         self._is_speech_busy = True
-        self._composer.mic_button.setText("Durdur")
+        self._composer.set_mic_state("listening")
         self._composer.mic_button.setEnabled(True)
         self._set_status("Dinliyorum...")
         worker = FunctionWorker(self._speech_service.transcribe_once)
@@ -321,7 +320,7 @@ class LinaMainWindow(QMainWindow):
             self._append_assistant_message(
                 "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
             )
-            self._set_status("Hazır")
+            self._set_status("Metne çevrildi.")
             return
         self._append_assistant_message(
             "Transkripsiyonu mesaj alanına yazamadım İlhan. Tekrar deneyebiliriz."
@@ -340,7 +339,7 @@ class LinaMainWindow(QMainWindow):
 
     def _reset_speech_ui(self) -> None:
         self._is_speech_busy = False
-        self._composer.mic_button.setText("Mic")
+        self._composer.set_mic_state("idle")
         self._composer.mic_button.setEnabled(
             self._speech_service is not None and self._speech_service.is_stt_available()
         )
@@ -360,7 +359,7 @@ class LinaMainWindow(QMainWindow):
         text: str,
         typing: bool = False,
     ) -> ChatMessageWidget:
-        was_near_bottom = self._is_scroll_near_bottom()
+        should_scroll = self._auto_scroll_enabled or self._is_scroll_near_bottom()
         message = ChatMessageWidget(
             role=role,
             text=text,
@@ -384,8 +383,8 @@ class LinaMainWindow(QMainWindow):
         self._message_layout.insertWidget(self._message_layout.count() - 1, row)
         self._message_rows.append(row)
         self._update_message_widths()
-        if was_near_bottom:
-            QTimer.singleShot(0, self._scroll_to_bottom)
+        if should_scroll:
+            self._schedule_scroll_to_bottom()
         return message
 
     def _show_typing_indicator(self) -> None:
@@ -456,19 +455,19 @@ class LinaMainWindow(QMainWindow):
 
     def _handle_diagnostics_result(self, result: object) -> None:
         if isinstance(result, DiagnosticsResult):
-            self._model_status.setText(format_status_message(result))
+            self._model_status.setText(_format_model_status_chip(result))
             if result.status is not ModelStatus.READY:
                 self._set_status(result.message)
 
     def _refresh_speech_status(self) -> None:
         if self._speech_service is None:
-            self._speech_status.setText("Mic: yok")
+            self._speech_status.setText("Mic · yok")
             return
         if self._speech_service.is_stt_available():
-            self._speech_status.setText("Mic: hazır")
+            self._speech_status.setText("Mic · hazır")
             self._composer.mic_button.setEnabled(True)
         else:
-            self._speech_status.setText("Mic: kapalı")
+            self._speech_status.setText("Mic · kapalı")
             self._composer.mic_button.setEnabled(False)
 
     def _start_worker(self, worker: FunctionWorker) -> None:
@@ -476,16 +475,8 @@ class LinaMainWindow(QMainWindow):
         worker.signals.finished.connect(lambda: self._workers.discard(worker))
         self._thread_pool.start(worker)
 
-    def _change_font_size(self, delta: int) -> None:
-        self._message_font_size = clamp_message_font_size(self._message_font_size + delta)
-        self._composer.set_message_font(self._font_family, self._message_font_size)
-        for row in self._message_rows:
-            message = getattr(row, "_message_widget", None)
-            if isinstance(message, ChatMessageWidget):
-                message.set_message_font(self._font_family, self._message_font_size)
-
     def _update_message_widths(self) -> None:
-        width = int(max(360, self._scroll.viewport().width() * 0.72))
+        width = int(min(780, max(340, self._scroll.viewport().width() * 0.70)))
         for row in self._message_rows:
             message = getattr(row, "_message_widget", None)
             if isinstance(message, ChatMessageWidget):
@@ -499,11 +490,25 @@ class LinaMainWindow(QMainWindow):
         if not hasattr(self, "_scroll"):
             return True
         bar = self._scroll.verticalScrollBar()
-        return bar.maximum() - bar.value() <= 48
+        return bar.maximum() - bar.value() <= AUTO_SCROLL_THRESHOLD_PX
+
+    def _update_auto_scroll_state(self) -> None:
+        self._auto_scroll_enabled = self._is_scroll_near_bottom()
+
+    def _handle_scroll_range_changed(self, _minimum: int, _maximum: int) -> None:
+        if self._pending_scroll_to_bottom:
+            QTimer.singleShot(0, self._scroll_to_bottom)
+
+    def _schedule_scroll_to_bottom(self) -> None:
+        self._pending_scroll_to_bottom = True
+        self._message_container.layout().activate()
+        QTimer.singleShot(0, self._scroll_to_bottom)
 
     def _scroll_to_bottom(self) -> None:
         bar = self._scroll.verticalScrollBar()
         bar.setValue(bar.maximum())
+        self._pending_scroll_to_bottom = False
+        self._auto_scroll_enabled = True
 
     def _apply_window_icon(self) -> None:
         if BRANDING_ICON_PATH.exists():
@@ -515,3 +520,17 @@ class LinaMainWindow(QMainWindow):
         if self._speech_service is not None:
             self._speech_service.stop_listening()
         event.accept()
+
+
+def _format_model_status_chip(result: DiagnosticsResult) -> str:
+    if result.status is ModelStatus.READY:
+        return "Model · hazır"
+    if result.status is ModelStatus.CONNECTING:
+        return "Model · bağlanıyor"
+    if result.status is ModelStatus.TIMEOUT:
+        return "Model · timeout"
+    if result.status is ModelStatus.MODEL_NOT_AVAILABLE:
+        return "Model · yok"
+    if result.status is ModelStatus.MODEL_NOT_CONFIGURED:
+        return "Model · ayarsız"
+    return "Model · kapalı"

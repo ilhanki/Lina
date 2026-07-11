@@ -4,6 +4,11 @@ from PySide6.QtCore import Qt
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
+from lina.interfaces.qt.widgets.composer import (
+    COMPOSER_BUTTON_HEIGHT,
+    COMPOSER_INPUT_MAX_HEIGHT,
+    COMPOSER_INPUT_MIN_HEIGHT,
+)
 
 
 def test_theme_clamps_message_font_size() -> None:
@@ -25,6 +30,9 @@ def test_chat_message_is_selectable_and_copyable(qtbot) -> None:
 
     assert signal.args == ["Merhaba"]
     assert widget.text_label.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse
+    assert widget.sender_label.text() == "Lina"
+    assert widget.timestamp_label.text()
+    assert widget.copy_button.parent() is widget.bubble
 
 
 def test_composer_sends_with_enter_and_keeps_shift_enter_newline(qtbot) -> None:
@@ -49,12 +57,34 @@ def test_composer_appends_transcription_to_existing_draft(qtbot) -> None:
     assert composer.text() == "yarın şunu yap roadmap dosyasını aç"
 
 
-def test_sidebar_collapses_without_destroying_branding(qtbot, tmp_path) -> None:
+def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+
+    assert composer.input.minimumHeight() == COMPOSER_INPUT_MIN_HEIGHT
+    assert composer.input.maximumHeight() == COMPOSER_INPUT_MAX_HEIGHT
+    assert composer.attachment_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+    assert composer.mic_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+    assert composer.screen_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+    assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+
+
+def test_composer_multiline_growth_is_bounded(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+
+    composer.set_text("\n".join(str(index) for index in range(20)))
+
+    assert composer.input.height() <= COMPOSER_INPUT_MAX_HEIGHT
+
+
+def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path) -> None:
     sidebar = SidebarWidget(tmp_path / "missing.png", "v0.test", "llama3")
     qtbot.addWidget(sidebar)
 
-    sidebar.toggle()
-
-    assert sidebar.is_expanded is False
-    assert sidebar.width() == SidebarWidget.COLLAPSED_WIDTH
+    assert sidebar.width() == SidebarWidget.WIDTH
     assert sidebar.logo_label.text() == "L"
+    assert not hasattr(sidebar, "font_decrease_button")
+    assert not hasattr(sidebar, "font_increase_button")
+    assert not hasattr(sidebar, "collapse_button")
+    assert "Veriler cihazında" in sidebar.local_status.text()

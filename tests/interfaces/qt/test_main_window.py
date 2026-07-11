@@ -86,6 +86,8 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert window.windowTitle() == "Lina"
     assert "Merhaba İlhan" in _assistant_texts(window)[0]
     assert window._composer.mic_button.isEnabled() is False
+    assert window._model_status.text() == "Model · hazır"
+    assert window._speech_status.text() == "Mic · kapalı"
 
 
 def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
@@ -173,3 +175,67 @@ def test_clear_chat_resets_visible_session(qtbot) -> None:
 
     assert len(window._message_rows) == 1
     assert "Merhaba İlhan" in _assistant_texts(window)[0]
+
+
+def test_placeholder_actions_use_status_without_appending_chat(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    initial_count = len(window._message_rows)
+
+    window._composer.attachment_button.click()
+    assert len(window._message_rows) == initial_count
+    assert "Dosya yükleme" in window._status_label.text()
+
+    window._composer.screen_button.click()
+    assert len(window._message_rows) == initial_count
+    assert "Ekran bağlamı" in window._status_label.text()
+
+
+def test_auto_scroll_goes_to_bottom_when_bottom_mode_is_active(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1040, 640)
+    window.show()
+
+    for index in range(30):
+        window._append_assistant_message(f"Uzun mesaj {index}\n" * 5)
+    qtbot.waitUntil(lambda: window._scroll.verticalScrollBar().maximum() > 0)
+
+    bar = window._scroll.verticalScrollBar()
+    bar.setValue(bar.maximum())
+    window._append_assistant_message("En altta kalmalı")
+    qtbot.waitUntil(lambda: bar.value() == bar.maximum())
+
+
+def test_auto_scroll_preserves_position_when_user_reads_old_messages(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1040, 640)
+    window.show()
+
+    for index in range(30):
+        window._append_assistant_message(f"Uzun mesaj {index}\n" * 5)
+    qtbot.waitUntil(lambda: window._scroll.verticalScrollBar().maximum() > 0)
+
+    bar = window._scroll.verticalScrollBar()
+    bar.setValue(0)
+    window._update_auto_scroll_state()
+    window._append_assistant_message("Konum korunmalı")
+    qtbot.wait(50)
+
+    assert bar.value() == 0
