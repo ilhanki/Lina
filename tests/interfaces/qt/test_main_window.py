@@ -15,6 +15,17 @@ class ImmediateThreadPool:
         worker.run()
 
 
+class DeferredThreadPool:
+    def __init__(self) -> None:
+        self.workers = []
+
+    def start(self, worker) -> None:
+        self.workers.append(worker)
+
+    def run_next(self) -> None:
+        self.workers.pop(0).run()
+
+
 class FakeConversationService:
     def __init__(self, response_text: str = "Yanıt", error: Exception | None = None) -> None:
         self.messages: list[str] = []
@@ -99,6 +110,7 @@ def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
         thread_pool=ImmediateThreadPool(),
     )
     qtbot.addWidget(window)
+    window.show()
 
     window._composer.set_text("selam")
     window.send_message()
@@ -108,6 +120,8 @@ def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
     assert "Yazıyor..." not in _assistant_texts(window)
     assert _assistant_texts(window)[-1] == "Selam İlhan"
     assert window._is_waiting is False
+    assert window._composer.input.isEnabled() is True
+    assert window._composer.send_button.text() == "Gönder"
 
 
 def test_send_message_error_resets_ui(qtbot) -> None:
@@ -118,6 +132,7 @@ def test_send_message_error_resets_ui(qtbot) -> None:
         thread_pool=ImmediateThreadPool(),
     )
     qtbot.addWidget(window)
+    window.show()
 
     window._composer.set_text("merhaba")
     window.send_message()
@@ -125,6 +140,52 @@ def test_send_message_error_resets_ui(qtbot) -> None:
     assert window._typing_message is None
     assert window._is_waiting is False
     assert "Modele ulaşılamadı" in _assistant_texts(window)[-1]
+    assert window._composer.input.isEnabled() is True
+    assert window._composer.send_button.text() == "Gönder"
+
+
+def test_waiting_response_keeps_input_enabled_and_send_button_becomes_stop(qtbot) -> None:
+    pool = DeferredThreadPool()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(response_text="Geç cevap"),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=pool,
+    )
+    qtbot.addWidget(window)
+
+    window._composer.set_text("merhaba")
+    window.send_message()
+
+    assert window._is_waiting is True
+    assert window._composer.input.isEnabled() is True
+    assert window._composer.send_button.text() == "Durdur"
+    assert window._composer.text() == ""
+
+
+def test_stop_button_ignores_late_conversation_result(qtbot) -> None:
+    pool = DeferredThreadPool()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(response_text="Bu görünmemeli"),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=pool,
+    )
+    qtbot.addWidget(window)
+
+    window._composer.set_text("uzun cevap ver")
+    window.send_message()
+    window._composer.send_button.click()
+
+    assert window._is_waiting is False
+    assert window._typing_message is None
+    assert window._composer.input.isEnabled() is True
+    assert window._composer.send_button.text() == "Gönder"
+    assert "Yanıt durduruldu" in window._status_label.text()
+
+    pool.run_next()
+
+    assert "Bu görünmemeli" not in _assistant_texts(window)
 
 
 def test_speech_transcription_writes_input_without_sending(qtbot) -> None:

@@ -61,12 +61,14 @@ class ComposerWidget(QWidget):
     mic_requested = Signal()
     screen_requested = Signal()
     history_requested = Signal(int)
+    stop_requested = Signal()
 
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("composerPanel")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._initial_resize_done = False
+        self._waiting = False
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(SPACE_SM)
@@ -123,7 +125,7 @@ class ComposerWidget(QWidget):
         self.attachment_button.clicked.connect(self.attachment_requested)
         self.mic_button.clicked.connect(self.mic_requested)
         self.screen_button.clicked.connect(self.screen_requested)
-        self.send_button.clicked.connect(self.send_requested)
+        self.send_button.clicked.connect(self._handle_send_button_clicked)
         self._resize_input_to_content()
         QTimer.singleShot(0, self._resize_input_to_content)
 
@@ -149,8 +151,17 @@ class ComposerWidget(QWidget):
         self.input.clear()
 
     def set_waiting(self, waiting: bool) -> None:
-        self.input.setEnabled(not waiting)
-        self.send_button.setEnabled(not waiting and bool(self.text()))
+        self._waiting = waiting
+        self.input.setEnabled(True)
+        self.send_button.setText("Durdur" if waiting else "Gönder")
+        self.send_button.setToolTip(
+            "Yanıtı durdur" if waiting else "Mesajı gönder"
+        )
+        self.send_button.setAccessibleName(
+            "Yanıtı durdur" if waiting else "Mesajı gönder"
+        )
+        self.send_button.setEnabled(True if waiting else bool(self.text()))
+        self.input.setFocus()
 
     def set_message_font(self, family: str, size: int) -> None:
         self.input.setFont(QFont(family, size))
@@ -209,4 +220,10 @@ class ComposerWidget(QWidget):
             QTimer.singleShot(0, self._resize_input_to_content)
 
     def _update_send_state(self) -> None:
-        self.send_button.setEnabled(self.input.isEnabled() and bool(self.text()))
+        self.send_button.setEnabled(True if self._waiting else bool(self.text()))
+
+    def _handle_send_button_clicked(self) -> None:
+        if self._waiting:
+            self.stop_requested.emit()
+            return
+        self.send_requested.emit()

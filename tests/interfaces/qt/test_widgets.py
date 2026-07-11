@@ -81,6 +81,34 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
 
 
+def test_composer_waiting_state_keeps_input_enabled_and_shows_stop(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    composer.set_text("Yeni taslak")
+
+    composer.set_waiting(True)
+
+    assert composer.input.isEnabled() is True
+    assert composer.send_button.text() == "Durdur"
+    assert composer.send_button.isEnabled() is True
+
+    with qtbot.waitSignal(composer.stop_requested, timeout=1000):
+        composer.send_button.click()
+
+
+def test_composer_restores_send_button_after_waiting(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    composer.set_text("Merhaba")
+
+    composer.set_waiting(True)
+    composer.set_waiting(False)
+
+    assert composer.send_button.text() == "Gönder"
+    assert composer.input.isEnabled() is True
+    assert composer.send_button.isEnabled() is True
+
+
 def test_composer_multiline_growth_is_bounded(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)

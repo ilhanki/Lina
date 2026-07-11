@@ -73,6 +73,8 @@ class LinaMainWindow(QMainWindow):
         self._input_history: list[str] = []
         self._input_history_index = 0
         self._is_waiting = False
+        self._active_request_id = 0
+        self._cancelled_request_ids: set[int] = set()
         self._is_speech_busy = False
         self._auto_scroll_enabled = True
         self._pending_scroll_to_bottom = False
@@ -197,6 +199,7 @@ class LinaMainWindow(QMainWindow):
         parent_layout.addWidget(footer)
 
         self._composer.send_requested.connect(self.send_message)
+        self._composer.stop_requested.connect(self.cancel_active_response)
         self._composer.history_requested.connect(self._navigate_input_history)
         self._composer.attachment_requested.connect(
             lambda: self._set_status("Dosya yükleme özelliği henüz aktif değil İlhan.")
@@ -239,10 +242,22 @@ class LinaMainWindow(QMainWindow):
         self._set_waiting_state(True)
         self._set_status("Cevap bekleniyor...")
 
-        worker = FunctionWorker(self._conversation_service.handle_message, message)
-        worker.signals.result.connect(self._handle_conversation_result)
+        self._active_request_id += 1
+        request_id = self._active_request_id
+        worker = FunctionWorker(self._run_conversation_request, request_id, message)
+        worker.signals.result.connect(self._handle_conversation_worker_result)
         worker.signals.error.connect(self._handle_conversation_error)
         self._start_worker(worker)
+
+    def cancel_active_response(self) -> None:
+        """Stop rendering the active response and keep the composer usable."""
+        if not self._is_waiting:
+            return
+        self._cancelled_request_ids.add(self._active_request_id)
+        self._remove_typing_indicator()
+        self._set_waiting_state(False)
+        self._set_status("Yanıt durduruldu.")
+        self._composer.input.setFocus()
 
     def clear_chat(self) -> None:
         """Clear visible session messages without resetting backend services."""
@@ -292,6 +307,35 @@ class LinaMainWindow(QMainWindow):
         worker.signals.finished.connect(self._reset_speech_ui)
         self._start_worker(worker)
 
+    def _run_conversation_request(
+        self,
+        request_id: int,
+        message: str,
+    ) -> tuple[int, str, object]:
+        try:
+            response = self._conversation_service.handle_message(message)
+        except Exception as error:
+            return (request_id, "error", error)
+        return (request_id, "success", response)
+
+    def _handle_conversation_worker_result(self, result: object) -> None:
+        if not isinstance(result, tuple) or len(result) != 3:
+            self._handle_conversation_error(RuntimeError("Invalid conversation result"))
+            return
+        request_id, status, payload = result
+        if not isinstance(request_id, int):
+            self._handle_conversation_error(RuntimeError("Invalid conversation request"))
+            return
+        if request_id in self._cancelled_request_ids:
+            self._cancelled_request_ids.discard(request_id)
+            return
+        if request_id != self._active_request_id:
+            return
+        if status == "error":
+            self._handle_conversation_error(payload)
+            return
+        self._handle_conversation_result(payload)
+
     def _handle_conversation_result(self, response: object) -> None:
         self._remove_typing_indicator()
         text = response.text if isinstance(response, ModelResponse) else str(response)
@@ -299,6 +343,8 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message(text)
         self._set_waiting_state(False)
         self._set_status("Hazır")
+        self._composer.input.setFocus()
+        QTimer.singleShot(0, self._composer.input.setFocus)
 
     def _handle_conversation_error(self, error: object) -> None:
         self._remove_typing_indicator()
@@ -311,6 +357,8 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message(text)
         self._set_waiting_state(False)
         self._set_status("Hata oluştu.")
+        self._composer.input.setFocus()
+        QTimer.singleShot(0, self._composer.input.setFocus)
 
     def _handle_transcription_result(self, result: object) -> None:
         if not isinstance(result, SpeechTranscriptionResult):
