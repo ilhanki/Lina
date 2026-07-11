@@ -18,6 +18,9 @@ from PySide6.QtWidgets import (
 from lina.interfaces.qt.theme import SPACE_MD, SPACE_SM, TEXT_MUTED
 
 
+MIN_BUBBLE_WIDTH = 380
+
+
 class ChatMessageWidget(QWidget):
     """Render one user, assistant, or typing message as a cohesive bubble."""
 
@@ -94,5 +97,8 @@ class ChatMessageWidget(QWidget):
     def set_bubble_width(self, width: int) -> None:
         """Bound the bubble to a readable responsive width."""
         bounded_width = max(320, width)
+        minimum_width = min(MIN_BUBBLE_WIDTH, bounded_width)
         self.setMaximumWidth(bounded_width)
         self.bubble.setMaximumWidth(bounded_width)
+        self.setMinimumWidth(minimum_width)
+        self.bubble.setMinimumWidth(minimum_width)

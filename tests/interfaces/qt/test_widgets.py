@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
+from lina.interfaces.qt.widgets.chat_message import MIN_BUBBLE_WIDTH
 from lina.interfaces.qt.widgets.composer import (
     COMPOSER_BUTTON_HEIGHT,
     COMPOSER_INPUT_MAX_HEIGHT,
@@ -35,6 +36,17 @@ def test_chat_message_is_selectable_and_copyable(qtbot) -> None:
     assert widget.copy_button.parent() is widget.bubble
 
 
+def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
+    widget = ChatMessageWidget("assistant", "Kısa cevap", "Arial", 11)
+    qtbot.addWidget(widget)
+
+    widget.set_bubble_width(760)
+
+    assert widget.minimumWidth() == MIN_BUBBLE_WIDTH
+    assert widget.bubble.minimumWidth() == MIN_BUBBLE_WIDTH
+    assert widget.maximumWidth() == 760
+
+
 def test_composer_sends_with_enter_and_keeps_shift_enter_newline(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)
@@ -62,7 +74,7 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     qtbot.addWidget(composer)
 
     assert composer.input.minimumHeight() == COMPOSER_INPUT_MIN_HEIGHT
-    assert composer.input.maximumHeight() == COMPOSER_INPUT_MAX_HEIGHT
+    assert composer.input.height() == COMPOSER_INPUT_MIN_HEIGHT
     assert composer.attachment_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.mic_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.screen_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
@@ -76,6 +88,49 @@ def test_composer_multiline_growth_is_bounded(qtbot) -> None:
     composer.set_text("\n".join(str(index) for index in range(20)))
 
     assert composer.input.height() <= COMPOSER_INPUT_MAX_HEIGHT
+
+
+def test_composer_first_character_does_not_expand_height(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    initial_height = composer.input.height()
+
+    qtbot.keyClicks(composer.input, "a")
+
+    assert composer.input.height() == initial_height
+
+
+def test_composer_grows_with_new_lines_and_shrinks_when_cleared(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    initial_height = composer.input.height()
+
+    composer.set_text("bir\niki\nüç")
+
+    assert composer.input.height() > initial_height
+
+    composer.clear()
+
+    assert composer.input.height() == COMPOSER_INPUT_MIN_HEIGHT
+
+
+def test_composer_enables_scrollbar_after_max_height(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+
+    composer.set_text("\n".join(str(index) for index in range(40)))
+
+    assert composer.input.height() == COMPOSER_INPUT_MAX_HEIGHT
+    assert composer.input.verticalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAsNeeded
+
+
+def test_transcription_append_recalculates_composer_height(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+
+    assert composer.append_transcription("bir\niki") is True
+
+    assert composer.input.height() > COMPOSER_INPUT_MIN_HEIGHT
 
 
 def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path) -> None:

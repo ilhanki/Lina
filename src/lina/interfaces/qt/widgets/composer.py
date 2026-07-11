@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QKeyEvent, QTextCursor
-from PySide6.QtWidgets import QHBoxLayout, QPlainTextEdit, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QWidget,
+)
 
 from lina.interfaces.qt.theme import SPACE_SM
 
 
-COMPOSER_INPUT_MIN_HEIGHT = 52
+COMPOSER_INPUT_MIN_HEIGHT = 54
 COMPOSER_INPUT_MAX_HEIGHT = 140
 COMPOSER_BUTTON_HEIGHT = 46
 
@@ -59,6 +65,8 @@ class ComposerWidget(QWidget):
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("composerPanel")
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._initial_resize_done = False
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(SPACE_SM)
@@ -75,6 +83,9 @@ class ComposerWidget(QWidget):
         self.input.setPlaceholderText("Lina'ya bir mesaj yaz...")
         self.input.setMinimumHeight(COMPOSER_INPUT_MIN_HEIGHT)
         self.input.setMaximumHeight(COMPOSER_INPUT_MAX_HEIGHT)
+        self.input.setFixedHeight(COMPOSER_INPUT_MIN_HEIGHT)
+        self.input.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.input.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.input.setFont(QFont(font_family, font_size))
         self.input.setAccessibleName("Lina mesaj alanı")
         self.input.setAccessibleDescription("Enter gönderir, Shift Enter yeni satır ekler")
@@ -113,6 +124,8 @@ class ComposerWidget(QWidget):
         self.mic_button.clicked.connect(self.mic_requested)
         self.screen_button.clicked.connect(self.screen_requested)
         self.send_button.clicked.connect(self.send_requested)
+        self._resize_input_to_content()
+        QTimer.singleShot(0, self._resize_input_to_content)
 
     def text(self) -> str:
         return self.input.toPlainText().strip()
@@ -141,6 +154,7 @@ class ComposerWidget(QWidget):
 
     def set_message_font(self, family: str, size: int) -> None:
         self.input.setFont(QFont(family, size))
+        self._resize_input_to_content()
 
     def set_mic_state(self, state: str) -> None:
         """Update the visible microphone action state."""
@@ -168,12 +182,31 @@ class ComposerWidget(QWidget):
         self._update_send_state()
 
     def _resize_input_to_content(self) -> None:
-        document_height = int(self.input.document().size().height()) + 18
+        self.input.document().setTextWidth(max(1, self.input.viewport().width()))
+        document_height = int(
+            self.input.document().documentLayout().documentSize().height()
+        )
+        line_height = self.input.fontMetrics().lineSpacing()
+        explicit_line_height = (self.input.blockCount() * line_height) + 24
+        content_height = max(document_height + 18, explicit_line_height)
         height = max(
             COMPOSER_INPUT_MIN_HEIGHT,
-            min(COMPOSER_INPUT_MAX_HEIGHT, document_height),
+            min(COMPOSER_INPUT_MAX_HEIGHT, content_height),
         )
         self.input.setFixedHeight(height)
+        policy = (
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+            if content_height > COMPOSER_INPUT_MAX_HEIGHT
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.input.setVerticalScrollBarPolicy(policy)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not self._initial_resize_done:
+            self._initial_resize_done = True
+            self._resize_input_to_content()
+            QTimer.singleShot(0, self._resize_input_to_content)
 
     def _update_send_state(self) -> None:
         self.send_button.setEnabled(self.input.isEnabled() and bool(self.text()))
