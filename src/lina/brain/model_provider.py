@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
+from lina.vision.models import ImageAttachment
+
 
 ModelRole = Literal["system", "user", "assistant"]
 
@@ -20,6 +22,7 @@ class ModelRequest:
     """Request sent to a model provider."""
 
     messages: tuple[ModelMessage, ...]
+    image_attachment: ImageAttachment | None = None
 
 
 @dataclass(frozen=True)

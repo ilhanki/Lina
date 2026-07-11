@@ -1,3 +1,6 @@
+import base64
+from datetime import datetime
+import json
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request
@@ -6,6 +9,7 @@ import pytest
 
 from lina.brain.model_provider import ModelMessage, ModelRequest, ModelResponse
 from lina.integrations.ollama_provider import OllamaProvider, OllamaProviderError
+from lina.vision.models import ImageAttachment, PNG_SIGNATURE
 
 
 class FakeHttpResponse:
@@ -73,6 +77,83 @@ def test_ollama_provider_sends_structured_chat_messages() -> None:
         b'"stream": false, "options": {"temperature": 0.1}}'
     )
     assert http_client.timeouts == [12.0]
+
+
+def test_ollama_provider_adds_image_only_to_last_user_message() -> None:
+    http_client = FakeOllamaHttpClient(
+        '{"message": {"role": "assistant", "content": "Görüntü cevabı"}}'.encode(
+            "utf-8"
+        )
+    )
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="qwen3-vl:2b",
+        timeout=120.0,
+        opener=http_client,
+    )
+    image = _image_attachment()
+    request = ModelRequest(
+        messages=(
+            ModelMessage(role="system", content="Vision guidance"),
+            ModelMessage(role="user", content="Önceki soru"),
+            ModelMessage(role="assistant", content="Önceki cevap"),
+            ModelMessage(role="user", content="Bu ekranda ne var?"),
+        ),
+        image_attachment=image,
+    )
+
+    provider.generate(request)
+
+    payload = json.loads(http_client.requests[0].data)
+    assert payload["model"] == "qwen3-vl:2b"
+    assert "images" not in payload["messages"][1]
+    encoded = payload["messages"][-1]["images"][0]
+    assert encoded == base64.b64encode(image.data).decode("ascii")
+    assert "\n" not in encoded
+    assert http_client.timeouts == [120.0]
+
+
+def test_ollama_provider_rejects_oversized_image_before_http() -> None:
+    http_client = FakeOllamaHttpClient(
+        b'{"message": {"role": "assistant", "content": "unused"}}'
+    )
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="qwen3-vl:2b",
+        max_image_bytes=8,
+        opener=http_client,
+    )
+
+    with pytest.raises(OllamaProviderError, match="size limit") as raised:
+        provider.generate(
+            ModelRequest(
+                messages=(ModelMessage(role="user", content="Analyze"),),
+                image_attachment=_image_attachment(),
+            )
+        )
+
+    assert http_client.requests == []
+    assert base64.b64encode(_image_attachment().data).decode("ascii") not in str(
+        raised.value
+    )
+
+
+def test_ollama_provider_requires_user_message_for_image() -> None:
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="qwen3-vl:2b",
+        opener=FakeOllamaHttpClient(
+            b'{"message": {"role": "assistant", "content": "unused"}}'
+        ),
+    )
+
+    with pytest.raises(OllamaProviderError, match="requires a user message"):
+        provider.generate(
+            ModelRequest(
+                messages=(ModelMessage(role="system", content="Guidance"),),
+                image_attachment=_image_attachment(),
+            )
+        )
 
 
 def test_ollama_provider_converts_network_errors() -> None:
@@ -155,4 +236,16 @@ def _model_request() -> ModelRequest:
             ModelMessage(role="system", content="You are Lina."),
             ModelMessage(role="user", content="Hello"),
         )
+    )
+
+
+def _image_attachment() -> ImageAttachment:
+    return ImageAttachment(
+        mime_type="image/png",
+        data=PNG_SIGNATURE + b"private-image-bytes",
+        width=640,
+        height=360,
+        captured_at=datetime(2026, 7, 11, 23, 45),
+        source="screen_capture",
+        display_name="Display 1",
     )
