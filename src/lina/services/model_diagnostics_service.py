@@ -20,11 +20,32 @@ class ModelStatus(Enum):
     TIMEOUT = "timeout"
 
 
+class VisionStatus(Enum):
+    """Possible local vision capability states."""
+
+    READY = "ready"
+    DISABLED = "disabled"
+    OLLAMA_UNREACHABLE = "ollama_unreachable"
+    MODEL_NOT_AVAILABLE = "model_not_available"
+    VISION_NOT_SUPPORTED = "vision_not_supported"
+    TIMEOUT = "timeout"
+    INVALID_RESPONSE = "invalid_response"
+
+
 @dataclass(frozen=True)
 class DiagnosticsResult:
     """Result of a model diagnostics check."""
 
     status: ModelStatus
+    model_name: str
+    message: str
+
+
+@dataclass(frozen=True)
+class VisionDiagnosticsResult:
+    """Result of a configured local vision capability check."""
+
+    status: VisionStatus
     model_name: str
     message: str
 
@@ -131,3 +152,90 @@ class ModelDiagnosticsService:
             return ModelStatus.TIMEOUT
         except (HTTPError, URLError, OSError, json.JSONDecodeError, UnicodeDecodeError):
             return ModelStatus.OLLAMA_UNREACHABLE
+
+
+class VisionDiagnosticsService:
+    """Validate a configured Ollama model through its declared capabilities."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        enabled: bool = True,
+        timeout: float = 5.0,
+        opener: Callable[[Request, float], Any] = urlopen,
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._model = model.strip()
+        self._enabled = enabled
+        self._timeout = timeout
+        self._opener = opener
+
+    @property
+    def configured_model(self) -> str:
+        """Return the configured vision model name."""
+        return self._model
+
+    def check_status(self) -> VisionDiagnosticsResult:
+        """Check model presence and the explicit Ollama vision capability."""
+        if not self._enabled:
+            return self._result(VisionStatus.DISABLED, "Vision devre dışı.")
+        if not self._model:
+            return self._result(
+                VisionStatus.MODEL_NOT_AVAILABLE,
+                "Vision modeli yapılandırılmamış.",
+            )
+
+        request = Request(
+            url=f"{self._base_url}/api/show",
+            data=json.dumps({"model": self._model}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with self._opener(request, timeout=self._timeout) as response:
+                raw = response.read()
+        except HTTPError as error:
+            if error.code == 404:
+                return self._result(
+                    VisionStatus.MODEL_NOT_AVAILABLE,
+                    "Görüntü analizi için vision modeli kurulu değil.",
+                )
+            return self._result(
+                VisionStatus.OLLAMA_UNREACHABLE,
+                "Ollama vision modelini doğrulayamadı.",
+            )
+        except TimeoutError:
+            return self._result(VisionStatus.TIMEOUT, "Vision kontrolü zaman aşımına uğradı.")
+        except (URLError, OSError):
+            return self._result(
+                VisionStatus.OLLAMA_UNREACHABLE,
+                "Lina yerel modele ulaşamadı.",
+            )
+
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return self._result(
+                VisionStatus.INVALID_RESPONSE,
+                "Vision capability cevabı okunamadı.",
+            )
+        if not isinstance(data, dict) or not isinstance(data.get("capabilities"), list):
+            return self._result(
+                VisionStatus.INVALID_RESPONSE,
+                "Vision capability cevabı geçersiz.",
+            )
+        capabilities = data["capabilities"]
+        if "vision" not in capabilities:
+            return self._result(
+                VisionStatus.VISION_NOT_SUPPORTED,
+                "Seçili Ollama modeli görüntü desteğine sahip değil.",
+            )
+        return self._result(VisionStatus.READY, "Vision hazır.")
+
+    def _result(self, status: VisionStatus, message: str) -> VisionDiagnosticsResult:
+        return VisionDiagnosticsResult(
+            status=status,
+            model_name=self._model,
+            message=message,
+        )
