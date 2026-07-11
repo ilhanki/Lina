@@ -1,2 +1,3 @@
 faster-whisper
+PySide6
 sounddevice

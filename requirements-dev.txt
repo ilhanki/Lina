@@ -2,4 +2,4 @@
 # Runtime dependencies belong in requirements.txt.
 
 pytest
-
+pytest-qt
