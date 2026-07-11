@@ -49,6 +49,12 @@ max_context_characters = 500
         assert services.speech_service.get_state() is SpeechState.IDLE
         assert services.conversation_service._history_limit == 5
         assert services.diagnostics_service._timeout == 5.0  # Min check in bootstrap
+        assert services.vision_diagnostics_service.configured_model == "qwen3-vl:2b"
+        assert services.vision_diagnostics_service._timeout == 5.0
+        vision_provider = services.conversation_service._vision_brain._model_provider
+        assert vision_provider._model == "qwen3-vl:2b"
+        assert vision_provider._timeout == 120.0
+        assert vision_provider._max_image_bytes == 8_388_608
         assert services.conversation_service._memory_service is not None
         assert (tmp_path / "data" / "test_memory.sqlite3").exists()
         assert services.conversation_service._context_manager._memory_context_max_items == 4

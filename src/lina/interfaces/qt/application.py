@@ -34,6 +34,7 @@ def run_qt_application(
     window = LinaMainWindow(
         conversation_service=services.conversation_service,
         diagnostics_service=services.diagnostics_service,
+        vision_diagnostics_service=services.vision_diagnostics_service,
         speech_service=services.speech_service,
     )
     window.show()

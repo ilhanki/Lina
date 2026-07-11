@@ -184,9 +184,15 @@ class ComposerWidget(QWidget):
     def clear(self) -> None:
         self.input.clear()
 
-    def set_screen_context(self, width: int, height: int) -> None:
+    def set_screen_context(
+        self,
+        width: int,
+        height: int,
+        analysis_status: str = "Görsel analiz kontrol ediliyor",
+    ) -> None:
         """Show one temporary screen attachment without exposing image data."""
         self.screen_context_label.setText(f"Ekran · {width}×{height}")
+        self.screen_context_note.setText(analysis_status)
         self.screen_context_chip.show()
 
     def clear_screen_context(self) -> None:

@@ -89,7 +89,7 @@ def test_composer_screen_context_chip_can_be_shown_and_removed(qtbot) -> None:
 
     assert composer.screen_context_chip.isVisibleTo(composer)
     assert composer.screen_context_label.text() == "Ekran · 1920×1080"
-    assert "henüz aktif değil" in composer.screen_context_note.text()
+    assert "kontrol ediliyor" in composer.screen_context_note.text()
 
     with qtbot.waitSignal(composer.screen_context_remove_requested, timeout=1000):
         composer.screen_context_remove_button.click()

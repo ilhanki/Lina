@@ -5,6 +5,8 @@ from pathlib import Path
 
 from lina.brain.brain import Brain
 from lina.brain.context_manager import ContextManager
+from lina.brain.prompt_builder import PromptBuilder
+from lina.brain.prompts import VISION_SYSTEM_PROMPT
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -16,7 +18,10 @@ from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
 from lina.services.git_context_service import GitContextService
-from lina.services.model_diagnostics_service import ModelDiagnosticsService
+from lina.services.model_diagnostics_service import (
+    ModelDiagnosticsService,
+    VisionDiagnosticsService,
+)
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
 from lina.speech.audio_recorder import NoOpAudioRecorder, SoundDeviceAudioRecorder
@@ -34,6 +39,7 @@ class ApplicationServices:
     application: LinaApplication
     conversation_service: ConversationService
     diagnostics_service: ModelDiagnosticsService
+    vision_diagnostics_service: VisionDiagnosticsService
     speech_service: SpeechService
 
 
@@ -54,6 +60,16 @@ def create_application_services(
         timeout=settings.ollama.request_timeout,
     )
     brain = Brain(model_provider=provider)
+    vision_provider = OllamaProvider(
+        base_url=settings.ollama.base_url,
+        model=settings.vision.model,
+        timeout=settings.vision.request_timeout,
+        max_image_bytes=settings.vision.max_image_bytes,
+    )
+    vision_brain = Brain(
+        model_provider=vision_provider,
+        prompt_builder=PromptBuilder(system_prompt=VISION_SYSTEM_PROMPT),
+    )
     project_context_service = ProjectContextService(
         project_root=project_root,
         max_characters_per_file=settings.runtime.project_context_max_characters,
@@ -77,12 +93,23 @@ def create_application_services(
     tool_registry.register(EchoTool())
     tool_registry.register(CurrentTimeTool())
     tool_execution_service = ToolExecutionService(tool_registry=tool_registry)
+    vision_diagnostics_service = VisionDiagnosticsService(
+        base_url=settings.ollama.base_url,
+        model=settings.vision.model,
+        enabled=settings.vision.enabled,
+        timeout=min(settings.vision.request_timeout, 5.0),
+    )
     conversation_service = ConversationService(
         brain=brain,
         context_manager=context_manager,
         tool_execution_service=tool_execution_service,
         memory_service=memory_service,
         file_access_service=file_access_service,
+        vision_brain=vision_brain,
+        vision_diagnostics_service=vision_diagnostics_service,
+        consume_vision_attachment_on_success=(
+            settings.vision.consume_attachment_on_success
+        ),
         history_limit=settings.runtime.conversation_history_limit,
     )
     diagnostics_service = ModelDiagnosticsService(
@@ -96,6 +123,7 @@ def create_application_services(
         application=application,
         conversation_service=conversation_service,
         diagnostics_service=diagnostics_service,
+        vision_diagnostics_service=vision_diagnostics_service,
         speech_service=speech_service,
     )
 

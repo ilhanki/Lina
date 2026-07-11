@@ -33,12 +33,16 @@ from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
+from lina.services.conversation_models import ConversationInput, ConversationResult
 from lina.screen.capture_service import ScreenCaptureService
 from lina.screen.models import ScreenCaptureError, ScreenContext
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
     ModelDiagnosticsService,
     ModelStatus,
+    VisionDiagnosticsResult,
+    VisionDiagnosticsService,
+    VisionStatus,
 )
 from lina.speech.models import (
     SpeechServiceError,
@@ -47,6 +51,7 @@ from lina.speech.models import (
     SpeechUnavailableError,
 )
 from lina.speech.service import SpeechService
+from lina.vision.models import ImageAttachment, VisionRequestError
 
 
 APP_VERSION = "v0.7.0-alpha"
@@ -63,6 +68,7 @@ class LinaMainWindow(QMainWindow):
         self,
         conversation_service: ConversationService,
         diagnostics_service: ModelDiagnosticsService | None = None,
+        vision_diagnostics_service: VisionDiagnosticsService | None = None,
         speech_service: SpeechService | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
@@ -73,6 +79,7 @@ class LinaMainWindow(QMainWindow):
         super().__init__(parent)
         self._conversation_service = conversation_service
         self._diagnostics_service = diagnostics_service
+        self._vision_diagnostics_service = vision_diagnostics_service
         self._speech_service = speech_service
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
@@ -89,6 +96,8 @@ class LinaMainWindow(QMainWindow):
         self._is_speech_busy = False
         self._is_screen_capture_busy = False
         self._screen_context: ScreenContext | None = None
+        self._vision_status: VisionDiagnosticsResult | None = None
+        self._request_screen_contexts: dict[int, ScreenContext] = {}
         self._auto_scroll_enabled = True
         self._pending_scroll_to_bottom = False
         self._pending_scroll_to_top = False
@@ -107,6 +116,7 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message(format_welcome_message())
         self._composer.input.setFocus()
         self._run_initial_diagnostics()
+        self._run_initial_vision_diagnostics()
         self._refresh_speech_status()
 
     def _build_layout(self) -> None:
@@ -245,6 +255,8 @@ class LinaMainWindow(QMainWindow):
             return
         message = self._composer.text()
         if not message:
+            if self._screen_context is not None:
+                self._set_status("Ekran görüntüsü hakkında bir soru yaz.")
             return
 
         self._record_input_history(message)
@@ -252,13 +264,25 @@ class LinaMainWindow(QMainWindow):
         self._composer.clear()
         self._auto_scroll_enabled = True
         self._append_user_message(message)
-        self._show_typing_indicator()
+        request_screen_context = self._screen_context
+        self._show_typing_indicator(
+            "Lina ekranı inceliyor..."
+            if request_screen_context is not None
+            else "Yazıyor..."
+        )
         self._set_waiting_state(True)
         self._set_status("Cevap bekleniyor...")
 
         self._active_request_id += 1
         request_id = self._active_request_id
-        worker = FunctionWorker(self._run_conversation_request, request_id, message)
+        if request_screen_context is not None:
+            self._request_screen_contexts[request_id] = request_screen_context
+        worker = FunctionWorker(
+            self._run_conversation_request,
+            request_id,
+            message,
+            request_screen_context,
+        )
         worker.signals.result.connect(self._handle_conversation_worker_result)
         worker.signals.error.connect(self._handle_conversation_error)
         self._start_worker(worker)
@@ -268,6 +292,7 @@ class LinaMainWindow(QMainWindow):
         if not self._is_waiting:
             return
         self._cancelled_request_ids.add(self._active_request_id)
+        self._request_screen_contexts.pop(self._active_request_id, None)
         self._remove_typing_indicator()
         self._set_waiting_state(False)
         self._set_status("Yanıt durduruldu.")
@@ -322,7 +347,11 @@ class LinaMainWindow(QMainWindow):
 
     def _set_screen_context(self, context: ScreenContext) -> None:
         self._screen_context = context
-        self._composer.set_screen_context(context.width, context.height)
+        self._composer.set_screen_context(
+            context.width,
+            context.height,
+            self._vision_attachment_status_text(),
+        )
         self._set_status("Ekran bağlamı eklendi")
 
     def _clear_screen_context(self) -> None:
@@ -364,9 +393,26 @@ class LinaMainWindow(QMainWindow):
         self,
         request_id: int,
         message: str,
+        screen_context: ScreenContext | None,
     ) -> tuple[int, str, object]:
         try:
-            response = self._conversation_service.handle_message(message)
+            if screen_context is None:
+                response: object = self._conversation_service.handle_message(message)
+            else:
+                response = self._conversation_service.handle_input(
+                    ConversationInput(
+                        text=message,
+                        image_attachment=ImageAttachment(
+                            mime_type="image/png",
+                            data=screen_context.image_bytes,
+                            width=screen_context.width,
+                            height=screen_context.height,
+                            captured_at=screen_context.captured_at,
+                            source="screen_capture",
+                            display_name=screen_context.display_name,
+                        ),
+                    )
+                )
         except Exception as error:
             return (request_id, "error", error)
         return (request_id, "success", response)
@@ -381,31 +427,60 @@ class LinaMainWindow(QMainWindow):
             return
         if request_id in self._cancelled_request_ids:
             self._cancelled_request_ids.discard(request_id)
+            self._request_screen_contexts.pop(request_id, None)
             return
         if request_id != self._active_request_id:
+            self._request_screen_contexts.pop(request_id, None)
             return
         if status == "error":
-            self._handle_conversation_error(payload)
+            had_image = self._request_screen_contexts.pop(request_id, None) is not None
+            self._handle_conversation_error(payload, vision_request=had_image)
             return
-        self._handle_conversation_result(payload)
+        request_screen_context = self._request_screen_contexts.pop(request_id, None)
+        self._handle_conversation_result(payload, request_screen_context)
 
-    def _handle_conversation_result(self, response: object) -> None:
+    def _handle_conversation_result(
+        self,
+        result: object,
+        request_screen_context: ScreenContext | None = None,
+    ) -> None:
         self._remove_typing_indicator()
+        if isinstance(result, ConversationResult):
+            response: object = result.response
+            consumed = result.attachment_consumed
+        else:
+            response = result
+            consumed = False
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
         self._set_waiting_state(False)
-        self._set_status("Hazır")
+        if (
+            consumed
+            and request_screen_context is not None
+            and self._screen_context is request_screen_context
+        ):
+            self._clear_screen_context()
+            self._set_status("Ekran görüntüsü analiz edildi")
+        else:
+            self._set_status("Hazır")
         self._composer.input.setFocus()
         QTimer.singleShot(0, self._composer.input.setFocus)
 
-    def _handle_conversation_error(self, error: object) -> None:
+    def _handle_conversation_error(
+        self,
+        error: object,
+        vision_request: bool = False,
+    ) -> None:
         self._remove_typing_indicator()
-        text = (
-            friendly_error_message(error)
-            if isinstance(error, Exception)
-            else "Bir şey ters gitti İlhan. İstersen tekrar deneyebiliriz."
-        )
+        if vision_request and isinstance(error, Exception):
+            text = _friendly_vision_error_message(error)
+        else:
+            text = (
+                friendly_error_message(error)
+                if isinstance(error, Exception)
+                else "Bir şey ters gitti İlhan. İstersen tekrar deneyebiliriz."
+            )
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
         self._set_waiting_state(False)
@@ -495,9 +570,9 @@ class LinaMainWindow(QMainWindow):
             self._schedule_scroll_to_bottom()
         return message
 
-    def _show_typing_indicator(self) -> None:
+    def _show_typing_indicator(self, text: str = "Yazıyor...") -> None:
         self._remove_typing_indicator()
-        self._typing_message = self._append_message("assistant", "Yazıyor...", typing=True)
+        self._typing_message = self._append_message("assistant", text, typing=True)
 
     def _remove_typing_indicator(self) -> None:
         if self._typing_message is None:
@@ -566,6 +641,38 @@ class LinaMainWindow(QMainWindow):
             self._model_status.setText(_format_model_status_chip(result))
             if result.status is not ModelStatus.READY:
                 self._set_status(result.message)
+
+    def _run_initial_vision_diagnostics(self) -> None:
+        if self._vision_diagnostics_service is None:
+            return
+        worker = FunctionWorker(self._vision_diagnostics_service.check_status)
+        worker.signals.result.connect(self._handle_vision_diagnostics_result)
+        self._start_worker(worker)
+
+    def _handle_vision_diagnostics_result(self, result: object) -> None:
+        if not isinstance(result, VisionDiagnosticsResult):
+            return
+        self._vision_status = result
+        if self._screen_context is not None:
+            self._composer.set_screen_context(
+                self._screen_context.width,
+                self._screen_context.height,
+                self._vision_attachment_status_text(),
+            )
+
+    def _vision_attachment_status_text(self) -> str:
+        if self._vision_status is None:
+            return "Vision kontrol ediliyor"
+        labels = {
+            VisionStatus.READY: "Analize hazır",
+            VisionStatus.DISABLED: "Vision kapalı",
+            VisionStatus.MODEL_NOT_AVAILABLE: "Vision modeli hazır değil",
+            VisionStatus.VISION_NOT_SUPPORTED: "Model görüntü desteklemiyor",
+            VisionStatus.TIMEOUT: "Vision kontrolü zaman aşımına uğradı",
+            VisionStatus.OLLAMA_UNREACHABLE: "Ollama ulaşılamıyor",
+            VisionStatus.INVALID_RESPONSE: "Vision durumu doğrulanamadı",
+        }
+        return labels[self._vision_status.status]
 
     def _refresh_speech_status(self) -> None:
         if self._speech_service is None:
@@ -689,3 +796,20 @@ def _format_model_status_chip(result: DiagnosticsResult) -> str:
     if result.status is ModelStatus.MODEL_NOT_CONFIGURED:
         return "Model · ayarsız"
     return "Model · kapalı"
+
+
+def _friendly_vision_error_message(error: Exception) -> str:
+    message = str(error).casefold()
+    if isinstance(error, VisionRequestError):
+        return str(error)
+    if "size limit" in message:
+        return "Ekran görüntüsü analiz için fazla büyük."
+    if "valid png" in message or "image attachment" in message:
+        return "Ekran görüntüsü doğrulanamadı."
+    if "timed out" in message or "timeout" in message:
+        return "Ekran analizi zaman aşımına uğradı. Daha küçük bir görüntüyle tekrar deneyebilirsin."
+    if "network error" in message or "connection refused" in message:
+        return "Lina yerel modele ulaşamadı. Ollama'nın çalıştığını kontrol et."
+    if "http error: 404" in message or "not found" in message:
+        return "Görüntü analizi için vision modeli kurulu değil."
+    return "Ekran görüntüsü analiz edilirken bir sorun oluştu."

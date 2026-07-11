@@ -6,8 +6,15 @@ from PySide6.QtWidgets import QDialog
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
+from lina.services.conversation_models import ConversationResult
 from lina.screen.models import ScreenCaptureError, ScreenContext
-from lina.services.model_diagnostics_service import DiagnosticsResult, ModelStatus
+from lina.vision.models import PNG_SIGNATURE
+from lina.services.model_diagnostics_service import (
+    DiagnosticsResult,
+    ModelStatus,
+    VisionDiagnosticsResult,
+    VisionStatus,
+)
 from lina.speech.models import SpeechState, SpeechTranscriptionResult
 
 
@@ -32,16 +39,33 @@ class DeferredThreadPool:
 
 
 class FakeConversationService:
-    def __init__(self, response_text: str = "Yanıt", error: Exception | None = None) -> None:
+    def __init__(
+        self,
+        response_text: str = "Yanıt",
+        error: Exception | None = None,
+        consume_attachment: bool = True,
+    ) -> None:
         self.messages: list[str] = []
         self._response_text = response_text
         self._error = error
+        self._consume_attachment = consume_attachment
+        self.inputs = []
 
     def handle_message(self, message: str) -> ModelResponse:
         self.messages.append(message)
         if self._error is not None:
             raise self._error
         return ModelResponse(text=self._response_text)
+
+    def handle_input(self, conversation_input) -> ConversationResult:
+        self.inputs.append(conversation_input)
+        self.messages.append(conversation_input.text)
+        if self._error is not None:
+            raise self._error
+        return ConversationResult(
+            response=ModelResponse(text=self._response_text),
+            attachment_consumed=self._consume_attachment,
+        )
 
 
 class FakeDiagnosticsService:
@@ -52,6 +76,20 @@ class FakeDiagnosticsService:
             status=ModelStatus.READY,
             model_name="llama3",
             message="Model hazır.",
+        )
+
+
+class FakeVisionDiagnosticsService:
+    configured_model = "qwen3-vl:2b"
+
+    def __init__(self, status: VisionStatus = VisionStatus.READY) -> None:
+        self.status = status
+
+    def check_status(self) -> VisionDiagnosticsResult:
+        return VisionDiagnosticsResult(
+            status=self.status,
+            model_name=self.configured_model,
+            message="Vision hazır." if self.status is VisionStatus.READY else "Vision yok.",
         )
 
 
@@ -83,12 +121,12 @@ class FakeSpeechService:
 
 def _screen_context(width: int = 1920, height: int = 1080) -> ScreenContext:
     return ScreenContext(
-        image_bytes=b"temporary-screen-bytes",
+        image_bytes=PNG_SIGNATURE + b"temporary-screen-bytes",
         width=width,
         height=height,
         captured_at=datetime(2026, 7, 11, 22, 30),
         display_name="Display 1",
-        estimated_byte_size=22,
+        estimated_byte_size=len(PNG_SIGNATURE + b"temporary-screen-bytes"),
     )
 
 
@@ -342,6 +380,21 @@ def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:
     assert window._status_label.text() == "Ekran bağlamı eklendi"
 
 
+def test_ready_vision_status_is_shown_on_screen_attachment(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        vision_diagnostics_service=FakeVisionDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window._set_screen_context(_screen_context())
+
+    assert window._composer.screen_context_note.text() == "Analize hazır"
+
+
 def test_screen_capture_cancel_does_not_add_context(qtbot) -> None:
     capture = FakeScreenCaptureService()
     dialog = FakePreviewDialog(QDialog.DialogCode.Rejected)
@@ -428,7 +481,7 @@ def test_screen_context_can_be_removed_and_replaced(qtbot) -> None:
     assert window._status_label.text() == "Ekran bağlamı kaldırıldı"
 
 
-def test_screen_context_is_not_sent_to_conversation_service(qtbot) -> None:
+def test_screen_context_is_sent_once_and_consumed_after_success(qtbot) -> None:
     conversation = FakeConversationService()
     window = LinaMainWindow(
         conversation_service=conversation,
@@ -447,7 +500,87 @@ def test_screen_context_is_not_sent_to_conversation_service(qtbot) -> None:
     window.send_message()
 
     assert conversation.messages == ["Merhaba"]
+    assert conversation.inputs[0].image_attachment.data.startswith(PNG_SIGNATURE)
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
+    assert window._status_label.text() == "Ekran görüntüsü analiz edildi"
+
+
+def test_screen_context_is_retained_after_vision_failure(qtbot) -> None:
+    conversation = FakeConversationService(error=ModelProviderError("request timed out"))
+    context = _screen_context()
+    window = LinaMainWindow(
+        conversation_service=conversation,
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(context)
+
+    window._composer.set_text("Bu ekranı açıkla")
+    window.send_message()
+
+    assert window._screen_context is context
+    assert window._composer.screen_context_chip.isHidden() is False
+    assert "zaman aşımına uğradı" in _assistant_texts(window)[-1]
+    assert window._is_waiting is False
+
+
+def test_screen_context_with_empty_input_is_not_sent(qtbot) -> None:
+    conversation = FakeConversationService()
+    window = LinaMainWindow(
+        conversation_service=conversation,
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(_screen_context())
+
+    window.send_message()
+
+    assert conversation.inputs == []
     assert window._screen_context is not None
+    assert window._status_label.text() == "Ekran görüntüsü hakkında bir soru yaz."
+
+
+def test_vision_request_uses_screen_typing_indicator(qtbot) -> None:
+    pool = DeferredThreadPool()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=pool,
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(_screen_context())
+    window._composer.set_text("Bu ekranda ne var?")
+
+    window.send_message()
+
+    assert window._typing_message is not None
+    assert window._typing_message.text_label.text() == "Lina ekranı inceliyor..."
+
+
+def test_removed_context_is_not_restored_by_pending_vision_result(qtbot) -> None:
+    pool = DeferredThreadPool()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=pool,
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(_screen_context())
+    window._composer.set_text("Bu ekranda ne var?")
+    window.send_message()
+
+    window.remove_screen_context()
+    pool.run_next()
+
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
 
 
 def test_clear_chat_removes_screen_context(qtbot) -> None:
