@@ -1,7 +1,12 @@
 """Tests for Lina's PySide6 main window."""
 
+from datetime import datetime
+
+from PySide6.QtWidgets import QDialog
+
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
+from lina.screen.models import ScreenCaptureError, ScreenContext
 from lina.services.model_diagnostics_service import DiagnosticsResult, ModelStatus
 from lina.speech.models import SpeechState, SpeechTranscriptionResult
 
@@ -74,6 +79,44 @@ class FakeSpeechService:
 
     def stop_listening(self) -> None:
         self.stop_count += 1
+
+
+def _screen_context(width: int = 1920, height: int = 1080) -> ScreenContext:
+    return ScreenContext(
+        image_bytes=b"temporary-screen-bytes",
+        width=width,
+        height=height,
+        captured_at=datetime(2026, 7, 11, 22, 30),
+        display_name="Display 1",
+        estimated_byte_size=22,
+    )
+
+
+class FakeScreenCaptureService:
+    def __init__(
+        self,
+        context: ScreenContext | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.context = context or _screen_context()
+        self.error = error
+        self.capture_count = 0
+
+    def capture(self) -> ScreenContext:
+        self.capture_count += 1
+        if self.error is not None:
+            raise self.error
+        return self.context
+
+
+class FakePreviewDialog:
+    def __init__(self, result: QDialog.DialogCode) -> None:
+        self._result = result
+        self.exec_count = 0
+
+    def exec(self) -> QDialog.DialogCode:
+        self.exec_count += 1
+        return self._result
 
 
 def _assistant_texts(window: LinaMainWindow) -> list[str]:
@@ -260,7 +303,7 @@ def test_clear_chat_scrolls_to_top(qtbot) -> None:
     assert window._scroll.verticalScrollBar().value() == window._scroll.verticalScrollBar().minimum()
 
 
-def test_placeholder_actions_use_status_without_appending_chat(qtbot) -> None:
+def test_attachment_placeholder_uses_status_without_appending_chat(qtbot) -> None:
     window = LinaMainWindow(
         conversation_service=FakeConversationService(),
         diagnostics_service=FakeDiagnosticsService(),
@@ -274,9 +317,169 @@ def test_placeholder_actions_use_status_without_appending_chat(qtbot) -> None:
     assert len(window._message_rows) == initial_count
     assert "Dosya yükleme" in window._status_label.text()
 
+
+def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:
+    capture = FakeScreenCaptureService()
+    dialog = FakePreviewDialog(QDialog.DialogCode.Accepted)
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        screen_preview_factory=lambda context, parent: dialog,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
     window._composer.screen_button.click()
-    assert len(window._message_rows) == initial_count
-    assert "Ekran bağlamı" in window._status_label.text()
+
+    assert capture.capture_count == 1
+    assert dialog.exec_count == 1
+    assert window._screen_context is capture.context
+    assert window._composer.screen_context_chip.isVisibleTo(window)
+    assert "1920×1080" in window._composer.screen_context_label.text()
+    assert window._composer.screen_button.isEnabled() is True
+    assert window._status_label.text() == "Ekran bağlamı eklendi"
+
+
+def test_screen_capture_cancel_does_not_add_context(qtbot) -> None:
+    capture = FakeScreenCaptureService()
+    dialog = FakePreviewDialog(QDialog.DialogCode.Rejected)
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        screen_preview_factory=lambda context, parent: dialog,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window.handle_screen_request()
+
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
+    assert window._composer.screen_button.isEnabled() is True
+    assert window._status_label.text() == "Hazır"
+
+
+def test_screen_capture_error_restores_button_without_stale_context(qtbot) -> None:
+    capture = FakeScreenCaptureService(error=ScreenCaptureError("no screen"))
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window.handle_screen_request()
+
+    assert window._screen_context is None
+    assert window._composer.screen_button.isEnabled() is True
+    assert window._is_screen_capture_busy is False
+    assert window._status_label.text() == "Ekran görüntüsü alınamadı."
+
+
+def test_duplicate_screen_request_is_ignored_while_capture_is_busy(qtbot) -> None:
+    capture = FakeScreenCaptureService()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._is_screen_capture_busy = True
+
+    window.handle_screen_request()
+
+    assert capture.capture_count == 0
+
+
+def test_screen_context_can_be_removed_and_replaced(qtbot) -> None:
+    first = _screen_context(1280, 720)
+    second = _screen_context(2560, 1440)
+    capture = FakeScreenCaptureService(first)
+    dialog = FakePreviewDialog(QDialog.DialogCode.Accepted)
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        screen_preview_factory=lambda context, parent: dialog,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window.handle_screen_request()
+    capture.context = second
+    window.handle_screen_request()
+
+    assert window._screen_context is second
+    assert "2560×1440" in window._composer.screen_context_label.text()
+
+    window._composer.screen_context_remove_button.click()
+
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
+    assert window._status_label.text() == "Ekran bağlamı kaldırıldı"
+
+
+def test_screen_context_is_not_sent_to_conversation_service(qtbot) -> None:
+    conversation = FakeConversationService()
+    window = LinaMainWindow(
+        conversation_service=conversation,
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=FakeScreenCaptureService(),
+        screen_preview_factory=lambda context, parent: FakePreviewDialog(
+            QDialog.DialogCode.Accepted
+        ),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.handle_screen_request()
+
+    window._composer.set_text("Merhaba")
+    window.send_message()
+
+    assert conversation.messages == ["Merhaba"]
+    assert window._screen_context is not None
+
+
+def test_clear_chat_removes_screen_context(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(_screen_context())
+
+    window.clear_chat()
+
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
+
+
+def test_close_removes_screen_context(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._set_screen_context(_screen_context())
+
+    window.close()
+
+    assert window._screen_context is None
+    assert window._composer.screen_context_chip.isHidden()
 
 
 def test_auto_scroll_goes_to_bottom_when_bottom_mode_is_active(qtbot) -> None:

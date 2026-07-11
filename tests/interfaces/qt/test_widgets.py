@@ -81,6 +81,24 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
 
 
+def test_composer_screen_context_chip_can_be_shown_and_removed(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+
+    composer.set_screen_context(1920, 1080)
+
+    assert composer.screen_context_chip.isVisibleTo(composer)
+    assert composer.screen_context_label.text() == "Ekran · 1920×1080"
+    assert "henüz aktif değil" in composer.screen_context_note.text()
+
+    with qtbot.waitSignal(composer.screen_context_remove_requested, timeout=1000):
+        composer.screen_context_remove_button.click()
+
+    composer.clear_screen_context()
+    assert composer.screen_context_chip.isHidden()
+    assert composer.screen_context_label.text() == ""
+
+
 def test_composer_waiting_state_keeps_input_enabled_and_shows_stop(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)

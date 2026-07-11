@@ -6,9 +6,11 @@ from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QKeyEvent, QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QLabel,
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -62,6 +64,7 @@ class ComposerWidget(QWidget):
     screen_requested = Signal()
     history_requested = Signal(int)
     stop_requested = Signal()
+    screen_context_remove_requested = Signal()
 
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
@@ -69,9 +72,37 @@ class ComposerWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._initial_resize_done = False
         self._waiting = False
-        layout = QHBoxLayout(self)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(SPACE_SM)
+
+        self.screen_context_chip = QWidget(self)
+        self.screen_context_chip.setObjectName("screenContextChip")
+        chip_layout = QHBoxLayout(self.screen_context_chip)
+        chip_layout.setContentsMargins(10, 4, 6, 4)
+        chip_layout.setSpacing(SPACE_SM)
+        self.screen_context_label = QLabel(self.screen_context_chip)
+        self.screen_context_label.setToolTip("Geçici ekran bağlamı")
+        chip_layout.addWidget(self.screen_context_label)
+        self.screen_context_note = QLabel(
+            "Görsel analiz henüz aktif değil",
+            self.screen_context_chip,
+        )
+        self.screen_context_note.setObjectName("mutedLabel")
+        chip_layout.addWidget(self.screen_context_note, 1)
+        self.screen_context_remove_button = QPushButton("Kaldır", self.screen_context_chip)
+        self.screen_context_remove_button.setObjectName("screenContextRemoveButton")
+        self.screen_context_remove_button.setAccessibleName("Ekran bağlamını kaldır")
+        self.screen_context_remove_button.setToolTip("Geçici ekran bağlamını kaldır")
+        chip_layout.addWidget(self.screen_context_remove_button)
+        self.screen_context_chip.hide()
+        layout.addWidget(self.screen_context_chip)
+
+        action_row = QWidget(self)
+        action_layout = QHBoxLayout(action_row)
+        action_layout.setContentsMargins(0, 0, 0, 0)
+        action_layout.setSpacing(SPACE_SM)
+        layout.addWidget(action_row)
 
         self.attachment_button = QPushButton("+", self)
         self._configure_action_button(
@@ -79,7 +110,7 @@ class ComposerWidget(QWidget):
             tooltip="Dosya ekle - henüz aktif değil",
             accessible_name="Dosya ekle",
         )
-        layout.addWidget(self.attachment_button)
+        action_layout.addWidget(self.attachment_button)
 
         self.input = ComposerInput(self)
         self.input.setPlaceholderText("Lina'ya bir mesaj yaz...")
@@ -91,7 +122,7 @@ class ComposerWidget(QWidget):
         self.input.setFont(QFont(font_family, font_size))
         self.input.setAccessibleName("Lina mesaj alanı")
         self.input.setAccessibleDescription("Enter gönderir, Shift Enter yeni satır ekler")
-        layout.addWidget(self.input, 1)
+        action_layout.addWidget(self.input, 1)
 
         self.mic_button = QPushButton("● Mic", self)
         self._configure_action_button(
@@ -99,15 +130,15 @@ class ComposerWidget(QWidget):
             tooltip="Konuşmayı metne çevir",
             accessible_name="Mikrofon",
         )
-        layout.addWidget(self.mic_button)
+        action_layout.addWidget(self.mic_button)
 
-        self.screen_button = QPushButton("□ Screen", self)
+        self.screen_button = QPushButton("Ekran", self)
         self._configure_action_button(
             self.screen_button,
-            tooltip="Ekran bağlamı - henüz aktif değil",
-            accessible_name="Ekran bağlamı",
+            tooltip="Aktif ekranın görüntüsünü yakala",
+            accessible_name="Ekran görüntüsü yakala",
         )
-        layout.addWidget(self.screen_button)
+        action_layout.addWidget(self.screen_button)
 
         self.send_button = QPushButton("Gönder", self)
         self._configure_action_button(
@@ -117,7 +148,7 @@ class ComposerWidget(QWidget):
         )
         self.send_button.setObjectName("accentButton")
         self.send_button.setEnabled(False)
-        layout.addWidget(self.send_button)
+        action_layout.addWidget(self.send_button)
 
         self.input.send_requested.connect(self.send_requested)
         self.input.history_requested.connect(self.history_requested)
@@ -125,6 +156,9 @@ class ComposerWidget(QWidget):
         self.attachment_button.clicked.connect(self.attachment_requested)
         self.mic_button.clicked.connect(self.mic_requested)
         self.screen_button.clicked.connect(self.screen_requested)
+        self.screen_context_remove_button.clicked.connect(
+            self.screen_context_remove_requested
+        )
         self.send_button.clicked.connect(self._handle_send_button_clicked)
         self._resize_input_to_content()
         QTimer.singleShot(0, self._resize_input_to_content)
@@ -149,6 +183,16 @@ class ComposerWidget(QWidget):
 
     def clear(self) -> None:
         self.input.clear()
+
+    def set_screen_context(self, width: int, height: int) -> None:
+        """Show one temporary screen attachment without exposing image data."""
+        self.screen_context_label.setText(f"Ekran · {width}×{height}")
+        self.screen_context_chip.show()
+
+    def clear_screen_context(self) -> None:
+        """Hide and clear the temporary screen attachment summary."""
+        self.screen_context_label.clear()
+        self.screen_context_chip.hide()
 
     def set_waiting(self, waiting: bool) -> None:
         self._waiting = waiting

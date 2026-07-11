@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from PySide6.QtCore import QTimer, QThreadPool
 from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -25,10 +27,14 @@ from lina.interfaces.qt.formatting import (
     friendly_error_message,
     normalize_assistant_text,
 )
+from lina.interfaces.qt.screen_capture import QtScreenCaptureService
+from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
 from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
+from lina.screen.capture_service import ScreenCaptureService
+from lina.screen.models import ScreenCaptureError, ScreenContext
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
     ModelDiagnosticsService,
@@ -58,6 +64,9 @@ class LinaMainWindow(QMainWindow):
         conversation_service: ConversationService,
         diagnostics_service: ModelDiagnosticsService | None = None,
         speech_service: SpeechService | None = None,
+        screen_capture_service: ScreenCaptureService | None = None,
+        screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
+        | None = None,
         thread_pool: QThreadPool | None = None,
         parent: QWidget | None = None,
     ) -> None:
@@ -65,6 +74,8 @@ class LinaMainWindow(QMainWindow):
         self._conversation_service = conversation_service
         self._diagnostics_service = diagnostics_service
         self._speech_service = speech_service
+        self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
+        self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._workers: set[FunctionWorker] = set()
         self._message_rows: list[QWidget] = []
@@ -76,6 +87,8 @@ class LinaMainWindow(QMainWindow):
         self._active_request_id = 0
         self._cancelled_request_ids: set[int] = set()
         self._is_speech_busy = False
+        self._is_screen_capture_busy = False
+        self._screen_context: ScreenContext | None = None
         self._auto_scroll_enabled = True
         self._pending_scroll_to_bottom = False
         self._pending_scroll_to_top = False
@@ -204,8 +217,9 @@ class LinaMainWindow(QMainWindow):
         self._composer.attachment_requested.connect(
             lambda: self._set_status("Dosya yükleme özelliği henüz aktif değil İlhan.")
         )
-        self._composer.screen_requested.connect(
-            lambda: self._set_status("Ekran bağlamı özelliği henüz aktif değil İlhan.")
+        self._composer.screen_requested.connect(self.handle_screen_request)
+        self._composer.screen_context_remove_requested.connect(
+            self.remove_screen_context
         )
         self._composer.mic_requested.connect(self.handle_mic_request)
 
@@ -271,10 +285,49 @@ class LinaMainWindow(QMainWindow):
         self._last_response_text = ""
         self._input_history.clear()
         self._input_history_index = 0
+        self._clear_screen_context()
         self._set_session_title("Yeni Sohbet")
         self._append_assistant_message(format_welcome_message())
         self._set_status("Hazır")
         self._schedule_scroll_to_top()
+
+    def handle_screen_request(self) -> None:
+        """Capture and preview one screen after an explicit user action."""
+        if self._is_screen_capture_busy:
+            return
+        self._is_screen_capture_busy = True
+        self._composer.screen_button.setEnabled(False)
+        self._set_status("Ekran yakalanıyor...")
+        try:
+            context = self._screen_capture_service.capture()
+            dialog = self._screen_preview_factory(context, self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self._set_screen_context(context)
+            else:
+                self._set_status("Hazır")
+        except ScreenCaptureError:
+            self._set_status("Ekran görüntüsü alınamadı.")
+        except Exception:
+            self._set_status("Ekran önizlemesi oluşturulamadı.")
+        finally:
+            self._is_screen_capture_busy = False
+            self._composer.screen_button.setEnabled(True)
+
+    def remove_screen_context(self) -> None:
+        """Remove the active temporary screenshot from the GUI session."""
+        if self._screen_context is None:
+            return
+        self._clear_screen_context()
+        self._set_status("Ekran bağlamı kaldırıldı")
+
+    def _set_screen_context(self, context: ScreenContext) -> None:
+        self._screen_context = context
+        self._composer.set_screen_context(context.width, context.height)
+        self._set_status("Ekran bağlamı eklendi")
+
+    def _clear_screen_context(self) -> None:
+        self._screen_context = None
+        self._composer.clear_screen_context()
 
     def copy_last_response(self) -> None:
         """Copy the last assistant response to the system clipboard."""
@@ -618,6 +671,7 @@ class LinaMainWindow(QMainWindow):
                 self.setWindowIcon(icon)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._clear_screen_context()
         if self._speech_service is not None:
             self._speech_service.stop_listening()
         event.accept()

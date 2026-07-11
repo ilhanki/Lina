@@ -77,6 +77,11 @@ def build_stylesheet(font_family: str) -> str:
             border: 1px solid {BORDER};
             border-radius: 12px;
         }}
+        QWidget#screenContextChip {{
+            background: {ELEVATED_BG};
+            border: 1px solid {ACCENT};
+            border-radius: 8px;
+        }}
         QWidget#statusPanel {{
             background: transparent;
             border: none;
@@ -157,6 +162,15 @@ def build_stylesheet(font_family: str) -> str:
             min-height: 28px;
             padding: 2px 9px;
         }}
+        QPushButton#screenContextRemoveButton {{
+            background: transparent;
+            color: {TEXT_SECONDARY};
+            border: none;
+            min-height: 22px;
+            padding: 0 4px;
+            font-size: 9pt;
+        }}
+        QPushButton#screenContextRemoveButton:hover {{ color: {TEXT_PRIMARY}; }}
         QScrollArea {{ border: none; background: {APP_BG}; }}
         QScrollBar:vertical {{
             background: {APP_BG};
