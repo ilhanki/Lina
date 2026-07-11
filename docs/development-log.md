@@ -2104,3 +2104,46 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 ### Durum
 
 `v0.7.0-alpha` Screen Context Foundation kod ve dokümantasyon tarafında tamamlandı. Tag oluşturulmadı. Sıradaki hedef `v0.7.1-alpha` Vision Provider Architecture çalışmasıdır.
+
+## 2026-07-11 - Local Vision Integration
+
+### Yapılanlar
+
+- `v0.7.0-alpha` Screen Context Foundation tag'i `4db831b` commit'i üzerinde doğrulandı.
+- Normal text modeli ile vision modeli ayrı provider ve Brain instance'ları olarak yapılandırıldı.
+- Varsayılan local vision modeli `qwen3-vl:2b` olarak eklendi.
+- Ollama `/api/show` cevabındaki `vision` capability için ayrı diagnostics akışı eklendi.
+- Framework-neutral `ImageAttachment`, `ConversationInput` ve `ConversationResult` modelleri eklendi.
+- PNG bytes yalnız provider sınırında Base64'e çevrilip `/api/chat` son user mesajının `images` alanına ekleniyor.
+- Vision system prompt görseldeki talimatları güvenilmeyen içerik kabul edecek şekilde sınırlandırıldı.
+- Başarılı vision isteğinde attachment tüketiliyor; hata durumunda yeniden deneme için korunuyor.
+- Memory, Files ve deterministic intent'ler attachment'ı vision modeline göndermiyor ve tüketmiyor.
+- GUI vision isteğinde ayrı typing metni, status feedback ve stale attachment koruması kullanıyor.
+
+### Yerel Model Doğrulaması
+
+- Ollama sürümü: `0.31.2`
+- Kurulu vision modeli: `qwen3-vl:2b`
+- `/api/show` capabilities: `completion, vision, tools, thinking`
+- Resmî minimum Ollama sürümü: `0.12.7`
+- Bellek içi 1×1 test PNG'siyle yerel `/api/chat` smoke testi başarılı.
+
+### Güvenlik ve Kalıcılık
+
+- Screenshot diske, temp klasörüne, Memory'ye, SQLite'a, Files capability'sine veya history'ye yazılmıyor.
+- Raw image, Base64 ve full payload loglanmıyor.
+- Cloud API, OCR dependency, kamera, otomasyon veya sürekli izleme eklenmedi.
+- Yeni Python dependency eklenmedi.
+
+### Test Sonucu
+
+- Vision config ve model testleri: `31 passed`
+- Diagnostics testleri: `24 passed`
+- Provider/Brain testleri: `22 passed`
+- Brain/prompt/conversation testleri: `72 passed`
+- Qt/bootstrap hedefli testler: `47 passed`
+- Tam test paketi: `541 passed`
+
+### Durum
+
+`v0.7.1-alpha` Local Vision Integration kod ve dokümantasyon tarafında tamamlandı. Tag oluşturulmadı; gerçek GUI screenshot smoke testi bekleniyor.

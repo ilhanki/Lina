@@ -141,7 +141,34 @@ Screen Context Foundation, ekran yakalama ile gelecekteki görsel analiz sorumlu
 - Context Memory, Files, SQLite, prompt veya Ollama payload'una aktarılmaz.
 - Pixel içeriği loglanmaz.
 
-Gelecekteki Vision Provider Architecture bu geçici context'i tüketebilecek ayrı bir izin ve provider sınırı tanımlamalıdır. Screen capture varlığı görsel analiz yeteneği anlamına gelmez; OCR, vision model ve model submission bu aşamada yoktur.
+Local Vision Integration, bu geçici context'i yalnız açık kullanıcı sorusu sırasında ayrı bir provider sınırı üzerinden tüketir. Screen capture kendi başına model çağrısı başlatmaz.
+
+## Local Vision Provider Sınırı
+
+Vision request akışı text sohbetinden ayrı ancak mevcut Brain/provider contract'larıyla uyumludur:
+
+```text
+GUI ScreenContext
+  -> ConversationInput + ImageAttachment
+  -> ConversationService intent policy
+  -> Vision Brain
+  -> OllamaProvider /api/chat
+  -> ConversationResult
+  -> GUI attachment lifecycle
+```
+
+- `ImageAttachment` yalnız MIME type, PNG bytes, boyut ve capture metadata taşır; Qt tipi veya dosya yolu içermez.
+- Base64 yalnız `OllamaProvider` JSON payload'unu hazırlarken üretilir.
+- Normal text Brain mevcut text modelini kullanır; vision Brain ayrı model, prompt, timeout ve byte limiti kullanır.
+- `VisionDiagnosticsService`, `/api/show` içindeki açık `vision` capability değerini doğrular.
+- Attachment yalnız son user mesajının `images` alanına eklenir ve geçmiş image'lar tekrar gönderilmez.
+- Başarılı vision response metin olarak history'ye girebilir; raw image ve Base64 history, Memory, Files veya loglara yazılmaz.
+- Memory, Files ve deterministic intent'ler attachment'ı modele göndermez ve tüketmez.
+- Görseldeki yazılar güvenilmeyen içeriktir; tool veya capability yetkisi vermez.
+- Başarılı istek aktif attachment'ı tüketir, başarısız istek yeniden deneme için korur.
+- Vision provider hatasında normal text modele görüntüyü görmüş gibi davranan fallback yapılmaz.
+
+Gelecekte farklı local vision provider'ları aynı framework-neutral image request sınırını uygulayabilir. Region capture ve çoklu image desteği bu sürümün kapsamı dışındadır.
 
 ## Tool Katmanı
 
