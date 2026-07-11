@@ -2015,3 +2015,33 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 - Kurulum, çalıştırma, gerçek konfigürasyon anahtarları, güvenlik sınırları, roadmap ve bilinen sınırlamalar netleştirildi.
 - Lina logosu repository-relative asset yoluyla README üst bölümüne eklendi.
 - Final test sonucu: `459 passed`.
+
+## 2026-07-11 - PySide6 Desktop UI Migration
+
+### Yapılanlar
+
+- Runtime dependency olarak `PySide6`, development dependency olarak `pytest-qt` eklendi.
+- `python gui.py` varsayılan akışı PySide6 GUI launcher'a taşındı.
+- Eski Tkinter GUI silinmedi ve geçici legacy fallback olarak korundu.
+- PySide6 tabanlı `LinaMainWindow`, sidebar, header, chat area, composer, status alanı ve worker altyapısı eklendi.
+- Conversation gönderimi, typing placeholder temizleme, assistant label normalization ve hata durumunda UI reset davranışı PySide6 render path içinde test edildi.
+- Model diagnostics ve speech status bilgileri PySide6 arayüzüne bağlandı.
+- Mic akışı transkripsiyonu composer input alanına yazar; otomatik gönderme davranışı eklenmedi.
+- Input history, yeni sohbet, son cevabı kopyalama ve oturum içi font boyutu kontrolleri PySide6 arayüzünde desteklendi.
+
+### Mimari Kararlar
+
+- Migration yalnız `interfaces` katmanında tutuldu.
+- Brain, Ollama `/api/chat`, Memory, Files, Speech ve core bootstrap davranışları değiştirilmedi.
+- Legacy Tkinter GUI kısa vadeli fallback olarak korunur; birincil masaüstü geliştirme yönü PySide6 olacaktır.
+- GUI testleri gerçek model, mikrofon veya event loop başlatmadan fake servisler ve `pytest-qt` ile çalışır.
+
+### Test Sonucu
+
+- PySide6 hedefli testler: `15 passed`
+- Entrypoint + PySide6 hedefli testler: `17 passed`
+- Tam test paketi: `474 passed`
+
+### Durum
+
+`v0.6.3-alpha` PySide6 Desktop UI Migration kod tarafında tamamlandı. Tag oluşturulmadı. Sıradaki adım manuel PySide6 GUI smoke testi ve ardından release değerlendirmesidir.

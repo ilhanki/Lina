@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.6.2-alpha Professional UI, Readability & Accessibility Polish
+## Mevcut Durum: v0.6.3-alpha PySide6 Desktop UI Migration
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -23,6 +23,8 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 `v0.6.1-alpha` Local Push-to-Talk STT Integration tamamlandı. `sounddevice` ile sınırlandırılmış ve yalnız kullanıcı eylemiyle başlayan kayıt, `faster-whisper` ile Türkçe local transcription, lazy model loading ve GUI Mic kayıt/durdurma akışı eklendi. Ham ses kalıcı olarak saklanmaz ve transkripsiyon otomatik gönderilmez.
 
 `v0.6.2-alpha` Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve release tag'i bekleniyor. Windows DPI awareness, güvenli font fallback zinciri, semantik koyu tema, responsive sidebar/chat/composer düzeni, mesaj başına kopyalama, font boyutu kontrolleri ve composer klavye kısayolları eklendi. Brain, Memory, Files, Speech ve Ollama backend davranışları değiştirilmedi.
+
+`v0.6.3-alpha` PySide6 Desktop UI Migration tamamlandı. `python gui.py` artık PySide6 tabanlı modern masaüstü arayüzünü başlatır. Legacy Tkinter GUI silinmedi ve geçici geri dönüş yolu olarak korunur. Migration yalnız interface katmanında tutuldu; Brain, Ollama `/api/chat`, Memory, Files, Speech ve core bootstrap davranışları korunur.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -45,6 +47,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - GUI branding alanı, Lina logo asset'leri ve window icon fallback desteği eklendi.
 - SpeechService skeleton ve STT/TTS provider sözleşmeleri eklendi.
 - GUI Mic butonu güvenli unavailable fallback ve test edilebilir transkripsiyon akışına bağlandı.
+- PySide6 GUI shell, sidebar, chat bubbles, composer, diagnostics chip, mic flow ve regression testleri eklendi.
 
 Tamamlanan ana başlıklar:
 
@@ -54,7 +57,8 @@ Tamamlanan ana başlıklar:
 - Ollama provider entegrasyonu.
 - Conversation flow.
 - CLI arayüzü.
-- Tkinter Desktop UI v2 (Durum çubuğu ve profesyonel görünüm).
+- Tkinter Desktop UI v2 (legacy fallback).
+- PySide6 Desktop UI v1.
 - Runtime conversation context.
 - Memory Capability v1 (explicit local SQLite memory).
 - Project awareness v2 (İzinli dokümanlar ve Git desteği).
@@ -141,6 +145,7 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.6.0-alpha`: Speech Skeleton + GUI Mic Flow.
 - `v0.6.1-alpha`: Local Push-to-Talk STT Integration.
 - `v0.6.2-alpha`: Professional UI, Readability & Accessibility Polish.
+- `v0.6.3-alpha`: PySide6 Desktop UI Migration.
 - `v0.7.0-alpha`: Vision / Screen Awareness v1.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 

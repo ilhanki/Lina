@@ -108,6 +108,26 @@ ConversationService
 
 Servisler UI bilmemelidir. GUI, CLI veya API sadece servisleri çağırmalıdır.
 
+## Interface Katmanı
+
+`interfaces` katmanı Lina'nın kullanıcıya açılan yüzlerini barındırır. Bu katmandaki kod business logic üretmez; yalnızca kullanıcı etkileşimini toplar, servisleri çağırır ve sonucu kullanıcıya anlaşılır biçimde gösterir.
+
+Mevcut masaüstü arayüzünde PySide6 birincil GUI teknolojisidir. `python gui.py` varsayılan olarak PySide6 arayüzünü başlatır. Eski Tkinter GUI geçici legacy fallback olarak korunur; backend servislerinin sözleşmeleri bu migration nedeniyle değişmez.
+
+GUI katmanı şu sorumluluklarla sınırlıdır:
+
+- Mesaj yazma, gönderme, görüntüleme ve kopyalama.
+- Kullanıcı eylemiyle başlatılan mic akışını `SpeechService` üzerinden tetikleme.
+- Model durumunu `ModelDiagnosticsService` üzerinden göstermeye çalışma.
+- UI durumunu, placeholder'ları, input history'yi ve erişilebilirlik kontrollerini yönetme.
+
+GUI katmanı şunları yapmamalıdır:
+
+- Brain, Memory, Files veya Speech iş kurallarını kendi içinde uygulamak.
+- Ollama veya başka model sağlayıcılarına doğrudan bağlanmak.
+- Genel dosya sistemi, shell veya Windows automation yeteneği eklemek.
+- Servisleri global state veya service locator gibi kullanmak.
+
 ## Tool Katmanı
 
 `tools` katmanı Lina'nın kontrollü şekilde çalıştırabileceği araç altyapısını tanımlar.
