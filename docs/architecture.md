@@ -120,6 +120,7 @@ GUI katmanı şu sorumluluklarla sınırlıdır:
 - Kullanıcı eylemiyle başlatılan mic akışını `SpeechService` üzerinden tetikleme.
 - Model durumunu `ModelDiagnosticsService` üzerinden göstermeye çalışma.
 - UI durumunu, placeholder'ları, input history'yi ve erişilebilirlik kontrollerini yönetme.
+- Açık kullanıcı eylemiyle screen capture adapter'ını çağırma, önizleme/onay alma ve geçici context yaşam döngüsünü gösterme.
 
 GUI katmanı şunları yapmamalıdır:
 
@@ -127,6 +128,20 @@ GUI katmanı şunları yapmamalıdır:
 - Ollama veya başka model sağlayıcılarına doğrudan bağlanmak.
 - Genel dosya sistemi, shell veya Windows automation yeteneği eklemek.
 - Servisleri global state veya service locator gibi kullanmak.
+
+## Screen Context Sınırı
+
+Screen Context Foundation, ekran yakalama ile gelecekteki görsel analiz sorumluluklarını birbirinden ayırır.
+
+- `screen` paketi Qt'den bağımsız immutable `ScreenContext` modelini ve capture contract'ını taşır.
+- PySide6 adapter'ı cursor ekranını, fallback olarak primary screen'i Qt ekran API'leriyle yakalar.
+- Screenshot yalnız bellekte PNG byte representation olarak tutulur; disk veya geçici dosya kullanılmaz.
+- Preview dialog açık kullanıcı onayı ister. İptal edilen görüntü session context'e bağlanmaz.
+- GUI yalnız tek aktif context taşır; replace, kaldırma, yeni sohbet, temizleme ve kapanış referansı temizler.
+- Context Memory, Files, SQLite, prompt veya Ollama payload'una aktarılmaz.
+- Pixel içeriği loglanmaz.
+
+Gelecekteki Vision Provider Architecture bu geçici context'i tüketebilecek ayrı bir izin ve provider sınırı tanımlamalıdır. Screen capture varlığı görsel analiz yeteneği anlamına gelmez; OCR, vision model ve model submission bu aşamada yoktur.
 
 ## Tool Katmanı
 

@@ -2072,3 +2072,35 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 
 - PySide6 hedefli testler: `20 passed`
 - Tam test paketi: `479 passed`
+
+## 2026-07-11 - Screen Context Foundation
+
+### Yapılanlar
+
+- `v0.6.4-alpha` annotated tag'i `485f397` commit'i üzerinde oluşturuldu ve origin'e pushlandı.
+- Screen capture yalnız açık kullanıcı eylemiyle çalışan bir akış olarak eklendi.
+- Qt adapter cursor ekranını, fallback olarak primary screen'i yakalar ve görüntüyü yalnız bellekte PNG byte verisi olarak tutar.
+- Modal preview dialog ekran adı, çözünürlük, capture saati ve gizlilik açıklaması gösterir.
+- Kullanıcı screenshot'ı iptal edebilir veya `Sohbete Ekle` ile session-local context olarak onaylayabilir.
+- Composer üzerinde tek aktif screen context'i gösteren, kaldırılabilir attachment chip eklendi.
+- Yeni screenshot eskisini değiştirir; yeni sohbet, temizleme ve uygulama kapanışı context'i temizler.
+
+### Mimari ve Güvenlik Kararları
+
+- Qt'den bağımsız `ScreenContext` modeli ve capture contract'ı `screen` paketinde tutuldu.
+- Qt ekran erişimi presentation adapter'ında izole edildi.
+- Screenshot diske, temp klasörüne, Memory'ye, SQLite'a, Files capability'sine veya modele gönderilmez.
+- Pixel içeriği loglanmaz; sürekli izleme, OCR, vision model ve background capture eklenmedi.
+- Brain, Ollama, Memory, Files ve Speech davranışları değiştirilmedi.
+- Yeni dependency eklenmedi.
+
+### Test Sonucu
+
+- Screen capture adapter testleri: `4 passed`
+- Preview dialog testleri: `4 passed`
+- Screen context dahil hedefli Qt testleri: `45 passed`
+- Tam test paketi: `508 passed`
+
+### Durum
+
+`v0.7.0-alpha` Screen Context Foundation kod ve dokümantasyon tarafında tamamlandı. Tag oluşturulmadı. Sıradaki hedef `v0.7.1-alpha` Vision Provider Architecture çalışmasıdır.

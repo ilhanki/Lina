@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.6.4-alpha PySide6 UI Refinement & Chat Experience
+## Mevcut Durum: v0.7.0-alpha Screen Context Foundation
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -27,6 +27,10 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 `v0.6.3-alpha` PySide6 Desktop UI Migration tamamlandı. `python gui.py` artık PySide6 tabanlı modern masaüstü arayüzünü başlatır. Legacy Tkinter GUI silinmedi ve geçici geri dönüş yolu olarak korunur. Migration yalnız interface katmanında tutuldu; Brain, Ollama `/api/chat`, Memory, Files, Speech ve core bootstrap davranışları korunur.
 
 `v0.6.4-alpha` PySide6 UI Refinement & Chat Experience tamamlandı. Mesaj balonları, metadata footer, composer, action button hizaları, smart auto-scroll, sade sidebar, kompakt header/status chipleri ve alt status bar düzeni iyileştirildi. Bu sprint yalnız PySide6 presentation katmanında tutuldu; backend davranışları ve dependency listesi değiştirilmedi.
+
+`v0.6.4-alpha` tag'i oluşturuldu ve GitHub'a pushlandı.
+
+`v0.7.0-alpha` Screen Context Foundation tamamlandı. Kullanıcı eylemiyle başlayan Qt ekran yakalama, önizleme/onay dialog'u ve session-local attachment chip eklendi. Screenshot diske kaydedilmez, Memory'ye yazılmaz ve modele gönderilmez. OCR, sürekli izleme ve görsel analiz kapsam dışıdır; release tag'i henüz oluşturulmamıştır.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -151,7 +155,8 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.6.2-alpha`: Professional UI, Readability & Accessibility Polish.
 - `v0.6.3-alpha`: PySide6 Desktop UI Migration.
 - `v0.6.4-alpha`: PySide6 UI Refinement & Chat Experience.
-- `v0.7.0-alpha`: Vision / Screen Awareness v1.
+- `v0.7.0-alpha`: Screen Context Foundation.
+- `v0.7.1-alpha`: Vision Provider Architecture.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 
 ## Milestone 0: Proje Standartları
@@ -386,13 +391,14 @@ Durum:
 - `v0.6.0-alpha` Speech Skeleton + GUI Mic Flow tamamlandı.
 - `v0.6.1-alpha` Local Push-to-Talk STT Integration tamamlandı.
 - `v0.6.2-alpha` Professional UI, Readability & Accessibility Polish tamamlandı; manuel GUI smoke testi ve tag bekleniyor.
-- Sonraki büyük hedef `v0.7.0-alpha` Vision / Screen Awareness v1 için mimari ve güvenlik planlamasıdır.
+- Sonraki büyük hedef `v0.7.1-alpha` Vision Provider Architecture için mimari, izin ve veri sınırlarının planlanmasıdır.
 
 ## Milestone 9: Vision Capability v1
 
 Amaç:
 
-- Ekran görüntüsü alma, OCR ve temel ekran analizini desteklemek.
+- Önce açık kullanıcı eylemiyle çalışan güvenli screen context temelini kurmak.
+- Sonraki aşamada OCR ve görsel analiz provider sınırlarını ayrı değerlendirmek.
 
 Neden bu sırada:
 
@@ -400,9 +406,14 @@ Windows automation güvenli çalışabilmek için ekran farkındalığına ihtiy
 
 Teknolojiler:
 
-- `mss`.
-- Pillow.
-- OCR aracı ayrıca değerlendirilecektir.
+- Screen Context Foundation için mevcut PySide6 / Qt ekran API'leri.
+- Qt'den bağımsız immutable screen context modeli ve capture contract'ı.
+- OCR ve vision provider teknolojileri ayrı mimari ve dependency kararı gerektirir.
+
+Durum:
+
+- `v0.7.0-alpha` Screen Context Foundation tamamlandı; tag oluşturulmadı.
+- `v0.7.1-alpha` Vision Provider Architecture sıradaki hedef olarak planlandı.
 
 ## Milestone 10: Automation Capability v1
 
