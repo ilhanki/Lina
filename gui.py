@@ -13,7 +13,6 @@ if str(SRC_DIR) not in sys.path:
 from lina.core.application import ApplicationState
 from lina.core.bootstrap import create_application_services
 from lina.core.bootstrap import ApplicationServices
-from lina.services.conversation_service import ConversationService
 
 
 def run_gui_application(
@@ -25,7 +24,7 @@ def run_gui_application(
         config_path=config_path,
         project_root=project_root,
     )
-    launcher = gui_launcher or _launch_tkinter_gui
+    launcher = gui_launcher or _launch_pyside6_gui
 
     services.application.start()
     try:
@@ -33,6 +32,12 @@ def run_gui_application(
     finally:
         if services.application.state is ApplicationState.RUNNING:
             services.application.stop()
+
+
+def _launch_pyside6_gui(services: ApplicationServices) -> None:
+    from lina.interfaces.qt.application import run_qt_application
+
+    run_qt_application(services)
 
 
 def _launch_tkinter_gui(services: ApplicationServices) -> None:
