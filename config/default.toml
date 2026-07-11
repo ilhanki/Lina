@@ -39,3 +39,10 @@ max_recording_seconds = 12
 silence_threshold = 0.015
 silence_duration_seconds = 1.2
 auto_send = false
+
+[vision]
+enabled = true
+model = "qwen3-vl:2b"
+request_timeout = 120.0
+max_image_bytes = 8388608
+consume_attachment_on_success = true

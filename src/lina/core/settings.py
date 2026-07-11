@@ -79,6 +79,17 @@ class SpeechSettings:
 
 
 @dataclass(frozen=True)
+class VisionSettings:
+    """Local vision capability settings."""
+
+    enabled: bool = True
+    model: str = "qwen3-vl:2b"
+    request_timeout: float = 120.0
+    max_image_bytes: int = 8_388_608
+    consume_attachment_on_success: bool = True
+
+
+@dataclass(frozen=True)
 class AppSettings:
     """Typed application settings."""
 
@@ -89,6 +100,7 @@ class AppSettings:
     runtime: RuntimeSettings = field(default_factory=RuntimeSettings)
     memory: MemorySettings = field(default_factory=MemorySettings)
     speech: SpeechSettings = field(default_factory=SpeechSettings)
+    vision: VisionSettings = field(default_factory=VisionSettings)
 
 
 def load_settings(config_path: Path) -> AppSettings:
@@ -163,6 +175,40 @@ def load_settings(config_path: Path) -> AppSettings:
             ),
         ),
         speech=_load_speech_settings(raw_settings),
+        vision=_load_vision_settings(raw_settings),
+    )
+
+
+def _load_vision_settings(settings: dict[str, Any]) -> VisionSettings:
+    section = _optional_section(settings, "vision")
+    enabled = _optional_bool(settings, "vision", "enabled", True)
+    raw_model = section.get("model", "qwen3-vl:2b")
+    if not isinstance(raw_model, str):
+        raise ConfigurationError("Config key must be a string: vision.model")
+    model = raw_model.strip()
+    if enabled and not model:
+        raise ConfigurationError("vision.model must not be empty when vision is enabled")
+    return VisionSettings(
+        enabled=enabled,
+        model=model,
+        request_timeout=_optional_positive_float(
+            settings,
+            "vision",
+            "request_timeout",
+            120.0,
+        ),
+        max_image_bytes=_optional_positive_int(
+            settings,
+            "vision",
+            "max_image_bytes",
+            8_388_608,
+        ),
+        consume_attachment_on_success=_optional_bool(
+            settings,
+            "vision",
+            "consume_attachment_on_success",
+            True,
+        ),
     )
 
 

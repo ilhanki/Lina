@@ -59,6 +59,92 @@ def test_load_settings_reads_valid_toml_file(tmp_path: Path) -> None:
     assert settings.speech.channels == 1
     assert settings.speech.max_recording_seconds == 12.0
     assert settings.speech.auto_send is False
+    assert settings.vision.enabled is True
+    assert settings.vision.model == "qwen3-vl:2b"
+    assert settings.vision.request_timeout == 120.0
+    assert settings.vision.max_image_bytes == 8_388_608
+    assert settings.vision.consume_attachment_on_success is True
+
+
+def test_load_settings_reads_local_vision_settings(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path,
+        """
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [vision]
+        enabled = true
+        model = "local-vision"
+        request_timeout = 90
+        max_image_bytes = 1024
+        consume_attachment_on_success = false
+        """,
+    )
+
+    settings = load_settings(config_path).vision
+
+    assert settings.enabled is True
+    assert settings.model == "local-vision"
+    assert settings.request_timeout == 90.0
+    assert settings.max_image_bytes == 1024
+    assert settings.consume_attachment_on_success is False
+
+
+@pytest.mark.parametrize(
+    ("vision_config", "error_message"),
+    [
+        ('enabled = true\nmodel = ""', "vision.model must not be empty"),
+        ('request_timeout = 0', "positive number"),
+        ('max_image_bytes = 0', "positive integer"),
+    ],
+)
+def test_invalid_vision_settings_raise_configuration_error(
+    tmp_path: Path,
+    vision_config: str,
+    error_message: str,
+) -> None:
+    config_path = _write_config(
+        tmp_path,
+        f"""
+        [app]
+        name = "Lina"
+        environment = "development"
+
+        [logging]
+        level = "INFO"
+
+        [paths]
+        data = "data"
+        logs = "logs"
+        models = "models"
+        cache = "cache"
+
+        [ollama]
+        base_url = "http://localhost:11434"
+        default_model = "llama3"
+
+        [vision]
+        {vision_config}
+        """,
+    )
+
+    with pytest.raises(ConfigurationError, match=error_message):
+        load_settings(config_path)
 
 
 def test_load_settings_reads_optional_runtime_settings(tmp_path: Path) -> None:
