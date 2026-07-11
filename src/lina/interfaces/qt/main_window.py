@@ -76,6 +76,9 @@ class LinaMainWindow(QMainWindow):
         self._is_speech_busy = False
         self._auto_scroll_enabled = True
         self._pending_scroll_to_bottom = False
+        self._pending_scroll_to_top = False
+        self._scroll_retry_count = 0
+        self._is_programmatic_scroll = False
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
@@ -230,6 +233,7 @@ class LinaMainWindow(QMainWindow):
         self._record_input_history(message)
         self._update_session_title(message)
         self._composer.clear()
+        self._auto_scroll_enabled = True
         self._append_user_message(message)
         self._show_typing_indicator()
         self._set_waiting_state(True)
@@ -255,6 +259,7 @@ class LinaMainWindow(QMainWindow):
         self._set_session_title("Yeni Sohbet")
         self._append_assistant_message(format_welcome_message())
         self._set_status("Hazır")
+        self._schedule_scroll_to_top()
 
     def copy_last_response(self) -> None:
         """Copy the last assistant response to the system clipboard."""
@@ -290,6 +295,7 @@ class LinaMainWindow(QMainWindow):
     def _handle_conversation_result(self, response: object) -> None:
         self._remove_typing_indicator()
         text = response.text if isinstance(response, ModelResponse) else str(response)
+        self._auto_scroll_enabled = True
         self._append_assistant_message(text)
         self._set_waiting_state(False)
         self._set_status("Hazır")
@@ -301,6 +307,7 @@ class LinaMainWindow(QMainWindow):
             if isinstance(error, Exception)
             else "Bir şey ters gitti İlhan. İstersen tekrar deneyebiliriz."
         )
+        self._auto_scroll_enabled = True
         self._append_assistant_message(text)
         self._set_waiting_state(False)
         self._set_status("Hata oluştu.")
@@ -493,22 +500,66 @@ class LinaMainWindow(QMainWindow):
         return bar.maximum() - bar.value() <= AUTO_SCROLL_THRESHOLD_PX
 
     def _update_auto_scroll_state(self) -> None:
+        if self._is_programmatic_scroll:
+            return
         self._auto_scroll_enabled = self._is_scroll_near_bottom()
+        if not self._auto_scroll_enabled and not self._pending_scroll_to_top:
+            self._pending_scroll_to_bottom = False
+            self._scroll_retry_count = 0
 
     def _handle_scroll_range_changed(self, _minimum: int, _maximum: int) -> None:
+        if self._pending_scroll_to_top:
+            QTimer.singleShot(0, self._scroll_to_top)
+            return
         if self._pending_scroll_to_bottom:
             QTimer.singleShot(0, self._scroll_to_bottom)
 
     def _schedule_scroll_to_bottom(self) -> None:
         self._pending_scroll_to_bottom = True
+        self._pending_scroll_to_top = False
+        self._scroll_retry_count = 4
         self._message_container.layout().activate()
         QTimer.singleShot(0, self._scroll_to_bottom)
+        QTimer.singleShot(25, self._scroll_to_bottom)
+        QTimer.singleShot(75, self._scroll_to_bottom)
+
+    def _schedule_scroll_to_top(self) -> None:
+        self._pending_scroll_to_top = True
+        self._pending_scroll_to_bottom = False
+        self._message_container.layout().activate()
+        QTimer.singleShot(0, self._scroll_to_top)
+        QTimer.singleShot(25, self._scroll_to_top)
 
     def _scroll_to_bottom(self) -> None:
+        if not self._pending_scroll_to_bottom:
+            return
         bar = self._scroll.verticalScrollBar()
-        bar.setValue(bar.maximum())
-        self._pending_scroll_to_bottom = False
-        self._auto_scroll_enabled = True
+        if bar.maximum() == 0 and self._scroll_retry_count > 0:
+            self._scroll_retry_count -= 1
+            QTimer.singleShot(25, self._scroll_to_bottom)
+            return
+        self._is_programmatic_scroll = True
+        try:
+            bar.setValue(bar.maximum())
+        finally:
+            self._is_programmatic_scroll = False
+        if bar.value() >= bar.maximum() or self._scroll_retry_count <= 0:
+            self._pending_scroll_to_bottom = False
+            self._scroll_retry_count = 0
+            self._auto_scroll_enabled = True
+            return
+        self._scroll_retry_count -= 1
+        QTimer.singleShot(25, self._scroll_to_bottom)
+
+    def _scroll_to_top(self) -> None:
+        bar = self._scroll.verticalScrollBar()
+        self._is_programmatic_scroll = True
+        try:
+            bar.setValue(bar.minimum())
+        finally:
+            self._is_programmatic_scroll = False
+        self._pending_scroll_to_top = False
+        self._auto_scroll_enabled = self._is_scroll_near_bottom()
 
     def _apply_window_icon(self) -> None:
         if BRANDING_ICON_PATH.exists():

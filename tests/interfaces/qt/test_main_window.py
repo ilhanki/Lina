@@ -177,6 +177,28 @@ def test_clear_chat_resets_visible_session(qtbot) -> None:
     assert "Merhaba İlhan" in _assistant_texts(window)[0]
 
 
+def test_clear_chat_scrolls_to_top(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1040, 640)
+    window.show()
+
+    for index in range(30):
+        window._append_assistant_message(f"Uzun mesaj {index}\n" * 5)
+    qtbot.waitUntil(lambda: window._scroll.verticalScrollBar().maximum() > 0)
+    window._scroll.verticalScrollBar().setValue(window._scroll.verticalScrollBar().maximum())
+
+    window.clear_chat()
+    qtbot.wait(75)
+
+    assert window._scroll.verticalScrollBar().value() == window._scroll.verticalScrollBar().minimum()
+
+
 def test_placeholder_actions_use_status_without_appending_chat(qtbot) -> None:
     window = LinaMainWindow(
         conversation_service=FakeConversationService(),
@@ -214,6 +236,26 @@ def test_auto_scroll_goes_to_bottom_when_bottom_mode_is_active(qtbot) -> None:
     bar = window._scroll.verticalScrollBar()
     bar.setValue(bar.maximum())
     window._append_assistant_message("En altta kalmalı")
+    qtbot.waitUntil(lambda: bar.value() == bar.maximum())
+
+
+def test_auto_scroll_retries_for_long_assistant_messages(qtbot) -> None:
+    service = FakeConversationService(response_text=("Uzun cevap\n" * 80))
+    window = LinaMainWindow(
+        conversation_service=service,
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1040, 640)
+    window.show()
+
+    window._composer.set_text("uzun cevap ver")
+    window.send_message()
+
+    bar = window._scroll.verticalScrollBar()
+    qtbot.waitUntil(lambda: bar.maximum() > 0)
     qtbot.waitUntil(lambda: bar.value() == bar.maximum())
 
 
