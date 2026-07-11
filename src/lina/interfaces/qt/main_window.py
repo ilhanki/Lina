@@ -49,7 +49,7 @@ from lina.speech.models import (
 from lina.speech.service import SpeechService
 
 
-APP_VERSION = "v0.6.4-alpha"
+APP_VERSION = "v0.7.0-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
