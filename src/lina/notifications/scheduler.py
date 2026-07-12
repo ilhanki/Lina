@@ -1,0 +1,73 @@
+"""Threaded reminder scheduler with injectable clock and presenter."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from threading import Event, Lock, Thread
+from typing import Protocol
+
+from lina.notifications.models import Reminder, ReminderStatus
+from lina.notifications.repository import NotificationRepository
+from lina.notifications.service import next_occurrence
+
+
+class Clock(Protocol):
+    def now(self) -> datetime: ...
+
+
+class SystemClock:
+    def now(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+
+class FakeClock:
+    def __init__(self, value: datetime) -> None:
+        self.value = value
+
+    def now(self) -> datetime:
+        return self.value
+
+    def advance(self, **kwargs: int) -> None:
+        from datetime import timedelta
+        self.value += timedelta(**kwargs)
+
+
+class NotificationScheduler:
+    def __init__(self, repository: NotificationRepository, presenter, clock: Clock | None = None, interval_seconds: float = 30.0) -> None:
+        self._repository = repository
+        self._presenter = presenter
+        self._clock = clock or SystemClock()
+        self._interval = interval_seconds
+        self._stop = Event()
+        self._lock = Lock()
+        self._thread: Thread | None = None
+        self._notified: set[int] = set()
+
+    def check_once(self) -> tuple[Reminder, ...]:
+        now = self._clock.now()
+        due = tuple(item for item in self._repository.list() if item.status is ReminderStatus.ACTIVE and item.due_at <= now and item.id not in self._notified)
+        for reminder in due:
+            self._notified.add(reminder.id or 0)
+            try:
+                self._presenter(reminder)
+            except Exception:
+                pass
+        return due
+
+    def start(self) -> None:
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                return
+            self._stop.clear()
+            self._thread = Thread(target=self._run, name="lina-notification-scheduler", daemon=True)
+            self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+        self._thread = None
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval):
+            self.check_once()
