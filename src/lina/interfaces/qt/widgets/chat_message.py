@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -19,6 +19,8 @@ from lina.interfaces.qt.theme import SPACE_MD, SPACE_SM, TEXT_MUTED
 
 
 MIN_BUBBLE_WIDTH = 380
+MAX_PREVIEW_WIDTH = 560
+MAX_PREVIEW_HEIGHT = 320
 
 
 class ChatMessageWidget(QWidget):
@@ -33,6 +35,7 @@ class ChatMessageWidget(QWidget):
         font_family: str,
         font_size: int,
         typing: bool = False,
+        image_bytes: bytes | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -57,6 +60,24 @@ class ChatMessageWidget(QWidget):
         bubble_layout.setContentsMargins(16, 14, 16, 10)
         bubble_layout.setSpacing(SPACE_MD)
         layout.addWidget(self.bubble)
+
+        self.image_label: QLabel | None = None
+        self._preview_pixmap: QPixmap | None = None
+        if image_bytes:
+            source_pixmap = QPixmap()
+            if source_pixmap.loadFromData(image_bytes):
+                self._preview_pixmap = source_pixmap.scaled(
+                    MAX_PREVIEW_WIDTH,
+                    MAX_PREVIEW_HEIGHT,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self.image_label = QLabel(self.bubble)
+                self.image_label.setObjectName("messageImagePreview")
+                self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.image_label.setAccessibleName("Mesaja eklenen görsel önizlemesi")
+                self.image_label.setPixmap(self._preview_pixmap)
+                bubble_layout.addWidget(self.image_label)
 
         self.text_label = QLabel(text, self.bubble)
         self.text_label.setObjectName("bubbleText")
@@ -102,3 +123,11 @@ class ChatMessageWidget(QWidget):
         self.bubble.setMaximumWidth(bounded_width)
         self.setMinimumWidth(minimum_width)
         self.bubble.setMinimumWidth(minimum_width)
+        if self.image_label is not None and self._preview_pixmap is not None:
+            preview = self._preview_pixmap.scaled(
+                max(1, bounded_width - 32),
+                MAX_PREVIEW_HEIGHT,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.image_label.setPixmap(preview)

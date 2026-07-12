@@ -1,6 +1,7 @@
 """Tests for PySide6 GUI widgets."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
+from PySide6.QtGui import QImage
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
@@ -45,6 +46,30 @@ def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
     assert widget.minimumWidth() == MIN_BUBBLE_WIDTH
     assert widget.bubble.minimumWidth() == MIN_BUBBLE_WIDTH
     assert widget.maximumWidth() == 760
+
+
+def test_user_message_renders_image_preview_above_text(qtbot) -> None:
+    image = QImage(320, 180, QImage.Format.Format_RGB32)
+    image.fill(0x336699)
+    data = QByteArray()
+    buffer = QBuffer(data)
+    assert buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    assert image.save(buffer, "PNG")
+    buffer.close()
+    widget = ChatMessageWidget(
+        "user",
+        "Bu görseli açıkla",
+        "Arial",
+        11,
+        image_bytes=bytes(data),
+    )
+    qtbot.addWidget(widget)
+
+    assert widget.image_label is not None
+    assert widget.image_label.pixmap().isNull() is False
+    assert widget.bubble.layout().indexOf(widget.image_label) < widget.bubble.layout().indexOf(
+        widget.text_label
+    )
 
 
 def test_composer_sends_with_enter_and_keeps_shift_enter_newline(qtbot) -> None:

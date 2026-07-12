@@ -189,9 +189,12 @@ class ComposerWidget(QWidget):
         width: int,
         height: int,
         analysis_status: str = "Görsel analiz kontrol ediliyor",
+        attachment_label: str = "Ekran",
     ) -> None:
         """Show one temporary screen attachment without exposing image data."""
-        self.screen_context_label.setText(f"Ekran · {width}×{height}")
+        self.screen_context_label.setText(
+            f"{attachment_label} · {width}×{height}"
+        )
         self.screen_context_note.setText(analysis_status)
         self.screen_context_chip.show()
 

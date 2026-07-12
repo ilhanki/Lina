@@ -11,6 +11,7 @@ from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -27,6 +28,7 @@ from lina.interfaces.qt.formatting import (
     friendly_error_message,
     normalize_assistant_text,
 )
+from lina.interfaces.qt.image_loader import ImageLoadError, QtImageLoader
 from lina.interfaces.qt.screen_capture import QtScreenCaptureService
 from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
 from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
@@ -71,6 +73,7 @@ class LinaMainWindow(QMainWindow):
         vision_diagnostics_service: VisionDiagnosticsService | None = None,
         speech_service: SpeechService | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
+        image_loader: QtImageLoader | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -82,6 +85,7 @@ class LinaMainWindow(QMainWindow):
         self._vision_diagnostics_service = vision_diagnostics_service
         self._speech_service = speech_service
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
+        self._image_loader = image_loader or QtImageLoader()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._workers: set[FunctionWorker] = set()
@@ -224,9 +228,7 @@ class LinaMainWindow(QMainWindow):
         self._composer.send_requested.connect(self.send_message)
         self._composer.stop_requested.connect(self.cancel_active_response)
         self._composer.history_requested.connect(self._navigate_input_history)
-        self._composer.attachment_requested.connect(
-            lambda: self._set_status("Dosya yükleme özelliği henüz aktif değil İlhan.")
-        )
+        self._composer.attachment_requested.connect(self.handle_image_upload)
         self._composer.screen_requested.connect(self.handle_screen_request)
         self._composer.screen_context_remove_requested.connect(
             self.remove_screen_context
@@ -262,9 +264,16 @@ class LinaMainWindow(QMainWindow):
         self._record_input_history(message)
         self._update_session_title(message)
         self._composer.clear()
-        self._auto_scroll_enabled = True
-        self._append_user_message(message)
         request_screen_context = self._screen_context
+        self._auto_scroll_enabled = True
+        self._append_user_message(
+            message,
+            image_bytes=(
+                request_screen_context.image_bytes
+                if request_screen_context is not None
+                else None
+            ),
+        )
         self._show_typing_indicator(
             "Lina ekranı inceliyor..."
             if request_screen_context is not None
@@ -338,6 +347,24 @@ class LinaMainWindow(QMainWindow):
             self._is_screen_capture_busy = False
             self._composer.screen_button.setEnabled(True)
 
+    def handle_image_upload(self) -> None:
+        """Load one image explicitly selected by the user into temporary context."""
+        selected_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Görsel Seç",
+            "",
+            "Görseller (*.png *.jpg *.jpeg *.webp *.bmp)",
+        )
+        if not selected_path:
+            return
+        try:
+            context = self._image_loader.load(Path(selected_path))
+        except ImageLoadError:
+            self._set_status("Seçilen görsel yüklenemedi.")
+            return
+        self._set_screen_context(context)
+        self._set_status("Görsel analize hazır")
+
     def remove_screen_context(self) -> None:
         """Remove the active temporary screenshot from the GUI session."""
         if self._screen_context is None:
@@ -351,6 +378,11 @@ class LinaMainWindow(QMainWindow):
             context.width,
             context.height,
             self._vision_attachment_status_text(),
+            (
+                f"Görsel · {context.display_name}"
+                if context.source == "file_upload"
+                else "Ekran"
+            ),
         )
         self._set_status("Ekran bağlamı eklendi")
 
@@ -528,8 +560,12 @@ class LinaMainWindow(QMainWindow):
         )
         self._refresh_speech_status()
 
-    def _append_user_message(self, text: str) -> ChatMessageWidget:
-        return self._append_message("user", text)
+    def _append_user_message(
+        self,
+        text: str,
+        image_bytes: bytes | None = None,
+    ) -> ChatMessageWidget:
+        return self._append_message("user", text, image_bytes=image_bytes)
 
     def _append_assistant_message(self, text: str) -> ChatMessageWidget:
         normalized = normalize_assistant_text(text)
@@ -541,6 +577,7 @@ class LinaMainWindow(QMainWindow):
         role: str,
         text: str,
         typing: bool = False,
+        image_bytes: bytes | None = None,
     ) -> ChatMessageWidget:
         should_scroll = self._auto_scroll_enabled or self._is_scroll_near_bottom()
         message = ChatMessageWidget(
@@ -549,6 +586,7 @@ class LinaMainWindow(QMainWindow):
             font_family=self._font_family,
             font_size=self._message_font_size,
             typing=typing,
+            image_bytes=image_bytes,
             parent=self._message_container,
         )
         message.copy_requested.connect(self._copy_text)
@@ -658,6 +696,11 @@ class LinaMainWindow(QMainWindow):
                 self._screen_context.width,
                 self._screen_context.height,
                 self._vision_attachment_status_text(),
+                (
+                    f"Görsel · {self._screen_context.display_name}"
+                    if self._screen_context.source == "file_upload"
+                    else "Ekran"
+                ),
             )
 
     def _vision_attachment_status_text(self) -> str:

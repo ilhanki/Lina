@@ -1,11 +1,15 @@
 """Tests for Lina's PySide6 main window."""
 
 from datetime import datetime
+from pathlib import Path
 
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QDialog
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
+from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import ScreenCaptureError, ScreenContext
 from lina.vision.models import PNG_SIGNATURE
@@ -119,14 +123,31 @@ class FakeSpeechService:
         self.stop_count += 1
 
 
-def _screen_context(width: int = 1920, height: int = 1080) -> ScreenContext:
+def _valid_png() -> bytes:
+    image = QImage(16, 9, QImage.Format.Format_RGB32)
+    image.fill(0x336699)
+    data = QByteArray()
+    buffer = QBuffer(data)
+    assert buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    assert image.save(buffer, "PNG")
+    buffer.close()
+    return bytes(data)
+
+
+def _screen_context(
+    width: int = 1920,
+    height: int = 1080,
+    source: str = "screen_capture",
+) -> ScreenContext:
+    image_bytes = _valid_png()
     return ScreenContext(
-        image_bytes=PNG_SIGNATURE + b"temporary-screen-bytes",
+        image_bytes=image_bytes,
         width=width,
         height=height,
         captured_at=datetime(2026, 7, 11, 22, 30),
-        display_name="Display 1",
-        estimated_byte_size=len(PNG_SIGNATURE + b"temporary-screen-bytes"),
+        display_name="selected.png" if source == "file_upload" else "Display 1",
+        estimated_byte_size=len(image_bytes),
+        source=source,
     )
 
 
@@ -142,6 +163,23 @@ class FakeScreenCaptureService:
 
     def capture(self) -> ScreenContext:
         self.capture_count += 1
+        if self.error is not None:
+            raise self.error
+        return self.context
+
+
+class FakeImageLoader:
+    def __init__(
+        self,
+        context: ScreenContext | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.context = context or _screen_context(source="file_upload")
+        self.error = error
+        self.paths: list[Path] = []
+
+    def load(self, path: Path) -> ScreenContext:
+        self.paths.append(path)
         if self.error is not None:
             raise self.error
         return self.context
@@ -164,6 +202,15 @@ def _assistant_texts(window: LinaMainWindow) -> list[str]:
         if getattr(message, "role", None) == "assistant":
             texts.append(message.text_label.text())
     return texts
+
+
+def _user_messages(window: LinaMainWindow) -> list[object]:
+    messages = []
+    for row in window._message_rows:
+        message = getattr(row, "_message_widget", None)
+        if getattr(message, "role", None) == "user":
+            messages.append(message)
+    return messages
 
 
 def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
@@ -341,19 +388,69 @@ def test_clear_chat_scrolls_to_top(qtbot) -> None:
     assert window._scroll.verticalScrollBar().value() == window._scroll.verticalScrollBar().minimum()
 
 
-def test_attachment_placeholder_uses_status_without_appending_chat(qtbot) -> None:
+def test_attachment_button_loads_user_selected_image(qtbot, monkeypatch) -> None:
+    loader = FakeImageLoader()
     window = LinaMainWindow(
         conversation_service=FakeConversationService(),
         diagnostics_service=FakeDiagnosticsService(),
         speech_service=FakeSpeechService(available=False),
+        image_loader=loader,
         thread_pool=ImmediateThreadPool(),
     )
     qtbot.addWidget(window)
-    initial_count = len(window._message_rows)
+    monkeypatch.setattr(
+        "lina.interfaces.qt.main_window.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: ("C:/selected.png", "Images"),
+    )
 
     window._composer.attachment_button.click()
-    assert len(window._message_rows) == initial_count
-    assert "Dosya yükleme" in window._status_label.text()
+
+    assert loader.paths == [Path("C:/selected.png")]
+    assert window._screen_context is loader.context
+    assert "selected.png" in window._composer.screen_context_label.text()
+    assert window._status_label.text() == "Görsel analize hazır"
+
+
+def test_attachment_picker_cancel_keeps_existing_state(qtbot, monkeypatch) -> None:
+    loader = FakeImageLoader()
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        image_loader=loader,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    monkeypatch.setattr(
+        "lina.interfaces.qt.main_window.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: ("", ""),
+    )
+
+    window.handle_image_upload()
+
+    assert loader.paths == []
+    assert window._screen_context is None
+
+
+def test_attachment_load_error_is_user_friendly(qtbot, monkeypatch) -> None:
+    loader = FakeImageLoader(error=ImageLoadError("invalid"))
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        image_loader=loader,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    monkeypatch.setattr(
+        "lina.interfaces.qt.main_window.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: ("C:/broken.png", "Images"),
+    )
+
+    window.handle_image_upload()
+
+    assert window._screen_context is None
+    assert window._status_label.text() == "Seçilen görsel yüklenemedi."
 
 
 def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:
@@ -504,6 +601,9 @@ def test_screen_context_is_sent_once_and_consumed_after_success(qtbot) -> None:
     assert window._screen_context is None
     assert window._composer.screen_context_chip.isHidden()
     assert window._status_label.text() == "Ekran görüntüsü analiz edildi"
+    user_message = _user_messages(window)[-1]
+    assert user_message.image_label is not None
+    assert user_message.image_label.pixmap().isNull() is False
 
 
 def test_screen_context_is_retained_after_vision_failure(qtbot) -> None:

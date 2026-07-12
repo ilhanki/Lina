@@ -101,6 +101,12 @@ def build_stylesheet(font_family: str) -> str:
             border: none;
             padding: 0;
         }}
+        QLabel#messageImagePreview {{
+            background: {COMPOSER_BG};
+            border: 1px solid {SOFT_BORDER};
+            border-radius: 8px;
+            padding: 2px;
+        }}
         QLabel#mutedLabel {{ color: {TEXT_MUTED}; }}
         QLabel#senderLabel {{
             color: {TEXT_MUTED};
