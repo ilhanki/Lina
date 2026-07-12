@@ -37,7 +37,9 @@ max_context_items = 4
 max_context_characters = 500
     """, encoding="utf-8")
 
-    services = create_application_services(config_path, tmp_path)
+    services = create_application_services(
+        config_path, tmp_path, user_settings_path=tmp_path / "user-settings.json"
+    )
 
     try:
         assert services.application is not None
@@ -59,6 +61,8 @@ max_context_characters = 500
         assert (tmp_path / "data" / "test_memory.sqlite3").exists()
         assert services.conversation_service._context_manager._memory_context_max_items == 4
         assert services.conversation_service._context_manager._memory_context_max_characters == 500
+        assert services.user_settings_service is not None
+        assert (tmp_path / "user-settings.json").exists() is False
     finally:
         services.conversation_service._memory_service.close()
 
@@ -87,7 +91,9 @@ default_model = "llama3"
 enabled = false
     """, encoding="utf-8")
 
-    services = create_application_services(config_path, tmp_path)
+    services = create_application_services(
+        config_path, tmp_path, user_settings_path=tmp_path / "user-settings.json"
+    )
 
     assert services.conversation_service._memory_service is None
 
@@ -130,7 +136,9 @@ silence_duration_seconds = 1.2
 auto_send = false
     """, encoding="utf-8")
 
-    services = create_application_services(config_path, tmp_path)
+    services = create_application_services(
+        config_path, tmp_path, user_settings_path=tmp_path / "user-settings.json"
+    )
 
     assert isinstance(
         services.speech_service._audio_recorder,

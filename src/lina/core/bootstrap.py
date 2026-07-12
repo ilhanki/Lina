@@ -30,6 +30,8 @@ from lina.speech.audio_recorder import NoOpAudioRecorder, SoundDeviceAudioRecord
 from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
 from lina.speech.service import SpeechService
+from lina.settings.repository import UserSettingsRepository, default_user_settings_path
+from lina.settings.service import UserSettingsService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
 from lina.tools.registry import ToolRegistry
 
@@ -44,11 +46,13 @@ class ApplicationServices:
     vision_diagnostics_service: VisionDiagnosticsService
     speech_service: SpeechService
     conversation_history_service: ConversationHistoryService | None = None
+    user_settings_service: UserSettingsService | None = None
 
 
 def create_application_services(
     config_path: Path,
     project_root: Path,
+    user_settings_path: Path | None = None,
 ) -> ApplicationServices:
     """Create core application services for an entry point."""
     settings = load_settings(config_path)
@@ -129,6 +133,9 @@ def create_application_services(
         timeout=min(settings.ollama.request_timeout, 5.0),
     )
     speech_service = _create_speech_service(settings.speech)
+    user_settings_service = UserSettingsService(
+        UserSettingsRepository(user_settings_path or default_user_settings_path())
+    )
 
     return ApplicationServices(
         application=application,
@@ -137,6 +144,7 @@ def create_application_services(
         vision_diagnostics_service=vision_diagnostics_service,
         speech_service=speech_service,
         conversation_history_service=conversation_history_service,
+        user_settings_service=user_settings_service,
     )
 
 
