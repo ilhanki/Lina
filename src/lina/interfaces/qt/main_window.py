@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
     QWidget,
+    QSystemTrayIcon,
 )
 
 from lina.brain.model_provider import ModelResponse
@@ -102,6 +103,8 @@ class LinaMainWindow(QMainWindow):
         self._vision_enabled = True
         self._user_settings_service = user_settings_service
         self._settings_dialog: SettingsDialog | None = None
+        self._tray_icon: QSystemTrayIcon | None = None
+        self._force_exit = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
         self._image_loader = image_loader or QtImageLoader()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
@@ -143,6 +146,7 @@ class LinaMainWindow(QMainWindow):
         self.resize(1240, 780)
         self._apply_window_icon()
         self._build_layout()
+        self._setup_system_tray()
         self._bind_shortcuts()
         self._restore_initial_conversation()
         self._composer.input.setFocus()
@@ -320,6 +324,37 @@ class LinaMainWindow(QMainWindow):
         self._settings_dialog.show()
         self._settings_dialog.raise_()
         self._settings_dialog.activateWindow()
+
+    def _setup_system_tray(self) -> None:
+        if self._user_settings_service is None or not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+        self._tray_icon = QSystemTrayIcon(self.windowIcon(), self)
+        menu = QMenu(self)
+        open_action = menu.addAction("Lina'yı Aç")
+        open_action.triggered.connect(self._show_from_tray)
+        new_action = menu.addAction("Yeni Sohbet")
+        new_action.triggered.connect(self._new_chat_from_tray)
+        settings_action = menu.addAction("Ayarlar")
+        settings_action.triggered.connect(self.open_settings)
+        menu.addSeparator()
+        exit_action = menu.addAction("Çıkış")
+        exit_action.triggered.connect(self._exit_from_tray)
+        self._tray_icon.setContextMenu(menu)
+        self._tray_icon.setToolTip("Lina")
+        self._tray_icon.show()
+
+    def _show_from_tray(self) -> None:
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _new_chat_from_tray(self) -> None:
+        self.start_new_chat()
+        self._show_from_tray()
+
+    def _exit_from_tray(self) -> None:
+        self._force_exit = True
+        self.close()
 
     def _clear_settings_dialog(self, _result: int) -> None:
         self._settings_dialog = None
@@ -1318,9 +1353,34 @@ class LinaMainWindow(QMainWindow):
                 self.setWindowIcon(icon)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        if not self._force_exit and self._user_settings_service is not None:
+            behavior = self._user_settings_service.current.system.close_behavior
+            if behavior == "tray" and self._tray_icon is not None:
+                self.hide()
+                event.ignore()
+                return
+            if behavior == "ask":
+                result = QMessageBox.question(
+                    self,
+                    "Lina",
+                    "Lina kapatılsın mı, sistem tepsisinde çalışmaya devam mı etsin?",
+                    QMessageBox.StandardButton.Cancel
+                    | QMessageBox.StandardButton.No
+                    | QMessageBox.StandardButton.Yes,
+                    QMessageBox.StandardButton.Cancel,
+                )
+                if result == QMessageBox.StandardButton.Cancel:
+                    event.ignore()
+                    return
+                if result == QMessageBox.StandardButton.No and self._tray_icon is not None:
+                    self.hide()
+                    event.ignore()
+                    return
         self._clear_screen_context()
         if self._speech_service is not None:
             self._speech_service.stop_listening()
+        if self._tray_icon is not None:
+            self._tray_icon.hide()
         event.accept()
 
 

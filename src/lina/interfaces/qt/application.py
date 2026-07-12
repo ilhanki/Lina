@@ -46,6 +46,12 @@ def run_qt_application(
         user_settings_service=services.user_settings_service,
     )
     window.show()
+    if (
+        user_settings is not None
+        and user_settings.system.start_minimized
+        and window._tray_icon is not None
+    ):
+        window.hide()
 
     if not execute:
         return window
