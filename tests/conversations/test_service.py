@@ -49,3 +49,24 @@ def test_disabled_service_falls_back_to_in_memory_session(tmp_path) -> None:
     assert service.persistence_available is False
     assert len(service.model_history()) == 1
     assert repository.list_conversations() == ()
+
+
+def test_service_search_pin_archive_and_grouping(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+    service.start()
+    service.record_user_message("Vision notlarını ara")
+    service.record_assistant_message("Vision sonucu")
+    first_id = service.active_session.id or 0
+    service.new_session()
+    service.record_user_message("İkinci sohbet")
+    second_id = service.active_session.id or 0
+
+    assert service.search("vision")[0].conversation_id == first_id
+    assert service.set_pinned(first_id, True).is_pinned is True
+    assert service.list_sessions(view="pinned")[0].id == first_id
+    assert service.set_archived(second_id, False) is False
+    assert service.group_sessions(
+        service.list_sessions(),
+        now=datetime.now(timezone.utc),
+    )[0][0] == "Bugün"

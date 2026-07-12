@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 
 from lina.brain.prompt_builder import ConversationTurn
-from lina.conversations.models import ConversationSession, PersistedMessage
+from lina.conversations.models import ConversationSearchResult, ConversationSession, PersistedMessage
 from lina.conversations.repository import ConversationRepository, ConversationRepositoryError
 
 
@@ -70,14 +70,96 @@ class ConversationHistoryService:
         self._active_session = ConversationSession(None, "Yeni Sohbet", now, now, None)
         return self._active_session
 
-    def list_sessions(self, limit: int = 50) -> tuple[ConversationSession, ...]:
+    def list_sessions(
+        self,
+        limit: int = 50,
+        view: str = "chats",
+    ) -> tuple[ConversationSession, ...]:
         if not self._enabled or not self._persistence_available:
             return (self._active_session,) if self._active_session else ()
         try:
-            return self._repository.list_conversations(limit)  # type: ignore[union-attr]
+            return self._repository.list_conversations(limit, view=view)  # type: ignore[union-attr]
         except ConversationRepositoryError:
             self._persistence_available = False
             return ()
+
+    def search(
+        self,
+        query: str,
+        view: str = "chats",
+        limit: int = 50,
+    ) -> tuple[ConversationSearchResult, ...]:
+        """Search only persisted title and message text."""
+        if not self._enabled or not self._persistence_available:
+            return ()
+        try:
+            return self._repository.search_conversations(  # type: ignore[union-attr]
+                query, view=view, limit=limit
+            )
+        except ConversationRepositoryError:
+            self._persistence_available = False
+            return ()
+
+    def set_pinned(self, conversation_id: int, pinned: bool) -> ConversationSession | None:
+        """Update pin state without changing activity ordering."""
+        if not self._enabled or not self._persistence_available:
+            return None
+        try:
+            return self._repository.set_pinned(  # type: ignore[union-attr]
+                conversation_id, pinned, now=self._clock()
+            )
+        except ConversationRepositoryError:
+            self._persistence_available = False
+            return None
+
+    def set_archived(self, conversation_id: int, archived: bool) -> bool:
+        """Archive/restore a session and safely leave an archived active session."""
+        if not self._enabled or not self._persistence_available:
+            return False
+        try:
+            self._repository.set_archived(  # type: ignore[union-attr]
+                conversation_id, archived, now=self._clock()
+            )
+        except ConversationRepositoryError:
+            self._persistence_available = False
+            return False
+        was_active = bool(
+            archived
+            and self._active_session is not None
+            and self._active_session.id == conversation_id
+        )
+        if was_active:
+            self.new_session()
+        return was_active
+
+    @staticmethod
+    def group_sessions(
+        sessions: tuple[ConversationSession, ...],
+        now: datetime | None = None,
+    ) -> tuple[tuple[str, tuple[ConversationSession, ...]], ...]:
+        """Group sessions by local calendar activity without empty groups."""
+        current = (now or datetime.now(timezone.utc)).astimezone()
+        buckets: dict[str, list[ConversationSession]] = {}
+        for session in sessions:
+            activity = (session.last_message_at or session.created_at).astimezone()
+            age = (current.date() - activity.date()).days
+            if age == 0:
+                label = "Bugün"
+            elif age == 1:
+                label = "Dün"
+            elif age < 7:
+                label = "Son 7 Gün"
+            elif age < 30:
+                label = "Son 30 Gün"
+            else:
+                label = "Daha Eski"
+            buckets.setdefault(label, []).append(session)
+        order = ("Bugün", "Dün", "Son 7 Gün", "Son 30 Gün", "Daha Eski")
+        return tuple(
+            (label, tuple(buckets[label]))
+            for label in order
+            if label in buckets
+        )
 
     def load_session(self, conversation_id: int) -> ConversationSession:
         if not self._enabled or not self._persistence_available:

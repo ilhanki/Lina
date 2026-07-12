@@ -8,7 +8,12 @@ from pathlib import Path
 import sqlite3
 from collections.abc import Iterator, Sequence
 
-from lina.conversations.models import ConversationSession, PersistedMessage
+from lina.conversations.models import (
+    CONVERSATION_VIEWS,
+    ConversationSearchResult,
+    ConversationSession,
+    PersistedMessage,
+)
 
 
 class ConversationRepositoryError(RuntimeError):
@@ -33,17 +38,17 @@ class ConversationRepository:
         """Create or migrate the conversation schema transactionally."""
         try:
             with self._connection() as connection:
-                connection.executescript(
-                    """
-                    PRAGMA user_version = 1;
-                    CREATE TABLE IF NOT EXISTS conversations (
+                connection.execute(
+                    """CREATE TABLE IF NOT EXISTS conversations (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         title TEXT NOT NULL,
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL,
                         last_message_at TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS conversation_messages (
+                    )"""
+                )
+                connection.execute(
+                    """CREATE TABLE IF NOT EXISTS conversation_messages (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         conversation_id INTEGER NOT NULL,
                         role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
@@ -57,13 +62,31 @@ class ConversationRepository:
                         FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
                         UNIQUE (conversation_id, sequence_number),
                         CHECK (image_source IS NULL OR image_source IN ('screen_full', 'screen_region', 'local_image'))
-                    );
-                    CREATE INDEX IF NOT EXISTS idx_conversations_activity
-                        ON conversations(last_message_at DESC, created_at DESC);
-                    CREATE INDEX IF NOT EXISTS idx_messages_conversation
-                        ON conversation_messages(conversation_id, sequence_number);
-                    """
+                    )"""
                 )
+                columns = {
+                    str(row[1])
+                    for row in connection.execute("PRAGMA table_info(conversations)")
+                }
+                migrations = {
+                    "is_pinned": "ALTER TABLE conversations ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0",
+                    "is_archived": "ALTER TABLE conversations ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0",
+                    "pinned_at": "ALTER TABLE conversations ADD COLUMN pinned_at TEXT",
+                    "archived_at": "ALTER TABLE conversations ADD COLUMN archived_at TEXT",
+                }
+                for column, statement in migrations.items():
+                    if column not in columns:
+                        connection.execute(statement)
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_conversations_activity ON conversations(last_message_at DESC, created_at DESC, id DESC)"
+                )
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_conversations_visibility ON conversations(is_archived, is_pinned)"
+                )
+                connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_messages_created_at ON conversation_messages(created_at)"
+                )
+                connection.execute("PRAGMA user_version = 2")
         except sqlite3.Error as error:
             raise ConversationRepositoryError("Unable to initialize conversation schema") from error
 
@@ -98,16 +121,31 @@ class ConversationRepository:
         except sqlite3.Error as error:
             raise ConversationRepositoryError("Unable to create conversation") from error
 
-    def list_conversations(self, limit: int = 50) -> tuple[ConversationSession, ...]:
+    def list_conversations(
+        self,
+        limit: int = 50,
+        view: str = "chats",
+    ) -> tuple[ConversationSession, ...]:
         if limit < 1:
             raise ValueError("Conversation limit must be positive")
+        if view not in CONVERSATION_VIEWS:
+            raise ValueError(f"Unsupported conversation view: {view}")
+        visibility = {
+            "chats": "is_archived = 0",
+            "pinned": "is_archived = 0 AND is_pinned = 1",
+            "archive": "is_archived = 1",
+        }[view]
         try:
             with self._connection() as connection:
                 rows = connection.execute(
-                    """
-                    SELECT id, title, created_at, updated_at, last_message_at
+                    f"""
+                    SELECT id, title, created_at, updated_at, last_message_at,
+                           is_pinned, is_archived, pinned_at, archived_at
                     FROM conversations
-                    ORDER BY last_message_at DESC, created_at DESC, id DESC
+                    WHERE {visibility}
+                    ORDER BY is_pinned DESC,
+                             COALESCE(last_message_at, created_at) DESC,
+                             created_at DESC, id DESC
                     LIMIT ?
                     """,
                     (limit,),
@@ -120,7 +158,9 @@ class ConversationRepository:
         try:
             with self._connection() as connection:
                 row = connection.execute(
-                    "SELECT id, title, created_at, updated_at, last_message_at FROM conversations WHERE id = ?",
+                    """SELECT id, title, created_at, updated_at, last_message_at,
+                              is_pinned, is_archived, pinned_at, archived_at
+                       FROM conversations WHERE id = ?""",
                     (conversation_id,),
                 ).fetchone()
             return _row_to_session(row) if row else None
@@ -151,6 +191,120 @@ class ConversationRepository:
                 connection.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
         except sqlite3.Error as error:
             raise ConversationRepositoryError("Unable to delete conversation") from error
+
+    def set_pinned(
+        self,
+        conversation_id: int,
+        pinned: bool,
+        now: datetime | None = None,
+    ) -> ConversationSession:
+        """Pin or unpin without changing activity timestamps."""
+        timestamp = _serialize_time(_ensure_datetime(now)) if pinned else None
+        try:
+            with self._connection() as connection:
+                cursor = connection.execute(
+                    "UPDATE conversations SET is_pinned = ?, pinned_at = ? WHERE id = ?",
+                    (int(pinned), timestamp, conversation_id),
+                )
+                if cursor.rowcount != 1:
+                    raise ConversationRepositoryError("Conversation not found")
+            session = self.get_conversation(conversation_id)
+            if session is None:
+                raise ConversationRepositoryError("Conversation disappeared after pin update")
+            return session
+        except sqlite3.Error as error:
+            raise ConversationRepositoryError("Unable to update pinned state") from error
+
+    def set_archived(
+        self,
+        conversation_id: int,
+        archived: bool,
+        now: datetime | None = None,
+    ) -> ConversationSession:
+        """Archive or restore without deleting messages or changing activity."""
+        timestamp = _serialize_time(_ensure_datetime(now)) if archived else None
+        try:
+            with self._connection() as connection:
+                cursor = connection.execute(
+                    "UPDATE conversations SET is_archived = ?, archived_at = ? WHERE id = ?",
+                    (int(archived), timestamp, conversation_id),
+                )
+                if cursor.rowcount != 1:
+                    raise ConversationRepositoryError("Conversation not found")
+            session = self.get_conversation(conversation_id)
+            if session is None:
+                raise ConversationRepositoryError("Conversation disappeared after archive update")
+            return session
+        except sqlite3.Error as error:
+            raise ConversationRepositoryError("Unable to update archived state") from error
+
+    def search_conversations(
+        self,
+        query: str,
+        view: str = "chats",
+        limit: int = 50,
+    ) -> tuple[ConversationSearchResult, ...]:
+        """Search title and text content with a safe SQLite LIKE fallback."""
+        normalized_query = query.strip()
+        if len(normalized_query) < 2:
+            return ()
+        if view not in CONVERSATION_VIEWS:
+            raise ValueError(f"Unsupported conversation view: {view}")
+        visibility = {
+            "chats": "c.is_archived = 0",
+            "pinned": "c.is_archived = 0 AND c.is_pinned = 1",
+            "archive": "c.is_archived = 1",
+        }[view]
+        try:
+            with self._connection() as connection:
+                rows = connection.execute(
+                    f"""
+                    SELECT c.id, c.title, c.created_at, c.last_message_at,
+                           m.id AS message_id, m.role, m.content, m.created_at AS matched_at
+                    FROM conversations c
+                    LEFT JOIN conversation_messages m ON m.conversation_id = c.id
+                    WHERE {visibility}
+                    ORDER BY c.is_pinned DESC,
+                             COALESCE(c.last_message_at, c.created_at) DESC,
+                             c.created_at DESC, c.id DESC, m.sequence_number ASC
+                    """,
+                ).fetchall()
+            results: list[ConversationSearchResult] = []
+            seen: set[tuple[int, int | None, str]] = set()
+            for row in rows:
+                title_match = normalized_query.casefold() in str(row["title"]).casefold()
+                message_content = str(row["content"]) if row["content"] else ""
+                message_match = normalized_query.casefold() in message_content.casefold()
+                if not title_match and not message_match:
+                    continue
+                match_type = "title" if title_match else "message"
+                key = (
+                    int(row["id"]),
+                    int(row["message_id"]) if row["message_id"] else None,
+                    match_type,
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                matched_at = _parse_time(
+                    row["matched_at"] or row["last_message_at"] or row["created_at"]
+                )
+                activity = _parse_time(row["last_message_at"] or row["created_at"])
+                snippet_source = str(row["title"]) if title_match else message_content
+                results.append(
+                    ConversationSearchResult(
+                        conversation_id=int(row["id"]),
+                        title=str(row["title"]),
+                        snippet=_build_snippet(snippet_source, normalized_query),
+                        matched_at=matched_at,
+                        matched_role=str(row["role"]) if row["role"] else None,
+                        match_type=match_type,
+                        last_activity_at=activity,
+                    )
+                )
+            return tuple(results[:limit])
+        except sqlite3.Error as error:
+            raise ConversationRepositoryError("Unable to search conversations") from error
 
     def clear_messages(self, conversation_id: int, now: datetime | None = None) -> None:
         timestamp = _ensure_datetime(now)
@@ -276,6 +430,18 @@ def _row_to_session(row: sqlite3.Row) -> ConversationSession:
             if row["last_message_at"]
             else None
         ),
+        is_pinned=bool(row["is_pinned"]) if "is_pinned" in row.keys() else False,
+        is_archived=bool(row["is_archived"]) if "is_archived" in row.keys() else False,
+        pinned_at=(
+            _parse_time(row["pinned_at"])
+            if "pinned_at" in row.keys() and row["pinned_at"]
+            else None
+        ),
+        archived_at=(
+            _parse_time(row["archived_at"])
+            if "archived_at" in row.keys() and row["archived_at"]
+            else None
+        ),
     )
 
 
@@ -303,3 +469,17 @@ def _parse_time(value: object) -> datetime:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _build_snippet(content: str, query: str, max_length: int = 120) -> str:
+    normalized = " ".join(content.split())
+    index = normalized.casefold().find(query.casefold())
+    if index <= 30:
+        return normalized[:max_length]
+    start = max(0, index - 30)
+    snippet = normalized[start : start + max_length]
+    return f"…{snippet}"

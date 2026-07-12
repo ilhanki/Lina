@@ -105,6 +105,97 @@ def test_repository_handles_legacy_naive_and_malformed_timestamps(tmp_path) -> N
     assert loaded.updated_at.tzinfo is not None
 
 
+def test_repository_migrates_existing_schema_without_losing_data(tmp_path) -> None:
+    path = tmp_path / "conversations.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                last_message_at TEXT
+            );
+            CREATE TABLE conversation_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                sequence_number INTEGER NOT NULL,
+                message_type TEXT NOT NULL DEFAULT 'text',
+                had_image INTEGER NOT NULL DEFAULT 0,
+                image_source TEXT,
+                model_name TEXT
+            );
+            INSERT INTO conversations (title, created_at, updated_at)
+            VALUES ('Eski Sohbet', '2026-01-01T12:00:00+00:00', '2026-01-01T12:00:00+00:00');
+            INSERT INTO conversation_messages
+            (conversation_id, role, content, created_at, sequence_number)
+            VALUES (1, 'user', 'Korunacak mesaj', '2026-01-01T12:01:00+00:00', 1);
+            """
+        )
+
+    repository = ConversationRepository(path)
+
+    session = repository.get_conversation(1)
+    messages = repository.list_messages(1)
+    assert session is not None
+    assert session.is_pinned is False
+    assert session.is_archived is False
+    assert messages[0].content == "Korunacak mesaj"
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == 2
+
+
+def test_repository_searches_title_and_message_with_safe_like_queries(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    title_session = repository.create_conversation("Türkçe Vision Notları")
+    message_session = repository.create_conversation("Başka Sohbet")
+    for session, content in (
+        (title_session, "Görsel modeli hazır."),
+        (message_session, "Ekran görüntüsünü incelemeliyiz."),
+    ):
+        repository.add_message(
+            PersistedMessage(
+                id=None,
+                conversation_id=session.id or 0,
+                role="user",
+                content=content,
+                created_at=datetime.now(timezone.utc),
+                sequence=1,
+            )
+        )
+
+    title_results = repository.search_conversations("vision")
+    message_results = repository.search_conversations("GÖRÜNTÜ")
+    wildcard_results = repository.search_conversations("%_")
+
+    assert title_results[0].conversation_id == title_session.id
+    assert title_results[0].match_type == "title"
+    assert message_results[0].conversation_id == message_session.id
+    assert wildcard_results == ()
+
+
+def test_repository_pin_archive_filters_preserve_activity_timestamp(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    session = repository.create_conversation(
+        now=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    before = repository.get_conversation(session.id or 0)
+
+    pinned = repository.set_pinned(session.id or 0, True)
+    archived = repository.set_archived(session.id or 0, True)
+
+    assert pinned.is_pinned is True
+    assert archived.is_archived is True
+    assert archived.last_message_at == before.last_message_at
+    assert repository.list_conversations(view="chats") == ()
+    assert repository.list_conversations(view="pinned") == ()
+    assert repository.list_conversations(view="archive")[0].id == session.id
+
+
 def test_repository_validates_message_metadata_and_rejects_empty_content(tmp_path) -> None:
     repository = ConversationRepository(tmp_path / "conversations.sqlite3")
     session = repository.create_conversation()

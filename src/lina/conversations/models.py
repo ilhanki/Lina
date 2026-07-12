@@ -10,6 +10,7 @@ VALID_ROLES = frozenset({"user", "assistant", "system"})
 VALID_IMAGE_SOURCES = frozenset(
     {"screen_full", "screen_region", "local_image"}
 )
+CONVERSATION_VIEWS = frozenset({"chats", "pinned", "archive"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +22,23 @@ class ConversationSession:
     created_at: datetime
     updated_at: datetime
     last_message_at: datetime | None
+    is_pinned: bool = False
+    is_archived: bool = False
+    pinned_at: datetime | None = None
+    archived_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConversationSearchResult:
+    """Safe plain-text search result for the presentation layer."""
+
+    conversation_id: int
+    title: str
+    snippet: str
+    matched_at: datetime
+    matched_role: str | None
+    match_type: str
+    last_activity_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
