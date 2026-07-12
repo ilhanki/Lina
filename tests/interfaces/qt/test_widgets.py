@@ -15,6 +15,7 @@ from lina.interfaces.qt.widgets.composer import (
 )
 from lina.screen.models import ScreenContext
 from lina.conversations.models import ConversationSession
+from lina.conversations.models import ConversationSearchResult
 
 
 def _visual_context(image_bytes: bytes) -> ScreenContext:
@@ -303,3 +304,40 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert session_buttons[1].isChecked() is True
     assert all(button.minimumHeight() == 64 for button in session_buttons)
     assert "·" in session_buttons[0].text()
+
+
+def test_sidebar_search_and_filter_controls_are_accessible(qtbot, tmp_path) -> None:
+    sidebar = SidebarWidget(tmp_path / "missing.png", "v0.test", "llama3")
+    qtbot.addWidget(sidebar)
+
+    sidebar.search_input.setText("vision")
+    assert sidebar.search_input.accessibleName() == "Sohbetlerde ara"
+    assert sidebar.filter_combo.currentData() == "chats"
+    sidebar.filter_combo.setCurrentIndex(2)
+    assert sidebar.filter_combo.currentData() == "archive"
+
+    sidebar.search_input.clear()
+    assert sidebar.search_input.text() == ""
+
+
+def test_sidebar_search_results_show_safe_plain_text_snippet(qtbot, tmp_path) -> None:
+    sidebar = SidebarWidget(tmp_path / "missing.png", "v0.test", "llama3")
+    qtbot.addWidget(sidebar)
+    now = datetime.now(timezone.utc)
+    sidebar.set_search_results(
+        (
+            ConversationSearchResult(
+                conversation_id=1,
+                title="Vision sohbeti",
+                snippet="Görsel sonucu",
+                matched_at=now,
+                matched_role="user",
+                match_type="message",
+                last_activity_at=now,
+            ),
+        )
+    )
+
+    results = sidebar.session_list.findChildren(type(sidebar.new_chat_button), "conversationSearchResult")
+    assert len(results) == 1
+    assert "Görsel sonucu" in results[0].text()

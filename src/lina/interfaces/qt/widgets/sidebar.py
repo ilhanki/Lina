@@ -8,6 +8,8 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import (
     QLabel,
+    QComboBox,
+    QLineEdit,
     QMenu,
     QPushButton,
     QScrollArea,
@@ -17,7 +19,20 @@ from PySide6.QtWidgets import (
 )
 
 from lina.conversations.models import ConversationSession
+from lina.conversations.models import ConversationSearchResult
 from lina.interfaces.qt.formatting import format_conversation_datetime
+
+
+class ConversationSearchInput(QLineEdit):
+    """Search field with an explicit Escape-to-clear interaction."""
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.clear()
+            self.clearFocus()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
 
 class SidebarWidget(QWidget):
@@ -27,6 +42,10 @@ class SidebarWidget(QWidget):
     session_selected = Signal(int)
     session_rename_requested = Signal(int)
     session_delete_requested = Signal(int)
+    session_pin_requested = Signal(int, bool)
+    session_archive_requested = Signal(int, bool)
+    search_changed = Signal(str)
+    view_changed = Signal(str)
 
     WIDTH = 248
 
@@ -123,6 +142,23 @@ class SidebarWidget(QWidget):
 
         self.new_chat_button.clicked.connect(self.new_chat_requested)
 
+        self.search_input = ConversationSearchInput(self)
+        self.search_input.setObjectName("conversationSearchInput")
+        self.search_input.setPlaceholderText("Sohbetlerde ara...")
+        self.search_input.setAccessibleName("Sohbetlerde ara")
+        layout.insertWidget(5, self.search_input)
+        self.filter_combo = QComboBox(self)
+        self.filter_combo.setObjectName("conversationFilter")
+        self.filter_combo.setAccessibleName("Sohbet görünümü")
+        self.filter_combo.addItem("Sohbetler", "chats")
+        self.filter_combo.addItem("Sabitlenenler", "pinned")
+        self.filter_combo.addItem("Arşiv", "archive")
+        layout.insertWidget(6, self.filter_combo)
+        self.search_input.textChanged.connect(self.search_changed)
+        self.filter_combo.currentIndexChanged.connect(
+            lambda _index: self.view_changed.emit(str(self.filter_combo.currentData()))
+        )
+
     def set_session_title(self, title: str) -> None:
         self.session_title.setText(title)
 
@@ -130,16 +166,34 @@ class SidebarWidget(QWidget):
         self,
         sessions: tuple[ConversationSession, ...],
         active_id: int | None = None,
+        groups: tuple[tuple[str, tuple[ConversationSession, ...]], ...] = (),
     ) -> None:
         """Render real persisted sessions in the sidebar."""
-        while self.session_list_layout.count() > 1:
+        while self.session_list_layout.count():
             item = self.session_list_layout.takeAt(0)
             if item.widget() is not None:
                 item.widget().deleteLater()
         self.session_note.setText(
             "Henüz kayıtlı sohbet yok." if not sessions else ""
         )
-        for session in sessions:
+        if not groups:
+            groups = (("Sohbetler", sessions),)
+        for group_label, group_sessions in groups:
+            if not group_sessions:
+                continue
+            heading = QLabel(group_label, self.session_list)
+            heading.setObjectName("conversationGroupHeading")
+            self.session_list_layout.addWidget(heading)
+            for session in group_sessions:
+                self._add_session_button(session, active_id)
+        self.session_list_layout.addStretch(1)
+        self._refresh_session_button_titles()
+
+    def _add_session_button(
+        self,
+        session: ConversationSession,
+        active_id: int | None,
+    ) -> None:
             button = QPushButton(session.title, self.session_list)
             button.setObjectName("sessionButton")
             button.setToolTip(session.title)
@@ -153,12 +207,13 @@ class SidebarWidget(QWidget):
             button._activity_text = format_conversation_datetime(  # type: ignore[attr-defined]
                 session.last_message_at or session.created_at
             )
+            button._session = session  # type: ignore[attr-defined]
             button.setCheckable(True)
             button.setChecked(session.id == active_id)
             button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             button.customContextMenuRequested.connect(
-                lambda position, conversation_id=session.id: self._show_session_menu(
-                    conversation_id or 0, button, position
+                lambda position, conversation=session: self._show_session_menu(
+                    conversation, button, position
                 )
             )
             button.clicked.connect(
@@ -166,24 +221,73 @@ class SidebarWidget(QWidget):
                     conversation_id or 0
                 )
             )
-            self.session_list_layout.insertWidget(
-                self.session_list_layout.count() - 1, button
+            self.session_list_layout.addWidget(button)
+
+    def set_search_results(
+        self,
+        results: tuple[ConversationSearchResult, ...],
+    ) -> None:
+        """Render plain-text conversation search results."""
+        while self.session_list_layout.count():
+            item = self.session_list_layout.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        if not results:
+            empty = QLabel("Sonuç bulunamadı.", self.session_list)
+            empty.setObjectName("conversationEmptyState")
+            empty.setWordWrap(True)
+            self.session_list_layout.addWidget(empty)
+        for result in results:
+            button = QPushButton(self.session_list)
+            button.setObjectName("conversationSearchResult")
+            button.setMinimumHeight(76)
+            button.setMaximumHeight(76)
+            button.setToolTip(result.title)
+            button.setText(
+                f"{result.title}\n{result.snippet}\n"
+                f"{format_conversation_datetime(result.last_activity_at)}"
             )
-        self._refresh_session_button_titles()
+            button.clicked.connect(
+                lambda _checked=False, conversation_id=result.conversation_id: self.session_selected.emit(
+                    conversation_id
+                )
+            )
+            self.session_list_layout.addWidget(button)
+        self.session_list_layout.addStretch(1)
+
+    def reset_view_controls(self) -> None:
+        self.search_input.clear()
+        self.filter_combo.setCurrentIndex(0)
 
     def set_persistence_note(self, text: str) -> None:
         """Show a short persistence state without hiding the session list."""
         self.session_note.setText(text)
 
-    def _show_session_menu(self, conversation_id: int, button: QPushButton, position) -> None:
+    def _show_session_menu(
+        self,
+        session: ConversationSession,
+        button: QPushButton,
+        position,
+    ) -> None:
         menu = QMenu(button)
         rename_action = menu.addAction("Yeniden Adlandır")
+        pin_action = menu.addAction(
+            "Sabitlemeyi Kaldır" if session.is_pinned else "Sabitle"
+        )
+        archive_action = menu.addAction(
+            "Arşivden Çıkar" if session.is_archived else "Arşivle"
+        )
+        menu.addSeparator()
         delete_action = menu.addAction("Sil")
         selected = menu.exec(button.mapToGlobal(position))
         if selected is rename_action:
-            self.session_rename_requested.emit(conversation_id)
+            self.session_rename_requested.emit(session.id or 0)
+        elif selected is pin_action:
+            self.session_pin_requested.emit(session.id or 0, not session.is_pinned)
+        elif selected is archive_action:
+            self.session_archive_requested.emit(session.id or 0, not session.is_archived)
         elif selected is delete_action:
-            self.session_delete_requested.emit(conversation_id)
+            self.session_delete_requested.emit(session.id or 0)
 
     def _refresh_session_button_titles(self) -> None:
         available_width = max(120, self.session_list.width() - 24)

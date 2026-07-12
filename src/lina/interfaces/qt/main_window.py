@@ -127,6 +127,8 @@ class LinaMainWindow(QMainWindow):
             if hasattr(conversation_service, "conversation_history_service")
             else None
         )
+        self._conversation_view = "chats"
+        self._conversation_query = ""
 
         self.setWindowTitle("Lina")
         self.setMinimumSize(1040, 640)
@@ -176,6 +178,10 @@ class LinaMainWindow(QMainWindow):
         self._sidebar.session_selected.connect(self.load_conversation)
         self._sidebar.session_rename_requested.connect(self.rename_conversation)
         self._sidebar.session_delete_requested.connect(self.delete_conversation)
+        self._sidebar.session_pin_requested.connect(self.set_conversation_pinned)
+        self._sidebar.session_archive_requested.connect(self.set_conversation_archived)
+        self._sidebar.search_changed.connect(self._handle_conversation_search)
+        self._sidebar.view_changed.connect(self._handle_conversation_view_changed)
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
@@ -267,6 +273,11 @@ class LinaMainWindow(QMainWindow):
         focus_action.setShortcut(QKeySequence("Ctrl+L"))
         focus_action.triggered.connect(self._composer.input.setFocus)
         self.addAction(focus_action)
+
+        search_action = QAction(self)
+        search_action.setShortcut(QKeySequence("Ctrl+F"))
+        search_action.triggered.connect(self._sidebar.search_input.setFocus)
+        self.addAction(search_action)
 
         new_action = QAction(self)
         new_action.setShortcut(QKeySequence("Ctrl+N"))
@@ -377,6 +388,9 @@ class LinaMainWindow(QMainWindow):
             return
         if self._conversation_history_service is not None:
             self._conversation_service.start_new_session()
+        self._conversation_view = "chats"
+        self._conversation_query = ""
+        self._sidebar.reset_view_controls()
         self._clear_visible_messages()
         self._clear_screen_context()
         self._set_session_title("Yeni Sohbet")
@@ -394,6 +408,9 @@ class LinaMainWindow(QMainWindow):
         if self._conversation_history_service is None:
             return
         try:
+            self._conversation_view = "chats"
+            self._conversation_query = ""
+            self._sidebar.reset_view_controls()
             self._conversation_service.load_session(conversation_id)
             session = self._conversation_history_service.active_session
             self._clear_visible_messages()
@@ -423,10 +440,9 @@ class LinaMainWindow(QMainWindow):
         """Rename a conversation through a bounded local dialog."""
         if self._conversation_history_service is None or self._is_waiting:
             return
-        session = next(
-            (item for item in self._conversation_history_service.list_sessions() if item.id == conversation_id),
-            None,
-        )
+        sessions = self._conversation_history_service.list_sessions(view="chats")
+        sessions += self._conversation_history_service.list_sessions(view="archive")
+        session = next((item for item in sessions if item.id == conversation_id), None)
         if session is None:
             return
         title, accepted = QInputDialog.getText(self, "Sohbeti yeniden adlandır", "Başlık:", text=session.title)
@@ -443,10 +459,9 @@ class LinaMainWindow(QMainWindow):
         """Delete one conversation after explicit confirmation."""
         if self._conversation_history_service is None or self._is_waiting:
             return
-        session = next(
-            (item for item in self._conversation_history_service.list_sessions() if item.id == conversation_id),
-            None,
-        )
+        sessions = self._conversation_history_service.list_sessions(view="chats")
+        sessions += self._conversation_history_service.list_sessions(view="archive")
+        session = next((item for item in sessions if item.id == conversation_id), None)
         if session is None:
             return
         result = QMessageBox.question(
@@ -461,6 +476,43 @@ class LinaMainWindow(QMainWindow):
         was_active = self._conversation_history_service.delete(conversation_id)
         if was_active:
             self.start_new_chat()
+        self._refresh_conversation_sidebar()
+
+    def set_conversation_pinned(self, conversation_id: int, pinned: bool) -> None:
+        if self._conversation_history_service is None or self._is_waiting:
+            return
+        if self._conversation_history_service.set_pinned(conversation_id, pinned) is None:
+            self._set_status("Sohbet yönetimi şu anda kullanılamıyor.")
+            return
+        self._refresh_conversation_sidebar()
+        self._set_status("Sohbet sabitlendi" if pinned else "Sohbet sabitlemesi kaldırıldı")
+
+    def set_conversation_archived(self, conversation_id: int, archived: bool) -> None:
+        if self._conversation_history_service is None or self._is_waiting:
+            return
+        was_active = self._conversation_history_service.set_archived(
+            conversation_id, archived
+        )
+        if not self._conversation_history_service.persistence_available:
+            self._set_status("Sohbet yönetimi şu anda kullanılamıyor.")
+            return
+        if was_active:
+            self._clear_visible_messages()
+            self._clear_screen_context()
+            self._set_session_title("Yeni Sohbet")
+            self._update_session_date()
+            self._show_welcome_state()
+        self._refresh_conversation_sidebar()
+        self._set_status(
+            "Sohbet arşivlendi" if archived else "Sohbet arşivden çıkarıldı"
+        )
+
+    def _handle_conversation_search(self, query: str) -> None:
+        self._conversation_query = query.strip()
+        self._refresh_conversation_sidebar()
+
+    def _handle_conversation_view_changed(self, view: str) -> None:
+        self._conversation_view = view
         self._refresh_conversation_sidebar()
 
     def _clear_visible_messages(self) -> None:
@@ -521,13 +573,28 @@ class LinaMainWindow(QMainWindow):
         if self._conversation_history_service is None:
             self._sidebar.set_persistence_note("Kalıcı sohbet geçmişi kapalı.")
             return
-        sessions = self._conversation_history_service.list_sessions()
+        if len(self._conversation_query) >= 2:
+            self._sidebar.set_search_results(
+                self._conversation_history_service.search(
+                    self._conversation_query,
+                    view=self._conversation_view,
+                )
+            )
+            return
+        sessions = self._conversation_history_service.list_sessions(
+            view=self._conversation_view
+        )
         active_id = (
             self._conversation_history_service.active_session.id
             if self._conversation_history_service.active_session is not None
             else None
         )
-        self._sidebar.set_sessions(sessions, active_id=active_id)
+        groups = self._conversation_history_service.group_sessions(sessions)
+        if self._conversation_view == "chats":
+            pinned = tuple(session for session in sessions if session.is_pinned)
+            unpinned = tuple(session for session in sessions if not session.is_pinned)
+            groups = (("Sabitlenenler", pinned),) + self._conversation_history_service.group_sessions(unpinned)
+        self._sidebar.set_sessions(sessions, active_id=active_id, groups=groups)
         self._update_session_date()
 
     def _update_session_date(self) -> None:

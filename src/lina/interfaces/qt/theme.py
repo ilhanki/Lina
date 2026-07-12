@@ -105,6 +105,44 @@ def build_stylesheet(font_family: str) -> str:
             border-color: {ACCENT};
             font-weight: 600;
         }}
+        QLineEdit#conversationSearchInput {{
+            background: {COMPOSER_BG};
+            color: {TEXT_PRIMARY};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            min-height: 36px;
+            padding: 0 10px;
+        }}
+        QLineEdit#conversationSearchInput:focus {{ border-color: {ACCENT}; }}
+        QComboBox#conversationFilter {{
+            background: {ELEVATED_BG};
+            color: {TEXT_SECONDARY};
+            border: 1px solid {BORDER};
+            border-radius: 7px;
+            min-height: 32px;
+            padding: 0 8px;
+        }}
+        QLabel#conversationGroupHeading {{
+            color: {TEXT_MUTED};
+            font-size: 9pt;
+            padding: 8px 4px 2px;
+        }}
+        QLabel#conversationEmptyState {{
+            color: {TEXT_MUTED};
+            padding: 12px 4px;
+        }}
+        QPushButton#conversationSearchResult {{
+            background: transparent;
+            color: {TEXT_SECONDARY};
+            border: 1px solid transparent;
+            border-radius: 8px;
+            text-align: left;
+            padding: 7px 10px;
+        }}
+        QPushButton#conversationSearchResult:hover {{
+            background: {ELEVATED_BG};
+            border-color: {BORDER};
+        }}
         QWidget#assistantBubble {{
             background: {ASSISTANT_BUBBLE};
             border: 1px solid {BORDER};
