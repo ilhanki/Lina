@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.8.2-alpha`
+- **Sürüm:** `v0.8.3-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -282,6 +282,9 @@ Ayrıntılı dokümanlar:
 - `v0.8.0-alpha`: Conversation Persistence Foundation.
 - `v0.8.1-alpha`: Conversation Timeline ve Welcome Experience.
 - `v0.8.2-alpha`: Conversation Search ve Management UX.
+- `v0.8.3-alpha`: Lazy Conversation Creation ve Delete Lifecycle Fix.
+
+Bu sürümde yeni sohbetler ilk gerçek kullanıcı mesajına kadar ephemeral draft olarak tutulur. Boş draft sidebar veya database'e yazılmaz; ilk mesaj conversation ve user message olarak atomik biçimde persist edilir. Son kalıcı sohbet silindiğinde arayüz yeni boş kayıt üretmeden welcome draft'a döner.
 
 Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
 

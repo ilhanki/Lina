@@ -255,3 +255,10 @@ Bağımlılık yönü içe doğru olmalıdır:
 - Core, üst seviye özellik detaylarını bilmez.
 
 Bu yaklaşım test edilebilirliği ve sağlayıcı değiştirilebilirliğini korur.
+## Lazy Conversation Creation ve Delete Lifecycle
+
+Yeni sohbet presentation ve in-memory state içinde ephemeral draft olarak başlar. Uygulama açılışında veya `Yeni Sohbet` sonrasında boş bir conversation satırı oluşturulmaz; draft sidebar, search, pin, archive, rename ve delete akışlarına dahil edilmez.
+
+İlk anlamlı user message geldiğinde conversation ve ilk user message aynı SQLite transaction içinde persist edilir. Transaction başarısız olursa model isteği başlatılmaz ve yarım bir conversation satırı bırakılmaz.
+
+Son kalıcı conversation silindiğinde servis yeni boş database satırı oluşturmadan welcome draft'a döner. Başka görünür conversation varsa en yenisi yüklenir. Legacy varsayılan başlıklı ve sıfır mesajlı kayıtlar veri kaybı olmadan normal chat ve search görünümlerinde gizlenir.

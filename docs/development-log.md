@@ -2269,3 +2269,29 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 ### Durum
 
 `v0.8.2-alpha` Conversation Search & Management UX kod ve test tarafında tamamlandı. Manuel search, pin, archive, grouping ve regression smoke testleri release öncesi yapılmalıdır.
+## 2026-07-12 - Lazy Conversation Creation and Delete Lifecycle
+
+### Yapılanlar
+
+- `Yeni Sohbet` ve uygulama açılışı artık boş SQLite conversation satırı oluşturmadan ephemeral draft ile başlıyor.
+- İlk user message, conversation satırı ve ilk mesajla aynı transaction içinde persist ediliyor; yarım kayıt oluşması engelleniyor.
+- Boş draft sidebar, search, pin, archive, rename ve delete listelerine dahil edilmiyor.
+- Son conversation silindiğinde yeni boş satır oluşturulmuyor; welcome draft gösteriliyor.
+- Aktif conversation silindiğinde veya arşivlendiğinde varsa en yeni görünür conversation UI'a yükleniyor.
+- Legacy varsayılan başlıklı ve sıfır mesajlı kayıtlar veri silinmeden listelerde gizleniyor.
+
+### Mimari Kararlar
+
+- Draft state persistence katmanının kalıcı session modeliyle karıştırılmadı.
+- Model isteğinden önce ilk mesaj persistence işlemi tamamlanıyor; persistence hatasında model çağrısı başlatılmıyor.
+- Mevcut ConversationRepository, ConversationHistoryService ve PySide6 UI sınırları korundu; yeni dependency veya büyük refactor eklenmedi.
+
+### Test Sonucu
+
+- Conversation repository/service ve Qt hedefli testler başarılı.
+- Tam test paketi: `590 passed`.
+- `python -m compileall -q src main.py gui.py` baÅŸarÄ±lÄ±.
+
+### Durum ve Sonraki Adım
+
+`v0.8.3-alpha` Lazy Conversation Creation ve Delete Lifecycle Fix kod ve test tarafında hazırlandı. Manuel GUI smoke testinde yeni sohbet, ilk mesaj, son sohbet silme ve kalan sohbete otomatik dönüş akışları doğrulanmalı; ardından release tag kararı verilmelidir.
