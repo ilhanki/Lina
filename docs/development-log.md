@@ -2175,3 +2175,23 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 ### Durum
 
 Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı; gerçek GUI ile Screen ve `+` yükleme akışlarının manuel smoke testi bekleniyor.
+
+## 2026-07-12 - Vision UX and Region Capture
+
+### Yapılanlar
+
+- Screen menüsüne tam ekran ve alan seçerek yakalama seçenekleri eklendi.
+- Region capture için Qt overlay, minimum seçim boyutu, iptal ve DPI ölçekleme davranışı eklendi.
+- Composer attachment chip'ine thumbnail, `Değiştir`, `Kaldır` ve büyük önizleme akışı eklendi.
+- Kullanıcı mesaj balonunda görsel thumbnail'i, analiz durumu ve başarısızlık sonrası `Yeniden analiz et` kontrolü eklendi.
+- Yeniden analiz görseli composer'a geri yükler; otomatik gönderim yapmaz.
+- Görseller session-local bellekte tutulur; kalıcı memory, cloud sync ve sürekli ekran izleme eklenmedi.
+
+### Test Sonucu
+
+- Region capture ve Qt attachment hedefli testleri: `61 passed`.
+- Tam test paketi: `562 passed`.
+
+### Durum
+
+`v0.7.2-alpha` Vision UX & Region Capture kapsamı kod ve test tarafında tamamlandı. Release tag'i final smoke kontrolünden sonra oluşturulacaktır. Sonraki ana hedef conversation persistence foundation hazırlığıdır.

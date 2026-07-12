@@ -168,6 +168,14 @@ GUI ScreenContext
 - Başarılı istek aktif attachment'ı tüketir, başarısız istek yeniden deneme için korur.
 - Vision provider hatasında normal text modele görüntüyü görmüş gibi davranan fallback yapılmaz.
 
+## Vision UX ve Geçici Attachment Yaşam Döngüsü
+
+`v0.7.2-alpha` ile ekran bağlamı iki açık kullanıcı akışını destekler: tam ekran yakalama ve alan seçerek yakalama. Her iki akış da aynı `ScreenContext` modelini kullanır; alan seçimi yalnızca yakalanacak dikdörtgeni belirler ve provider sınırını değiştirmez.
+
+Görsel attachment yalnızca aktif oturum içinde bellekte tutulur. Composer chip'i thumbnail, değiştirme ve kaldırma kontrollerini; gönderilen kullanıcı balonu ise görsel önizleme, analiz durumu ve başarısızlık sonrası yeniden analiz hazırlama davranışını sunar. `Yeniden analiz et` görseli composer'a geri yükler, otomatik gönderim başlatmaz.
+
+Bu UX katmanı görseli kalıcı hafızaya, dosya sistemine veya bulut servisine taşımaz. Önizleme aynı bellekteki bytes üzerinden açılır; kaynak dosya yeniden okunmaz. Vision başarısız olduğunda attachment korunur ve kullanıcıya tekrar deneme imkanı verilir.
+
 Gelecekte farklı local vision provider'ları aynı framework-neutral image request sınırını uygulayabilir. Region capture ve çoklu image desteği bu sürümün kapsamı dışındadır.
 
 ## Tool Katmanı

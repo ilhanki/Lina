@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.7.1-alpha Local Vision Integration
+## Mevcut Durum: v0.7.2-alpha Vision UX & Region Capture
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -32,7 +32,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.7.0-alpha` Screen Context Foundation tamamlandı ve release tag'i origin'e pushlandı. Kullanıcı eylemiyle başlayan Qt ekran yakalama, önizleme/onay dialog'u ve session-local attachment chip eklendi.
 
-`v0.7.1-alpha` Local Vision Integration tamamlandı. Açıkça eklenen screenshot yalnız ilgili kullanıcı sorusunda ayrı local Ollama vision modeline gönderilir. `/api/show` capability doğrulaması, `/api/chat` image payload'u, provider sınırında Base64 dönüşümü, prompt injection koruması ve success-consume/failure-retain yaşam döngüsü eklendi. Release tag'i henüz oluşturulmamıştır.
+`v0.7.1-alpha` Local Vision Integration tamamlandı ve tag'lendi. `v0.7.2-alpha` kapsamında tam ekran/alan yakalama, geçici görsel attachment UX'i, thumbnail ve büyük önizleme, değiştirme/kaldırma, analiz durumları ve otomatik göndermeden yeniden analiz hazırlama tamamlandı. Vision hâlâ yalnız açık kullanıcı eylemiyle ve local Ollama modeliyle çalışır; sürekli ekran izleme yoktur.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -158,8 +158,8 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.6.3-alpha`: PySide6 Desktop UI Migration.
 - `v0.6.4-alpha`: PySide6 UI Refinement & Chat Experience.
 - `v0.7.0-alpha`: Screen Context Foundation.
-- `v0.7.1-alpha`: Vision Provider Architecture.
-- `v0.7.2-alpha`: Vision UX & Region Capture.
+- `v0.7.1-alpha`: Vision Provider Architecture tamamlandı.
+- `v0.7.2-alpha`: Vision UX & Region Capture tamamlandı.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 
 ## Milestone 0: Proje Standartları
@@ -416,8 +416,8 @@ Teknolojiler:
 Durum:
 
 - `v0.7.0-alpha` Screen Context Foundation tamamlandı ve tag'lendi.
-- `v0.7.1-alpha` Local Vision Integration tamamlandı; manuel smoke test ve release tag'i bekleniyor.
-- `v0.7.2-alpha` Vision UX & Region Capture sıradaki hedef olarak planlandı.
+- `v0.7.1-alpha` Local Vision Integration tamamlandı ve tag'lendi.
+- `v0.7.2-alpha` Vision UX & Region Capture tamamlandı ve release adayıdır.
 
 ## Milestone 10: Automation Capability v1
 
