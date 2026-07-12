@@ -2353,3 +2353,14 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Files traversal/absolute/unauthorized istekleri içerik sızdırmadan reddediliyor; raw image persistence ve unsafe tool eklenmedi.
 - Routing logları content-free metadata ile sınırlandı. Model-assisted fallback kullanılmadı.
 - Tam test paketi dokümantasyon öncesi `652 passed`; yeni dependency eklenmedi.
+
+## 2026-07-13 - Tool UX, Reliability & v0.9 Stabilization
+
+- Erişilebilir timeline ToolActivityCard ile ortak preparing/confirmation/running/success/failure/cancelled/unavailable durumları eklendi.
+- Persistent confirmation modal yerine Onayla/Vazgeç kartına taşındı; Enter/Escape ve detail toggle eklendi.
+- Retry read-only intent'lerle sınırlandı; persistent retry yeni ID ve confirmation gerektiriyor. Duplicate reminder create engellendi.
+- Cancel komutları, expiration, routing disable, new/switch/delete/archive/close cleanup tamamlandı.
+- Ortak error kategorileri, registry availability reason ve Vision diagnostics preflight eklendi.
+- Reminder list 10 satırla sınırlandı; local timezone ve kalan kayıt özeti eklendi.
+- File allowlist canonical casing güvenli biçimde çözümleniyor; traversal/absolute/UNC/symlink/binary/oversize sınırları korunuyor.
+- v0.9.0 Settings, v0.9.1 Notifications ve v0.9.2 Routing regresyonları birlikte geçti. Dokümantasyon öncesi tam paket `663 passed`.

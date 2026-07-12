@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.9.2-alpha`
+- **Sürüm:** `v0.9.3-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -286,6 +286,7 @@ Ayrıntılı dokümanlar:
 - `v0.9.0-alpha`: Settings ve System Integration Foundation.
 - `v0.9.1-alpha`: Yerel Notification Center, reminder yönetimi, tray presenter ve background scheduler.
 - `v0.9.2-alpha`: Deterministic intent routing, güvenli tool registry, confirmation ve clarification foundation.
+- `v0.9.3-alpha`: Tool status kartları, güvenli retry/cancel, availability ve v0.9.x stabilizasyonu.
 
 Settings içindeki `Modelleri Yenile` yalnız cihazda kurulu Ollama modellerini sorgular; otomatik indirme yapmaz. Vision model seçimleri `/api/show` capability sonucu ile doğrulanır.
 
@@ -306,6 +307,8 @@ Lina açık ve güvenli Türkçe kalıpları önce deterministic classifier ile 
 Reminder create ve Memory store her zaman kullanıcı onayı ister. Eksik reminder tarihi/saati clarification ile tamamlanır ve pending intent yalnız ilgili sohbette, bellekte ve süreli tutulur. Yeni sohbet veya sohbet değişimi pending işlemi iptal eder.
 
 Shell, PowerShell/CMD, arbitrary code execution, file write/delete/move, browser automation, mouse/keyboard kontrolü, process/application launch, network, e-posta ve webhook araçları yoktur. Files yalnız mevcut read-only allowlist üzerinden çalışır; `..`, absolute/UNC/drive path ve symlink escape reddedilir. İşleme local cihazda kalır; raw image/Base64 persist edilmez.
+
+Tool işlemleri chat timeline içinde Hazırlanıyor, Onay bekleniyor, Çalışıyor, Tamamlandı, Başarısız, İptal edildi veya Kullanılamıyor durum kartlarıyla görünür. Kalıcı işlemler tekrar denenirken yeni confirmation gerekir; read-only reminder list, Memory recall, file read ve Vision işlemleri güvenli retry kapsamındadır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` pending işlemi kapatır.
 
 ## Bilinen Sınırlar
 

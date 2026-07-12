@@ -294,3 +294,13 @@ Routing deterministic-first çalışır. Bu sürüm local model-assisted fallbac
 Merkezi registry yalnız `reminder.create`, `reminder.list`, `vision.screen`, `vision.region`, `vision.image`, `files.read`, `memory.store` ve `memory.recall` adlarını içerir. Persistent reminder/memory işlemleri confirmation olmadan registry callback'ine ulaşamaz; duplicate intent ID ikinci kez execute edilmez. Clarification pending state conversation key ve on dakikalık expiration ile izole edilir, restart'ta persist edilmez.
 
 Files mevcut allowlist service'ini kullanır; traversal, absolute/UNC/drive escape ve symlink escape aynı servis sınırında reddedilir. Vision mevcut explicit capture/upload UI akışlarını kullanır ve image bytes persist etmez. Routing logları yalnız intent type/source/confidence bucket, tool success ve duration içerir; mesaj, content, full path, prompt veya image içermez.
+
+## Tool UX ve Reliability
+
+`ToolActivityCard` chat timeline içinde framework-neutral `ToolStatus` değerlerini Türkçe ve yalnız renge bağlı olmayan metinlerle gösterir. Confirmation kartı işlem adı, kısa açıklama, kullanıcıya gösterilebilir argümanlar, risk, Onayla ve Vazgeç kontrollerini taşır. Enter onaylar, Escape vazgeçer; tüm aksiyonların accessible name'i vardır. Kartın kendisi restart sonrası interaktif persist edilmez, fakat doğal assistant sonucu normal conversation history'ye yazılır.
+
+Retry policy intent allowlist'ine dayanır. Reminder list, Memory recall, Files read ve Vision read-only akışları retry edilebilir. Reminder create ve Memory store aynı execution ID ile retry edilmez; yeni request ID ve yeni confirmation gerekir. Reminder create callback'i aynı aktif title/due/recurrence kaydını duplicate olarak yeniden yazmaz.
+
+Ortak hata kategorileri validation_error, permission_denied, unavailable, timeout, cancelled, persistence_error, execution_error, stale_request ve unsupported olarak sınırlandırılmıştır. Raw exception timeline'a veya karta taşınmaz. Tool availability registry unavailable message'i ve Vision diagnostics preflight ile açıklanır.
+
+Pending clarification/confirmation conversation key'e bağlıdır; metin cancel komutları, confirmation Vazgeç, routing disable, new chat, switch, delete, archive, expiration ve gerçek exit state'i temizler. Ayrı tool-history veritabanı yoktur. Diagnostics yalnız intent/tool/status/duration gibi içeriksiz metadata loglar.
