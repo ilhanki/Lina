@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtGui import QFont, QKeyEvent, QTextCursor
+from PySide6.QtGui import QFont, QIcon, QKeyEvent, QPixmap, QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -65,6 +65,8 @@ class ComposerWidget(QWidget):
     history_requested = Signal(int)
     stop_requested = Signal()
     screen_context_remove_requested = Signal()
+    screen_context_preview_requested = Signal()
+    screen_context_change_requested = Signal()
 
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
@@ -81,6 +83,16 @@ class ComposerWidget(QWidget):
         chip_layout = QHBoxLayout(self.screen_context_chip)
         chip_layout.setContentsMargins(10, 4, 6, 4)
         chip_layout.setSpacing(SPACE_SM)
+        self.screen_context_thumbnail = QPushButton(self.screen_context_chip)
+        self.screen_context_thumbnail.setObjectName("screenContextThumbnail")
+        self.screen_context_thumbnail.setFixedSize(52, 52)
+        self.screen_context_thumbnail.setIconSize(QPixmap(44, 44).size())
+        self.screen_context_thumbnail.setAccessibleName("Görsel önizlemesini aç")
+        self.screen_context_thumbnail.setToolTip("Görseli büyük önizlemede aç")
+        self.screen_context_thumbnail.clicked.connect(
+            self.screen_context_preview_requested
+        )
+        chip_layout.addWidget(self.screen_context_thumbnail)
         self.screen_context_label = QLabel(self.screen_context_chip)
         self.screen_context_label.setToolTip("Geçici ekran bağlamı")
         chip_layout.addWidget(self.screen_context_label)
@@ -90,6 +102,14 @@ class ComposerWidget(QWidget):
         )
         self.screen_context_note.setObjectName("mutedLabel")
         chip_layout.addWidget(self.screen_context_note, 1)
+        self.screen_context_change_button = QPushButton("Değiştir", self.screen_context_chip)
+        self.screen_context_change_button.setObjectName("screenContextChangeButton")
+        self.screen_context_change_button.setAccessibleName("Görseli değiştir")
+        self.screen_context_change_button.setToolTip("Başka bir görsel veya ekran seç")
+        self.screen_context_change_button.clicked.connect(
+            self.screen_context_change_requested
+        )
+        chip_layout.addWidget(self.screen_context_change_button)
         self.screen_context_remove_button = QPushButton("Kaldır", self.screen_context_chip)
         self.screen_context_remove_button.setObjectName("screenContextRemoveButton")
         self.screen_context_remove_button.setAccessibleName("Ekran bağlamını kaldır")
@@ -190,17 +210,34 @@ class ComposerWidget(QWidget):
         height: int,
         analysis_status: str = "Görsel analiz kontrol ediliyor",
         attachment_label: str = "Ekran",
+        image_bytes: bytes | None = None,
     ) -> None:
-        """Show one temporary screen attachment without exposing image data."""
+        """Show one temporary visual attachment in the composer."""
         self.screen_context_label.setText(
             f"{attachment_label} · {width}×{height}"
         )
         self.screen_context_note.setText(analysis_status)
+        pixmap = QPixmap()
+        has_preview = bool(image_bytes) and pixmap.loadFromData(image_bytes)
+        self.screen_context_thumbnail.setVisible(has_preview)
+        if has_preview:
+            self.screen_context_thumbnail.setIcon(
+                QIcon(
+                    pixmap.scaled(
+                        44,
+                        44,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+            )
         self.screen_context_chip.show()
 
     def clear_screen_context(self) -> None:
         """Hide and clear the temporary screen attachment summary."""
         self.screen_context_label.clear()
+        self.screen_context_thumbnail.setIcon(QIcon())
+        self.screen_context_thumbnail.hide()
         self.screen_context_chip.hide()
 
     def set_waiting(self, waiting: bool) -> None:

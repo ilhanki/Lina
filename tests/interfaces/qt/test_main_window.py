@@ -644,6 +644,28 @@ def test_screen_context_can_be_removed_and_replaced(qtbot) -> None:
     assert window._status_label.text() == "Ekran bağlamı kaldırıldı"
 
 
+def test_visual_message_can_restore_attachment_without_sending(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    context = _screen_context()
+    message = window._append_user_message(
+        "Bu görseli açıkla",
+        image_bytes=context.image_bytes,
+        visual_context=context,
+    )
+
+    message.reanalyze_button.click()
+
+    assert window._screen_context is context
+    assert window._composer.screen_context_chip.isVisibleTo(window)
+    assert window._composer.text() == ""
+
+
 def test_screen_context_is_sent_once_and_consumed_after_success(qtbot) -> None:
     conversation = FakeConversationService()
     window = LinaMainWindow(

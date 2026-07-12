@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from lina.interfaces.qt.theme import SPACE_MD, SPACE_SM, TEXT_MUTED
+from lina.screen.models import ScreenContext
 
 
 MIN_BUBBLE_WIDTH = 380
@@ -27,6 +28,8 @@ class ChatMessageWidget(QWidget):
     """Render one user, assistant, or typing message as a cohesive bubble."""
 
     copy_requested = Signal(str)
+    image_preview_requested = Signal(object)
+    reanalyze_requested = Signal(object)
 
     def __init__(
         self,
@@ -36,12 +39,14 @@ class ChatMessageWidget(QWidget):
         font_size: int,
         typing: bool = False,
         image_bytes: bytes | None = None,
+        visual_context: ScreenContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.role = role
         self.raw_text = text
         self.typing = typing
+        self.visual_context = visual_context
         self.setObjectName("chatMessage")
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
 
@@ -77,6 +82,8 @@ class ChatMessageWidget(QWidget):
                 self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.image_label.setAccessibleName("Mesaja eklenen görsel önizlemesi")
                 self.image_label.setPixmap(self._preview_pixmap)
+                self.image_label.setCursor(Qt.CursorShape.PointingHandCursor)
+                self.image_label.mousePressEvent = self._handle_image_click  # type: ignore[method-assign]
                 bubble_layout.addWidget(self.image_label)
 
         self.text_label = QLabel(text, self.bubble)
@@ -109,7 +116,29 @@ class ChatMessageWidget(QWidget):
         self.copy_button.clicked.connect(lambda: self.copy_requested.emit(self.raw_text))
         self.copy_button.setVisible(not typing)
         metadata.addWidget(self.copy_button)
+        self.visual_status_label = QLabel(self.bubble)
+        self.visual_status_label.setObjectName("mutedLabel")
+        self.visual_status_label.setVisible(visual_context is not None)
+        self.visual_status_label.setText("Analiz bekleniyor")
+        metadata.insertWidget(1, self.visual_status_label)
+        self.reanalyze_button = QPushButton("Yeniden analiz et", self.bubble)
+        self.reanalyze_button.setObjectName("copyButton")
+        self.reanalyze_button.setToolTip("Bu görseli composer alanına geri yükle")
+        self.reanalyze_button.setAccessibleName("Görseli yeniden analize hazırla")
+        self.reanalyze_button.setVisible(visual_context is not None)
+        self.reanalyze_button.clicked.connect(
+            lambda: self.reanalyze_requested.emit(self.visual_context)
+        )
+        metadata.addWidget(self.reanalyze_button)
         bubble_layout.addLayout(metadata)
+
+    def _handle_image_click(self, _event) -> None:
+        if self.visual_context is not None:
+            self.image_preview_requested.emit(self.visual_context)
+
+    def set_visual_status(self, status: str) -> None:
+        """Update the session-local analysis status shown below an image."""
+        self.visual_status_label.setText(status)
 
     def set_message_font(self, family: str, size: int) -> None:
         """Update the visible message font for session accessibility controls."""

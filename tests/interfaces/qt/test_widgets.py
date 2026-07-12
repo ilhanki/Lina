@@ -1,5 +1,7 @@
 """Tests for PySide6 GUI widgets."""
 
+from datetime import datetime
+
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
 from PySide6.QtGui import QImage
 
@@ -11,6 +13,19 @@ from lina.interfaces.qt.widgets.composer import (
     COMPOSER_INPUT_MAX_HEIGHT,
     COMPOSER_INPUT_MIN_HEIGHT,
 )
+from lina.screen.models import ScreenContext
+
+
+def _visual_context(image_bytes: bytes) -> ScreenContext:
+    return ScreenContext(
+        image_bytes=image_bytes,
+        width=320,
+        height=180,
+        captured_at=datetime.now(),
+        display_name="test.png",
+        estimated_byte_size=len(image_bytes),
+        source="local_file",
+    )
 
 
 def test_theme_clamps_message_font_size() -> None:
@@ -72,6 +87,35 @@ def test_user_message_renders_image_preview_above_text(qtbot) -> None:
     )
 
 
+def test_visual_message_exposes_preview_and_reanalyze_actions(qtbot) -> None:
+    image = QImage(320, 180, QImage.Format.Format_RGB32)
+    image.fill(0x336699)
+    data = QByteArray()
+    buffer = QBuffer(data)
+    assert buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+    assert image.save(buffer, "PNG")
+    buffer.close()
+    context = _visual_context(bytes(data))
+    widget = ChatMessageWidget(
+        "user",
+        "Bu görseli açıkla",
+        "Arial",
+        11,
+        image_bytes=bytes(data),
+        visual_context=context,
+    )
+    qtbot.addWidget(widget)
+    widget.show()
+
+    assert widget.reanalyze_button.isVisible() is True
+    with qtbot.waitSignal(widget.reanalyze_requested, timeout=1000) as signal:
+        widget.reanalyze_button.click()
+    assert signal.args == [context]
+
+    widget.set_visual_status("Analiz başarısız · Tekrar dene")
+    assert widget.visual_status_label.text() == "Analiz başarısız · Tekrar dene"
+
+
 def test_composer_sends_with_enter_and_keeps_shift_enter_newline(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)
@@ -122,6 +166,16 @@ def test_composer_screen_context_chip_can_be_shown_and_removed(qtbot) -> None:
     composer.clear_screen_context()
     assert composer.screen_context_chip.isHidden()
     assert composer.screen_context_label.text() == ""
+
+
+def test_composer_attachment_controls_expose_preview_and_change(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    composer.set_screen_context(1920, 1080, image_bytes=b"not-an-image")
+
+    assert composer.screen_context_thumbnail.isHidden() is True
+    with qtbot.waitSignal(composer.screen_context_change_requested, timeout=1000):
+        composer.screen_context_change_button.click()
 
 
 def test_composer_waiting_state_keeps_input_enabled_and_shows_stop(qtbot) -> None:

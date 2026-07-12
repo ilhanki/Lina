@@ -30,6 +30,7 @@ from lina.interfaces.qt.formatting import (
     normalize_assistant_text,
 )
 from lina.interfaces.qt.image_loader import ImageLoadError, QtImageLoader
+from lina.interfaces.qt.image_preview_dialog import ImagePreviewDialog
 from lina.interfaces.qt.screen_capture import QtScreenCaptureService
 from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
 from lina.interfaces.qt.region_capture_overlay import RegionCaptureOverlay
@@ -244,6 +245,12 @@ class LinaMainWindow(QMainWindow):
         self._composer.screen_context_remove_requested.connect(
             self.remove_screen_context
         )
+        self._composer.screen_context_preview_requested.connect(
+            self.preview_active_attachment
+        )
+        self._composer.screen_context_change_requested.connect(
+            self.change_active_attachment
+        )
         self._composer.mic_requested.connect(self.handle_mic_request)
 
     def _bind_shortcuts(self) -> None:
@@ -277,14 +284,17 @@ class LinaMainWindow(QMainWindow):
         self._composer.clear()
         request_screen_context = self._screen_context
         self._auto_scroll_enabled = True
-        self._append_user_message(
+        user_message = self._append_user_message(
             message,
             image_bytes=(
                 request_screen_context.image_bytes
                 if request_screen_context is not None
                 else None
             ),
+            visual_context=request_screen_context,
         )
+        if request_screen_context is not None:
+            user_message.set_visual_status("Analiz ediliyor")
         self._show_typing_indicator(
             "Lina ekranı inceliyor..."
             if request_screen_context is not None
@@ -444,8 +454,28 @@ class LinaMainWindow(QMainWindow):
                 if context.source == LOCAL_FILE
                 else "Ekran"
             ),
+            image_bytes=context.image_bytes,
         )
         self._set_status("Ekran bağlamı eklendi")
+
+    def preview_active_attachment(self) -> None:
+        """Open the active attachment from its in-memory session data."""
+        if self._screen_context is None:
+            return
+        try:
+            dialog = ImagePreviewDialog(self._screen_context, self)
+            dialog.exec()
+        except Exception:
+            self._set_status("Görsel önizlemesi oluşturulamadı.")
+
+    def change_active_attachment(self) -> None:
+        """Replace the current local image or screen capture."""
+        if self._screen_context is not None and self._screen_context.source == LOCAL_FILE:
+            self.handle_image_upload()
+            return
+        self._screen_menu.popup(self._composer.screen_button.mapToGlobal(
+            self._composer.screen_button.rect().bottomLeft()
+        ))
 
     def _clear_screen_context(self) -> None:
         self._screen_context = None
@@ -526,8 +556,12 @@ class LinaMainWindow(QMainWindow):
             self._request_screen_contexts.pop(request_id, None)
             return
         if status == "error":
-            had_image = self._request_screen_contexts.pop(request_id, None) is not None
-            self._handle_conversation_error(payload, vision_request=had_image)
+            request_screen_context = self._request_screen_contexts.pop(request_id, None)
+            self._handle_conversation_error(
+                payload,
+                vision_request=request_screen_context is not None,
+                request_screen_context=request_screen_context,
+            )
             return
         request_screen_context = self._request_screen_contexts.pop(request_id, None)
         self._handle_conversation_result(payload, request_screen_context)
@@ -547,6 +581,7 @@ class LinaMainWindow(QMainWindow):
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
+        self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
         self._set_waiting_state(False)
         if (
             consumed
@@ -564,6 +599,7 @@ class LinaMainWindow(QMainWindow):
         self,
         error: object,
         vision_request: bool = False,
+        request_screen_context: ScreenContext | None = None,
     ) -> None:
         self._remove_typing_indicator()
         if vision_request and isinstance(error, Exception):
@@ -576,6 +612,10 @@ class LinaMainWindow(QMainWindow):
             )
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
+        self._set_visual_status_for_context(
+            request_screen_context,
+            "Analiz başarısız · Tekrar dene",
+        )
         self._set_waiting_state(False)
         self._set_status("Hata oluştu.")
         self._composer.input.setFocus()
@@ -625,8 +665,14 @@ class LinaMainWindow(QMainWindow):
         self,
         text: str,
         image_bytes: bytes | None = None,
+        visual_context: ScreenContext | None = None,
     ) -> ChatMessageWidget:
-        return self._append_message("user", text, image_bytes=image_bytes)
+        return self._append_message(
+            "user",
+            text,
+            image_bytes=image_bytes,
+            visual_context=visual_context,
+        )
 
     def _append_assistant_message(self, text: str) -> ChatMessageWidget:
         normalized = normalize_assistant_text(text)
@@ -639,6 +685,7 @@ class LinaMainWindow(QMainWindow):
         text: str,
         typing: bool = False,
         image_bytes: bytes | None = None,
+        visual_context: ScreenContext | None = None,
     ) -> ChatMessageWidget:
         should_scroll = self._auto_scroll_enabled or self._is_scroll_near_bottom()
         message = ChatMessageWidget(
@@ -648,9 +695,12 @@ class LinaMainWindow(QMainWindow):
             font_size=self._message_font_size,
             typing=typing,
             image_bytes=image_bytes,
+            visual_context=visual_context,
             parent=self._message_container,
         )
         message.copy_requested.connect(self._copy_text)
+        message.image_preview_requested.connect(self._show_image_preview)
+        message.reanalyze_requested.connect(self.reanalyze_visual_context)
         row = QWidget(self._message_container)
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(0, 0, 0, 0)
@@ -668,6 +718,34 @@ class LinaMainWindow(QMainWindow):
         if should_scroll:
             self._schedule_scroll_to_bottom()
         return message
+
+    def _show_image_preview(self, context: object) -> None:
+        if not isinstance(context, ScreenContext):
+            return
+        try:
+            ImagePreviewDialog(context, self).exec()
+        except Exception:
+            self._set_status("Görsel önizlemesi oluşturulamadı.")
+
+    def reanalyze_visual_context(self, context: object) -> None:
+        """Restore a previous image to the composer without sending it."""
+        if not isinstance(context, ScreenContext) or self._is_waiting:
+            return
+        self._set_screen_context(context)
+        self._set_status("Görsel yeniden analize hazır")
+
+    def _set_visual_status_for_context(
+        self,
+        context: ScreenContext | None,
+        status: str,
+    ) -> None:
+        if context is None:
+            return
+        for row in self._message_rows:
+            message = getattr(row, "_message_widget", None)
+            if isinstance(message, ChatMessageWidget) and message.visual_context is context:
+                message.set_visual_status(status)
+                return
 
     def _show_typing_indicator(self, text: str = "Yazıyor...") -> None:
         self._remove_typing_indicator()
