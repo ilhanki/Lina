@@ -20,6 +20,8 @@ class DeterministicIntentClassifier:
             return self._request(IntentType.LIST_REMINDERS, original, 0.99)
         if "hatırlatıcı" in normalized and any(word in normalized for word in ("faydalı", "nedir", "sence", "nasıl çalışır")):
             return self._request(IntentType.CHAT, original, 0.95)
+        if any(phrase in normalized for phrase in ("ekran analizi nasıl", "ekran analizi nedir", "memory sistemi güvenli", "dosya okumak tehlikeli", "readme nedir")):
+            return self._request(IntentType.CHAT, original, 0.95)
         if re.search(r"\b(hatırlat|hatırlatıcı oluştur)\b", normalized):
             arguments, missing = parse_reminder_arguments(original)
             arguments["missing_fields"] = missing

@@ -21,8 +21,12 @@ class IntentRouter:
 
     def route(self, text: str, conversation_id: int | None = None, generation_id: int = 0) -> IntentRequest:
         if not self._enabled_provider():
+            self.cancel_pending()
             return IntentRequest(IntentType.CHAT, 1.0, text, source="disabled")
         pending = self.pending_for(conversation_id)
+        if pending and " ".join(text.casefold().split()).strip(" .!?") in {"iptal", "vazgeç", "boşver", "gerek yok"}:
+            self._pending.pop(conversation_id, None)
+            return IntentRequest(IntentType.CANCEL, 1.0, text, source="deterministic")
         if pending and pending.request.intent is IntentType.CREATE_REMINDER:
             combined = f"{pending.request.original_text} {text}"
             request = self.classifier.classify(combined)
@@ -47,8 +51,9 @@ class IntentRouter:
         definition = self.registry.get(request.intent)
         if definition is None:
             return ToolResult(False, "Bu işlem Lina’nın mevcut yetkileri dışında.", error_code="unsupported")
-        if not definition.available():
-            return ToolResult(False, definition.unavailable_message, error_code="unavailable")
+        availability = definition.available()
+        if not availability:
+            return ToolResult(False, definition.unavailable_message, error_code="unavailable", retryable=_is_retryable(request.intent))
         if not _arguments_match(definition.input_schema, request.extracted_arguments):
             return ToolResult(False, "İşlem bilgileri doğrulanamadı.", error_code="invalid_arguments")
         if definition.requires_confirmation and not context.confirmed:
@@ -58,14 +63,34 @@ class IntentRouter:
         try:
             result = definition.execute(request, context)
         except Exception:
-            result = ToolResult(False, "İşlem tamamlanamadı.", error_code="execution_failed")
+            result = ToolResult(False, "İşlem tamamlanamadı.", error_code="execution_error", retryable=_is_retryable(request.intent))
+        duration_ms = int((monotonic() - started) * 1000)
         self._logger.info(
             "tool_executed name=%s success=%s duration_ms=%d",
             definition.name,
             result.success,
-            int((monotonic() - started) * 1000),
+            duration_ms,
         )
-        return result
+        return ToolResult(result.success, result.user_message, result.data, result.error_code, result.requires_follow_up, duration_ms, result.retryable)
+
+    def retry(self, request: IntentRequest, context: RequestContext) -> ToolResult:
+        """Retry read-only tools; persistent actions require a fresh confirmation."""
+        persistent = request.intent in {IntentType.CREATE_REMINDER, IntentType.MEMORY_STORE}
+        replacement = IntentRequest(
+            request.intent,
+            request.confidence,
+            request.original_text,
+            dict(request.extracted_arguments),
+            persistent,
+            request.source,
+        )
+        retry_context = RequestContext(
+            context.conversation_id,
+            context.message_id,
+            context.generation_id,
+            confirmed=False if persistent else context.confirmed,
+        )
+        return self.execute(replacement, retry_context)
 
     def pending_for(self, conversation_id: int | None) -> PendingIntent | None:
         pending = self._pending.get(conversation_id)
@@ -85,6 +110,10 @@ class IntentRouter:
         missing = request.extracted_arguments.get("missing_fields", ())
         if "future_time" in missing:
             return "Geçmiş bir saat seçemeyiz. Hangi gelecek tarih ve saati kullanayım?"
+        if "date" in missing and "time" in missing and "title" in missing:
+            return "Hangi gün, saat kaçta ve neyi hatırlatayım?"
+        if "time" in missing and "title" in missing:
+            return "Saat kaçta ve neyi hatırlatayım?"
         if "date" in missing and "time" in missing:
             return "Hangi gün ve saat için hatırlatayım?"
         if "date" in missing:
@@ -117,3 +146,14 @@ def _confidence_bucket(value: float) -> str:
     if value >= 0.6:
         return "medium"
     return "low"
+
+
+def _is_retryable(intent: IntentType) -> bool:
+    return intent in {
+        IntentType.LIST_REMINDERS,
+        IntentType.MEMORY_RECALL,
+        IntentType.READ_FILE,
+        IntentType.ANALYZE_SCREEN,
+        IntentType.ANALYZE_REGION,
+        IntentType.ANALYZE_IMAGE,
+    }

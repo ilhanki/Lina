@@ -21,6 +21,10 @@ def test_classifier_routes_supported_intents_and_chat() -> None:
         "E-posta gönder": IntentType.UNSUPPORTED,
         "PowerShell komutu çalıştır": IntentType.UNSAFE,
         "Hatırlatıcılar sence faydalı mı?": IntentType.CHAT,
+        "Ekran analizi nasıl çalışıyor?": IntentType.CHAT,
+        "Memory sistemi güvenli mi?": IntentType.CHAT,
+        "README nedir?": IntentType.CHAT,
+        "Dosya okumak tehlikeli olabilir mi?": IntentType.CHAT,
     }
     for text, intent in cases.items():
         assert classifier.classify(text).intent is intent
@@ -51,3 +55,8 @@ def test_reminder_title_and_trailing_memory_content_are_clean() -> None:
     memory = DeterministicIntentClassifier().classify("Koyu temayı tercih ettiğimi unutma")
     assert reminder.extracted_arguments["title"] == "Ara"
     assert memory.extracted_arguments["content"] == "Koyu temayı tercih ettiğimi"
+
+
+def test_missing_title_and_time_asks_one_combined_question() -> None:
+    request = DeterministicIntentClassifier().classify("Yarın beni hatırlat")
+    assert set(request.extracted_arguments["missing_fields"]) == {"time", "title"}

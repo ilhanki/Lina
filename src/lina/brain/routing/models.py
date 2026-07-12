@@ -19,6 +19,29 @@ class IntentType(str, Enum):
     MEMORY_RECALL = "memory_recall"
     UNSUPPORTED = "unsupported"
     UNSAFE = "unsafe"
+    CANCEL = "cancel"
+
+
+class ToolStatus(str, Enum):
+    PREPARING = "preparing"
+    AWAITING_CONFIRMATION = "awaiting_confirmation"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILURE = "failure"
+    CANCELLED = "cancelled"
+    UNAVAILABLE = "unavailable"
+
+
+class ToolErrorCategory(str, Enum):
+    VALIDATION_ERROR = "validation_error"
+    PERMISSION_DENIED = "permission_denied"
+    UNAVAILABLE = "unavailable"
+    TIMEOUT = "timeout"
+    CANCELLED = "cancelled"
+    PERSISTENCE_ERROR = "persistence_error"
+    EXECUTION_ERROR = "execution_error"
+    STALE_REQUEST = "stale_request"
+    UNSUPPORTED = "unsupported"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +62,8 @@ class ToolResult:
     data: Any = None
     error_code: str | None = None
     requires_follow_up: bool = False
+    duration_ms: int | None = None
+    retryable: bool = False
 
 
 @dataclass(frozen=True, slots=True)

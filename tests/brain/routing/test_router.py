@@ -52,3 +52,24 @@ def test_router_rejects_invalid_arguments_before_callback() -> None:
     result = router.execute(request, RequestContext(1, confirmed=True))
     assert result.error_code == "invalid_arguments"
     assert calls == []
+
+
+def test_cancel_words_clear_pending_and_routing_disable_clears_all() -> None:
+    enabled = {"value": True}
+    router = IntentRouter(SafeToolRegistry(), enabled_provider=lambda: enabled["value"])
+    router.route("Yarın beni hatırlat", 1)
+    assert router.route("boşver", 1).intent is IntentType.CANCEL
+    assert router.pending_for(1) is None
+    router.route("Yarın beni hatırlat", 2)
+    enabled["value"] = False
+    assert router.route("18:00", 2).intent is IntentType.CHAT
+    assert router.pending_for(2) is None
+
+
+def test_retry_is_safe_and_persistent_retry_requires_fresh_confirmation() -> None:
+    calls = []
+    router = IntentRouter(_registry(calls))
+    request = IntentRequest(IntentType.CREATE_REMINDER, 1, "", {"title": "Test"}, True)
+    result = router.retry(request, RequestContext(1, confirmed=True))
+    assert result.error_code == "confirmation_required"
+    assert calls == []

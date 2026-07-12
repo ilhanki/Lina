@@ -71,3 +71,19 @@ def test_unavailable_services_return_safe_message() -> None:
     router = IntentRouter(build_safe_tool_registry())
     result = router.execute(IntentRequest(IntentType.READ_FILE, 1, "", {"target": "README.md"}), RequestContext(None))
     assert result.error_code == "unavailable"
+
+
+def test_reminder_list_is_capped_and_duplicate_create_is_safe(tmp_path) -> None:
+    reminders, files, memory = _services(tmp_path)
+    router = IntentRouter(build_safe_tool_registry(reminders, files, memory))
+    for index in range(12):
+        reminders.create(f"R{index}", datetime.now(timezone.utc) + timedelta(days=index + 1))
+    listed = router.execute(IntentRequest(IntentType.LIST_REMINDERS, 1, ""), RequestContext(None))
+    assert listed.user_message.count("\n-") == 10
+    assert "...ve 2 hatırlatıcı daha" in listed.user_message
+    due = datetime.now(timezone.utc) + timedelta(hours=3)
+    first = IntentRequest(IntentType.CREATE_REMINDER, 1, "", {"title": "Aynı", "due_at": due, "recurrence": "none"}, True)
+    second = IntentRequest(IntentType.CREATE_REMINDER, 1, "", {"title": "Aynı", "due_at": due, "recurrence": "none"}, True)
+    assert router.execute(first, RequestContext(None, confirmed=True)).success
+    assert "zaten mevcut" in router.execute(second, RequestContext(None, confirmed=True)).user_message
+    assert len([item for item in reminders.list() if item.title == "Aynı"]) == 1

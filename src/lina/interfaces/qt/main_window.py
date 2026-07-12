@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from lina.brain.model_provider import ModelResponse
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext
+from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
 from lina.interfaces.qt.formatting import (
     build_welcome_message,
@@ -44,6 +45,7 @@ from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
 from lina.interfaces.qt.region_capture_overlay import RegionCaptureOverlay
 from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, build_stylesheet, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
+from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
@@ -117,6 +119,7 @@ class LinaMainWindow(QMainWindow):
         self._notification_scheduler: NotificationScheduler | None = None
         self._intent_router = intent_router
         self._routing_session_key = -1
+        self._active_confirmation_cancel: Callable[[], None] | None = None
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
@@ -433,6 +436,9 @@ class LinaMainWindow(QMainWindow):
 
     def _apply_user_settings(self, settings: UserSettings) -> None:
         """Apply settings that are safe to reflect in the current window."""
+        if not settings.general.intent_routing_enabled and self._intent_router is not None:
+            self._intent_router.cancel_pending()
+            self._active_confirmation_cancel = None
         application = QApplication.instance()
         if application is not None:
             application.setFont(QFont(self._font_family, round(11 * settings.appearance.font_scale)))
@@ -488,6 +494,9 @@ class LinaMainWindow(QMainWindow):
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
+        if self._active_confirmation_cancel is not None and " ".join(message.casefold().split()).strip(" .!?") in {"iptal", "vazgeç", "boşver", "gerek yok"}:
+            self._active_confirmation_cancel()
+            return
         if self._intent_router is not None:
             routed = self._intent_router.route(
                 message, self._routing_session_key, self._active_request_id
@@ -529,15 +538,20 @@ class LinaMainWindow(QMainWindow):
         if request.intent is RoutingIntentType.UNSUPPORTED:
             self._finish_routed_intent(user_text, "Bu işlem şu anda desteklenmiyor.", created_at)
             return
+        if request.intent is RoutingIntentType.CANCEL:
+            self._finish_routed_intent(user_text, "İşlem iptal edildi.", created_at)
+            return
         if request.intent in {RoutingIntentType.ANALYZE_SCREEN, RoutingIntentType.ANALYZE_REGION, RoutingIntentType.ANALYZE_IMAGE}:
             self._finish_routed_intent(user_text, self._run_vision_intent(request.intent), created_at)
             return
-        confirmed = not request.requires_confirmation
         if request.requires_confirmation:
-            confirmed = self._confirm_intent(request)
-            if not confirmed:
-                self._finish_routed_intent(user_text, "İşlemden vazgeçildi.", created_at)
-                return
+            self._show_confirmation_card(request, user_text, created_at)
+            return
+        self._execute_routed_tool(request, user_text, created_at, confirmed=True)
+
+    def _execute_routed_tool(self, request: IntentRequest, user_text: str, created_at: datetime, confirmed: bool, card: ToolActivityCard | None = None) -> None:
+        activity = card or self._add_tool_card(self._tool_title(request), "İşlem hazırlanıyor.")
+        activity.set_status(ToolStatus.RUNNING)
         result = self._intent_router.execute(
             request,
             RequestContext(
@@ -546,19 +560,89 @@ class LinaMainWindow(QMainWindow):
                 confirmed=confirmed,
             ),
         )
+        if result.success:
+            activity.set_status(ToolStatus.SUCCESS, result.user_message)
+        else:
+            status = ToolStatus.UNAVAILABLE if result.error_code == "unavailable" else ToolStatus.FAILURE
+            activity.set_status(status, result.user_message, result.retryable)
+            if result.retryable:
+                activity.retry_requested.connect(lambda: self._retry_readonly_tool(request, activity))
         self._finish_routed_intent(user_text, result.user_message, created_at)
         if result.success and request.intent is RoutingIntentType.CREATE_REMINDER:
             if self._notification_dialog is not None:
                 self._notification_dialog.reload()
 
-    def _confirm_intent(self, request: IntentRequest) -> bool:
-        box = QMessageBox(self)
-        box.setWindowTitle("Lina · İşlem Onayı")
-        box.setText(self._intent_router.confirmation_message(request))
-        confirm = box.addButton("Onayla", QMessageBox.ButtonRole.AcceptRole)
-        box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
-        box.exec()
-        return box.clickedButton() is confirm
+    def _show_confirmation_card(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
+        card = self._add_tool_card(
+            self._tool_title(request),
+            self._intent_router.confirmation_message(request),
+            self._tool_arguments(request),
+            risk="Kalıcı değişiklik",
+            confirmation=True,
+        )
+        handled = {"value": False}
+
+        def confirm() -> None:
+            if handled["value"]:
+                return
+            handled["value"] = True
+            self._active_confirmation_cancel = None
+            self._execute_routed_tool(request, user_text, created_at, confirmed=True, card=card)
+
+        def cancel() -> None:
+            if handled["value"]:
+                return
+            handled["value"] = True
+            self._active_confirmation_cancel = None
+            self._intent_router.cancel_pending(self._routing_session_key)
+            card.set_status(ToolStatus.CANCELLED, "İşlemden vazgeçildi.")
+            self._finish_routed_intent(user_text, "İşlemden vazgeçildi.", created_at)
+
+        card.confirmed.connect(confirm)
+        card.cancelled.connect(cancel)
+        self._active_confirmation_cancel = cancel
+
+    def _retry_readonly_tool(self, request: IntentRequest, card: ToolActivityCard) -> None:
+        card.set_status(ToolStatus.RUNNING, "İşlem tekrar deneniyor.")
+        result = self._intent_router.retry(
+            request,
+            RequestContext(self._routing_session_key, generation_id=self._active_request_id, confirmed=True),
+        )
+        status = ToolStatus.SUCCESS if result.success else ToolStatus.UNAVAILABLE if result.error_code == "unavailable" else ToolStatus.FAILURE
+        card.set_status(status, result.user_message, result.retryable)
+        self._append_assistant_message(result.user_message)
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.record_assistant_message(result.user_message)
+
+    def _add_tool_card(self, title: str, description: str, arguments: str = "", risk: str = "Düşük", confirmation: bool = False) -> ToolActivityCard:
+        card = ToolActivityCard(title, description, arguments, risk, confirmation, self._message_container)
+        row = QWidget(self._message_container)
+        row_layout = QHBoxLayout(row); row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.addWidget(card); row_layout.addStretch(1)
+        self._message_layout.insertWidget(self._message_layout.count() - 1, row)
+        self._message_rows.append(row)
+        self._schedule_scroll_to_bottom()
+        return card
+
+    @staticmethod
+    def _tool_title(request: IntentRequest) -> str:
+        return {
+            RoutingIntentType.CREATE_REMINDER: "Hatırlatıcı oluştur",
+            RoutingIntentType.LIST_REMINDERS: "Hatırlatıcıları listele",
+            RoutingIntentType.READ_FILE: "Dosyayı oku",
+            RoutingIntentType.MEMORY_STORE: "Hafızaya kaydet",
+            RoutingIntentType.MEMORY_RECALL: "Hafızada ara",
+        }.get(request.intent, "Araç işlemi")
+
+    @staticmethod
+    def _tool_arguments(request: IntentRequest) -> str:
+        if request.intent is RoutingIntentType.CREATE_REMINDER:
+            due = request.extracted_arguments.get("due_at")
+            title = request.extracted_arguments.get("title", "")
+            return f"{due.astimezone().strftime('%d.%m.%Y · %H:%M')}\n“{title}”" if due else f"“{title}”"
+        if request.intent is RoutingIntentType.MEMORY_STORE:
+            return f"“{request.extracted_arguments.get('content', '')}”"
+        return ""
 
     def _run_vision_intent(self, intent: RoutingIntentType) -> str:
         if not self._vision_enabled:
@@ -603,6 +687,7 @@ class LinaMainWindow(QMainWindow):
         self._clear_screen_context()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
+        self._active_confirmation_cancel = None
         self._set_session_title("Yeni Sohbet")
         self._update_session_date()
         self._refresh_conversation_sidebar()
@@ -633,6 +718,7 @@ class LinaMainWindow(QMainWindow):
             self._conversation_service.start_new_session()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
+        self._active_confirmation_cancel = None
         self._routing_session_key -= 1
         self._conversation_view = "chats"
         self._conversation_query = ""
@@ -656,6 +742,7 @@ class LinaMainWindow(QMainWindow):
         try:
             if self._intent_router is not None:
                 self._intent_router.cancel_pending()
+            self._active_confirmation_cancel = None
             self._routing_session_key = conversation_id
             self._conversation_view = "chats"
             self._conversation_query = ""
@@ -1530,6 +1617,7 @@ class LinaMainWindow(QMainWindow):
         self._clear_screen_context()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
+        self._active_confirmation_cancel = None
         if self._speech_service is not None:
             self._speech_service.stop_listening()
         if self._notification_scheduler is not None:

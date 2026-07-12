@@ -13,15 +13,20 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
 
     def create_reminder(request, _context):
         args = request.extracted_arguments
+        duplicate = next((item for item in reminders.list() if item.status.value == "active" and item.title.casefold() == str(args["title"]).casefold() and item.due_at == args["due_at"] and item.recurrence == args["recurrence"]), None)
+        if duplicate is not None:
+            return ToolResult(True, "Bu hatırlatıcı zaten mevcut.", duplicate)
         reminder = reminders.create(args["title"], args["due_at"], args["recurrence"])
         return ToolResult(True, f"Tamam, {reminder.due_at.astimezone().strftime('%d.%m.%Y %H:%M')} için hatırlatıcını oluşturdum.", reminder)
 
     def list_reminders(_request, _context):
-        upcoming = [item for item in reminders.list() if item.status.value == "active" and item.due_at > datetime.now(item.due_at.tzinfo)][:10]
+        upcoming = [item for item in reminders.list() if item.status.value == "active" and item.due_at > datetime.now(item.due_at.tzinfo)]
         if not upcoming:
             return ToolResult(True, "Yaklaşan hatırlatıcın yok.", ())
         lines = [f"Yaklaşan {len(upcoming)} hatırlatıcın var:"]
-        lines.extend(f"- {item.due_at.astimezone().strftime('%d.%m %H:%M')} · {item.title}" for item in upcoming)
+        lines.extend(f"- {item.due_at.astimezone().strftime('%d.%m %H:%M')} · {item.title}" for item in upcoming[:10])
+        if len(upcoming) > 10:
+            lines.append(f"...ve {len(upcoming) - 10} hatırlatıcı daha")
         return ToolResult(True, "\n".join(lines), tuple(upcoming))
 
     def read_file(request, _context):
