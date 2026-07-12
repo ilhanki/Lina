@@ -466,7 +466,7 @@ def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:
     )
     qtbot.addWidget(window)
 
-    window._composer.screen_button.click()
+    window._screen_menu.actions()[0].trigger()
 
     assert capture.capture_count == 1
     assert dialog.exec_count == 1
@@ -475,6 +475,23 @@ def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:
     assert "1920×1080" in window._composer.screen_context_label.text()
     assert window._composer.screen_button.isEnabled() is True
     assert window._status_label.text() == "Ekran bağlamı eklendi"
+
+
+def test_screen_menu_contains_full_and_region_capture_actions(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    actions = [action.text() for action in window._screen_menu.actions()]
+
+    assert actions == ["Tüm Ekranı Yakala", "Alan Seçerek Yakala"]
+    assert window._composer.screen_button.toolTip() == (
+        "Tam ekran veya seçili alan görüntüsü ekle"
+    )
 
 
 def test_ready_vision_status_is_shown_on_screen_attachment(qtbot) -> None:

@@ -135,7 +135,7 @@ class ComposerWidget(QWidget):
         self.screen_button = QPushButton("Ekran", self)
         self._configure_action_button(
             self.screen_button,
-            tooltip="Aktif ekranın görüntüsünü yakala",
+            tooltip="Tam ekran veya seçili alan görüntüsü ekle",
             accessible_name="Ekran görüntüsü yakala",
         )
         action_layout.addWidget(self.screen_button)

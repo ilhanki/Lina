@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMenu,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -229,7 +230,15 @@ class LinaMainWindow(QMainWindow):
         self._composer.stop_requested.connect(self.cancel_active_response)
         self._composer.history_requested.connect(self._navigate_input_history)
         self._composer.attachment_requested.connect(self.handle_image_upload)
-        self._composer.screen_requested.connect(self.handle_screen_request)
+        self._screen_menu = QMenu(self)
+        self._screen_menu.setAccessibleName("Ekran yakalama seçenekleri")
+        full_screen_action = self._screen_menu.addAction("Tüm Ekranı Yakala")
+        full_screen_action.setToolTip("Tüm ekranı yakala")
+        full_screen_action.triggered.connect(self.handle_screen_request)
+        region_action = self._screen_menu.addAction("Alan Seçerek Yakala")
+        region_action.setToolTip("Ekranda alan seçerek yakala")
+        region_action.triggered.connect(self.handle_region_capture)
+        self._composer.screen_button.setMenu(self._screen_menu)
         self._composer.screen_context_remove_requested.connect(
             self.remove_screen_context
         )
@@ -364,6 +373,10 @@ class LinaMainWindow(QMainWindow):
             return
         self._set_screen_context(context)
         self._set_status("Görsel analize hazır")
+
+    def handle_region_capture(self) -> None:
+        """Start the explicit region capture flow when it is available."""
+        self._set_status("Alan seçimi yakında etkinleştirilecek.")
 
     def remove_screen_context(self) -> None:
         """Remove the active temporary screenshot from the GUI session."""
