@@ -282,7 +282,7 @@ class ConversationHistoryService:
                 self._persistence_available = False
                 return False
         if was_active:
-            self._activate_latest_or_draft()
+            self.new_session()
         return was_active
 
     def _materialize_first_message(

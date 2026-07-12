@@ -115,7 +115,7 @@ def test_deleting_last_conversation_returns_to_draft_without_new_row(tmp_path) -
     assert repository.list_conversations() == ()
 
 
-def test_deleting_active_conversation_selects_latest_remaining_session(tmp_path) -> None:
+def test_deleting_active_conversation_returns_to_empty_draft(tmp_path) -> None:
     repository = ConversationRepository(tmp_path / "conversations.sqlite3")
     service = ConversationHistoryService(repository)
     service.start()
@@ -128,5 +128,5 @@ def test_deleting_active_conversation_selects_latest_remaining_session(tmp_path)
     service.load_session(first_id)
     assert service.delete(first_id) is True
 
-    assert service.active_session is not None
-    assert service.active_session.id == second_id
+    assert service.active_session is None
+    assert repository.get_conversation(second_id) is not None
