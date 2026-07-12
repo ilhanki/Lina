@@ -20,3 +20,4 @@ class ScreenContext:
     captured_at: datetime
     display_name: str
     estimated_byte_size: int
+    source: str = "screen_capture"
