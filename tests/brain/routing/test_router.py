@@ -43,3 +43,12 @@ def test_routing_disabled_and_unavailable_tool_fallback() -> None:
     result = IntentRouter(registry).execute(IntentRequest(IntentType.MEMORY_RECALL, 1, "hatırla"), RequestContext(None))
     assert result.error_code == "unavailable"
     assert result.user_message == "Memory kullanılamıyor."
+
+
+def test_router_rejects_invalid_arguments_before_callback() -> None:
+    calls = []
+    router = IntentRouter(_registry(calls))
+    request = IntentRequest(IntentType.CREATE_REMINDER, 1, "", {"title": 42}, True)
+    result = router.execute(request, RequestContext(1, confirmed=True))
+    assert result.error_code == "invalid_arguments"
+    assert calls == []

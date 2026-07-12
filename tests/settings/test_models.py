@@ -11,6 +11,7 @@ def test_default_user_settings_are_turkish_and_local_first() -> None:
     assert settings.general.language == "tr"
     assert settings.speech.auto_insert_transcription is True
     assert settings.system.close_behavior == "exit"
+    assert settings.general.intent_routing_enabled is True
 
 
 def test_user_settings_round_trip_contains_only_known_preferences() -> None:

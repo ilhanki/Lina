@@ -1,6 +1,8 @@
 """Intent routing, pending clarification and confirmation enforcement."""
 
 from datetime import datetime, timedelta, timezone
+import logging
+from time import monotonic
 
 from lina.brain.routing.classifier import DeterministicIntentClassifier
 from lina.brain.routing.models import IntentRequest, IntentType, PendingIntent, RequestContext, ToolResult
@@ -15,6 +17,7 @@ class IntentRouter:
         self._enabled_provider = enabled_provider or (lambda: True)
         self._pending: dict[int | None, PendingIntent] = {}
         self._executed_intents: set[str] = set()
+        self._logger = logging.getLogger("lina.intent_routing")
 
     def route(self, text: str, conversation_id: int | None = None, generation_id: int = 0) -> IntentRequest:
         if not self._enabled_provider():
@@ -25,6 +28,12 @@ class IntentRouter:
             request = self.classifier.classify(combined)
         else:
             request = self.classifier.classify(text)
+        self._logger.info(
+            "intent_routed type=%s source=%s confidence=%s",
+            request.intent.value,
+            request.source,
+            _confidence_bucket(request.confidence),
+        )
         missing = tuple(request.extracted_arguments.get("missing_fields", ()))
         if missing:
             self._pending[conversation_id] = PendingIntent(request, conversation_id, missing, self._clock(), generation_id)
@@ -40,13 +49,23 @@ class IntentRouter:
             return ToolResult(False, "Bu işlem Lina’nın mevcut yetkileri dışında.", error_code="unsupported")
         if not definition.available():
             return ToolResult(False, definition.unavailable_message, error_code="unavailable")
+        if not _arguments_match(definition.input_schema, request.extracted_arguments):
+            return ToolResult(False, "İşlem bilgileri doğrulanamadı.", error_code="invalid_arguments")
         if definition.requires_confirmation and not context.confirmed:
             return ToolResult(False, self.confirmation_message(request), error_code="confirmation_required", requires_follow_up=True)
         self._executed_intents.add(request.intent_id)
+        started = monotonic()
         try:
-            return definition.execute(request, context)
+            result = definition.execute(request, context)
         except Exception:
-            return ToolResult(False, "İşlem tamamlanamadı.", error_code="execution_failed")
+            result = ToolResult(False, "İşlem tamamlanamadı.", error_code="execution_failed")
+        self._logger.info(
+            "tool_executed name=%s success=%s duration_ms=%d",
+            definition.name,
+            result.success,
+            int((monotonic() - started) * 1000),
+        )
+        return result
 
     def pending_for(self, conversation_id: int | None) -> PendingIntent | None:
         pending = self._pending.get(conversation_id)
@@ -86,3 +105,15 @@ class IntentRouter:
         if request.intent is IntentType.MEMORY_STORE:
             return "Bu bilgi hafızaya kaydedilsin mi?"
         return "Bu işlem onaylansın mı?"
+
+
+def _arguments_match(schema: dict[str, type], arguments: dict[str, object]) -> bool:
+    return all(key in arguments and isinstance(arguments[key], expected) for key, expected in schema.items())
+
+
+def _confidence_bucket(value: float) -> str:
+    if value >= 0.9:
+        return "high"
+    if value >= 0.6:
+        return "medium"
+    return "low"
