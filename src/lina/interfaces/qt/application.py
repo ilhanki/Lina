@@ -44,6 +44,7 @@ def run_qt_application(
         vision_diagnostics_service=services.vision_diagnostics_service,
         speech_service=services.speech_service,
         user_settings_service=services.user_settings_service,
+        notification_service=services.notification_service,
     )
     window.show()
     if (

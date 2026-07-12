@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from threading import Event, Lock, Thread
 from typing import Protocol
 
@@ -33,7 +34,7 @@ class FakeClock:
 
 
 class NotificationScheduler:
-    def __init__(self, repository: NotificationRepository, presenter, clock: Clock | None = None, interval_seconds: float = 30.0) -> None:
+    def __init__(self, repository: NotificationRepository, presenter, clock: Clock | None = None, interval_seconds: float = 30.0, settings_provider=None) -> None:
         self._repository = repository
         self._presenter = presenter
         self._clock = clock or SystemClock()
@@ -42,17 +43,37 @@ class NotificationScheduler:
         self._lock = Lock()
         self._thread: Thread | None = None
         self._notified: set[int] = set()
+        self._settings_provider = settings_provider
 
     def check_once(self) -> tuple[Reminder, ...]:
+        if self._stop.is_set():
+            return ()
+        settings = self._settings_provider() if self._settings_provider else None
+        if settings is not None and not settings.reminders_enabled:
+            return ()
         now = self._clock.now()
-        due = tuple(item for item in self._repository.list() if item.status is ReminderStatus.ACTIVE and item.due_at <= now and item.id not in self._notified)
+        due = tuple(item for item in self._repository.list() if item.status is ReminderStatus.ACTIVE and item.due_at <= now)
+        fired: list[Reminder] = []
         for reminder in due:
-            self._notified.add(reminder.id or 0)
+            event = self._repository.create_event(reminder, reminder.due_at)
+            if event is None:
+                continue
+            fired.append(reminder)
+            status = "suppressed"
             try:
-                self._presenter(reminder)
+                if settings is None or settings.desktop_notifications_enabled:
+                    status = self._presenter(event)
             except Exception:
-                pass
-        return due
+                status = "failed"
+            self._repository.update_delivery_status(event.id or 0, status)
+            next_due = next_occurrence(reminder)
+            if next_due is None:
+                self._repository.update(replace(reminder, last_notified_at=now))
+            else:
+                while next_due <= now:
+                    next_due += timedelta(days=1 if reminder.recurrence.value == "daily" else 7)
+                self._repository.update(replace(reminder, due_at=next_due, last_notified_at=now))
+        return tuple(fired)
 
     def start(self) -> None:
         with self._lock:

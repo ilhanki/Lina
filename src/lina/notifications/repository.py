@@ -8,7 +8,7 @@ from pathlib import Path
 import sqlite3
 from collections.abc import Iterator
 
-from lina.notifications.models import Reminder, ReminderRecurrence, ReminderStatus
+from lina.notifications.models import NotificationEvent, Reminder, ReminderRecurrence, ReminderStatus
 
 
 class NotificationRepository:
@@ -35,17 +35,24 @@ class NotificationRepository:
                 triggered_at TEXT NOT NULL,
                 read_at TEXT,
                 delivery_status TEXT NOT NULL,
-                UNIQUE(reminder_id, triggered_at)
+                UNIQUE(reminder_id, triggered_at),
+                FOREIGN KEY(reminder_id) REFERENCES reminders(id) ON DELETE CASCADE
             )""")
 
-    def create_event(self, reminder: Reminder, triggered_at: datetime):
-        from lina.notifications.models import NotificationEvent
+    def create_event(self, reminder: Reminder, triggered_at: datetime) -> NotificationEvent | None:
         with self._connection() as connection:
             cursor = connection.execute(
                 "INSERT OR IGNORE INTO notification_events(reminder_id,title,triggered_at,delivery_status) VALUES(?,?,?,?)",
                 (reminder.id, reminder.title, _serialize(triggered_at), "pending"),
             )
-        return NotificationEvent(cursor.lastrowid, reminder.id or 0, reminder.title, _utc(triggered_at))
+        if cursor.rowcount == 0:
+            return None
+        return NotificationEvent(int(cursor.lastrowid), reminder.id or 0, reminder.title, _utc(triggered_at))
+
+    def list_events(self) -> tuple[NotificationEvent, ...]:
+        with self._connection() as connection:
+            rows = connection.execute("SELECT * FROM notification_events ORDER BY triggered_at DESC, id DESC")
+            return tuple(_event_row(row) for row in rows)
 
     def unread_event_count(self) -> int:
         with self._connection() as connection:
@@ -54,6 +61,16 @@ class NotificationRepository:
     def mark_event_read(self, event_id: int) -> None:
         with self._connection() as connection:
             connection.execute("UPDATE notification_events SET read_at=? WHERE id=?", (_serialize(datetime.now(timezone.utc)), event_id))
+
+    def mark_all_events_read(self) -> None:
+        with self._connection() as connection:
+            connection.execute("UPDATE notification_events SET read_at=? WHERE read_at IS NULL", (_serialize(datetime.now(timezone.utc)),))
+
+    def update_delivery_status(self, event_id: int, status: str) -> None:
+        if status not in {"pending", "delivered", "in_app", "suppressed", "failed"}:
+            raise ValueError("Invalid delivery status")
+        with self._connection() as connection:
+            connection.execute("UPDATE notification_events SET delivery_status=? WHERE id=?", (status, event_id))
 
     def create(self, reminder: Reminder) -> Reminder:
         now = _utc(reminder.created_at or datetime.now(timezone.utc))
@@ -85,6 +102,7 @@ class NotificationRepository:
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.database_path)
+        connection.execute("PRAGMA foreign_keys = ON")
         connection.row_factory = sqlite3.Row
         try:
             yield connection
@@ -107,3 +125,7 @@ def _optional(value: datetime | None) -> str | None:
 
 def _row(row: sqlite3.Row) -> Reminder:
     return Reminder(int(row["id"]), row["title"], datetime.fromisoformat(row["due_at"]), ReminderRecurrence(row["recurrence"]), ReminderStatus(row["status"]), datetime.fromisoformat(row["created_at"]), datetime.fromisoformat(row["completed_at"]) if row["completed_at"] else None, datetime.fromisoformat(row["last_notified_at"]) if row["last_notified_at"] else None)
+
+
+def _event_row(row: sqlite3.Row) -> NotificationEvent:
+    return NotificationEvent(int(row["id"]), int(row["reminder_id"]), row["title"], datetime.fromisoformat(row["triggered_at"]), datetime.fromisoformat(row["read_at"]) if row["read_at"] else None, row["delivery_status"])

@@ -18,6 +18,8 @@ from lina.files.file_access_service import FileAccessService
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
+from lina.notifications.repository import NotificationRepository
+from lina.notifications.service import NotificationService
 from lina.services.conversation_service import ConversationService
 from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import (
@@ -47,6 +49,7 @@ class ApplicationServices:
     speech_service: SpeechService
     conversation_history_service: ConversationHistoryService | None = None
     user_settings_service: UserSettingsService | None = None
+    notification_service: NotificationService | None = None
 
 
 def create_application_services(
@@ -146,6 +149,7 @@ def create_application_services(
             vision_diagnostics_service,
         )
     )
+    notification_service = NotificationService(NotificationRepository(project_root / "data" / "notifications.sqlite3"))
 
     return ApplicationServices(
         application=application,
@@ -155,6 +159,7 @@ def create_application_services(
         speech_service=speech_service,
         conversation_history_service=conversation_history_service,
         user_settings_service=user_settings_service,
+        notification_service=notification_service,
     )
 
 

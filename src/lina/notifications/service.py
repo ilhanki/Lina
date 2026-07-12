@@ -15,13 +15,38 @@ class NotificationService:
         self._repository = repository
 
     def create(self, title: str, due_at: datetime, recurrence: ReminderRecurrence = ReminderRecurrence.NONE) -> Reminder:
-        return self._repository.create(Reminder(None, title, _utc(due_at), recurrence))
+        due_at = _utc(due_at)
+        if due_at <= datetime.now(timezone.utc):
+            raise ValueError("Hatırlatma zamanı gelecekte olmalı.")
+        try:
+            return self._repository.create(Reminder(None, title, due_at, recurrence))
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise RuntimeError("Hatırlatıcı kaydedilemedi.") from exc
 
     def list(self) -> tuple[Reminder, ...]:
         return self._repository.list()
 
     def update(self, reminder: Reminder) -> Reminder:
-        return self._repository.update(reminder)
+        try:
+            return self._repository.update(reminder)
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise RuntimeError("Hatırlatıcı güncellenemedi.") from exc
+
+    def events(self):
+        return self._repository.list_events()
+
+    def unread_count(self) -> int:
+        return self._repository.unread_event_count()
+
+    def mark_read(self, event_id: int) -> None:
+        self._repository.mark_event_read(event_id)
+
+    def mark_all_read(self) -> None:
+        self._repository.mark_all_events_read()
 
     def complete(self, reminder: Reminder) -> Reminder:
         return self.update(Reminder(reminder.id, reminder.title, reminder.due_at, reminder.recurrence, ReminderStatus.COMPLETED, reminder.created_at, _utc(datetime.now(timezone.utc))))

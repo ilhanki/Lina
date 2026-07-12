@@ -67,10 +67,15 @@ from lina.speech.service import SpeechService
 from lina.settings.models import UserSettings
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.settings_dialog import SettingsDialog
+from lina.interfaces.qt.notification_center import NotificationCenterDialog
+from lina.interfaces.qt.reminder_dialog import ReminderDialog
+from lina.notifications.presenter import QtNotificationPresenter
+from lina.notifications.scheduler import NotificationScheduler
+from lina.notifications.service import NotificationService
 from lina.vision.models import ImageAttachment, VisionRequestError
 
 
-APP_VERSION = "v0.9.0-alpha"
+APP_VERSION = "v0.9.1-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -87,6 +92,7 @@ class LinaMainWindow(QMainWindow):
         vision_diagnostics_service: VisionDiagnosticsService | None = None,
         speech_service: SpeechService | None = None,
         user_settings_service: UserSettingsService | None = None,
+        notification_service: NotificationService | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         image_loader: QtImageLoader | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
@@ -103,6 +109,9 @@ class LinaMainWindow(QMainWindow):
         self._vision_enabled = True
         self._user_settings_service = user_settings_service
         self._settings_dialog: SettingsDialog | None = None
+        self._notification_service = notification_service
+        self._notification_dialog: NotificationCenterDialog | None = None
+        self._notification_scheduler: NotificationScheduler | None = None
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
@@ -147,6 +156,7 @@ class LinaMainWindow(QMainWindow):
         self._apply_window_icon()
         self._build_layout()
         self._setup_system_tray()
+        self._setup_notifications()
         self._bind_shortcuts()
         self._restore_initial_conversation()
         self._composer.input.setFocus()
@@ -222,6 +232,11 @@ class LinaMainWindow(QMainWindow):
         self._speech_status.setObjectName("statusChip")
         layout.addWidget(self._speech_status)
         if self._user_settings_service is not None:
+            if self._notification_service is not None:
+                self._notification_button = QPushButton("🔔", header)
+                self._notification_button.setObjectName("notificationButton")
+                self._notification_button.clicked.connect(self.open_notifications)
+                layout.addWidget(self._notification_button)
             self._settings_button = QPushButton("Ayarlar", header)
             self._settings_button.setToolTip("Ayarlar")
             self._settings_button.clicked.connect(self.open_settings)
@@ -336,6 +351,11 @@ class LinaMainWindow(QMainWindow):
         open_action.triggered.connect(self._show_from_tray)
         new_action = menu.addAction("Yeni Sohbet")
         new_action.triggered.connect(self._new_chat_from_tray)
+        if self._notification_service is not None:
+            reminder_action = menu.addAction("Yeni Hatırlatıcı")
+            reminder_action.triggered.connect(self.create_reminder)
+            notifications_action = menu.addAction("Bildirimler")
+            notifications_action.triggered.connect(self.open_notifications)
         settings_action = menu.addAction("Ayarlar")
         settings_action.triggered.connect(self.open_settings)
         menu.addSeparator()
@@ -344,6 +364,41 @@ class LinaMainWindow(QMainWindow):
         self._tray_icon.setContextMenu(menu)
         self._tray_icon.setToolTip("Lina")
         self._tray_icon.show()
+
+    def _setup_notifications(self) -> None:
+        if self._notification_service is None:
+            return
+        presenter = QtNotificationPresenter(self._tray_icon)
+        provider = (lambda: self._user_settings_service.current.system) if self._user_settings_service else None
+        self._notification_scheduler = NotificationScheduler(self._notification_service._repository, presenter.present, settings_provider=provider)
+        self._notification_scheduler.check_once()
+        self._notification_scheduler.start()
+        self._refresh_notification_badge()
+
+    def _refresh_notification_badge(self) -> None:
+        if hasattr(self, "_notification_button") and self._notification_service is not None:
+            count = self._notification_service.unread_count()
+            self._notification_button.setText(f"🔔 {count}" if count else "🔔")
+
+    def open_notifications(self) -> None:
+        if self._notification_service is None:
+            return
+        if self._notification_dialog is None:
+            self._notification_dialog = NotificationCenterDialog(self._notification_service, self)
+            self._notification_dialog.finished.connect(lambda _result: self._clear_notification_dialog())
+        self._notification_dialog.show(); self._notification_dialog.raise_(); self._notification_dialog.activateWindow()
+        self._refresh_notification_badge()
+
+    def _clear_notification_dialog(self) -> None:
+        self._notification_dialog = None
+        self._refresh_notification_badge()
+
+    def create_reminder(self) -> None:
+        if self._notification_service is None:
+            return
+        dialog = ReminderDialog(parent=self)
+        if dialog.exec():
+            self._notification_service.create(dialog.title_edit.text(), dialog.due_at, dialog.recurrence)
 
     def _show_from_tray(self) -> None:
         self.showNormal()
@@ -460,6 +515,8 @@ class LinaMainWindow(QMainWindow):
             self._conversation_service.clear_session()
         self._clear_visible_messages()
         self._clear_screen_context()
+        if self._notification_scheduler is not None:
+            self._notification_scheduler.stop()
         self._set_session_title("Yeni Sohbet")
         self._update_session_date()
         self._refresh_conversation_sidebar()
