@@ -136,6 +136,16 @@ def create_application_services(
     user_settings_service = UserSettingsService(
         UserSettingsRepository(user_settings_path or default_user_settings_path())
     )
+    user_settings_service.subscribe(
+        lambda user_settings: _apply_user_model_settings(
+            user_settings.models.text_model,
+            user_settings.models.vision_model,
+            provider,
+            vision_provider,
+            diagnostics_service,
+            vision_diagnostics_service,
+        )
+    )
 
     return ApplicationServices(
         application=application,
@@ -146,6 +156,21 @@ def create_application_services(
         conversation_history_service=conversation_history_service,
         user_settings_service=user_settings_service,
     )
+
+
+def _apply_user_model_settings(
+    text_model: str,
+    vision_model: str,
+    provider: OllamaProvider,
+    vision_provider: OllamaProvider,
+    diagnostics_service: ModelDiagnosticsService,
+    vision_diagnostics_service: VisionDiagnosticsService,
+) -> None:
+    """Apply user-selected model names to future provider requests."""
+    provider.set_model(text_model)
+    vision_provider.set_model(vision_model)
+    diagnostics_service.set_model(text_model)
+    vision_diagnostics_service.set_model(vision_model)
 
 
 def _create_memory_service(

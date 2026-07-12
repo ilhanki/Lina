@@ -87,6 +87,13 @@ class ModelDiagnosticsService:
         """Return the configured model name."""
         return self._model
 
+    def set_model(self, model: str) -> None:
+        """Update the model checked by future diagnostics calls."""
+        normalized = model.strip()
+        if not normalized:
+            raise ValueError("Model must not be empty")
+        self._model = normalized
+
     def check_status(self) -> DiagnosticsResult:
         """Check Ollama reachability and return diagnostics result."""
         if not self._model.strip():
@@ -175,6 +182,13 @@ class VisionDiagnosticsService:
     def configured_model(self) -> str:
         """Return the configured vision model name."""
         return self._model
+
+    def set_model(self, model: str) -> None:
+        """Update the vision model checked by future diagnostics calls."""
+        normalized = model.strip()
+        if not normalized:
+            raise ValueError("Vision model must not be empty")
+        self._model = normalized
 
     def check_status(self) -> VisionDiagnosticsResult:
         """Check model presence and the explicit Ollama vision capability."""

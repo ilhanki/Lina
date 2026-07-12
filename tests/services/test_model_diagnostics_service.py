@@ -274,3 +274,9 @@ def test_model_status_values() -> None:
     assert ModelStatus.MODEL_NOT_CONFIGURED.value == "model_not_configured"
     assert ModelStatus.MODEL_NOT_AVAILABLE.value == "model_not_available"
     assert ModelStatus.TIMEOUT.value == "timeout"
+def test_model_diagnostics_model_can_change() -> None:
+    service = ModelDiagnosticsService("http://localhost:11434", "llama3")
+
+    service.set_model("qwen3:4b")
+
+    assert service.configured_model == "qwen3:4b"

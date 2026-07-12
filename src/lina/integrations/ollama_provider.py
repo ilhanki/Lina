@@ -37,7 +37,8 @@ class OllamaProvider(ModelProvider):
         self._opener = opener
 
     def generate(self, request: ModelRequest) -> ModelResponse:
-        if not self._model.strip():
+        model = self._model
+        if not model.strip():
             raise OllamaProviderError("Ollama model is not configured")
 
         messages: list[dict[str, Any]] = [
@@ -59,7 +60,7 @@ class OllamaProvider(ModelProvider):
             ]
 
         payload = {
-            "model": self._model,
+            "model": model,
             "messages": messages,
             "stream": False,
             "options": {
@@ -80,6 +81,15 @@ class OllamaProvider(ModelProvider):
             raise OllamaProviderError("Ollama response contains empty text content")
 
         return ModelResponse(text=response_text.strip())
+
+    def set_model(self, model: str) -> None:
+        """Use a different locally configured model for future requests."""
+        normalized = model.strip()
+        if not normalized:
+            raise ValueError("Ollama model must not be empty")
+        if any(character in normalized for character in "\r\n\x00"):
+            raise ValueError("Ollama model contains control characters")
+        self._model = normalized
 
     def _post_json(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         http_request = Request(

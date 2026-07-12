@@ -263,3 +263,9 @@ def _image_attachment() -> ImageAttachment:
         source="screen_capture",
         display_name="Display 1",
     )
+def test_ollama_provider_model_can_change_for_future_requests() -> None:
+    provider = OllamaProvider("http://localhost:11434", "llama3")
+
+    provider.set_model("qwen3:4b")
+
+    assert provider._model == "qwen3:4b"
