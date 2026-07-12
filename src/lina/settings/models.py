@@ -53,6 +53,9 @@ class SystemSettings:
     close_behavior: str = "exit"
     start_minimized: bool = False
     notifications_enabled: bool = True
+    reminders_enabled: bool = True
+    desktop_notifications_enabled: bool = True
+    show_missed_reminders: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +120,9 @@ class UserSettings:
                 "close_behavior": self.system.close_behavior,
                 "start_minimized": self.system.start_minimized,
                 "notifications_enabled": self.system.notifications_enabled,
+                "reminders_enabled": self.system.reminders_enabled,
+                "desktop_notifications_enabled": self.system.desktop_notifications_enabled,
+                "show_missed_reminders": self.system.show_missed_reminders,
             },
         }
 
@@ -165,6 +171,9 @@ class UserSettings:
                 close_behavior=_choice(system, "close_behavior", defaults.system.close_behavior, SUPPORTED_CLOSE_BEHAVIORS),
                 start_minimized=_bool(system, "start_minimized", defaults.system.start_minimized),
                 notifications_enabled=_bool(system, "notifications_enabled", defaults.system.notifications_enabled),
+                reminders_enabled=_bool(system, "reminders_enabled", defaults.system.reminders_enabled),
+                desktop_notifications_enabled=_bool(system, "desktop_notifications_enabled", defaults.system.desktop_notifications_enabled),
+                show_missed_reminders=_bool(system, "show_missed_reminders", defaults.system.show_missed_reminders),
             ),
         )
 
