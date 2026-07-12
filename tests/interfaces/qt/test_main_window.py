@@ -20,6 +20,9 @@ from lina.services.model_diagnostics_service import (
     VisionStatus,
 )
 from lina.speech.models import SpeechState, SpeechTranscriptionResult
+from lina.settings.models import UserSettings
+from lina.settings.repository import UserSettingsRepository
+from lina.settings.service import UserSettingsService
 
 
 class ImmediateThreadPool:
@@ -215,6 +218,27 @@ def _user_messages(window: LinaMainWindow) -> list[object]:
         if getattr(message, "role", None) == "user":
             messages.append(message)
     return messages
+
+
+def test_settings_toggle_disables_speech_and_vision_controls(qtbot, tmp_path) -> None:
+    settings_service = UserSettingsService(
+        UserSettingsRepository(tmp_path / "settings.json")
+    )
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(),
+        user_settings_service=settings_service,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    updated = UserSettings.from_dict({"speech": {"enabled": False}, "vision": {"enabled": False}})
+
+    window._apply_user_settings(updated)
+
+    assert window._composer.mic_button.isEnabled() is False
+    assert window._composer.attachment_button.isEnabled() is False
+    assert window._composer.screen_button.isEnabled() is False
 
 
 def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:

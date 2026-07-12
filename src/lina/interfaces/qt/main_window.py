@@ -98,6 +98,8 @@ class LinaMainWindow(QMainWindow):
         self._diagnostics_service = diagnostics_service
         self._vision_diagnostics_service = vision_diagnostics_service
         self._speech_service = speech_service
+        self._speech_enabled = True
+        self._vision_enabled = True
         self._user_settings_service = user_settings_service
         self._settings_dialog: SettingsDialog | None = None
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
@@ -338,8 +340,17 @@ class LinaMainWindow(QMainWindow):
             self._show_welcome_state()
         elif not settings.general.welcome_enabled:
             self._hide_welcome_state()
+        self._speech_enabled = settings.speech.enabled
+        self._vision_enabled = settings.vision.enabled
+        self._composer.attachment_button.setEnabled(self._vision_enabled)
+        self._set_vision_controls_enabled(self._vision_enabled)
+        if not self._vision_enabled and self._screen_context is not None:
+            self._clear_screen_context()
+        self._refresh_speech_status()
         self._set_status("Ayarlar uygulandı")
-        self.addAction(clear_action)
+
+    def _set_vision_controls_enabled(self, enabled: bool) -> None:
+        self._composer.screen_button.setEnabled(enabled and not self._is_screen_capture_busy)
 
     def send_message(self) -> None:
         """Send the current composer text through the conversation service."""
@@ -671,6 +682,8 @@ class LinaMainWindow(QMainWindow):
 
     def handle_screen_request(self) -> None:
         """Capture and preview one screen after an explicit user action."""
+        if not self._vision_enabled:
+            return
         if self._is_screen_capture_busy:
             return
         self._is_screen_capture_busy = True
@@ -689,10 +702,12 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Ekran önizlemesi oluşturulamadı.")
         finally:
             self._is_screen_capture_busy = False
-            self._composer.screen_button.setEnabled(True)
+            self._set_vision_controls_enabled(self._vision_enabled)
 
     def handle_image_upload(self) -> None:
         """Load one image explicitly selected by the user into temporary context."""
+        if not self._vision_enabled:
+            return
         selected_path, _selected_filter = QFileDialog.getOpenFileName(
             self,
             "Görsel Seç",
@@ -711,6 +726,8 @@ class LinaMainWindow(QMainWindow):
 
     def handle_region_capture(self) -> None:
         """Start an explicit region selection on the cursor screen."""
+        if not self._vision_enabled:
+            return
         if self._is_screen_capture_busy:
             return
         screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
@@ -747,7 +764,7 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Ekran önizlemesi oluşturulamadı.")
         finally:
             self._is_screen_capture_busy = False
-            self._composer.screen_button.setEnabled(True)
+            self._set_vision_controls_enabled(self._vision_enabled)
 
     def _cancel_region_capture(self) -> None:
         overlay = self._region_overlay
@@ -756,7 +773,7 @@ class LinaMainWindow(QMainWindow):
             overlay.close()
             overlay.deleteLater()
         self._is_screen_capture_busy = False
-        self._composer.screen_button.setEnabled(True)
+        self._set_vision_controls_enabled(self._vision_enabled)
         self._set_status("Alan seçimi iptal edildi.")
 
     def remove_screen_context(self) -> None:
@@ -988,7 +1005,9 @@ class LinaMainWindow(QMainWindow):
         self._is_speech_busy = False
         self._composer.set_mic_state("idle")
         self._composer.mic_button.setEnabled(
-            self._speech_service is not None and self._speech_service.is_stt_available()
+            self._speech_enabled
+            and self._speech_service is not None
+            and self._speech_service.is_stt_available()
         )
         self._refresh_speech_status()
 
@@ -1199,7 +1218,7 @@ class LinaMainWindow(QMainWindow):
         if self._speech_service is None:
             self._speech_status.setText("Mic · yok")
             return
-        if self._speech_service.is_stt_available():
+        if self._speech_enabled and self._speech_service.is_stt_available():
             self._speech_status.setText("Mic · hazır")
             self._composer.mic_button.setEnabled(True)
         else:
