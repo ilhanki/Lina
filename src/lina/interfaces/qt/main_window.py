@@ -159,7 +159,7 @@ class LinaMainWindow(QMainWindow):
         panel.setObjectName("chatPanel")
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(16, 14, 16, 14)
-        panel_layout.setSpacing(12)
+        panel_layout.setSpacing(8)
         root_layout.addWidget(panel, 1)
 
         self._build_header(panel_layout)
@@ -220,24 +220,14 @@ class LinaMainWindow(QMainWindow):
 
         footer = QWidget(self)
         footer.setObjectName("statusPanel")
+        footer.setMaximumHeight(24)
         layout = QHBoxLayout(footer)
-        layout.setContentsMargins(4, 0, 4, 0)
-        layout.setSpacing(8)
+        layout.setContentsMargins(4, 0, 4, 2)
+        layout.setSpacing(0)
 
         self._status_label = QLabel("Hazır", footer)
         self._status_label.setObjectName("mutedLabel")
         layout.addWidget(self._status_label, 1)
-
-        clear_button = QPushButton("Temizle", footer)
-        clear_button.setObjectName("secondaryButton")
-        clear_button.setToolTip("Görünür sohbeti temizle")
-        clear_button.clicked.connect(self.clear_chat_with_confirmation)
-        layout.addWidget(clear_button)
-
-        copy_button = QPushButton("Son cevabı kopyala", footer)
-        copy_button.setObjectName("secondaryButton")
-        copy_button.clicked.connect(self.copy_last_response)
-        layout.addWidget(copy_button)
         parent_layout.addWidget(footer)
 
         self._composer.send_requested.connect(self.send_message)

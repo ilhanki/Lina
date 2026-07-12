@@ -284,5 +284,7 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
 
     buttons = sidebar.session_list.findChildren(type(sidebar.new_chat_button))
     session_buttons = [button for button in buttons if button.objectName() == "sessionButton"]
-    assert [button.text() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
+    assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
+    assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
+    assert all(button.minimumHeight() == 52 for button in session_buttons)

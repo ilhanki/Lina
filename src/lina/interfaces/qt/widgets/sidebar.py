@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import (
     QLabel,
     QMenu,
@@ -101,8 +101,11 @@ class SidebarWidget(QWidget):
         self.session_list_layout.addStretch(1)
         self.session_scroll.setWidget(self.session_list)
         session_layout.addWidget(self.session_scroll, 1)
-        layout.addWidget(self.session_panel)
-        layout.addStretch(1)
+        self.session_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
+        layout.addWidget(self.session_panel, 1)
 
         self.status_panel = QWidget(self)
         status_layout = QVBoxLayout(self.status_panel)
@@ -139,6 +142,13 @@ class SidebarWidget(QWidget):
             button = QPushButton(session.title, self.session_list)
             button.setObjectName("sessionButton")
             button.setToolTip(session.title)
+            button.setMinimumHeight(52)
+            button.setMaximumHeight(52)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+            button._full_title = session.title  # type: ignore[attr-defined]
             button.setCheckable(True)
             button.setChecked(session.id == active_id)
             button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -155,6 +165,7 @@ class SidebarWidget(QWidget):
             self.session_list_layout.insertWidget(
                 self.session_list_layout.count() - 1, button
             )
+        self._refresh_session_button_titles()
 
     def set_persistence_note(self, text: str) -> None:
         """Show a short persistence state without hiding the session list."""
@@ -169,3 +180,19 @@ class SidebarWidget(QWidget):
             self.session_rename_requested.emit(conversation_id)
         elif selected is delete_action:
             self.session_delete_requested.emit(conversation_id)
+
+    def _refresh_session_button_titles(self) -> None:
+        available_width = max(120, self.session_list.width() - 24)
+        for button in self.session_list.findChildren(QPushButton, "sessionButton"):
+            title = getattr(button, "_full_title", button.text())
+            button.setText(
+                QFontMetrics(button.font()).elidedText(
+                    title,
+                    Qt.TextElideMode.ElideRight,
+                    available_width,
+                )
+            )
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._refresh_session_button_titles()

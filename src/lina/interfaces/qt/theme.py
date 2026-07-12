@@ -86,6 +86,25 @@ def build_stylesheet(font_family: str) -> str:
             background: transparent;
             border: none;
         }}
+        QPushButton#sessionButton {{
+            background: transparent;
+            color: {TEXT_SECONDARY};
+            border: 1px solid transparent;
+            border-radius: 9px;
+            text-align: left;
+            padding: 0 12px;
+            font-size: 10pt;
+        }}
+        QPushButton#sessionButton:hover {{
+            background: {ELEVATED_BG};
+            border-color: {BORDER};
+        }}
+        QPushButton#sessionButton:checked {{
+            background: {ELEVATED_BG};
+            color: {TEXT_PRIMARY};
+            border-color: {ACCENT};
+            font-weight: 600;
+        }}
         QWidget#assistantBubble {{
             background: {ASSISTANT_BUBBLE};
             border: 1px solid {BORDER};

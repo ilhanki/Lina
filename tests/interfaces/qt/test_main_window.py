@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect
 from PySide6.QtGui import QGuiApplication, QImage
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QDialog, QPushButton
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
@@ -390,6 +390,22 @@ def test_clear_chat_scrolls_to_top(qtbot) -> None:
     qtbot.wait(75)
 
     assert window._scroll.verticalScrollBar().value() == window._scroll.verticalScrollBar().minimum()
+
+
+def test_bottom_action_buttons_are_removed_without_removing_status(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    button_texts = {button.text() for button in window.findChildren(QPushButton)}
+
+    assert "Temizle" not in button_texts
+    assert "Son cevabı kopyala" not in button_texts
+    assert window._status_label.text() == "Hazır"
 
 
 def test_attachment_button_loads_user_selected_image(qtbot, monkeypatch) -> None:
