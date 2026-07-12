@@ -176,6 +176,16 @@ Görsel attachment yalnızca aktif oturum içinde bellekte tutulur. Composer chi
 
 Bu UX katmanı görseli kalıcı hafızaya, dosya sistemine veya bulut servisine taşımaz. Önizleme aynı bellekteki bytes üzerinden açılır; kaynak dosya yeniden okunmaz. Vision başarısız olduğunda attachment korunur ve kullanıcıya tekrar deneme imkanı verilir.
 
+## Conversation Persistence Foundation
+
+Conversation persistence, Memory repository'den ayrı bir domain/application özelliğidir. `ConversationRepository` yalnız `conversations` ve `conversation_messages` tablolarını yönetir; `ConversationHistoryService` session yaşam döngüsünü, başlık politikasını ve Brain için bounded text history üretimini yönetir. Qt katmanı SQL çalıştırmaz.
+
+Varsayılan veritabanı `data/conversations.sqlite3` konumundadır ve Memory veritabanından ayrıdır. Repository her operasyon için kısa ömürlü SQLite connection açar, `PRAGMA foreign_keys = ON` kullanır ve schema'yı idempotent şekilde hazırlar. Foreign key cascade delete ile bir session silindiğinde mesajları da güvenli biçimde silinir.
+
+Mesaj tablosu yalnız metin ve güvenli metadata taşır: role, content, sequence, message type, `had_image`, güvenli image source ve isteğe bağlı model adı. Image bytes, Base64, thumbnail veya dosya yolu için hiçbir kolon bulunmaz. Uygulama yeniden açıldığında vision user mesajı gerçek görsel yerine güvenli placeholder olarak gösterilir; yeniden analiz yalnız canlı session belleğindeki attachment için mümkündür.
+
+ConversationService aktif session history'sini Brain context'ine bounded biçimde aktarır. Session değişiminde in-memory history tamamen yenilenir; eski session mesajlarının yeni session'a sızmasına izin verilmez. Persistence hatası model sohbetini durdurmaz; servis in-memory devam eder ve kullanıcıya kontrollü durum bilgisi sunabilir.
+
 Gelecekte farklı local vision provider'ları aynı framework-neutral image request sınırını uygulayabilir. Region capture ve çoklu image desteği bu sürümün kapsamı dışındadır.
 
 ## Tool Katmanı

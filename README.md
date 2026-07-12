@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.7.2-alpha`
+- **Sürüm:** `v0.8.0-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -94,6 +94,17 @@ development log'da son ne var
 - Composer içindeki görsel attachment chip'i thumbnail, `Değiştir` ve `Kaldır` kontrollerini sunar.
 - Composer ve mesaj balonundaki thumbnail tıklanarak büyük önizleme açılabilir.
 - Başarılı veya başarısız vision durumu mesaj balonunda görünür; başarısız görsel `Yeniden analiz et` ile otomatik göndermeden geri yüklenebilir.
+
+### Kalıcı Sohbet Geçmişi
+
+- Sohbetler local SQLite veritabanında session ve mesaj olarak saklanır.
+- Uygulama yeniden açıldığında son sohbet ve text mesajları geri yüklenir.
+- Sidebar üzerinden sohbet seçme, yeni sohbet, yeniden adlandırma ve silme işlemleri yapılabilir.
+- `Temizle` aktif sohbet için confirmation sonrasında mesajları siler; sohbet kaydı korunur.
+- Conversation DB ayrı tutulur; Memory verileriyle aynı tablolar paylaşılmaz.
+- Görsel bytes, Base64, thumbnail veya tam dosya yolu kalıcı olarak saklanmaz.
+- Geçmiş görsel mesajları yalnızca `Görsel güvenlik nedeniyle saklanmadı` metadata göstergesiyle açılır; yeniden analiz yalnızca canlı bellekteki attachment için mümkündür.
+- Persistence kapatılırsa Lina mevcut in-memory davranışla çalışmaya devam eder.
 - Vision modeli boş cevap döndürürse boş Lina balonu oluşturulmaz; istek hata kabul edilir ve attachment korunur.
 
 Akış:
@@ -258,6 +269,7 @@ Ayrıntılı dokümanlar:
 - `v0.7.0-alpha`: Kullanıcı onaylı Screen Context Foundation.
 - `v0.7.1-alpha`: Local Vision Integration tamamlandı.
 - `v0.7.2-alpha`: Vision UX ve Region Capture tamamlandı.
+- `v0.8.0-alpha`: Conversation Persistence Foundation.
 
 Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
 

@@ -2195,3 +2195,30 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 ### Durum
 
 `v0.7.2-alpha` Vision UX & Region Capture kapsamı kod ve test tarafında tamamlandı. Release tag'i final smoke kontrolünden sonra oluşturulacaktır. Sonraki ana hedef conversation persistence foundation hazırlığıdır.
+
+## 2026-07-12 - Conversation Persistence Foundation
+
+### Yapılanlar
+
+- Memory veritabanından ayrı `data/conversations.sqlite3` SQLite repository'si eklendi.
+- Idempotent schema, foreign key cascade delete ve kısa ömürlü connection politikası uygulandı.
+- Conversation session/message modelleri yalnız text ve güvenli visual metadata taşıyacak şekilde sınırlandı.
+- `ConversationHistoryService` ile startup restore, yeni session, session switch, rename, delete, clear ve bounded Brain history eklendi.
+- PySide6 sidebar gerçek sohbet listesini, aktif state'i ve rename/delete context menu akışını destekliyor.
+- Vision mesajları kalıcı thumbnail veya raw bytes yerine güvenli placeholder metadata ile geri yükleniyor.
+- Persistence kapalı veya erişilemez olduğunda in-memory fallback korunuyor.
+
+### Güvenlik Sınırı
+
+- Image bytes, Base64, thumbnail ve tam dosya yolu database'e yazılmıyor.
+- Memory tabloları değiştirilmedi; yeni conversation tabloları ayrı database'te tutuluyor.
+
+### Test Sonucu
+
+- Conversation repository/service testleri: `11 passed`.
+- Qt, bootstrap ve conversation hedefli testler: `64 passed`.
+- Tam test paketi: `574 passed`.
+
+### Durum
+
+`v0.8.0-alpha` Conversation Persistence Foundation kod ve test tarafında tamamlandı. Manuel GUI restart, session isolation, management ve vision placeholder smoke testleri release öncesi yapılmalıdır.
