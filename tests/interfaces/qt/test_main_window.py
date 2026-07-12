@@ -627,6 +627,23 @@ def test_screen_context_is_retained_after_vision_failure(qtbot) -> None:
     assert window._is_waiting is False
 
 
+def test_empty_vision_response_shows_specific_error(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window._handle_conversation_error(
+        ModelProviderError("Ollama response contains empty text content"),
+        vision_request=True,
+    )
+
+    assert "boş cevap döndürdü" in _assistant_texts(window)[-1]
+
+
 def test_screen_context_with_empty_input_is_not_sent(qtbot) -> None:
     conversation = FakeConversationService()
     window = LinaMainWindow(

@@ -847,6 +847,13 @@ def _friendly_vision_error_message(error: Exception) -> str:
         return str(error)
     if "size limit" in message:
         return "Ekran görüntüsü analiz için fazla büyük."
+    if "empty text content" in message:
+        return (
+            "Vision modeli boş cevap döndürdü. Görseli daha kısa bir soruyla "
+            "tekrar deneyebilirsin."
+        )
+    if "missing text content" in message or "invalid response" in message:
+        return "Vision modelinden geçerli bir cevap alınamadı. Tekrar deneyebilirsin."
     if "valid png" in message or "image attachment" in message:
         return "Ekran görüntüsü doğrulanamadı."
     if "timed out" in message or "timeout" in message:
