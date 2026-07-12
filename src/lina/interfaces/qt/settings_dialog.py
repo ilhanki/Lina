@@ -166,10 +166,16 @@ class SettingsDialog(QDialog):
         self._close_behavior.addItem("Her seferinde sor", "ask")
         self._start_minimized = QCheckBox("Başlangıçta küçültülmüş başlat", page)
         self._notifications = QCheckBox("Masaüstü bildirimlerini etkinleştir", page)
+        self._reminders_enabled = QCheckBox("Hatırlatıcıları etkinleştir", page)
+        self._desktop_notifications = QCheckBox("Masaüstü bildirimleri", page)
+        self._show_missed = QCheckBox("Kaçırılanları açılışta göster", page)
         form.addRow(self._minimize_to_tray)
         form.addRow("Kapanış davranışı", self._close_behavior)
         form.addRow(self._start_minimized)
         form.addRow(self._notifications)
+        form.addRow(self._reminders_enabled)
+        form.addRow(self._desktop_notifications)
+        form.addRow(self._show_missed)
         return page
 
     def _about_page(self) -> QWidget:
@@ -206,6 +212,9 @@ class SettingsDialog(QDialog):
         _select_data(self._close_behavior, settings.system.close_behavior)
         self._start_minimized.setChecked(settings.system.start_minimized)
         self._notifications.setChecked(settings.system.notifications_enabled)
+        self._reminders_enabled.setChecked(settings.system.reminders_enabled)
+        self._desktop_notifications.setChecked(settings.system.desktop_notifications_enabled)
+        self._show_missed.setChecked(settings.system.show_missed_reminders)
 
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
@@ -214,7 +223,7 @@ class SettingsDialog(QDialog):
             models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model()),
             speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._speech_insert.isChecked()),
             vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),
-            system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked()),
+            system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked(), reminders_enabled=self._reminders_enabled.isChecked(), desktop_notifications_enabled=self._desktop_notifications.isChecked(), show_missed_reminders=self._show_missed.isChecked()),
         )
 
     def _validated_vision_model(self) -> str:
