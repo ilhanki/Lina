@@ -135,6 +135,13 @@ class ModelDiagnosticsService:
             message="Model hazır.",
         )
 
+    def list_models(self) -> tuple[str, ...]:
+        """Return locally installed Ollama model names."""
+        models = self._get_available_models()
+        if isinstance(models, tuple):
+            return models
+        raise RuntimeError("Ollama models could not be listed")
+
     def _get_available_models(self) -> tuple[str, ...] | ModelStatus:
         """Return available Ollama model names, or an error status."""
         request = Request(
@@ -246,6 +253,17 @@ class VisionDiagnosticsService:
                 "Seçili Ollama modeli görüntü desteğine sahip değil.",
             )
         return self._result(VisionStatus.READY, "Vision hazır.")
+
+    def validate_model(self, model: str) -> VisionDiagnosticsResult:
+        """Validate another model without changing the configured model."""
+        validator = VisionDiagnosticsService(
+            self._base_url,
+            model,
+            enabled=True,
+            timeout=self._timeout,
+            opener=self._opener,
+        )
+        return validator.check_status()
 
     def _result(self, status: VisionStatus, message: str) -> VisionDiagnosticsResult:
         return VisionDiagnosticsResult(

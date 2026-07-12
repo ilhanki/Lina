@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QThreadPool, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from lina.settings.models import UserSettings
 from lina.settings.service import UserSettingsService
+from lina.interfaces.qt.worker import FunctionWorker
 
 
 class SettingsDialog(QDialog):
@@ -31,9 +32,12 @@ class SettingsDialog(QDialog):
 
     settings_applied = Signal(object)
 
-    def __init__(self, settings_service: UserSettingsService, parent=None) -> None:
+    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, parent=None) -> None:
         super().__init__(parent)
         self._settings_service = settings_service
+        self._model_diagnostics = model_diagnostics
+        self._refresh_worker = None
+        self._refresh_generation = 0
         self._draft = settings_service.current
         self._build_ui()
         self._load_settings(self._draft)
@@ -117,8 +121,13 @@ class SettingsDialog(QDialog):
         form = QFormLayout(page)
         self._text_model = QLineEdit(page)
         self._vision_model = QLineEdit(page)
+        self._refresh_models = QPushButton("Modelleri Yenile", page)
+        self._model_status = QLabel("", page)
         form.addRow("Text model", self._text_model)
         form.addRow("Vision model", self._vision_model)
+        form.addRow(self._refresh_models)
+        form.addRow(self._model_status)
+        self._refresh_models.clicked.connect(self._refresh_model_list)
         note = QLabel("Yalnız cihazında kurulu Ollama modellerini kullan.", page)
         note.setWordWrap(True)
         form.addRow(note)
@@ -222,6 +231,39 @@ class SettingsDialog(QDialog):
 
     def _reset_form(self) -> None:
         self._load_settings(UserSettings())
+
+    def _refresh_model_list(self) -> None:
+        if self._model_diagnostics is None or self._refresh_worker is not None:
+            return
+        self._refresh_generation += 1
+        generation = self._refresh_generation
+        self._refresh_models.setEnabled(False)
+        self._model_status.setText("Modeller kontrol ediliyor...")
+        worker = FunctionWorker(self._model_diagnostics.list_models)
+        self._refresh_worker = worker
+        worker.signals.result.connect(lambda result: self._handle_model_list(generation, result))
+        worker.signals.error.connect(lambda error: self._handle_model_refresh_error(generation, error))
+        worker.signals.finished.connect(lambda: self._finish_model_refresh(worker))
+        QThreadPool.globalInstance().start(worker)
+
+    def _handle_model_list(self, generation: int, result: object) -> None:
+        if generation != self._refresh_generation or not self.isVisible():
+            return
+        models = result if isinstance(result, tuple) else ()
+        self._model_status.setText(
+            f"{len(models)} yerel model bulundu."
+            if models
+            else "Kurulu model bulunamadı; mevcut seçimler korundu."
+        )
+
+    def _handle_model_refresh_error(self, generation: int, _error: object) -> None:
+        if generation == self._refresh_generation and self.isVisible():
+            self._model_status.setText("Ollama'ya ulaşılamadı. Mevcut model ayarları korunuyor.")
+
+    def _finish_model_refresh(self, worker: object) -> None:
+        if self._refresh_worker is worker:
+            self._refresh_worker = None
+            self._refresh_models.setEnabled(True)
 
 
 def _select_data(combo: QComboBox, value: str) -> None:

@@ -317,6 +317,7 @@ class LinaMainWindow(QMainWindow):
         if self._settings_dialog is None:
             self._settings_dialog = SettingsDialog(
                 self._user_settings_service,
+                model_diagnostics=self._diagnostics_service,
                 parent=self,
             )
             self._settings_dialog.settings_applied.connect(self._apply_user_settings)
