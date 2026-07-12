@@ -32,12 +32,14 @@ class SettingsDialog(QDialog):
 
     settings_applied = Signal(object)
 
-    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, parent=None) -> None:
+    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, parent=None) -> None:
         super().__init__(parent)
         self._settings_service = settings_service
         self._model_diagnostics = model_diagnostics
+        self._vision_diagnostics = vision_diagnostics
         self._refresh_worker = None
         self._refresh_generation = 0
+        self._vision_valid_models: set[str] = set()
         self._draft = settings_service.current
         self._build_ui()
         self._load_settings(self._draft)
@@ -209,11 +211,21 @@ class SettingsDialog(QDialog):
         return UserSettings(
             appearance=replace(self._draft.appearance, theme=str(self._theme.currentData()), font_scale=self._font_scale.value() / 100, compact_mode=self._compact_mode.isChecked(), reduce_motion=self._reduce_motion.isChecked()),
             general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked()),
-            models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._vision_model.text().strip()),
+            models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model()),
             speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._speech_insert.isChecked()),
             vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),
             system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked()),
         )
+
+    def _validated_vision_model(self) -> str:
+        model = self._vision_model.text().strip()
+        if (
+            self._vision_diagnostics is not None
+            and model != self._draft.models.vision_model
+            and model not in self._vision_valid_models
+        ):
+            raise ValueError("Seçilen model görsel analiz desteğine sahip değil.")
+        return model
 
     def _apply(self) -> None:
         try:
@@ -239,17 +251,28 @@ class SettingsDialog(QDialog):
         generation = self._refresh_generation
         self._refresh_models.setEnabled(False)
         self._model_status.setText("Modeller kontrol ediliyor...")
-        worker = FunctionWorker(self._model_diagnostics.list_models)
+        worker = FunctionWorker(self._load_models_and_validate_vision)
         self._refresh_worker = worker
         worker.signals.result.connect(lambda result: self._handle_model_list(generation, result))
         worker.signals.error.connect(lambda error: self._handle_model_refresh_error(generation, error))
         worker.signals.finished.connect(lambda: self._finish_model_refresh(worker))
         QThreadPool.globalInstance().start(worker)
 
+    def _load_models_and_validate_vision(self) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        models = self._model_diagnostics.list_models()
+        valid_vision: list[str] = []
+        if self._vision_diagnostics is not None:
+            for model in models:
+                result = self._vision_diagnostics.validate_model(model)
+                if result.status.value == "ready":
+                    valid_vision.append(model)
+        return models, tuple(valid_vision)
+
     def _handle_model_list(self, generation: int, result: object) -> None:
         if generation != self._refresh_generation or not self.isVisible():
             return
-        models = result if isinstance(result, tuple) else ()
+        models = result[0] if isinstance(result, tuple) and len(result) == 2 else ()
+        self._vision_valid_models = set(result[1]) if isinstance(result, tuple) and len(result) == 2 else set()
         self._model_status.setText(
             f"{len(models)} yerel model bulundu."
             if models

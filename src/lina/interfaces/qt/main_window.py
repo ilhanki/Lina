@@ -318,6 +318,7 @@ class LinaMainWindow(QMainWindow):
             self._settings_dialog = SettingsDialog(
                 self._user_settings_service,
                 model_diagnostics=self._diagnostics_service,
+                vision_diagnostics=self._vision_diagnostics_service,
                 parent=self,
             )
             self._settings_dialog.settings_applied.connect(self._apply_user_settings)
