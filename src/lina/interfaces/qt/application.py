@@ -36,6 +36,7 @@ def run_qt_application(
         diagnostics_service=services.diagnostics_service,
         vision_diagnostics_service=services.vision_diagnostics_service,
         speech_service=services.speech_service,
+        user_settings_service=services.user_settings_service,
     )
     window.show()
 

@@ -63,10 +63,13 @@ from lina.speech.models import (
     SpeechUnavailableError,
 )
 from lina.speech.service import SpeechService
+from lina.settings.models import UserSettings
+from lina.settings.service import UserSettingsService
+from lina.interfaces.qt.settings_dialog import SettingsDialog
 from lina.vision.models import ImageAttachment, VisionRequestError
 
 
-APP_VERSION = "v0.8.2-alpha"
+APP_VERSION = "v0.9.0-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -82,6 +85,7 @@ class LinaMainWindow(QMainWindow):
         diagnostics_service: ModelDiagnosticsService | None = None,
         vision_diagnostics_service: VisionDiagnosticsService | None = None,
         speech_service: SpeechService | None = None,
+        user_settings_service: UserSettingsService | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         image_loader: QtImageLoader | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
@@ -94,6 +98,8 @@ class LinaMainWindow(QMainWindow):
         self._diagnostics_service = diagnostics_service
         self._vision_diagnostics_service = vision_diagnostics_service
         self._speech_service = speech_service
+        self._user_settings_service = user_settings_service
+        self._settings_dialog: SettingsDialog | None = None
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
         self._image_loader = image_loader or QtImageLoader()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
@@ -209,6 +215,11 @@ class LinaMainWindow(QMainWindow):
         self._speech_status = QLabel("Mic · hazırlanıyor", header)
         self._speech_status.setObjectName("statusChip")
         layout.addWidget(self._speech_status)
+        if self._user_settings_service is not None:
+            self._settings_button = QPushButton("Ayarlar", header)
+            self._settings_button.setToolTip("Ayarlar")
+            self._settings_button.clicked.connect(self.open_settings)
+            layout.addWidget(self._settings_button)
         parent_layout.addWidget(header)
 
     def _build_chat_area(self, parent_layout: QVBoxLayout) -> None:
@@ -287,6 +298,37 @@ class LinaMainWindow(QMainWindow):
         clear_action = QAction(self)
         clear_action.setShortcut(QKeySequence("Ctrl+K"))
         clear_action.triggered.connect(self.clear_chat)
+
+        settings_action = QAction(self)
+        settings_action.setShortcut(QKeySequence("Ctrl+,"))
+        settings_action.triggered.connect(self.open_settings)
+        self.addAction(settings_action)
+
+    def open_settings(self) -> None:
+        """Open one settings dialog instance and focus it when already open."""
+        if self._user_settings_service is None:
+            return
+        if self._settings_dialog is None:
+            self._settings_dialog = SettingsDialog(
+                self._user_settings_service,
+                parent=self,
+            )
+            self._settings_dialog.settings_applied.connect(self._apply_user_settings)
+            self._settings_dialog.finished.connect(self._clear_settings_dialog)
+        self._settings_dialog.show()
+        self._settings_dialog.raise_()
+        self._settings_dialog.activateWindow()
+
+    def _clear_settings_dialog(self, _result: int) -> None:
+        self._settings_dialog = None
+
+    def _apply_user_settings(self, settings: UserSettings) -> None:
+        """Apply settings that are safe to reflect in the current window."""
+        if settings.general.welcome_enabled and self._welcome_state is None and not self._message_rows:
+            self._show_welcome_state()
+        elif not settings.general.welcome_enabled:
+            self._hide_welcome_state()
+        self._set_status("Ayarlar uygulandı")
         self.addAction(clear_action)
 
     def send_message(self) -> None:
