@@ -430,9 +430,7 @@ class LinaMainWindow(QMainWindow):
             renamed = self._conversation_history_service.rename(title)
             self._set_session_title(renamed.title)
         else:
-            repository = getattr(self._conversation_history_service, "_repository", None)
-            if repository is not None:
-                repository.rename_conversation(conversation_id, title)
+            self._conversation_history_service.rename_session(conversation_id, title)
         self._refresh_conversation_sidebar()
 
     def delete_conversation(self, conversation_id: int) -> None:
@@ -454,9 +452,8 @@ class LinaMainWindow(QMainWindow):
         )
         if result != QMessageBox.StandardButton.Ok:
             return
-        self._conversation_history_service.delete(conversation_id)
-        active = self._conversation_history_service.active_session
-        if active is None or active.id == conversation_id:
+        was_active = self._conversation_history_service.delete(conversation_id)
+        if was_active:
             self.start_new_chat()
         self._refresh_conversation_sidebar()
 
@@ -687,7 +684,7 @@ class LinaMainWindow(QMainWindow):
                             width=screen_context.width,
                             height=screen_context.height,
                             captured_at=screen_context.captured_at,
-                            source="screen_capture",
+                            source=screen_context.source,
                             display_name=screen_context.display_name,
                         ),
                     )

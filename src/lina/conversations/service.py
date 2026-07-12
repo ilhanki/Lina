@@ -150,6 +150,20 @@ class ConversationHistoryService:
         )
         return self._active_session
 
+    def rename_session(self, conversation_id: int, title: str) -> ConversationSession:
+        """Rename an active or inactive persisted session through one API."""
+        if self._active_session is not None and self._active_session.id == conversation_id:
+            return self.rename(title)
+        if not self._enabled or not self._persistence_available:
+            raise ConversationRepositoryError("Conversation persistence is unavailable")
+        try:
+            return self._repository.rename_conversation(  # type: ignore[union-attr]
+                conversation_id, title, now=self._clock()
+            )
+        except ConversationRepositoryError:
+            self._persistence_available = False
+            raise
+
     def clear(self) -> None:
         self._memory_messages.clear()
         if self._active_session is None:
@@ -168,15 +182,17 @@ class ConversationHistoryService:
             None,
         )
 
-    def delete(self, conversation_id: int) -> None:
+    def delete(self, conversation_id: int) -> bool:
+        was_active = bool(self._active_session and self._active_session.id == conversation_id)
         if self._enabled and self._persistence_available:
             try:
                 self._repository.delete_conversation(conversation_id)  # type: ignore[union-attr]
             except ConversationRepositoryError:
                 self._persistence_available = False
-                return
-        if self._active_session and self._active_session.id == conversation_id:
+                return False
+        if was_active:
             self.new_session()
+        return was_active
 
     def _record_message(
         self,
