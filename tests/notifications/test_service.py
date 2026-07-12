@@ -27,6 +27,8 @@ def test_service_rejects_past_and_naive_dates(tmp_path) -> None:
         service.create("Geçmiş", datetime.now(timezone.utc) - timedelta(seconds=1))
     with pytest.raises(ValueError, match="timezone-aware"):
         service.create("Naive", datetime.now())
+    with pytest.raises(ValueError, match="Geçersiz tekrarlama"):
+        service.create("Invalid", datetime.now(timezone.utc) + timedelta(days=1), "monthly")
 
 
 def test_service_normalizes_repository_failure() -> None:

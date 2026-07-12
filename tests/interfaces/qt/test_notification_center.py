@@ -50,6 +50,18 @@ def test_reminder_dialog_shows_turkish_validation(qtbot) -> None:
     assert "gelecekte" in dialog.error_label.text()
 
 
+def test_reminder_dialog_returns_recurrence_enum_and_service_persists_it(qtbot, tmp_path) -> None:
+    dialog = ReminderDialog()
+    qtbot.addWidget(dialog)
+    dialog.recurrence_combo.setCurrentIndex(1)
+    service = NotificationService(NotificationRepository(tmp_path / "notifications.sqlite3"))
+
+    assert dialog.recurrence is ReminderRecurrence.DAILY
+    created = service.create("Günlük", dialog.due_at, dialog.recurrence_combo.currentData())
+    assert created.recurrence is ReminderRecurrence.DAILY
+    assert service.list()[0].recurrence is ReminderRecurrence.DAILY
+
+
 class _TextValue:
     def __init__(self, value: str) -> None:
         self._value = value

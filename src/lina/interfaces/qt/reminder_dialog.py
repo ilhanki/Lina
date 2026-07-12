@@ -59,4 +59,5 @@ class ReminderDialog(QDialog):
 
     @property
     def recurrence(self) -> ReminderRecurrence:
-        return self.recurrence_combo.currentData()
+        value = self.recurrence_combo.currentData()
+        return value if isinstance(value, ReminderRecurrence) else ReminderRecurrence(str(value))

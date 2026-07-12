@@ -14,10 +14,14 @@ class NotificationService:
     def __init__(self, repository: NotificationRepository) -> None:
         self._repository = repository
 
-    def create(self, title: str, due_at: datetime, recurrence: ReminderRecurrence = ReminderRecurrence.NONE) -> Reminder:
+    def create(self, title: str, due_at: datetime, recurrence: ReminderRecurrence | str = ReminderRecurrence.NONE) -> Reminder:
         due_at = _utc(due_at)
         if due_at <= datetime.now(timezone.utc):
             raise ValueError("Hatırlatma zamanı gelecekte olmalı.")
+        try:
+            recurrence = ReminderRecurrence(recurrence)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Geçersiz tekrarlama seçeneği.") from exc
         try:
             return self._repository.create(Reminder(None, title, due_at, recurrence))
         except ValueError:
