@@ -24,8 +24,15 @@ def run_qt_application(
     app.setApplicationDisplayName("Lina")
 
     font_family = resolve_font_family()
-    app.setFont(QFont(font_family, 11))
-    app.setStyleSheet(build_stylesheet(font_family))
+    user_settings = (
+        services.user_settings_service.current
+        if services.user_settings_service is not None
+        else None
+    )
+    font_scale = user_settings.appearance.font_scale if user_settings else 1.0
+    theme = user_settings.appearance.theme if user_settings else "dark"
+    app.setFont(QFont(font_family, round(11 * font_scale)))
+    app.setStyleSheet(build_stylesheet(font_family, theme=theme, font_scale=font_scale))
     if BRANDING_ICON_PATH.exists():
         icon = QIcon(str(BRANDING_ICON_PATH))
         if not icon.isNull():

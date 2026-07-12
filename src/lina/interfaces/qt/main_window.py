@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QTimer, QThreadPool
-from PySide6.QtGui import QAction, QCloseEvent, QCursor, QGuiApplication, QIcon, QKeySequence
+from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -39,7 +39,7 @@ from lina.interfaces.qt.image_preview_dialog import ImagePreviewDialog
 from lina.interfaces.qt.screen_capture import QtScreenCaptureService
 from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
 from lina.interfaces.qt.region_capture_overlay import RegionCaptureOverlay
-from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
+from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, build_stylesheet, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
@@ -324,6 +324,16 @@ class LinaMainWindow(QMainWindow):
 
     def _apply_user_settings(self, settings: UserSettings) -> None:
         """Apply settings that are safe to reflect in the current window."""
+        application = QApplication.instance()
+        if application is not None:
+            application.setFont(QFont(self._font_family, round(11 * settings.appearance.font_scale)))
+            application.setStyleSheet(
+                build_stylesheet(
+                    self._font_family,
+                    theme=settings.appearance.theme,
+                    font_scale=settings.appearance.font_scale,
+                )
+            )
         if settings.general.welcome_enabled and self._welcome_state is None and not self._message_rows:
             self._show_welcome_state()
         elif not settings.general.welcome_enabled:
