@@ -42,7 +42,12 @@ def parse_reminder_arguments(text: str, now: datetime | None = None) -> tuple[di
 def _extract_reminder_title(text: str) -> str:
     value = re.sub(r"\b(bana|beni|diye|için|hatırlatıcı|oluştur|hatırlat)\b", " ", text, flags=re.IGNORECASE)
     value = re.sub(r"\b(bugün|yarın|her gün|her hafta|saat)\b", " ", value, flags=re.IGNORECASE)
-    value = TIME_PATTERN.sub(" ", value)
+    value = re.sub(
+        r"(?:saat\s*)?(?:[01]?\d|2[0-3])(?:[.:][0-5]\d)?(?:['’]?(?:da|de|ta|te))?",
+        " ",
+        value,
+        flags=re.IGNORECASE,
+    )
     return " ".join(value.strip(" .,!?:;'\"").split()).capitalize()
 
 
@@ -53,4 +58,7 @@ def extract_file_target(text: str) -> str:
 
 def extract_memory_content(text: str) -> str:
     match = re.search(r"(?:şunu hatırla|hatırla|unutma|bunu kaydet)\s*[:：]?\s*(.*)", text, re.IGNORECASE)
-    return match.group(1).strip() if match else ""
+    if match and match.group(1).strip():
+        return match.group(1).strip()
+    trailing = re.match(r"(.*?)\s+unutma[.!]?$", text, re.IGNORECASE)
+    return trailing.group(1).strip() if trailing else ""

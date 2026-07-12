@@ -50,6 +50,9 @@ def test_file_allowlist_and_traversal_do_not_leak_content(tmp_path) -> None:
     assert not rejected.success and rejected.error_code == "file_rejected"
     assert "Güvenli içerik" not in rejected.user_message
     assert ".." not in rejected.user_message
+    absolute = router.execute(DeterministicIntentClassifier().classify("C:/secret.txt dosyasını oku"), RequestContext(None))
+    assert absolute.error_code == "file_rejected"
+    assert "secret" not in absolute.user_message
 
 
 def test_memory_store_requires_confirmation_rejects_sensitive_and_recalls(tmp_path) -> None:

@@ -44,3 +44,10 @@ def test_reminder_parser_dates_times_recurrence_and_missing_fields() -> None:
     assert weekly["recurrence"] is ReminderRecurrence.WEEKLY
     assert "time" in incomplete_missing and incomplete["due_at"] is None
     assert "future_time" in past_missing
+
+
+def test_reminder_title_and_trailing_memory_content_are_clean() -> None:
+    reminder = DeterministicIntentClassifier().classify("Yarın saat 9'da beni ara diye hatırlat")
+    memory = DeterministicIntentClassifier().classify("Koyu temayı tercih ettiğimi unutma")
+    assert reminder.extracted_arguments["title"] == "Ara"
+    assert memory.extracted_arguments["content"] == "Koyu temayı tercih ettiğimi"
