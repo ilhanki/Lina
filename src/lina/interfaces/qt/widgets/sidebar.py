@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import (
     QLabel,
@@ -154,7 +154,13 @@ class SidebarWidget(QWidget):
         self.filter_combo.addItem("Sabitlenenler", "pinned")
         self.filter_combo.addItem("Arşiv", "archive")
         layout.insertWidget(6, self.filter_combo)
-        self.search_input.textChanged.connect(self.search_changed)
+        self._search_timer = QTimer(self)
+        self._search_timer.setSingleShot(True)
+        self._search_timer.setInterval(250)
+        self._search_timer.timeout.connect(
+            lambda: self.search_changed.emit(self.search_input.text())
+        )
+        self.search_input.textChanged.connect(lambda _text: self._search_timer.start())
         self.filter_combo.currentIndexChanged.connect(
             lambda _index: self.view_changed.emit(str(self.filter_combo.currentData()))
         )
@@ -208,6 +214,7 @@ class SidebarWidget(QWidget):
                 session.last_message_at or session.created_at
             )
             button._session = session  # type: ignore[attr-defined]
+            button._is_pinned = session.is_pinned  # type: ignore[attr-defined]
             button.setCheckable(True)
             button.setChecked(session.id == active_id)
             button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -299,7 +306,12 @@ class SidebarWidget(QWidget):
                 available_width,
             )
             activity = getattr(button, "_activity_text", "")
-            button.setText(f"{elided_title}\n{activity}")
+            prefix = "● " if getattr(button, "_is_pinned", False) else ""
+            button.setText(f"{prefix}{elided_title}\n{activity}")
+            if getattr(button, "_is_pinned", False):
+                button.setToolTip(f"Sabitlenmiş sohbet\n{title}")
+            else:
+                button.setToolTip(title)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
