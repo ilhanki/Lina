@@ -2245,3 +2245,27 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 ### Durum
 
 `v0.8.1-alpha` Conversation Timeline & Welcome Experience kod ve test tarafında tamamlandı. Manuel timestamp, ordering, header/sidebar date ve welcome smoke testleri release öncesi yapılmalıdır.
+
+## 2026-07-12 - Conversation Search and Management UX
+
+### Yapılanlar
+
+- Conversation schema'sı veri kaybı olmadan v2 alanlarıyla genişletildi: pin/archive metadata.
+- Title ve user/assistant text içeriklerinde case-insensitive, Türkçe uyumlu local search eklendi.
+- Search fallback'i yalnız mevcut SQLite ve Python standard library kullanıyor; FTS/harici motor dependency'si eklenmedi.
+- `Sohbetler`, `Sabitlenenler` ve `Arşiv` filtreleri eklendi.
+- Tarih grupları, search result snippet'leri ve `Ctrl+F`/`Escape` davranışları eklendi.
+- Context menu'ya Sabitle, Arşivle ve karşıt durum aksiyonları eklendi.
+- Delete/rename korunurken Clear aksiyonu geri getirilmedi.
+- Image bytes, Base64, thumbnail, path ve Memory içeriği search/persistence sınırlarının dışında tutuldu.
+
+### Test Sonucu
+
+- Repository migration/search/pin/archive testleri: `9 passed`.
+- Conversation service testleri: `17 passed`.
+- Qt search/management hedefli testleri: `40 passed`.
+- Tam test paketi: `586 passed`.
+
+### Durum
+
+`v0.8.2-alpha` Conversation Search & Management UX kod ve test tarafında tamamlandı. Manuel search, pin, archive, grouping ve regression smoke testleri release öncesi yapılmalıdır.

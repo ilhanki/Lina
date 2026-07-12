@@ -194,6 +194,16 @@ Conversation sıralaması `last_message_at DESC`, ardından `created_at DESC` ve
 
 Boş conversation için gösterilen `WelcomeStateWidget` yalnız PySide6 presentation state'idir. Normal assistant message değildir, Brain history'sine girmez, last response sayılmaz ve database'e yazılmaz. İlk user mesajında kaldırılır; clear veya yeni boş session'da yeniden oluşturulur. Greeting saat aralığına göre, ikincil metin ise gün/session verisiyle deterministik seçilir.
 
+## Conversation Search ve Management Sınırı
+
+ConversationRepository v0.8.1 schema'sını transaction-safe biçimde v0.8.2 alanlarıyla genişletir: `is_pinned`, `is_archived`, `pinned_at` ve `archived_at`. Migration mevcut session/message kayıtlarını korur, Memory tablolarına dokunmaz ve `PRAGMA user_version` değerini 2'ye taşır. Pin/archive işlemleri `last_message_at` veya message content'i değiştirmez.
+
+Search kapsamı yalnız conversation title, user text ve assistant text'tir. Bu sürümde harici arama motoru veya embedding kullanılmaz; SQLite görünür kayıtları alır ve Python `casefold()` ile Türkçe karakter uyumlu plain-text eşleştirme yapar. Kullanıcı sorgusu SQL'e string interpolation ile eklenmez; wildcard karakterleri literal kabul edilir. Search result framework-neutral `ConversationSearchResult` olarak döner.
+
+Sidebar filtreleri `chats`, `pinned` ve `archive` görünümlerini temsil eder. Normal görünüm arşivlenmemiş session'ları, pinned görünüm sabitlenmiş arşivlenmemiş session'ları, archive görünümü arşivlenmiş session'ları gösterir. Tarih grupları local calendar day üzerinden `Bugün`, `Dün`, `Son 7 Gün`, `Son 30 Gün` ve `Daha Eski` olarak hazırlanır. Aktif chat filtre değişiminde korunur; aktif session arşivlenirse güvenli yeni session açılır.
+
+Search UI query'yi sidebar presentation state'inde tutar; `Ctrl+F` focus verir, `Escape` temizler. Search sonuçları plain text snippet olarak gösterilir. Image bytes, Base64, thumbnail, path, system prompt ve Memory içeriği search kapsamına girmez. Clear aksiyonu bu UX'e dahil değildir.
+
 Gelecekte farklı local vision provider'ları aynı framework-neutral image request sınırını uygulayabilir. Region capture ve çoklu image desteği bu sürümün kapsamı dışındadır.
 
 ## Tool Katmanı

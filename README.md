@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.8.1-alpha`
+- **Sürüm:** `v0.8.2-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -109,6 +109,12 @@ development log'da son ne var
 - Conversation sidebar'ında son aktivite tarihi gösterilir ve aktif sohbet en üste taşınır.
 - Header'da aktif sohbetin tarihi görünür.
 - Boş yeni sohbetlerde zamana duyarlı UI-only welcome alanı gösterilir; welcome mesajı history veya database'e yazılmaz.
+- Sidebar üzerinden sohbet başlığı ve mesaj metinlerinde local arama yapılabilir.
+- Sohbetler `Sohbetler`, `Sabitlenenler` ve `Arşiv` görünümlerinde yönetilebilir.
+- Sohbetler tarih gruplarıyla gösterilir; sabitleme ve arşivleme mesajları silmez.
+- `Ctrl+F` aramaya odaklanır, `Escape` aramayı temizler.
+- Arama yalnız text içerik üzerinde çalışır; görsel bytes, Base64, thumbnail ve Memory içeriği aranmaz.
+- Mevcut UX'te `Clear` aksiyonu bulunmaz.
 - Vision modeli boş cevap döndürürse boş Lina balonu oluşturulmaz; istek hata kabul edilir ve attachment korunur.
 
 Akış:
@@ -275,6 +281,7 @@ Ayrıntılı dokümanlar:
 - `v0.7.2-alpha`: Vision UX ve Region Capture tamamlandı.
 - `v0.8.0-alpha`: Conversation Persistence Foundation.
 - `v0.8.1-alpha`: Conversation Timeline ve Welcome Experience.
+- `v0.8.2-alpha`: Conversation Search ve Management UX.
 
 Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
 
