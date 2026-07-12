@@ -8,6 +8,7 @@ from lina.brain.intent import Intent, IntentType
 from lina.brain.intent_analyzer import IntentAnalyzer
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn
+from lina.conversations.service import ConversationHistoryService
 from lina.files.file_access_service import FileAccessService
 from lina.files.models import (
     FileAccessError,
@@ -42,6 +43,7 @@ class ConversationService:
         vision_diagnostics_service: VisionDiagnosticsService | None = None,
         consume_vision_attachment_on_success: bool = True,
         history_limit: int = 6,
+        conversation_history_service: ConversationHistoryService | None = None,
     ) -> None:
         self._brain = brain
         self._intent_analyzer = intent_analyzer or IntentAnalyzer()
@@ -61,7 +63,36 @@ class ConversationService:
             consume_vision_attachment_on_success
         )
         self._history_limit = history_limit
-        self._history: list[ConversationTurn] = []
+        self._conversation_history_service = conversation_history_service
+        if conversation_history_service is not None:
+            conversation_history_service.start()
+            self._history = list(conversation_history_service.model_history())
+        else:
+            self._history = []
+
+    @property
+    def conversation_history_service(self) -> ConversationHistoryService | None:
+        """Return the persistence coordinator for the active session."""
+        return self._conversation_history_service
+
+    def start_new_session(self) -> None:
+        """Start a new isolated session and clear model context."""
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.new_session()
+        self._history.clear()
+
+    def load_session(self, conversation_id: int) -> None:
+        """Load one persisted session into the active model context."""
+        if self._conversation_history_service is None:
+            raise RuntimeError("Conversation persistence is not configured")
+        self._conversation_history_service.load_session(conversation_id)
+        self._history = list(self._conversation_history_service.model_history())
+
+    def clear_session(self) -> None:
+        """Clear active persisted messages and in-memory context."""
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.clear()
+        self._history.clear()
 
     def handle_message(self, user_message: str) -> ModelResponse:
         """Handle a text-only message through the existing conversation flow."""
@@ -74,6 +105,12 @@ class ConversationService:
             raise ValueError("Conversation input text must not be empty")
         intent = self._intent_analyzer.analyze(user_message)
         attachment_consumed = False
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.record_user_message(
+                user_message,
+                had_image=conversation_input.image_attachment is not None,
+                image_source=_safe_image_source(conversation_input.image_attachment),
+            )
 
         if intent.type in {
             IntentType.MEMORY_REMEMBER,
@@ -124,6 +161,8 @@ class ConversationService:
             )
         )
         self._history = self._history[-self._history_limit :]
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.record_assistant_message(response.text)
         return ConversationResult(
             response=response,
             attachment_consumed=attachment_consumed,
@@ -393,3 +432,16 @@ def _format_file_access_error(error: FileAccessError) -> ModelResponse:
     if isinstance(error, MissingAllowedFileError):
         return ModelResponse(text="Bu dosya izinli listede ama şu anda mevcut değil İlhan.")
     return ModelResponse(text="Bu dosyayı güvenli şekilde okuyamadım İlhan.")
+
+
+def _safe_image_source(attachment: object | None) -> str | None:
+    if attachment is None:
+        return None
+    source = getattr(attachment, "source", None)
+    return {
+        "screen_capture": "screen_full",
+        "screen_capture_full": "screen_full",
+        "screen_capture_region": "screen_region",
+        "local_file": "local_image",
+        "local_image": "local_image",
+    }.get(source)

@@ -12,6 +12,8 @@ from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
 from lina.core.paths import AppPaths
 from lina.core.settings import SpeechSettings, load_settings
+from lina.conversations.repository import ConversationRepository
+from lina.conversations.service import ConversationHistoryService
 from lina.files.file_access_service import FileAccessService
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.memory.repository import MemoryRepository
@@ -41,6 +43,7 @@ class ApplicationServices:
     diagnostics_service: ModelDiagnosticsService
     vision_diagnostics_service: VisionDiagnosticsService
     speech_service: SpeechService
+    conversation_history_service: ConversationHistoryService | None = None
 
 
 def create_application_services(
@@ -80,6 +83,13 @@ def create_application_services(
         database_path=settings.memory.database_path,
         enabled=settings.memory.enabled,
     )
+    conversation_history_service = _create_conversation_history_service(
+        project_root=project_root,
+        database_path=settings.conversations.database_path,
+        enabled=settings.conversations.enabled,
+        max_loaded_messages=settings.conversations.max_loaded_messages,
+        model_history_messages=settings.conversations.model_history_messages,
+    )
     file_access_service = FileAccessService(project_root=project_root)
     context_manager = ContextManager(
         project_context_service=project_context_service,
@@ -111,6 +121,7 @@ def create_application_services(
             settings.vision.consume_attachment_on_success
         ),
         history_limit=settings.runtime.conversation_history_limit,
+        conversation_history_service=conversation_history_service,
     )
     diagnostics_service = ModelDiagnosticsService(
         base_url=settings.ollama.base_url,
@@ -125,6 +136,7 @@ def create_application_services(
         diagnostics_service=diagnostics_service,
         vision_diagnostics_service=vision_diagnostics_service,
         speech_service=speech_service,
+        conversation_history_service=conversation_history_service,
     )
 
 
@@ -144,6 +156,34 @@ def _create_memory_service(
 
     repository = MemoryRepository(resolved_database_path)
     return MemoryService(repository=repository)
+
+
+def _create_conversation_history_service(
+    project_root: Path,
+    database_path: str,
+    enabled: bool,
+    max_loaded_messages: int,
+    model_history_messages: int,
+) -> ConversationHistoryService:
+    if not enabled:
+        return ConversationHistoryService(
+            repository=None,
+            enabled=False,
+            max_loaded_messages=max_loaded_messages,
+            model_history_messages=model_history_messages,
+        )
+
+    configured_path = Path(database_path)
+    resolved_database_path = (
+        configured_path if configured_path.is_absolute() else project_root / configured_path
+    )
+    repository = ConversationRepository(resolved_database_path)
+    return ConversationHistoryService(
+        repository=repository,
+        enabled=True,
+        max_loaded_messages=max_loaded_messages,
+        model_history_messages=model_history_messages,
+    )
 
 
 def _create_speech_service(settings: SpeechSettings) -> SpeechService:
