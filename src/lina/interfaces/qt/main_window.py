@@ -371,7 +371,7 @@ class LinaMainWindow(QMainWindow):
         presenter = QtNotificationPresenter(self._tray_icon)
         provider = (lambda: self._user_settings_service.current.system) if self._user_settings_service else None
         self._notification_scheduler = NotificationScheduler(self._notification_service._repository, presenter.present, settings_provider=provider)
-        self._notification_scheduler.check_once()
+        self._notification_scheduler.process_missed()
         self._notification_scheduler.start()
         self._refresh_notification_badge()
 

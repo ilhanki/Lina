@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from threading import Event, Lock, Thread
 from typing import Protocol
 
-from lina.notifications.models import Reminder, ReminderStatus
+from lina.notifications.models import NotificationEvent, Reminder, ReminderStatus
 from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import next_occurrence
 
@@ -46,33 +46,62 @@ class NotificationScheduler:
         self._settings_provider = settings_provider
 
     def check_once(self) -> tuple[Reminder, ...]:
+        return self._process_due(missed=False)
+
+    def process_missed(self) -> tuple[Reminder, ...]:
+        return self._process_due(missed=True)
+
+    def _process_due(self, missed: bool) -> tuple[Reminder, ...]:
         if self._stop.is_set():
             return ()
         settings = self._settings_provider() if self._settings_provider else None
         if settings is not None and not settings.reminders_enabled:
             return ()
         now = self._clock.now()
-        due = tuple(item for item in self._repository.list() if item.status is ReminderStatus.ACTIVE and item.due_at <= now)
+        try:
+            due = tuple(item for item in self._repository.list() if item.status is ReminderStatus.ACTIVE and item.due_at <= now)
+        except Exception:
+            return ()
         fired: list[Reminder] = []
+        events: list[tuple[Reminder, NotificationEvent]] = []
         for reminder in due:
-            event = self._repository.create_event(reminder, reminder.due_at)
+            try:
+                event = self._repository.create_event(reminder, reminder.due_at)
+            except Exception:
+                continue
             if event is None:
                 continue
             fired.append(reminder)
+            events.append((reminder, event))
+        allow_desktop = settings is None or settings.desktop_notifications_enabled
+        allow_missed = not missed or settings is None or settings.show_missed_reminders
+        collapsed = missed and len(events) >= 4
+        if collapsed and allow_desktop and allow_missed:
+            summary = NotificationEvent(None, 0, f"{len(events)} kaçırılmış hatırlatıcın var", now)
+            try:
+                self._presenter(summary)
+            except Exception:
+                pass
+        for reminder, event in events:
             status = "suppressed"
             try:
-                if settings is None or settings.desktop_notifications_enabled:
+                if allow_desktop and allow_missed and not collapsed:
                     status = self._presenter(event)
             except Exception:
                 status = "failed"
-            self._repository.update_delivery_status(event.id or 0, status)
+            try:
+                self._repository.update_delivery_status(event.id or 0, status)
+            except Exception:
+                pass
             next_due = next_occurrence(reminder)
             if next_due is None:
-                self._repository.update(replace(reminder, last_notified_at=now))
+                try: self._repository.update(replace(reminder, last_notified_at=now))
+                except Exception: pass
             else:
                 while next_due <= now:
                     next_due += timedelta(days=1 if reminder.recurrence.value == "daily" else 7)
-                self._repository.update(replace(reminder, due_at=next_due, last_notified_at=now))
+                try: self._repository.update(replace(reminder, due_at=next_due, last_notified_at=now))
+                except Exception: pass
         return tuple(fired)
 
     def start(self) -> None:
