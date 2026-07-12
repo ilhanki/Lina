@@ -2222,3 +2222,26 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 ### Durum
 
 `v0.8.0-alpha` Conversation Persistence Foundation kod ve test tarafında tamamlandı. Manuel GUI restart, session isolation, management ve vision placeholder smoke testleri release öncesi yapılmalıdır.
+
+## 2026-07-12 - Conversation Timeline and Welcome Experience
+
+### Yapılanlar
+
+- Persisted mesaj timestamp'leri repository'den UI widget'larına taşındı; restart sonrası gerçek mesaj saatleri korunuyor.
+- Database timestamp politikası UTC timezone-aware ISO-8601 olarak sabitlendi; local saat presentation katmanında gösteriliyor.
+- Legacy naive ve malformed timestamp parse davranışı veri silmeden güvenli fallback ile ele alındı.
+- Conversation sıralaması recent activity temelli hale getirildi; yeni mesaj alan session sidebar'da üste taşınıyor.
+- Sidebar item'larına muted tarih metadata'sı, header'a aktif conversation tarihi eklendi.
+- Boş session'lar için zamana duyarlı `WelcomeStateWidget` eklendi.
+- Welcome alanı UI-only tutuldu; database, Brain history ve last response içine yazılmıyor.
+- İlk user mesajında welcome kaldırılıyor; clear ve yeni session sonrası yeniden gösteriliyor.
+
+### Test Sonucu
+
+- Timeline, repository ve Qt hedefli testler: `120 passed`.
+- Tam test paketi: `580 passed`.
+- Compile ve PySide6 import kontrolleri başarılı.
+
+### Durum
+
+`v0.8.1-alpha` Conversation Timeline & Welcome Experience kod ve test tarafında tamamlandı. Manuel timestamp, ordering, header/sidebar date ve welcome smoke testleri release öncesi yapılmalıdır.

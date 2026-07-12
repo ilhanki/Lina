@@ -2,7 +2,7 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.8.0-alpha Conversation Persistence Foundation
+## Mevcut Durum: v0.8.1-alpha Conversation Timeline & Welcome Experience
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -32,7 +32,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 `v0.7.0-alpha` Screen Context Foundation tamamlandı ve release tag'i origin'e pushlandı. Kullanıcı eylemiyle başlayan Qt ekran yakalama, önizleme/onay dialog'u ve session-local attachment chip eklendi.
 
-`v0.7.1-alpha` Local Vision Integration ve `v0.7.2-alpha` Vision UX & Region Capture tamamlandı ve tag'lendi. `v0.8.0-alpha` kapsamında ayrı local SQLite conversation database, gerçek sidebar geçmişi, startup restore, session isolation, rename/delete/clear ve vision metadata-only persistence tamamlandı. Görsel bytes kalıcı olarak saklanmaz.
+`v0.7.1-alpha` Local Vision Integration, `v0.7.2-alpha` Vision UX & Region Capture ve `v0.8.0-alpha` Conversation Persistence Foundation tamamlandı ve tag'lendi. `v0.8.1-alpha` kapsamında persisted timestamp restore, recent activity ordering, sidebar/header tarih metadata'sı ve UI-only dynamic welcome deneyimi tamamlandı. Görsel bytes kalıcı olarak saklanmaz.
 
 `v0.3.x` sonrasında tamamlanan önemli stabilization ve memory işleri:
 
@@ -161,7 +161,8 @@ Bu sürümler hedef plan olarak kabul edilir; kesin tarih içermez.
 - `v0.7.1-alpha`: Vision Provider Architecture tamamlandı.
 - `v0.7.2-alpha`: Vision UX & Region Capture tamamlandı.
 - `v0.8.0-alpha`: Conversation Persistence Foundation tamamlandı.
-- `v0.8.1-alpha`: Conversation Search and Management hedefi.
+- `v0.8.1-alpha`: Conversation Timeline & Welcome Experience tamamlandı.
+- `v0.8.2-alpha`: Conversation Search & Management UX hedefi.
 - `v0.8.0-alpha`: Safe Windows Automation v1.
 
 ## Milestone 0: Proje Standartları

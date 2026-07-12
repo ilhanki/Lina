@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.8.0-alpha`
+- **Sürüm:** `v0.8.1-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -105,6 +105,10 @@ development log'da son ne var
 - Görsel bytes, Base64, thumbnail veya tam dosya yolu kalıcı olarak saklanmaz.
 - Geçmiş görsel mesajları yalnızca `Görsel güvenlik nedeniyle saklanmadı` metadata göstergesiyle açılır; yeniden analiz yalnızca canlı bellekteki attachment için mümkündür.
 - Persistence kapatılırsa Lina mevcut in-memory davranışla çalışmaya devam eder.
+- Mesajların gerçek gönderim zamanları yeniden açılış sonrasında korunur.
+- Conversation sidebar'ında son aktivite tarihi gösterilir ve aktif sohbet en üste taşınır.
+- Header'da aktif sohbetin tarihi görünür.
+- Boş yeni sohbetlerde zamana duyarlı UI-only welcome alanı gösterilir; welcome mesajı history veya database'e yazılmaz.
 - Vision modeli boş cevap döndürürse boş Lina balonu oluşturulmaz; istek hata kabul edilir ve attachment korunur.
 
 Akış:
@@ -270,6 +274,7 @@ Ayrıntılı dokümanlar:
 - `v0.7.1-alpha`: Local Vision Integration tamamlandı.
 - `v0.7.2-alpha`: Vision UX ve Region Capture tamamlandı.
 - `v0.8.0-alpha`: Conversation Persistence Foundation.
+- `v0.8.1-alpha`: Conversation Timeline ve Welcome Experience.
 
 Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
 

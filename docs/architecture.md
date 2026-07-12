@@ -186,6 +186,14 @@ Mesaj tablosu yalnız metin ve güvenli metadata taşır: role, content, sequenc
 
 ConversationService aktif session history'sini Brain context'ine bounded biçimde aktarır. Session değişiminde in-memory history tamamen yenilenir; eski session mesajlarının yeni session'a sızmasına izin verilmez. Persistence hatası model sohbetini durdurmaz; servis in-memory devam eder ve kullanıcıya kontrollü durum bilgisi sunabilir.
 
+## Conversation Timeline ve Welcome Sınırı
+
+Mesaj timestamp'inin sahibi conversation akışıdır. User zamanı request oluşturulurken, assistant zamanı anlamlı response tamamlandığında bir kez üretilir; aynı değer repository'ye ve UI widget'ına taşınır. SQLite UTC timezone-aware ISO-8601 saklar. Presentation katmanı timestamp'i kullanıcının yerel saatine çevirir. Legacy naive değerler UTC varsayımıyla okunur; malformed değerler güvenli mevcut zaman fallback'iyle tüm sohbeti düşürmez.
+
+Conversation sıralaması `last_message_at DESC`, ardından `created_at DESC` ve `id DESC` ile deterministiktir. Yeni boş session'larda `last_message_at`, `created_at` ile başlatılır. Rename veya yalnız session seçimi sıralamayı değiştirmez; gerçek mesaj aktivitesi session'ı üste taşır.
+
+Boş conversation için gösterilen `WelcomeStateWidget` yalnız PySide6 presentation state'idir. Normal assistant message değildir, Brain history'sine girmez, last response sayılmaz ve database'e yazılmaz. İlk user mesajında kaldırılır; clear veya yeni boş session'da yeniden oluşturulur. Greeting saat aralığına göre, ikincil metin ise gün/session verisiyle deterministik seçilir.
+
 Gelecekte farklı local vision provider'ları aynı framework-neutral image request sınırını uygulayabilir. Region capture ve çoklu image desteği bu sürümün kapsamı dışındadır.
 
 ## Tool Katmanı
