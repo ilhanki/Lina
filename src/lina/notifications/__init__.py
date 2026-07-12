@@ -4,5 +4,6 @@ from lina.notifications.models import NotificationEvent, Reminder, ReminderRecur
 from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import NotificationService
 from lina.notifications.scheduler import FakeClock, NotificationScheduler, SystemClock
+from lina.notifications.presenter import InAppNotificationPresenter, QtNotificationPresenter
 
-__all__ = ["FakeClock", "NotificationEvent", "NotificationRepository", "NotificationScheduler", "NotificationService", "Reminder", "ReminderRecurrence", "ReminderStatus", "SystemClock"]
+__all__ = ["FakeClock", "InAppNotificationPresenter", "NotificationEvent", "NotificationRepository", "NotificationScheduler", "NotificationService", "QtNotificationPresenter", "Reminder", "ReminderRecurrence", "ReminderStatus", "SystemClock"]
