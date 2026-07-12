@@ -227,7 +227,9 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     qtbot.addWidget(window)
 
     assert window.windowTitle() == "Lina"
-    assert "Merhaba İlhan" in _assistant_texts(window)[0]
+    assert window._welcome_state is not None
+    assert "İlhan" in window._welcome_state.greeting_label.text()
+    assert _assistant_texts(window) == []
     assert window._composer.mic_button.isEnabled() is False
     assert window._model_status.text() == "Model · hazır"
     assert window._speech_status.text() == "Mic · kapalı"
@@ -248,6 +250,8 @@ def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
     window.send_message()
 
     assert service.messages == ["selam"]
+    assert window._welcome_state is None
+    assert len(window._message_rows) >= 2
     assert window._typing_message is None
     assert "Yazıyor..." not in _assistant_texts(window)
     assert _assistant_texts(window)[-1] == "Selam İlhan"
@@ -366,8 +370,8 @@ def test_clear_chat_resets_visible_session(qtbot) -> None:
 
     window.clear_chat()
 
-    assert len(window._message_rows) == 1
-    assert "Merhaba İlhan" in _assistant_texts(window)[0]
+    assert len(window._message_rows) == 0
+    assert window._welcome_state is not None
 
 
 def test_clear_chat_scrolls_to_top(qtbot) -> None:

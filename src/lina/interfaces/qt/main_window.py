@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,9 @@ from PySide6.QtWidgets import (
 
 from lina.brain.model_provider import ModelResponse
 from lina.interfaces.qt.formatting import (
+    build_welcome_message,
     derive_session_title,
+    format_conversation_datetime,
     format_welcome_message,
     friendly_error_message,
     normalize_assistant_text,
@@ -42,6 +45,7 @@ from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
 from lina.services.conversation_models import ConversationInput, ConversationResult
+from lina.interfaces.qt.widgets.welcome_state import WelcomeStateWidget
 from lina.screen.capture_service import ScreenCaptureService
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
 from lina.services.model_diagnostics_service import (
@@ -117,6 +121,7 @@ class LinaMainWindow(QMainWindow):
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
+        self._welcome_state: WelcomeStateWidget | None = None
         self._conversation_history_service = (
             conversation_service.conversation_history_service
             if hasattr(conversation_service, "conversation_history_service")
@@ -186,6 +191,9 @@ class LinaMainWindow(QMainWindow):
         subtitle = QLabel("Lina ile yerel sohbet", header)
         subtitle.setObjectName("mutedLabel")
         titles.addWidget(subtitle)
+        self._session_date_label = QLabel("", header)
+        self._session_date_label.setObjectName("sessionDateLabel")
+        titles.addWidget(self._session_date_label)
         layout.addLayout(titles, 1)
 
         self._model_status = QLabel("Model kontrol ediliyor...", header)
@@ -284,6 +292,8 @@ class LinaMainWindow(QMainWindow):
         self._update_session_title(message)
         self._composer.clear()
         request_screen_context = self._screen_context
+        request_created_at = datetime.now(timezone.utc)
+        self._hide_welcome_state()
         self._auto_scroll_enabled = True
         user_message = self._append_user_message(
             message,
@@ -293,6 +303,7 @@ class LinaMainWindow(QMainWindow):
                 else None
             ),
             visual_context=request_screen_context,
+            created_at=request_created_at,
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
@@ -313,6 +324,7 @@ class LinaMainWindow(QMainWindow):
             request_id,
             message,
             request_screen_context,
+            request_created_at,
         )
         worker.signals.result.connect(self._handle_conversation_worker_result)
         worker.signals.error.connect(self._handle_conversation_error)
@@ -338,8 +350,9 @@ class LinaMainWindow(QMainWindow):
         self._clear_visible_messages()
         self._clear_screen_context()
         self._set_session_title("Yeni Sohbet")
+        self._update_session_date()
         self._refresh_conversation_sidebar()
-        self._append_assistant_message(format_welcome_message())
+        self._show_welcome_state()
         self._set_status("Hazır")
         self._schedule_scroll_to_top()
 
@@ -367,8 +380,9 @@ class LinaMainWindow(QMainWindow):
         self._clear_visible_messages()
         self._clear_screen_context()
         self._set_session_title("Yeni Sohbet")
+        self._update_session_date()
         self._refresh_conversation_sidebar()
-        self._append_assistant_message(format_welcome_message())
+        self._show_welcome_state()
         self._set_status("Hazır")
         self._schedule_scroll_to_top()
 
@@ -386,6 +400,7 @@ class LinaMainWindow(QMainWindow):
             self._clear_screen_context()
             if session is not None:
                 self._set_session_title(session.title)
+            self._update_session_date()
             for message in self._conversation_history_service.loaded_messages():
                 text = message.content
                 if message.had_image:
@@ -394,9 +409,10 @@ class LinaMainWindow(QMainWindow):
                     message.role,
                     text,
                     visual_context=None,
+                    created_at=message.created_at,
                 )
             if not self._message_rows:
-                self._append_assistant_message(format_welcome_message())
+                self._show_welcome_state()
             self._refresh_conversation_sidebar()
             self._set_status("Sohbet yüklendi")
             self._schedule_scroll_to_bottom()
@@ -448,6 +464,7 @@ class LinaMainWindow(QMainWindow):
         self._refresh_conversation_sidebar()
 
     def _clear_visible_messages(self) -> None:
+        self._hide_welcome_state()
         for row in list(self._message_rows):
             row.setParent(None)
             row.deleteLater()
@@ -459,23 +476,46 @@ class LinaMainWindow(QMainWindow):
 
     def _restore_initial_conversation(self) -> None:
         if self._conversation_history_service is None:
-            self._append_assistant_message(format_welcome_message())
+            self._show_welcome_state()
             return
         session = self._conversation_history_service.active_session
         if session is None:
-            self._append_assistant_message(format_welcome_message())
+            self._show_welcome_state()
             return
         self._set_session_title(session.title)
+        self._update_session_date()
         messages = self._conversation_history_service.loaded_messages()
         if not messages:
-            self._append_assistant_message(format_welcome_message())
+            self._show_welcome_state()
         else:
             for message in messages:
                 text = message.content
                 if message.had_image:
                     text = f"▣ {_visual_placeholder(message.image_source)}\n{text}"
-                self._append_message(message.role, text)
+                self._append_message(message.role, text, created_at=message.created_at)
         self._refresh_conversation_sidebar()
+
+    def _show_welcome_state(self) -> None:
+        self._hide_welcome_state()
+        conversation_id = (
+            self._conversation_history_service.active_session.id
+            if self._conversation_history_service is not None
+            and self._conversation_history_service.active_session is not None
+            else None
+        )
+        self._welcome_state = WelcomeStateWidget(
+            BRANDING_LOGO_PATH,
+            conversation_id=conversation_id,
+            parent=self._message_container,
+        )
+        self._message_layout.insertWidget(0, self._welcome_state)
+
+    def _hide_welcome_state(self) -> None:
+        if self._welcome_state is None:
+            return
+        self._welcome_state.setParent(None)
+        self._welcome_state.deleteLater()
+        self._welcome_state = None
 
     def _refresh_conversation_sidebar(self) -> None:
         if self._conversation_history_service is None:
@@ -488,6 +528,19 @@ class LinaMainWindow(QMainWindow):
             else None
         )
         self._sidebar.set_sessions(sessions, active_id=active_id)
+        self._update_session_date()
+
+    def _update_session_date(self) -> None:
+        if self._conversation_history_service is None:
+            self._session_date_label.clear()
+            return
+        session = self._conversation_history_service.active_session
+        if session is None:
+            self._session_date_label.clear()
+            return
+        self._session_date_label.setText(
+            format_conversation_datetime(session.last_message_at or session.created_at)
+        )
 
     def handle_screen_request(self) -> None:
         """Capture and preview one screen after an explicit user action."""
@@ -660,14 +713,18 @@ class LinaMainWindow(QMainWindow):
         request_id: int,
         message: str,
         screen_context: ScreenContext | None,
+        created_at: datetime,
     ) -> tuple[int, str, object]:
         try:
             if screen_context is None:
-                response: object = self._conversation_service.handle_message(message)
+                response: object = self._conversation_service.handle_input(
+                    ConversationInput(text=message, created_at=created_at)
+                )
             else:
                 response = self._conversation_service.handle_input(
                     ConversationInput(
                         text=message,
+                        created_at=created_at,
                         image_attachment=ImageAttachment(
                             mime_type="image/png",
                             data=screen_context.image_bytes,
@@ -718,12 +775,14 @@ class LinaMainWindow(QMainWindow):
         if isinstance(result, ConversationResult):
             response: object = result.response
             consumed = result.attachment_consumed
+            assistant_created_at = result.assistant_created_at
         else:
             response = result
             consumed = False
+            assistant_created_at = None
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
-        self._append_assistant_message(text)
+        self._append_assistant_message(text, created_at=assistant_created_at)
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
         self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
@@ -811,18 +870,24 @@ class LinaMainWindow(QMainWindow):
         text: str,
         image_bytes: bytes | None = None,
         visual_context: ScreenContext | None = None,
+        created_at: datetime | None = None,
     ) -> ChatMessageWidget:
         return self._append_message(
             "user",
             text,
             image_bytes=image_bytes,
             visual_context=visual_context,
+            created_at=created_at,
         )
 
-    def _append_assistant_message(self, text: str) -> ChatMessageWidget:
+    def _append_assistant_message(
+        self,
+        text: str,
+        created_at: datetime | None = None,
+    ) -> ChatMessageWidget:
         normalized = normalize_assistant_text(text)
         self._last_response_text = normalized
-        return self._append_message("assistant", normalized)
+        return self._append_message("assistant", normalized, created_at=created_at)
 
     def _append_message(
         self,
@@ -831,6 +896,7 @@ class LinaMainWindow(QMainWindow):
         typing: bool = False,
         image_bytes: bytes | None = None,
         visual_context: ScreenContext | None = None,
+        created_at: datetime | None = None,
     ) -> ChatMessageWidget:
         should_scroll = self._auto_scroll_enabled or self._is_scroll_near_bottom()
         message = ChatMessageWidget(
@@ -841,6 +907,7 @@ class LinaMainWindow(QMainWindow):
             typing=typing,
             image_bytes=image_bytes,
             visual_context=visual_context,
+            created_at=created_at,
             parent=self._message_container,
         )
         message.copy_requested.connect(self._copy_text)

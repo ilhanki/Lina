@@ -1,6 +1,7 @@
 """Conversation service for Lina."""
 
 from dataclasses import replace
+from datetime import datetime, timezone
 
 from lina.brain.brain import Brain
 from lina.brain.context_manager import ContextManager
@@ -110,6 +111,7 @@ class ConversationService:
                 user_message,
                 had_image=conversation_input.image_attachment is not None,
                 image_source=_safe_image_source(conversation_input.image_attachment),
+                created_at=conversation_input.created_at,
             )
 
         if intent.type in {
@@ -161,11 +163,16 @@ class ConversationService:
             )
         )
         self._history = self._history[-self._history_limit :]
+        assistant_created_at = datetime.now(timezone.utc)
         if self._conversation_history_service is not None:
-            self._conversation_history_service.record_assistant_message(response.text)
+            self._conversation_history_service.record_assistant_message(
+                response.text,
+                created_at=assistant_created_at,
+            )
         return ConversationResult(
             response=response,
             attachment_consumed=attachment_consumed,
+            assistant_created_at=assistant_created_at,
         )
 
     def _ensure_vision_ready(self) -> None:

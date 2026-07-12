@@ -118,19 +118,31 @@ class ConversationHistoryService:
         content: str,
         had_image: bool = False,
         image_source: str | None = None,
+        created_at: datetime | None = None,
     ) -> None:
         self._record_message(
             role="user",
             content=content,
             had_image=had_image,
             image_source=image_source,
+            created_at=created_at,
         )
         self._maybe_update_title(content)
 
-    def record_assistant_message(self, content: str, model_name: str | None = None) -> None:
+    def record_assistant_message(
+        self,
+        content: str,
+        model_name: str | None = None,
+        created_at: datetime | None = None,
+    ) -> None:
         if not content.strip():
             return
-        self._record_message(role="assistant", content=content, model_name=model_name)
+        self._record_message(
+            role="assistant",
+            content=content,
+            model_name=model_name,
+            created_at=created_at,
+        )
 
     def rename(self, title: str) -> ConversationSession:
         if self._active_session is None:
@@ -201,6 +213,7 @@ class ConversationHistoryService:
         had_image: bool = False,
         image_source: str | None = None,
         model_name: str | None = None,
+        created_at: datetime | None = None,
     ) -> None:
         if self._active_session is None:
             self.new_session()
@@ -210,7 +223,7 @@ class ConversationHistoryService:
             conversation_id=session_id,
             role=role,
             content=content,
-            created_at=self._clock(),
+            created_at=created_at or self._clock(),
             sequence=len(self._memory_messages) + 1,
             had_image=had_image,
             image_source=image_source,
@@ -218,6 +231,14 @@ class ConversationHistoryService:
         )
         self._memory_messages.append(message)
         self._memory_messages = self._memory_messages[-self._max_loaded_messages :]
+        session = self._active_session
+        self._active_session = ConversationSession(
+            session.id,
+            session.title,
+            session.created_at,
+            message.created_at,
+            message.created_at,
+        )
         if self._enabled and self._persistence_available and self._active_session.id is not None:
             try:
                 persisted = self._repository.add_message(message)  # type: ignore[union-attr]

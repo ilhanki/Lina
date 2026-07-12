@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from lina.brain.model_provider import ModelResponse
 from lina.vision.models import ImageAttachment
@@ -14,6 +15,7 @@ class ConversationInput:
 
     text: str
     image_attachment: ImageAttachment | None = None
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,3 +24,4 @@ class ConversationResult:
 
     response: ModelResponse
     attachment_consumed: bool = False
+    assistant_created_at: datetime | None = None

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from lina.conversations.models import ConversationSession
+from lina.interfaces.qt.formatting import format_conversation_datetime
 
 
 class SidebarWidget(QWidget):
@@ -142,13 +143,16 @@ class SidebarWidget(QWidget):
             button = QPushButton(session.title, self.session_list)
             button.setObjectName("sessionButton")
             button.setToolTip(session.title)
-            button.setMinimumHeight(52)
-            button.setMaximumHeight(52)
+            button.setMinimumHeight(64)
+            button.setMaximumHeight(64)
             button.setSizePolicy(
                 QSizePolicy.Policy.Expanding,
                 QSizePolicy.Policy.Fixed,
             )
             button._full_title = session.title  # type: ignore[attr-defined]
+            button._activity_text = format_conversation_datetime(  # type: ignore[attr-defined]
+                session.last_message_at or session.created_at
+            )
             button.setCheckable(True)
             button.setChecked(session.id == active_id)
             button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -185,13 +189,13 @@ class SidebarWidget(QWidget):
         available_width = max(120, self.session_list.width() - 24)
         for button in self.session_list.findChildren(QPushButton, "sessionButton"):
             title = getattr(button, "_full_title", button.text())
-            button.setText(
-                QFontMetrics(button.font()).elidedText(
-                    title,
-                    Qt.TextElideMode.ElideRight,
-                    available_width,
-                )
+            elided_title = QFontMetrics(button.font()).elidedText(
+                title,
+                Qt.TextElideMode.ElideRight,
+                available_width,
             )
+            activity = getattr(button, "_activity_text", "")
+            button.setText(f"{elided_title}\n{activity}")
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)

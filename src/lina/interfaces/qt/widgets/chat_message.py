@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from lina.interfaces.qt.theme import SPACE_MD, SPACE_SM, TEXT_MUTED
+from lina.interfaces.qt.formatting import format_message_time
 from lina.screen.models import ScreenContext
 
 
@@ -40,6 +41,7 @@ class ChatMessageWidget(QWidget):
         typing: bool = False,
         image_bytes: bytes | None = None,
         visual_context: ScreenContext | None = None,
+        created_at: datetime | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -47,6 +49,7 @@ class ChatMessageWidget(QWidget):
         self.raw_text = text
         self.typing = typing
         self.visual_context = visual_context
+        self.created_at = created_at or datetime.now().astimezone()
         self.setObjectName("chatMessage")
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
 
@@ -103,7 +106,7 @@ class ChatMessageWidget(QWidget):
         metadata = QHBoxLayout()
         metadata.setContentsMargins(0, 0, 0, 0)
         metadata.setSpacing(SPACE_SM)
-        self.timestamp_label = QLabel(datetime.now().strftime("%H:%M"), self.bubble)
+        self.timestamp_label = QLabel(format_message_time(self.created_at), self.bubble)
         self.timestamp_label.setObjectName("mutedLabel")
         self.timestamp_label.setStyleSheet(f"color: {TEXT_MUTED}; font-size: 9pt;")
         metadata.addWidget(self.timestamp_label)

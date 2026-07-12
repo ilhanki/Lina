@@ -92,7 +92,7 @@ def build_stylesheet(font_family: str) -> str:
             border: 1px solid transparent;
             border-radius: 9px;
             text-align: left;
-            padding: 0 12px;
+            padding: 7px 12px;
             font-size: 10pt;
         }}
         QPushButton#sessionButton:hover {{
@@ -127,6 +127,25 @@ def build_stylesheet(font_family: str) -> str:
             padding: 2px;
         }}
         QLabel#mutedLabel {{ color: {TEXT_MUTED}; }}
+        QLabel#sessionDateLabel {{
+            color: {TEXT_MUTED};
+            font-size: 9pt;
+        }}
+        QWidget#welcomeState {{ background: transparent; }}
+        QLabel#welcomeGreeting {{
+            color: {TEXT_PRIMARY};
+            font-size: 20pt;
+            font-weight: 700;
+        }}
+        QLabel#welcomeSubtitle {{
+            color: {TEXT_MUTED};
+            font-size: 11pt;
+        }}
+        QLabel#welcomeFallbackLogo {{
+            color: {ACCENT};
+            font-size: 42pt;
+            font-weight: 700;
+        }}
         QLabel#senderLabel {{
             color: {TEXT_MUTED};
             font-weight: 600;

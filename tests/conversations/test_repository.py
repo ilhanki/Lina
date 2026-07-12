@@ -63,6 +63,48 @@ def test_repository_supports_session_crud_and_cascade_delete(tmp_path) -> None:
     assert repository.list_messages(session.id or 0) == ()
 
 
+def test_repository_orders_sessions_by_recent_activity(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    first = repository.create_conversation(
+        now=datetime(2026, 1, 1, tzinfo=timezone.utc)
+    )
+    second = repository.create_conversation(
+        now=datetime(2026, 1, 2, tzinfo=timezone.utc)
+    )
+    repository.add_message(
+        PersistedMessage(
+            id=None,
+            conversation_id=first.id or 0,
+            role="user",
+            content="Son aktivite",
+            created_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+            sequence=1,
+        )
+    )
+
+    assert [session.id for session in repository.list_conversations()] == [
+        first.id,
+        second.id,
+    ]
+
+
+def test_repository_handles_legacy_naive_and_malformed_timestamps(tmp_path) -> None:
+    path = tmp_path / "conversations.sqlite3"
+    repository = ConversationRepository(path)
+    session = repository.create_conversation()
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE conversations SET created_at = ?, updated_at = ? WHERE id = ?",
+            ("2026-01-01T12:00:00", "not-a-timestamp", session.id),
+        )
+
+    loaded = repository.get_conversation(session.id or 0)
+
+    assert loaded is not None
+    assert loaded.created_at.tzinfo is not None
+    assert loaded.updated_at.tzinfo is not None
+
+
 def test_repository_validates_message_metadata_and_rejects_empty_content(tmp_path) -> None:
     repository = ConversationRepository(tmp_path / "conversations.sqlite3")
     session = repository.create_conversation()

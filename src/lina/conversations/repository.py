@@ -77,8 +77,16 @@ class ConversationRepository:
         try:
             with self._connection() as connection:
                 cursor = connection.execute(
-                    "INSERT INTO conversations (title, created_at, updated_at) VALUES (?, ?, ?)",
-                    (normalized_title, _serialize_time(timestamp), _serialize_time(timestamp)),
+                    """
+                    INSERT INTO conversations (title, created_at, updated_at, last_message_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        normalized_title,
+                        _serialize_time(timestamp),
+                        _serialize_time(timestamp),
+                        _serialize_time(timestamp),
+                    ),
                 )
                 return ConversationSession(
                     id=int(cursor.lastrowid),
@@ -261,10 +269,10 @@ def _row_to_session(row: sqlite3.Row) -> ConversationSession:
     return ConversationSession(
         id=int(row["id"]),
         title=str(row["title"]),
-        created_at=datetime.fromisoformat(str(row["created_at"])),
-        updated_at=datetime.fromisoformat(str(row["updated_at"])),
+        created_at=_parse_time(row["created_at"]),
+        updated_at=_parse_time(row["updated_at"]),
         last_message_at=(
-            datetime.fromisoformat(str(row["last_message_at"]))
+            _parse_time(row["last_message_at"])
             if row["last_message_at"]
             else None
         ),
@@ -277,10 +285,21 @@ def _row_to_message(row: sqlite3.Row) -> PersistedMessage:
         conversation_id=int(row["conversation_id"]),
         role=str(row["role"]),
         content=str(row["content"]),
-        created_at=datetime.fromisoformat(str(row["created_at"])),
+        created_at=_parse_time(row["created_at"]),
         sequence=int(row["sequence_number"]),
         message_type=str(row["message_type"]),
         had_image=bool(row["had_image"]),
         image_source=str(row["image_source"]) if row["image_source"] else None,
         model_name=str(row["model_name"]) if row["model_name"] else None,
     )
+
+
+def _parse_time(value: object) -> datetime:
+    """Parse stored UTC/legacy timestamps without breaking a whole session."""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return datetime.now(timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)

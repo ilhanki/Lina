@@ -1,6 +1,6 @@
 """Tests for PySide6 GUI widgets."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
 from PySide6.QtGui import QImage
@@ -86,6 +86,20 @@ def test_user_message_renders_image_preview_above_text(qtbot) -> None:
     assert widget.bubble.layout().indexOf(widget.image_label) < widget.bubble.layout().indexOf(
         widget.text_label
     )
+
+
+def test_chat_message_uses_persisted_created_at(qtbot) -> None:
+    widget = ChatMessageWidget(
+        "assistant",
+        "Eski cevap",
+        "Arial",
+        11,
+        created_at=datetime(2020, 1, 2, 3, 4),
+    )
+    qtbot.addWidget(widget)
+
+    expected = datetime(2020, 1, 2, 3, 4, tzinfo=timezone.utc).astimezone()
+    assert widget.timestamp_label.text() == expected.strftime("%H:%M")
 
 
 def test_visual_message_exposes_preview_and_reanalyze_actions(qtbot) -> None:
@@ -287,4 +301,5 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
     assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
-    assert all(button.minimumHeight() == 52 for button in session_buttons)
+    assert all(button.minimumHeight() == 64 for button in session_buttons)
+    assert "·" in session_buttons[0].text()
