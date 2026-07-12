@@ -735,6 +735,7 @@ class LinaMainWindow(QMainWindow):
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
+        self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
         if (
             consumed
@@ -769,6 +770,7 @@ class LinaMainWindow(QMainWindow):
             request_screen_context,
             "Analiz başarısız · Tekrar dene",
         )
+        self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
         self._set_status("Hata oluştu.")
         self._composer.input.setFocus()
