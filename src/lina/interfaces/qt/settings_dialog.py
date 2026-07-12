@@ -94,10 +94,12 @@ class SettingsDialog(QDialog):
         self._open_last = QCheckBox("Son sohbeti başlangıçta aç", page)
         self._confirm_delete = QCheckBox("Sohbet silmeden önce onayla", page)
         self._welcome = QCheckBox("Welcome alanını göster", page)
+        self._intent_routing = QCheckBox("Akıllı araç yönlendirme", page)
         form.addRow("Dil", self._language)
         form.addRow(self._open_last)
         form.addRow(self._confirm_delete)
         form.addRow(self._welcome)
+        form.addRow(self._intent_routing)
         return page
 
     def _appearance_page(self) -> QWidget:
@@ -197,6 +199,7 @@ class SettingsDialog(QDialog):
         self._open_last.setChecked(settings.general.open_last_conversation)
         self._confirm_delete.setChecked(settings.general.confirm_before_delete)
         self._welcome.setChecked(settings.general.welcome_enabled)
+        self._intent_routing.setChecked(settings.general.intent_routing_enabled)
         _select_data(self._theme, settings.appearance.theme)
         self._font_scale.setValue(round(settings.appearance.font_scale * 100))
         self._compact_mode.setChecked(settings.appearance.compact_mode)
@@ -219,7 +222,7 @@ class SettingsDialog(QDialog):
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
             appearance=replace(self._draft.appearance, theme=str(self._theme.currentData()), font_scale=self._font_scale.value() / 100, compact_mode=self._compact_mode.isChecked(), reduce_motion=self._reduce_motion.isChecked()),
-            general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked()),
+            general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked(), intent_routing_enabled=self._intent_routing.isChecked()),
             models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model()),
             speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._speech_insert.isChecked()),
             vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),

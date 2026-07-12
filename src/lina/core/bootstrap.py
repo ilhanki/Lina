@@ -7,6 +7,8 @@ from lina.brain.brain import Brain
 from lina.brain.context_manager import ContextManager
 from lina.brain.prompt_builder import PromptBuilder
 from lina.brain.prompts import VISION_SYSTEM_PROMPT
+from lina.brain.routing.router import IntentRouter
+from lina.brain.routing.tools import build_safe_tool_registry
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -50,6 +52,7 @@ class ApplicationServices:
     conversation_history_service: ConversationHistoryService | None = None
     user_settings_service: UserSettingsService | None = None
     notification_service: NotificationService | None = None
+    intent_router: IntentRouter | None = None
 
 
 def create_application_services(
@@ -150,6 +153,10 @@ def create_application_services(
         )
     )
     notification_service = NotificationService(NotificationRepository(project_root / "data" / "notifications.sqlite3"))
+    intent_router = IntentRouter(
+        build_safe_tool_registry(notification_service, file_access_service, memory_service),
+        enabled_provider=lambda: user_settings_service.current.general.intent_routing_enabled,
+    )
 
     return ApplicationServices(
         application=application,
@@ -160,6 +167,7 @@ def create_application_services(
         conversation_history_service=conversation_history_service,
         user_settings_service=user_settings_service,
         notification_service=notification_service,
+        intent_router=intent_router,
     )
 
 

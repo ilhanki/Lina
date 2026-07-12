@@ -26,6 +26,7 @@ class GeneralSettings:
     open_last_conversation: bool = True
     confirm_before_delete: bool = True
     welcome_enabled: bool = True
+    intent_routing_enabled: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +102,7 @@ class UserSettings:
                 "open_last_conversation": self.general.open_last_conversation,
                 "confirm_before_delete": self.general.confirm_before_delete,
                 "welcome_enabled": self.general.welcome_enabled,
+                "intent_routing_enabled": self.general.intent_routing_enabled,
             },
             "models": {
                 "text_model": self.models.text_model,
@@ -152,6 +154,7 @@ class UserSettings:
                 open_last_conversation=_bool(general, "open_last_conversation", defaults.general.open_last_conversation),
                 confirm_before_delete=_bool(general, "confirm_before_delete", defaults.general.confirm_before_delete),
                 welcome_enabled=_bool(general, "welcome_enabled", defaults.general.welcome_enabled),
+                intent_routing_enabled=_bool(general, "intent_routing_enabled", defaults.general.intent_routing_enabled),
             ),
             models=ModelSettings(
                 text_model=_model_name(models, "text_model", defaults.models.text_model),

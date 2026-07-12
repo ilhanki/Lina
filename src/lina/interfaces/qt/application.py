@@ -45,6 +45,7 @@ def run_qt_application(
         speech_service=services.speech_service,
         user_settings_service=services.user_settings_service,
         notification_service=services.notification_service,
+        intent_router=services.intent_router,
     )
     window.show()
     if (
