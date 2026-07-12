@@ -2324,3 +2324,13 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Yeni dependency eklenmedi; tüm yeni persistence kodu Python standard library kullanıyor.
 - Ollama model refresh/capability doğrulaması ve gerçek Windows tray smoke testi sonraki doğrulama dilimine bırakıldı.
 - v0.9.0-alpha tag'i manuel GUI smoke testi tamamlanmadan oluşturulmadı.
+## 2026-07-12 - v0.9.0 Completion Patch
+
+- `6b24021` `feat: add ollama model refresh`
+- `1db6062` `feat: validate vision model capability`
+- Settings dialog'unda asenkron `/api/tags` model refresh eklendi.
+- `/api/show` capability kontrolü ile vision model doğrulaması eklendi.
+- Ollama unavailable, boş liste ve stale worker sonuçlarında mevcut model seçimleri korunuyor.
+- Otomatik model download/pull eklenmedi.
+- Tam test paketi: `610 passed`.
+- Manuel Windows tray ve GUI smoke testi hâlâ release öncesi yapılmalı.

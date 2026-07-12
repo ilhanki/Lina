@@ -30,6 +30,7 @@ python -m pytest
 
 ## Bilinen Sınırlamalar
 
-- Ollama model refresh ve vision capability doğrulamalı seçim ekranı sonraki dilime bırakıldı.
+- Ollama model refresh yalnız kurulu modelleri asenkron olarak listeler; otomatik indirme yapmaz.
+- Vision model seçimleri `/api/show` içindeki açık `vision` capability alanıyla doğrulanır.
 - Gerçek Windows system tray davranışı bu ortamda manuel smoke test edilmedi.
 - v0.9.0-alpha release tag'i manuel GUI smoke testi sonrasına bırakıldı.

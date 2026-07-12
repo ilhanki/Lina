@@ -273,3 +273,6 @@ PySide6 `SettingsDialog` JSON veya TOML okumaz. Dialog çalışma kopyasıyla ç
 Model seçimi yalnız yeni Ollama isteklerini etkiler; provider request başlangıcında model değerini snapshot olarak alır. Speech ve Vision kapatıldığında GUI kontrolleri devre dışı kalır, aktif görsel context güvenli biçimde temizlenebilir; conversation, Memory ve raw image persistence sınırları değişmez.
 
 System tray yalnız PySide6 `QSystemTrayIcon` ile ve platform desteği varsa oluşturulur. `exit`, `tray` ve `ask` kapanış davranışları user settings üzerinden seçilir. Tray yoksa `tray` ve `start_minimized` normal pencere davranışına güvenli fallback yapar. Windows autostart ve registry yazımı bu sürümde uygulanmaz.
+Model refresh ayarlar dialog'unda mevcut worker altyapısıyla asenkron çalışır. `/api/tags` yalnız kurulu modelleri listeler; sonuç settings dosyasına otomatik yazılmaz. Dialog kapanmışsa veya refresh generation güncel değilse worker sonucu UI'a uygulanmaz.
+
+Vision model seçimi `/api/show` cevabındaki `capabilities` listesine dayanır. `vision` açıkça bulunmuyorsa yeni seçim kaydedilmez; malformed veya ulaşılamayan cevaplarda mevcut kayıtlı seçim korunur ve kullanıcı uyarılır. Text model için vision capability şartı yoktur.
