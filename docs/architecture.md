@@ -262,3 +262,14 @@ Yeni sohbet presentation ve in-memory state içinde ephemeral draft olarak başl
 İlk anlamlı user message geldiğinde conversation ve ilk user message aynı SQLite transaction içinde persist edilir. Transaction başarısız olursa model isteği başlatılmaz ve yarım bir conversation satırı bırakılmaz.
 
 Son kalıcı conversation silindiğinde servis yeni boş database satırı oluşturmadan welcome draft'a döner. Başka görünür conversation varsa en yenisi yüklenir. Legacy varsayılan başlıklı ve sıfır mesajlı kayıtlar veri kaybı olmadan normal chat ve search görünümlerinde gizlenir.
+## User Settings ve System Integration Foundation
+
+Uygulama konfigürasyonu ile kullanıcı tercihleri ayrıdır. `AppSettings` ve `config/default.toml` çalışma ortamı varsayılanlarını taşırken `UserSettings` yalnız kullanıcı tarafından değiştirilebilen, güvenli ve framework-neutral tercihleri taşır. `ApplicationContext` bu nedenle genişletilmez; `ApplicationServices` user settings service'i açık bir bağımlılık olarak sağlar.
+
+Kullanıcı ayarları proje köküne yazılmaz. `UserSettingsRepository` Windows Local AppData altındaki JSON dosyasını okur; testler injected temporary path kullanır. Save akışı UTF-8 JSON, flush, mümkünse fsync ve `os.replace` adımlarından oluşur. Bozuk veya gelecekteki schema dosyası silinmez; güvenli default değerler kullanılır.
+
+PySide6 `SettingsDialog` JSON veya TOML okumaz. Dialog çalışma kopyasıyla çalışır; Uygula/Kaydet service üzerinden validation ve persistence yapar, Vazgeç kalıcı durumu değiştirmez, Varsayılanlara Dön yalnız formu default değerlere getirir. Settings service Qt bilmez ve subscriber callback ile runtime katmanına bildirim yapar.
+
+Model seçimi yalnız yeni Ollama isteklerini etkiler; provider request başlangıcında model değerini snapshot olarak alır. Speech ve Vision kapatıldığında GUI kontrolleri devre dışı kalır, aktif görsel context güvenli biçimde temizlenebilir; conversation, Memory ve raw image persistence sınırları değişmez.
+
+System tray yalnız PySide6 `QSystemTrayIcon` ile ve platform desteği varsa oluşturulur. `exit`, `tray` ve `ask` kapanış davranışları user settings üzerinden seçilir. Tray yoksa `tray` ve `start_minimized` normal pencere davranışına güvenli fallback yapar. Windows autostart ve registry yazımı bu sürümde uygulanmaz.

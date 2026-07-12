@@ -2295,3 +2295,32 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 ### Durum ve Sonraki Adım
 
 `v0.8.3-alpha` Lazy Conversation Creation ve Delete Lifecycle Fix kod ve test tarafında hazırlandı. Manuel GUI smoke testinde yeni sohbet, ilk mesaj, son sohbet silme ve kalan sohbete otomatik dönüş akışları doğrulanmalı; ardından release tag kararı verilmelidir.
+## 2026-07-12 - Settings and System Integration Foundation
+
+### Yapılanlar
+
+- Local AppData altında persistent user settings modeli, JSON repository, schema version ve atomik yazma eklendi.
+- Bozuk veya gelecekteki settings dosyasında güvenli default fallback korundu.
+- PySide6 settings dialog ve Ctrl+, erişimi eklendi.
+- Appearance theme/font scale runtime uygulaması eklendi.
+- Model tercihleri gelecekteki Ollama isteklerine bağlandı.
+- Speech/Vision toggle kontrolleri ve Vision attachment temizleme akışı eklendi.
+- QSystemTrayIcon, tray menüsü, close behavior ve start minimized fallback'i eklendi.
+
+### Commitler
+
+- `7b93a72` `feat: add persistent user settings foundation`
+- `0918f8c` `feat: wire user settings into application bootstrap`
+- `12d4427` `feat: add pyside6 settings dialog`
+- `f78530a` `feat: add appearance settings runtime apply`
+- `2039bf6` `feat: apply user model preferences`
+- `601e1c1` `feat: apply speech and vision preferences`
+- `517c59f` `feat: add system tray close behavior`
+
+### Test ve Durum
+
+- Tam test paketi: `610 passed`.
+- Compile kontrolü başarılı.
+- Yeni dependency eklenmedi; tüm yeni persistence kodu Python standard library kullanıyor.
+- Ollama model refresh/capability doğrulaması ve gerçek Windows tray smoke testi sonraki doğrulama dilimine bırakıldı.
+- v0.9.0-alpha tag'i manuel GUI smoke testi tamamlanmadan oluşturulmadı.

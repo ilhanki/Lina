@@ -511,3 +511,19 @@ Teknolojiler:
 - PyInstaller veya Nuitka.
 - Structured logging.
 - Backup/export mekanizmaları.
+## v0.9.0-alpha: Settings ve System Integration Foundation
+
+Durum: Kod ve test temeli tamamlandı; manuel GUI/tray smoke testi ve release değerlendirmesi bekleniyor.
+
+Tamamlananlar:
+
+- Persistent local user settings, schema version ve atomik yazma.
+- PySide6 settings dialog ve runtime appearance uygulaması.
+- Model, Speech ve Vision tercihleri için güvenli temel.
+- System tray ve kapanış davranışı foundation.
+
+Sonraki hedefler:
+
+- Ollama model refresh ve vision capability doğrulamalı seçim.
+- Bildirimler ve background tasks için `v0.9.1-alpha` değerlendirmesi.
+- Stability ve packaging foundation için `v1.0.0-alpha` değerlendirmesi.
