@@ -2147,3 +2147,31 @@ Conversation history modele düz `User:` / `Assistant:` transcript'i olarak veri
 ### Durum
 
 `v0.7.1-alpha` Local Vision Integration kod ve dokümantasyon tarafında tamamlandı. Tag oluşturulmadı; gerçek GUI screenshot smoke testi bekleniyor.
+
+## 2026-07-12 - Vision Response and Image Upload Hotfix
+
+### Kök Neden ve Düzeltme
+
+- Ollama vision response içindeki boş `message.content` değeri başarılı cevap kabul edildiği için GUI boş Lina balonu gösterebiliyordu.
+- Image request payload'una `think = false` eklendi; kullanıcıya dönük cevap içeriği boşsa provider artık kontrollü hata üretiyor.
+- Hata durumunda attachment korunuyor ve boş mesaj balonu oluşturulmuyor.
+- Bellekte oluşturulan mavi PNG ile gerçek local `qwen3-vl:2b` smoke testinde `Mavi` cevabı doğrulandı.
+
+### Görsel Yükleme ve Önizleme
+
+- Composer `+` butonu PNG, JPEG, WebP ve BMP dosyaları için kullanıcı kontrollü seçim dialog'una bağlandı.
+- Seçilen görsel Qt ile yalnız bellekte PNG'ye normalize ediliyor; disk yazımı veya yeni dependency yok.
+- Kaynak dosya ve pixel boyutu için güvenli üst sınırlar eklendi.
+- Yüklenen görsel dosya adı ve çözünürlüğü attachment chip içinde gösteriliyor.
+- Gönderilen kullanıcı mesaj balonunda görsel, metnin üstünde aspect ratio korunan thumbnail olarak gösteriliyor.
+- Balon yalnız küçültülmüş QPixmap tutuyor; original image bytes conversation history'ye yazılmıyor.
+
+### Test Sonucu
+
+- Provider hotfix testleri: `12 passed`
+- Qt image loader ve GUI hedefli testleri: `49 passed`
+- Tam test paketi: `548 passed`
+
+### Durum
+
+Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı; gerçek GUI ile Screen ve `+` yükleme akışlarının manuel smoke testi bekleniyor.

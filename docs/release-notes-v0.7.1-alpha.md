@@ -14,6 +14,9 @@
 - Base64 yalnız provider payload sınırında ve bellekte oluşturulur.
 - GUI vision isteğinde `Lina ekranı inceliyor...` durumunu gösterir.
 - Başarılı analiz attachment'ı tüketir; hata attachment'ı yeniden deneme için korur.
+- `+` butonu açık kullanıcı seçimiyle PNG, JPEG, WebP ve BMP görselleri yükleyebilir.
+- Yüklenen görsel bellekte PNG'ye normalize edilir ve gönderilen kullanıcı balonunda thumbnail olarak gösterilir.
+- Vision requestlerinde Ollama thinking modu kapatılır; boş `message.content` artık başarılı cevap kabul edilmez.
 
 ## Güvenlik ve Gizlilik
 
@@ -56,7 +59,7 @@ Qwen3-VL için resmî minimum sürüm Ollama `0.12.7` olarak belirtilir.
 ## Test
 
 ```text
-541 passed
+548 passed
 ```
 
-Yerel `qwen3-vl:2b` modeliyle bellek içi küçük PNG üzerinden `/api/chat` smoke testi başarıyla tamamlandı. Gerçek screenshot otomatik yakalanmadı.
+Yerel `qwen3-vl:2b` modeliyle bellekte oluşturulan mavi PNG üzerinden `/api/chat` smoke testi başarıyla tamamlandı ve model `Mavi` cevabını verdi. Gerçek screenshot otomatik yakalanmadı.
