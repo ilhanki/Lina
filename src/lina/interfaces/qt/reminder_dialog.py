@@ -23,7 +23,7 @@ class ReminderDialog(QDialog):
             due = due.replace(second=0, microsecond=0)
             from datetime import timedelta
             due += timedelta(hours=1)
-        self.due_edit.setDateTime(QDateTime(due))
+        self.due_edit.setDateTime(QDateTime.fromMSecsSinceEpoch(int(due.timestamp() * 1000)).toLocalTime())
         self.recurrence_combo = QComboBox(self)
         for label, value in (("Tekrarlama yok", ReminderRecurrence.NONE), ("Her gün", ReminderRecurrence.DAILY), ("Her hafta", ReminderRecurrence.WEEKLY)):
             self.recurrence_combo.addItem(label, value)
@@ -52,7 +52,10 @@ class ReminderDialog(QDialog):
 
     @property
     def due_at(self) -> datetime:
-        return self.due_edit.dateTime().toPython().astimezone(timezone.utc)
+        # QDateTimeEdit displays local wall time. Epoch conversion avoids treating
+        # that wall time as UTC on systems whose local timezone is not UTC.
+        milliseconds = self.due_edit.dateTime().toMSecsSinceEpoch()
+        return datetime.fromtimestamp(milliseconds / 1000, tz=timezone.utc)
 
     @property
     def recurrence(self) -> ReminderRecurrence:

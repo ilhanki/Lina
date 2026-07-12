@@ -386,6 +386,8 @@ class LinaMainWindow(QMainWindow):
         if self._notification_dialog is None:
             self._notification_dialog = NotificationCenterDialog(self._notification_service, self)
             self._notification_dialog.finished.connect(lambda _result: self._clear_notification_dialog())
+        else:
+            self._notification_dialog.reload()
         self._notification_dialog.show(); self._notification_dialog.raise_(); self._notification_dialog.activateWindow()
         self._refresh_notification_badge()
 
@@ -398,7 +400,15 @@ class LinaMainWindow(QMainWindow):
             return
         dialog = ReminderDialog(parent=self)
         if dialog.exec():
-            self._notification_service.create(dialog.title_edit.text(), dialog.due_at, dialog.recurrence)
+            created = self._notification_service.create(
+                dialog.title_edit.text().strip(), dialog.due_at, dialog.recurrence
+            )
+            if self._notification_dialog is not None:
+                self._notification_dialog._filter.setCurrentIndex(0)
+                self._notification_dialog.reload(created.id)
+            # Creating a reminder does not create a notification event. Reading
+            # the event count keeps the badge unchanged and authoritative.
+            self._refresh_notification_badge()
 
     def _show_from_tray(self) -> None:
         self.showNormal()

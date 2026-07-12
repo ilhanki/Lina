@@ -35,21 +35,36 @@ class NotificationCenterDialog(QDialog):
         mark = QPushButton("Okundu İşaretle", self); mark.clicked.connect(self.mark_selected_read); read_actions.addWidget(mark)
         self._mark_all = QPushButton("Tümünü Okundu İşaretle", self); self._mark_all.clicked.connect(self.mark_all_read); read_actions.addWidget(self._mark_all)
         layout.addLayout(read_actions)
-        self.refresh()
+        self.reload()
 
     def refresh(self, *_args) -> None:
+        self.reload()
+
+    def reload(self, select_reminder_id: int | None = None) -> None:
+        """Reload reminders from SQLite and optionally select a newly saved row."""
         self._items.clear()
         now = datetime.now(timezone.utc)
         reminders = self._service.list()
         mode = self._filter.currentIndex()
-        selected = [r for r in reminders if (mode == 0 and r.status is ReminderStatus.ACTIVE and r.due_at > now) or (mode == 1 and r.status is ReminderStatus.ACTIVE and r.due_at <= now) or (mode == 2 and r.status is ReminderStatus.COMPLETED)]
+        selected = [r for r in reminders if self._matches_filter(r, mode, now)]
         for reminder in selected:
             item = QListWidgetItem(f"{reminder.title} · {reminder.due_at.astimezone().strftime('%d.%m.%Y %H:%M')}")
             item.setData(256, reminder)
             self._items.addItem(item)
+            if reminder.id == select_reminder_id:
+                self._items.setCurrentItem(item)
         if not selected:
             labels = ("Henüz yaklaşan hatırlatıcı yok.", "Henüz geçmiş hatırlatıcı yok.", "Henüz tamamlanan hatırlatıcı yok.")
             self._items.addItem(QListWidgetItem(labels[mode]))
+
+    @staticmethod
+    def _matches_filter(reminder: Reminder, mode: int, now: datetime) -> bool:
+        due_at = reminder.due_at.astimezone(timezone.utc)
+        return (
+            (mode == 0 and reminder.status is ReminderStatus.ACTIVE and due_at > now)
+            or (mode == 1 and reminder.status is ReminderStatus.ACTIVE and due_at <= now)
+            or (mode == 2 and reminder.status is ReminderStatus.COMPLETED)
+        )
 
     def _selected(self) -> Reminder | None:
         item = self._items.currentItem()
@@ -57,7 +72,13 @@ class NotificationCenterDialog(QDialog):
 
     def create_reminder(self) -> None:
         dialog = ReminderDialog(parent=self)
-        if dialog.exec(): self._service.create(dialog.title_edit.text(), dialog.due_at, dialog.recurrence); self.refresh()
+        if not dialog.exec():
+            return
+        created = self._service.create(
+            dialog.title_edit.text().strip(), dialog.due_at, dialog.recurrence
+        )
+        self._filter.setCurrentIndex(0)
+        self.reload(created.id)
 
     def edit_selected(self) -> None:
         reminder = self._selected()
