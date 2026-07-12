@@ -128,4 +128,8 @@ def test_vision_availability_reason_prevents_capture(qtbot, tmp_path, monkeypatc
     _send(window, "Ekranı analiz et")
     assert called == []
     assert "Ollama" in window._last_response_text
+    card = _latest_card(window)
+    assert not card.retry_button.isHidden()
+    qtbot.mouseClick(card.retry_button, Qt.MouseButton.LeftButton)
+    assert "Kullanılamıyor" in card._status.text()
     window._force_exit = True; window.close()

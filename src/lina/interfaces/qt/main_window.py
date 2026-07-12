@@ -546,7 +546,14 @@ class LinaMainWindow(QMainWindow):
             self._finish_routed_intent(user_text, "İşlem iptal edildi.", created_at)
             return
         if request.intent in {RoutingIntentType.ANALYZE_SCREEN, RoutingIntentType.ANALYZE_REGION, RoutingIntentType.ANALYZE_IMAGE}:
-            self._finish_routed_intent(user_text, self._run_vision_intent(request.intent), created_at)
+            card = self._add_tool_card("Görsel analiz", "Vision hazırlanıyor.")
+            card.set_status(ToolStatus.RUNNING)
+            message = self._run_vision_intent(request.intent)
+            unavailable = any(term in message for term in ("kapalı", "ulaşılamadığı", "uygun değil", "seçmelisin"))
+            card.set_status(ToolStatus.UNAVAILABLE if unavailable else ToolStatus.SUCCESS, message, retryable=unavailable)
+            if unavailable:
+                card.retry_requested.connect(lambda: self._retry_vision_intent(request.intent, card))
+            self._finish_routed_intent(user_text, message, created_at)
             return
         if request.requires_confirmation:
             self._show_confirmation_card(request, user_text, created_at)
@@ -620,6 +627,15 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message(result.user_message)
         if self._conversation_history_service is not None:
             self._conversation_history_service.record_assistant_message(result.user_message)
+
+    def _retry_vision_intent(self, intent: RoutingIntentType, card: ToolActivityCard) -> None:
+        card.set_status(ToolStatus.RUNNING, "Vision tekrar deneniyor.")
+        message = self._run_vision_intent(intent)
+        unavailable = any(term in message for term in ("kapalı", "ulaşılamadığı", "uygun değil", "seçmelisin"))
+        card.set_status(ToolStatus.UNAVAILABLE if unavailable else ToolStatus.SUCCESS, message, retryable=unavailable)
+        self._append_assistant_message(message)
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.record_assistant_message(message)
 
     def _add_tool_card(self, title: str, description: str, arguments: str = "", risk: str = "Düşük", confirmation: bool = False) -> ToolActivityCard:
         card = ToolActivityCard(title, description, arguments, risk, confirmation, self._message_container)
