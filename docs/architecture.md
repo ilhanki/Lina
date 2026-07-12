@@ -276,3 +276,11 @@ System tray yalnız PySide6 `QSystemTrayIcon` ile ve platform desteği varsa olu
 Model refresh ayarlar dialog'unda mevcut worker altyapısıyla asenkron çalışır. `/api/tags` yalnız kurulu modelleri listeler; sonuç settings dosyasına otomatik yazılmaz. Dialog kapanmışsa veya refresh generation güncel değilse worker sonucu UI'a uygulanmaz.
 
 Vision model seçimi `/api/show` cevabındaki `capabilities` listesine dayanır. `vision` açıkça bulunmuyorsa yeni seçim kaydedilmez; malformed veya ulaşılamayan cevaplarda mevcut kayıtlı seçim korunur ve kullanıcı uyarılır. Text model için vision capability şartı yoktur.
+
+## Notifications ve Background Tasks
+
+`NotificationRepository` her işlemde kısa ömürlü bir SQLite bağlantısı açar; bağlantılar scheduler thread'i ile GUI arasında paylaşılmaz. Reminder ve notification event tabloları conversation, Memory ve image persistence katmanlarından ayrıdır. Event, presenter çağrısından önce duplicate-safe biçimde persist edilir; teslim sonucu daha sonra `delivery_status` alanına yazılır.
+
+Framework-neutral scheduler ayarları her turda runtime provider üzerinden okur. Gerçek exit `stop()` ile thread'i birleştirir; tray'e kapanma scheduler'ı durdurmaz. Qt presenter yalnız `QSystemTrayIcon.showMessage` sınırında bulunur ve tray yoksa güvenli in-app statüsü döndürür.
+
+Startup missed policy geçmiş daily/weekly occurrence'ları tek tek üretmez; her reminder için bir event korur ve `next_due_at` değerini gelecekteki ilk occurrence'a ilerletir. Dört veya daha fazla missed reminder tek desktop özetine çöker. `show_missed_reminders` kapalıysa eventler korunur fakat popup gösterilmez.

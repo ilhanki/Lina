@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.9.0-alpha`
+- **Sürüm:** `v0.9.1-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -284,12 +284,19 @@ Ayrıntılı dokümanlar:
 - `v0.8.2-alpha`: Conversation Search ve Management UX.
 - `v0.8.3-alpha`: Lazy Conversation Creation ve Delete Lifecycle Fix.
 - `v0.9.0-alpha`: Settings ve System Integration Foundation.
+- `v0.9.1-alpha`: Yerel Notification Center, reminder yönetimi, tray presenter ve background scheduler.
 
 Settings içindeki `Modelleri Yenile` yalnız cihazda kurulu Ollama modellerini sorgular; otomatik indirme yapmaz. Vision model seçimleri `/api/show` capability sonucu ile doğrulanır.
 
 Bu sürümde yeni sohbetler ilk gerçek kullanıcı mesajına kadar ephemeral draft olarak tutulur. Boş draft sidebar veya database'e yazılmaz; ilk mesaj conversation ve user message olarak atomik biçimde persist edilir. Son kalıcı sohbet silindiğinde arayüz yeni boş kayıt üretmeden welcome draft'a döner.
 
 Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
+
+## Hatırlatıcılar ve bildirimler
+
+Lina; tek seferlik, günlük ve haftalık yerel hatırlatıcıları Notification Center üzerinden yönetir. Gerçek zamanlı hatırlatma için Lina açık veya sistem tepsisinde çalışıyor olmalıdır. Lina tamamen kapalıyken bildirim gösteremez; sonraki açılışta kaçırılan hatırlatıcılar işlenir.
+
+Cloud push, e-posta, SMS ve webhook desteği yoktur. Reminder ve notification event verileri yalnızca yerel SQLite veritabanında tutulur. Notification veritabanı conversation, Memory, ham görsel veya Base64 veri içermez.
 
 ## Bilinen Sınırlar
 

@@ -2334,3 +2334,12 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Otomatik model download/pull eklenmedi.
 - Tam test paketi: `610 passed`.
 - Manuel Windows tray ve GUI smoke testi hâlâ release öncesi yapılmalı.
+
+## 2026-07-12 - Notifications & Background Tasks Foundation
+
+- Notification Center zil/badge, Yaklaşanlar/Geçmiş/Tamamlananlar görünümleri ve empty state'ler tamamlandı.
+- Reminder create/edit/complete/delete, confirmation, 10 dakika/1 saat/yarın snooze ve none/daily/weekly recurrence eklendi.
+- Event-before-present delivery, delivery status, tray fallback, duplicate guard ve thread-local SQLite bağlantıları tamamlandı.
+- Startup missed handling recurrence'ı geleceğe taşır; 4+ missed reminder tek desktop özetine çöker. Ayarlar popup/event üretimini runtime'da kontrol eder.
+- Scheduler tray modunda sürer ve gerçek exit sırasında idempotent biçimde durur.
+- Tam test paketi: `628 passed`. Yeni dependency eklenmedi.
