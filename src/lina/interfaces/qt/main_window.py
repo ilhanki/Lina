@@ -27,6 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from lina.brain.model_provider import ModelResponse
+from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext
+from lina.brain.routing.router import IntentRouter
 from lina.interfaces.qt.formatting import (
     build_welcome_message,
     derive_session_title,
@@ -93,6 +95,7 @@ class LinaMainWindow(QMainWindow):
         speech_service: SpeechService | None = None,
         user_settings_service: UserSettingsService | None = None,
         notification_service: NotificationService | None = None,
+        intent_router: IntentRouter | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         image_loader: QtImageLoader | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
@@ -112,6 +115,8 @@ class LinaMainWindow(QMainWindow):
         self._notification_service = notification_service
         self._notification_dialog: NotificationCenterDialog | None = None
         self._notification_scheduler: NotificationScheduler | None = None
+        self._intent_router = intent_router
+        self._routing_session_key = -1
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
@@ -483,6 +488,13 @@ class LinaMainWindow(QMainWindow):
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
+        if self._intent_router is not None:
+            routed = self._intent_router.route(
+                message, self._routing_session_key, self._active_request_id
+            )
+            if routed.intent is not RoutingIntentType.CHAT:
+                self._handle_routed_intent(routed, message, request_created_at)
+                return
         self._show_typing_indicator(
             "Lina ekranı inceliyor..."
             if request_screen_context is not None
@@ -506,6 +518,70 @@ class LinaMainWindow(QMainWindow):
         worker.signals.error.connect(self._handle_conversation_error)
         self._start_worker(worker)
 
+    def _handle_routed_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
+        clarification = self._intent_router.clarification_message(request)
+        if clarification:
+            self._finish_routed_intent(user_text, clarification, created_at)
+            return
+        if request.intent is RoutingIntentType.UNSAFE:
+            self._finish_routed_intent(user_text, "Bu işlem Lina’nın mevcut yetkileri dışında.", created_at)
+            return
+        if request.intent is RoutingIntentType.UNSUPPORTED:
+            self._finish_routed_intent(user_text, "Bu işlem şu anda desteklenmiyor.", created_at)
+            return
+        if request.intent in {RoutingIntentType.ANALYZE_SCREEN, RoutingIntentType.ANALYZE_REGION, RoutingIntentType.ANALYZE_IMAGE}:
+            self._finish_routed_intent(user_text, self._run_vision_intent(request.intent), created_at)
+            return
+        confirmed = not request.requires_confirmation
+        if request.requires_confirmation:
+            confirmed = self._confirm_intent(request)
+            if not confirmed:
+                self._finish_routed_intent(user_text, "İşlemden vazgeçildi.", created_at)
+                return
+        result = self._intent_router.execute(
+            request,
+            RequestContext(
+                self._routing_session_key,
+                generation_id=self._active_request_id,
+                confirmed=confirmed,
+            ),
+        )
+        self._finish_routed_intent(user_text, result.user_message, created_at)
+        if result.success and request.intent is RoutingIntentType.CREATE_REMINDER:
+            if self._notification_dialog is not None:
+                self._notification_dialog.reload()
+
+    def _confirm_intent(self, request: IntentRequest) -> bool:
+        box = QMessageBox(self)
+        box.setWindowTitle("Lina · İşlem Onayı")
+        box.setText(self._intent_router.confirmation_message(request))
+        confirm = box.addButton("Onayla", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        return box.clickedButton() is confirm
+
+    def _run_vision_intent(self, intent: RoutingIntentType) -> str:
+        if not self._vision_enabled:
+            return "Vision özelliği Ayarlar’dan kapalı."
+        if intent is RoutingIntentType.ANALYZE_SCREEN:
+            self.handle_screen_request()
+            return "Ekran görüntüsü analize hazır. Ekranda neye bakmamı istersin?"
+        if intent is RoutingIntentType.ANALYZE_REGION:
+            self.handle_region_capture()
+            return "Analiz etmek istediğin ekran bölgesini seç."
+        if self._screen_context is None:
+            self.handle_image_upload()
+        return "Görsel analize hazır." if self._screen_context is not None else "Analiz için bir görsel seçmelisin."
+
+    def _finish_routed_intent(self, user_text: str, assistant_text: str, created_at: datetime) -> None:
+        self._append_assistant_message(assistant_text)
+        if self._conversation_history_service is not None:
+            self._conversation_history_service.record_user_message(user_text, created_at=created_at)
+            self._conversation_history_service.record_assistant_message(assistant_text)
+        self._refresh_conversation_sidebar()
+        self._set_status("Hazır")
+        self._composer.input.setFocus()
+
     def cancel_active_response(self) -> None:
         """Stop rendering the active response and keep the composer usable."""
         if not self._is_waiting:
@@ -525,8 +601,8 @@ class LinaMainWindow(QMainWindow):
             self._conversation_service.clear_session()
         self._clear_visible_messages()
         self._clear_screen_context()
-        if self._notification_scheduler is not None:
-            self._notification_scheduler.stop()
+        if self._intent_router is not None:
+            self._intent_router.cancel_pending()
         self._set_session_title("Yeni Sohbet")
         self._update_session_date()
         self._refresh_conversation_sidebar()
@@ -555,6 +631,9 @@ class LinaMainWindow(QMainWindow):
             return
         if self._conversation_history_service is not None:
             self._conversation_service.start_new_session()
+        if self._intent_router is not None:
+            self._intent_router.cancel_pending()
+        self._routing_session_key -= 1
         self._conversation_view = "chats"
         self._conversation_query = ""
         self._sidebar.reset_view_controls()
@@ -575,6 +654,9 @@ class LinaMainWindow(QMainWindow):
         if self._conversation_history_service is None:
             return
         try:
+            if self._intent_router is not None:
+                self._intent_router.cancel_pending()
+            self._routing_session_key = conversation_id
             self._conversation_view = "chats"
             self._conversation_query = ""
             self._sidebar.reset_view_controls()
@@ -1446,8 +1528,12 @@ class LinaMainWindow(QMainWindow):
                     event.ignore()
                     return
         self._clear_screen_context()
+        if self._intent_router is not None:
+            self._intent_router.cancel_pending()
         if self._speech_service is not None:
             self._speech_service.stop_listening()
+        if self._notification_scheduler is not None:
+            self._notification_scheduler.stop()
         if self._tray_icon is not None:
             self._tray_icon.hide()
         event.accept()
