@@ -66,6 +66,8 @@ class OllamaProvider(ModelProvider):
                 "temperature": 0.1,
             },
         }
+        if request.image_attachment is not None:
+            payload["think"] = False
         response_data = self._post_json("/api/chat", payload)
         response_message = response_data.get("message")
         if not isinstance(response_message, dict):
@@ -74,8 +76,10 @@ class OllamaProvider(ModelProvider):
 
         if not isinstance(response_text, str):
             raise OllamaProviderError("Ollama response is missing text content")
+        if not response_text.strip():
+            raise OllamaProviderError("Ollama response contains empty text content")
 
-        return ModelResponse(text=response_text)
+        return ModelResponse(text=response_text.strip())
 
     def _post_json(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         http_request = Request(

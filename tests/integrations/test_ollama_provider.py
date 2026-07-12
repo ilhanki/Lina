@@ -106,6 +106,7 @@ def test_ollama_provider_adds_image_only_to_last_user_message() -> None:
 
     payload = json.loads(http_client.requests[0].data)
     assert payload["model"] == "qwen3-vl:2b"
+    assert payload["think"] is False
     assert "images" not in payload["messages"][1]
     encoded = payload["messages"][-1]["images"][0]
     assert encoded == base64.b64encode(image.data).decode("ascii")
@@ -227,6 +228,19 @@ def test_ollama_provider_rejects_missing_message_text() -> None:
     )
 
     with pytest.raises(OllamaProviderError, match="missing text content"):
+        provider.generate(_model_request())
+
+
+def test_ollama_provider_rejects_empty_message_text() -> None:
+    provider = OllamaProvider(
+        base_url="http://localhost:11434",
+        model="qwen3-vl:2b",
+        opener=FakeOllamaHttpClient(
+            b'{"message": {"role": "assistant", "content": "   "}}'
+        ),
+    )
+
+    with pytest.raises(OllamaProviderError, match="empty text content"):
         provider.generate(_model_request())
 
 
