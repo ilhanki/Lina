@@ -16,7 +16,10 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
         duplicate = next((item for item in reminders.list() if item.status.value == "active" and item.title.casefold() == str(args["title"]).casefold() and item.due_at == args["due_at"] and item.recurrence == args["recurrence"]), None)
         if duplicate is not None:
             return ToolResult(True, "Bu hatırlatıcı zaten mevcut.", duplicate)
-        reminder = reminders.create(args["title"], args["due_at"], args["recurrence"])
+        try:
+            reminder = reminders.create(args["title"], args["due_at"], args["recurrence"])
+        except (RuntimeError, OSError):
+            return ToolResult(False, "Hatırlatıcı oluşturulamadı.", error_code="persistence_error")
         return ToolResult(True, f"Tamam, {reminder.due_at.astimezone().strftime('%d.%m.%Y %H:%M')} için hatırlatıcını oluşturdum.", reminder)
 
     def list_reminders(_request, _context):
@@ -33,16 +36,16 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
         try:
             content = files.read_allowed_file(request.extracted_arguments.get("target", ""))
         except FileAccessError:
-            return ToolResult(False, "Bu dosyaya erişmeme izin verilmiyor.", error_code="file_rejected")
+            return ToolResult(False, "Bu dosyaya erişmeme izin verilmiyor.", error_code="permission_denied")
         suffix = " (önizleme kısaltıldı)" if content.truncated else ""
         return ToolResult(True, f"{content.path} dosyasını okudum{suffix}.\n\n{content.text}", content)
 
     def store_memory(request, _context):
         content = str(request.extracted_arguments.get("content", "")).strip()
         if not content:
-            return ToolResult(False, "Kaydedilecek bilgiyi netleştirir misin?", error_code="empty_memory", requires_follow_up=True)
+            return ToolResult(False, "Kaydedilecek bilgiyi netleştirir misin?", error_code="validation_error", requires_follow_up=True)
         if memory.is_sensitive_content(content):
-            return ToolResult(False, "Bu bilgi hassas göründüğü için hafızaya kaydedemem.", error_code="sensitive_memory")
+            return ToolResult(False, "Bu bilgi hassas göründüğü için hafızaya kaydedemem.", error_code="permission_denied")
         created = memory.add_memory(MemoryType.CONVERSATION_NOTE, content)
         return ToolResult(True, "Bunu hafızaya kaydettim." if created else "Bu bilgi zaten hafızadaydı.", created)
 

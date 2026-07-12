@@ -50,7 +50,7 @@ def test_router_rejects_invalid_arguments_before_callback() -> None:
     router = IntentRouter(_registry(calls))
     request = IntentRequest(IntentType.CREATE_REMINDER, 1, "", {"title": 42}, True)
     result = router.execute(request, RequestContext(1, confirmed=True))
-    assert result.error_code == "invalid_arguments"
+    assert result.error_code == "validation_error"
     assert calls == []
 
 

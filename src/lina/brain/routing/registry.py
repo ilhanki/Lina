@@ -32,3 +32,9 @@ class SafeToolRegistry:
 
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(item.name for item in self._by_intent.values()))
+
+    def availability_reason(self, intent: IntentType) -> str | None:
+        definition = self.get(intent)
+        if definition is None:
+            return "Bu işlem desteklenmiyor."
+        return None if definition.available() else definition.unavailable_message

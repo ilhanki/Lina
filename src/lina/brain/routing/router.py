@@ -55,7 +55,7 @@ class IntentRouter:
         if not availability:
             return ToolResult(False, definition.unavailable_message, error_code="unavailable", retryable=_is_retryable(request.intent))
         if not _arguments_match(definition.input_schema, request.extracted_arguments):
-            return ToolResult(False, "İşlem bilgileri doğrulanamadı.", error_code="invalid_arguments")
+            return ToolResult(False, "İşlem bilgileri doğrulanamadı.", error_code="validation_error")
         if definition.requires_confirmation and not context.confirmed:
             return ToolResult(False, self.confirmation_message(request), error_code="confirmation_required", requires_follow_up=True)
         self._executed_intents.add(request.intent_id)

@@ -12,6 +12,7 @@ from lina.memory.service import MemoryService
 from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import NotificationService
 from lina.services.conversation_models import ConversationResult
+from lina.services.model_diagnostics_service import VisionDiagnosticsResult, VisionStatus
 
 
 class _Conversation:
@@ -117,4 +118,14 @@ def test_combined_clarification_message(qtbot, tmp_path) -> None:
     window, _conversation, _reminders = _window(qtbot, tmp_path)
     _send(window, "Yarın beni hatırlat")
     assert window._last_response_text == "Saat kaçta ve neyi hatırlatayım?"
+    window._force_exit = True; window.close()
+
+
+def test_vision_availability_reason_prevents_capture(qtbot, tmp_path, monkeypatch) -> None:
+    window, _conversation, _reminders = _window(qtbot, tmp_path)
+    window._vision_status = VisionDiagnosticsResult(VisionStatus.OLLAMA_UNREACHABLE, "vision", "yok")
+    called = []; monkeypatch.setattr(window, "handle_screen_request", lambda: called.append(True))
+    _send(window, "Ekranı analiz et")
+    assert called == []
+    assert "Ollama" in window._last_response_text
     window._force_exit = True; window.close()

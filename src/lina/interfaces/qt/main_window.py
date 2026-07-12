@@ -647,6 +647,13 @@ class LinaMainWindow(QMainWindow):
     def _run_vision_intent(self, intent: RoutingIntentType) -> str:
         if not self._vision_enabled:
             return "Vision özelliği Ayarlar’dan kapalı."
+        if self._vision_status is not None and self._vision_status.status is not VisionStatus.READY:
+            if self._vision_status.status is VisionStatus.DISABLED:
+                return "Vision şu anda kapalı. Ayarlar’dan açabilirsin."
+            if self._vision_status.status in {VisionStatus.MODEL_NOT_AVAILABLE, VisionStatus.VISION_NOT_SUPPORTED, VisionStatus.INVALID_RESPONSE}:
+                return "Seçili Vision modeli görsel analiz için uygun değil."
+            if self._vision_status.status in {VisionStatus.OLLAMA_UNREACHABLE, VisionStatus.TIMEOUT}:
+                return "Ollama’ya ulaşılamadığı için görsel analiz yapılamıyor."
         if intent is RoutingIntentType.ANALYZE_SCREEN:
             self.handle_screen_request()
             return "Ekran görüntüsü analize hazır. Ekranda neye bakmamı istersin?"

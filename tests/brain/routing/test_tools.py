@@ -26,6 +26,8 @@ def test_registry_contains_only_supported_safe_tools(tmp_path) -> None:
         "vision.image", "vision.region", "vision.screen",
     )
     assert not any(term in " ".join(registry.names()) for term in ("shell", "write", "delete", "network"))
+    assert registry.availability_reason(IntentType.READ_FILE) is None
+    assert build_safe_tool_registry().availability_reason(IntentType.READ_FILE) == "Dosya okuma şu anda kullanılamıyor."
 
 
 def test_reminder_create_confirmation_cancel_duplicate_and_list(tmp_path) -> None:
@@ -47,11 +49,11 @@ def test_file_allowlist_and_traversal_do_not_leak_content(tmp_path) -> None:
     allowed = router.execute(DeterministicIntentClassifier().classify("README dosyasını oku"), RequestContext(None))
     rejected = router.execute(DeterministicIntentClassifier().classify("../README.md dosyasını oku"), RequestContext(None))
     assert allowed.success and "Güvenli içerik" in allowed.user_message
-    assert not rejected.success and rejected.error_code == "file_rejected"
+    assert not rejected.success and rejected.error_code == "permission_denied"
     assert "Güvenli içerik" not in rejected.user_message
     assert ".." not in rejected.user_message
     absolute = router.execute(DeterministicIntentClassifier().classify("C:/secret.txt dosyasını oku"), RequestContext(None))
-    assert absolute.error_code == "file_rejected"
+    assert absolute.error_code == "permission_denied"
     assert "secret" not in absolute.user_message
 
 
@@ -64,7 +66,7 @@ def test_memory_store_requires_confirmation_rejects_sensitive_and_recalls(tmp_pa
     recalled = router.execute(DeterministicIntentClassifier().classify("Geçen söylediğim şeyi bul"), RequestContext(1))
     assert "Koyu temayı seviyorum" in recalled.user_message
     sensitive = DeterministicIntentClassifier().classify("Şunu hatırla: şifrem 1234")
-    assert router.execute(sensitive, RequestContext(1, confirmed=True)).error_code == "sensitive_memory"
+    assert router.execute(sensitive, RequestContext(1, confirmed=True)).error_code == "permission_denied"
 
 
 def test_unavailable_services_return_safe_message() -> None:
