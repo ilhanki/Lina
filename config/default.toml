@@ -46,3 +46,11 @@ model = "qwen3-vl:2b"
 request_timeout = 120.0
 max_image_bytes = 8388608
 consume_attachment_on_success = true
+
+[conversations]
+enabled = true
+database_path = "data/conversations.sqlite3"
+max_sidebar_sessions = 50
+max_loaded_messages = 500
+model_history_messages = 30
+open_last_conversation_on_startup = true

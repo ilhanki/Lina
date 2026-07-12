@@ -64,6 +64,12 @@ def test_load_settings_reads_valid_toml_file(tmp_path: Path) -> None:
     assert settings.vision.request_timeout == 120.0
     assert settings.vision.max_image_bytes == 8_388_608
     assert settings.vision.consume_attachment_on_success is True
+    assert settings.conversations.enabled is True
+    assert settings.conversations.database_path == "data/conversations.sqlite3"
+    assert settings.conversations.max_sidebar_sessions == 50
+    assert settings.conversations.max_loaded_messages == 500
+    assert settings.conversations.model_history_messages == 30
+    assert settings.conversations.open_last_conversation_on_startup is True
 
 
 def test_load_settings_reads_local_vision_settings(tmp_path: Path) -> None:

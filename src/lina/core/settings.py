@@ -90,6 +90,18 @@ class VisionSettings:
 
 
 @dataclass(frozen=True)
+class ConversationSettings:
+    """Local persistent conversation history settings."""
+
+    enabled: bool = True
+    database_path: str = "data/conversations.sqlite3"
+    max_sidebar_sessions: int = 50
+    max_loaded_messages: int = 500
+    model_history_messages: int = 30
+    open_last_conversation_on_startup: bool = True
+
+
+@dataclass(frozen=True)
 class AppSettings:
     """Typed application settings."""
 
@@ -101,6 +113,7 @@ class AppSettings:
     memory: MemorySettings = field(default_factory=MemorySettings)
     speech: SpeechSettings = field(default_factory=SpeechSettings)
     vision: VisionSettings = field(default_factory=VisionSettings)
+    conversations: ConversationSettings = field(default_factory=ConversationSettings)
 
 
 def load_settings(config_path: Path) -> AppSettings:
@@ -176,6 +189,31 @@ def load_settings(config_path: Path) -> AppSettings:
         ),
         speech=_load_speech_settings(raw_settings),
         vision=_load_vision_settings(raw_settings),
+        conversations=_load_conversation_settings(raw_settings),
+    )
+
+
+def _load_conversation_settings(settings: dict[str, Any]) -> ConversationSettings:
+    return ConversationSettings(
+        enabled=_optional_bool(settings, "conversations", "enabled", True),
+        database_path=_optional_string(
+            settings,
+            "conversations",
+            "database_path",
+            "data/conversations.sqlite3",
+        ),
+        max_sidebar_sessions=_optional_positive_int(
+            settings, "conversations", "max_sidebar_sessions", 50
+        ),
+        max_loaded_messages=_optional_positive_int(
+            settings, "conversations", "max_loaded_messages", 500
+        ),
+        model_history_messages=_optional_positive_int(
+            settings, "conversations", "model_history_messages", 30
+        ),
+        open_last_conversation_on_startup=_optional_bool(
+            settings, "conversations", "open_last_conversation_on_startup", True
+        ),
     )
 
 
