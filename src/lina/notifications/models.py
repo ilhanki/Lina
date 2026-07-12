@@ -18,6 +18,16 @@ class ReminderStatus(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class NotificationEvent:
+    id: int | None
+    reminder_id: int
+    title: str
+    triggered_at: datetime
+    read_at: datetime | None = None
+    delivery_status: str = "pending"
+
+
+@dataclass(frozen=True, slots=True)
 class Reminder:
     id: int | None
     title: str
@@ -33,4 +43,3 @@ class Reminder:
             raise ValueError("Reminder title must not be empty")
         if self.due_at.tzinfo is None:
             raise ValueError("Reminder due_at must be timezone-aware")
-

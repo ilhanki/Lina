@@ -28,6 +28,32 @@ class NotificationRepository:
                 completed_at TEXT,
                 last_notified_at TEXT
             )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS notification_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                reminder_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                triggered_at TEXT NOT NULL,
+                read_at TEXT,
+                delivery_status TEXT NOT NULL,
+                UNIQUE(reminder_id, triggered_at)
+            )""")
+
+    def create_event(self, reminder: Reminder, triggered_at: datetime):
+        from lina.notifications.models import NotificationEvent
+        with self._connection() as connection:
+            cursor = connection.execute(
+                "INSERT OR IGNORE INTO notification_events(reminder_id,title,triggered_at,delivery_status) VALUES(?,?,?,?)",
+                (reminder.id, reminder.title, _serialize(triggered_at), "pending"),
+            )
+        return NotificationEvent(cursor.lastrowid, reminder.id or 0, reminder.title, _utc(triggered_at))
+
+    def unread_event_count(self) -> int:
+        with self._connection() as connection:
+            return int(connection.execute("SELECT COUNT(*) FROM notification_events WHERE read_at IS NULL").fetchone()[0])
+
+    def mark_event_read(self, event_id: int) -> None:
+        with self._connection() as connection:
+            connection.execute("UPDATE notification_events SET read_at=? WHERE id=?", (_serialize(datetime.now(timezone.utc)), event_id))
 
     def create(self, reminder: Reminder) -> Reminder:
         now = _utc(reminder.created_at or datetime.now(timezone.utc))
