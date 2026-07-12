@@ -475,7 +475,11 @@ class LinaMainWindow(QMainWindow):
             return
         was_active = self._conversation_history_service.delete(conversation_id)
         if was_active:
-            self.start_new_chat()
+            active_session = self._conversation_history_service.active_session
+            if active_session is not None and active_session.id is not None:
+                self.load_conversation(active_session.id)
+            else:
+                self.start_new_chat()
         self._refresh_conversation_sidebar()
 
     def set_conversation_pinned(self, conversation_id: int, pinned: bool) -> None:
@@ -497,11 +501,15 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Sohbet yönetimi şu anda kullanılamıyor.")
             return
         if was_active:
-            self._clear_visible_messages()
-            self._clear_screen_context()
-            self._set_session_title("Yeni Sohbet")
-            self._update_session_date()
-            self._show_welcome_state()
+            active_session = self._conversation_history_service.active_session
+            if active_session is not None and active_session.id is not None:
+                self.load_conversation(active_session.id)
+            else:
+                self._clear_visible_messages()
+                self._clear_screen_context()
+                self._set_session_title("Yeni Sohbet")
+                self._update_session_date()
+                self._show_welcome_state()
         self._refresh_conversation_sidebar()
         self._set_status(
             "Sohbet arşivlendi" if archived else "Sohbet arşivden çıkarıldı"
