@@ -284,3 +284,13 @@ Vision model seçimi `/api/show` cevabındaki `capabilities` listesine dayanır.
 Framework-neutral scheduler ayarları her turda runtime provider üzerinden okur. Gerçek exit `stop()` ile thread'i birleştirir; tray'e kapanma scheduler'ı durdurmaz. Qt presenter yalnız `QSystemTrayIcon.showMessage` sınırında bulunur ve tray yoksa güvenli in-app statüsü döndürür.
 
 Startup missed policy geçmiş daily/weekly occurrence'ları tek tek üretmez; her reminder için bir event korur ve `next_due_at` değerini gelecekteki ilk occurrence'a ilerletir. Dört veya daha fazla missed reminder tek desktop özetine çöker. `show_missed_reminders` kapalıysa eventler korunur fakat popup gösterilmez.
+
+## Assistant Tools ve Intent Routing
+
+`lina.brain.routing` Qt'den bağımsız typed modeller, conservative deterministic classifier, argument validation, safe registry ve pending intent koordinasyonundan oluşur. Raw dictionary yalnız `IntentRequest.extracted_arguments` içindeki sınırlandırılmış tool argümanlarıdır; GUI ve execution sonuçları typed `IntentRequest`, `RequestContext` ve `ToolResult` taşır.
+
+Routing deterministic-first çalışır. Bu sürüm local model-assisted fallback kullanmaz; classifier'ın açıkça eşleştirmediği mesaj chat'tir. Bir model fallback gelecekte eklenirse sonucu hiçbir zaman doğrudan execution başlatmayacak, schema validation ve confirmation yine zorunlu olacaktır.
+
+Merkezi registry yalnız `reminder.create`, `reminder.list`, `vision.screen`, `vision.region`, `vision.image`, `files.read`, `memory.store` ve `memory.recall` adlarını içerir. Persistent reminder/memory işlemleri confirmation olmadan registry callback'ine ulaşamaz; duplicate intent ID ikinci kez execute edilmez. Clarification pending state conversation key ve on dakikalık expiration ile izole edilir, restart'ta persist edilmez.
+
+Files mevcut allowlist service'ini kullanır; traversal, absolute/UNC/drive escape ve symlink escape aynı servis sınırında reddedilir. Vision mevcut explicit capture/upload UI akışlarını kullanır ve image bytes persist etmez. Routing logları yalnız intent type/source/confidence bucket, tool success ve duration içerir; mesaj, content, full path, prompt veya image içermez.

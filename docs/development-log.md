@@ -2343,3 +2343,13 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Startup missed handling recurrence'ı geleceğe taşır; 4+ missed reminder tek desktop özetine çöker. Ayarlar popup/event üretimini runtime'da kontrol eder.
 - Scheduler tray modunda sürer ve gerçek exit sırasında idempotent biçimde durur.
 - Tam test paketi: `628 passed`. Yeni dependency eklenmedi.
+
+## 2026-07-12 - Assistant Tools & Intent Routing Foundation
+
+- Typed intent/request/context/result modelleri ve deterministic-first classifier eklendi.
+- Safe registry yalnız mevcut reminder, vision, allowlisted files ve memory servislerine bağlandı.
+- Reminder create ve Memory store için değiştirilemez confirmation; reminder eksikleri için conversation-isolated clarification eklendi.
+- Normal chat fallback, routing-disabled davranışı, duplicate execution guard ve stale pending cleanup doğrulandı.
+- Files traversal/absolute/unauthorized istekleri içerik sızdırmadan reddediliyor; raw image persistence ve unsafe tool eklenmedi.
+- Routing logları content-free metadata ile sınırlandı. Model-assisted fallback kullanılmadı.
+- Tam test paketi dokümantasyon öncesi `652 passed`; yeni dependency eklenmedi.
