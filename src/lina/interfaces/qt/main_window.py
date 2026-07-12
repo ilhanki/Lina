@@ -13,9 +13,11 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -38,6 +40,7 @@ from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
+from lina.conversations.models import ConversationSession
 from lina.services.conversation_models import ConversationInput, ConversationResult
 from lina.screen.capture_service import ScreenCaptureService
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
@@ -114,6 +117,11 @@ class LinaMainWindow(QMainWindow):
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
+        self._conversation_history_service = (
+            conversation_service.conversation_history_service
+            if hasattr(conversation_service, "conversation_history_service")
+            else None
+        )
 
         self.setWindowTitle("Lina")
         self.setMinimumSize(1040, 640)
@@ -121,7 +129,7 @@ class LinaMainWindow(QMainWindow):
         self._apply_window_icon()
         self._build_layout()
         self._bind_shortcuts()
-        self._append_assistant_message(format_welcome_message())
+        self._restore_initial_conversation()
         self._composer.input.setFocus()
         self._run_initial_diagnostics()
         self._run_initial_vision_diagnostics()
@@ -159,7 +167,10 @@ class LinaMainWindow(QMainWindow):
         self._build_footer(panel_layout)
         self.setCentralWidget(central)
 
-        self._sidebar.new_chat_requested.connect(self.clear_chat)
+        self._sidebar.new_chat_requested.connect(self.start_new_chat)
+        self._sidebar.session_selected.connect(self.load_conversation)
+        self._sidebar.session_rename_requested.connect(self.rename_conversation)
+        self._sidebar.session_delete_requested.connect(self.delete_conversation)
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
@@ -220,7 +231,7 @@ class LinaMainWindow(QMainWindow):
         clear_button = QPushButton("Temizle", footer)
         clear_button.setObjectName("secondaryButton")
         clear_button.setToolTip("Görünür sohbeti temizle")
-        clear_button.clicked.connect(self.clear_chat)
+        clear_button.clicked.connect(self.clear_chat_with_confirmation)
         layout.addWidget(clear_button)
 
         copy_button = QPushButton("Son cevabı kopyala", footer)
@@ -329,9 +340,127 @@ class LinaMainWindow(QMainWindow):
         self._composer.input.setFocus()
 
     def clear_chat(self) -> None:
-        """Clear visible session messages without resetting backend services."""
+        """Clear the active conversation and its visible messages."""
         if self._is_speech_busy and self._speech_service is not None:
             self._speech_service.stop_listening()
+        if self._conversation_history_service is not None:
+            self._conversation_service.clear_session()
+        self._clear_visible_messages()
+        self._clear_screen_context()
+        self._set_session_title("Yeni Sohbet")
+        self._refresh_conversation_sidebar()
+        self._append_assistant_message(format_welcome_message())
+        self._set_status("Hazır")
+        self._schedule_scroll_to_top()
+
+    def clear_chat_with_confirmation(self) -> None:
+        """Ask before deleting all messages from the active conversation."""
+        if self._is_waiting:
+            return
+        result = QMessageBox.question(
+            self,
+            "Sohbeti temizle",
+            "Bu sohbetteki tüm mesajlar silinecek. Bu işlem geri alınamaz.",
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if result == QMessageBox.StandardButton.Ok:
+            self.clear_chat()
+
+    def start_new_chat(self) -> None:
+        """Create a new persisted session without deleting the old one."""
+        if self._is_waiting:
+            self._set_status("Önce devam eden yanıtı durdurmalısın.")
+            return
+        if self._conversation_history_service is not None:
+            self._conversation_service.start_new_session()
+        self._clear_visible_messages()
+        self._clear_screen_context()
+        self._set_session_title("Yeni Sohbet")
+        self._refresh_conversation_sidebar()
+        self._append_assistant_message(format_welcome_message())
+        self._set_status("Hazır")
+        self._schedule_scroll_to_top()
+
+    def load_conversation(self, conversation_id: int) -> None:
+        """Load a persisted conversation without mixing session history."""
+        if self._is_waiting:
+            self._set_status("Önce devam eden yanıtı durdurmalısın.")
+            return
+        if self._conversation_history_service is None:
+            return
+        try:
+            self._conversation_service.load_session(conversation_id)
+            session = self._conversation_history_service.active_session
+            self._clear_visible_messages()
+            self._clear_screen_context()
+            if session is not None:
+                self._set_session_title(session.title)
+            for message in self._conversation_history_service.loaded_messages():
+                text = message.content
+                if message.had_image:
+                    text = f"▣ {_visual_placeholder(message.image_source)}\n{text}"
+                self._append_message(
+                    message.role,
+                    text,
+                    visual_context=None,
+                )
+            if not self._message_rows:
+                self._append_assistant_message(format_welcome_message())
+            self._refresh_conversation_sidebar()
+            self._set_status("Sohbet yüklendi")
+            self._schedule_scroll_to_bottom()
+        except Exception:
+            self._set_status("Sohbet geçmişi yüklenemedi.")
+
+    def rename_conversation(self, conversation_id: int) -> None:
+        """Rename a conversation through a bounded local dialog."""
+        if self._conversation_history_service is None or self._is_waiting:
+            return
+        session = next(
+            (item for item in self._conversation_history_service.list_sessions() if item.id == conversation_id),
+            None,
+        )
+        if session is None:
+            return
+        title, accepted = QInputDialog.getText(self, "Sohbeti yeniden adlandır", "Başlık:", text=session.title)
+        if not accepted or not title.strip():
+            return
+        if self._conversation_history_service.active_session and self._conversation_history_service.active_session.id == conversation_id:
+            renamed = self._conversation_history_service.rename(title)
+            self._set_session_title(renamed.title)
+        else:
+            repository = getattr(self._conversation_history_service, "_repository", None)
+            if repository is not None:
+                repository.rename_conversation(conversation_id, title)
+        self._refresh_conversation_sidebar()
+
+    def delete_conversation(self, conversation_id: int) -> None:
+        """Delete one conversation after explicit confirmation."""
+        if self._conversation_history_service is None or self._is_waiting:
+            return
+        session = next(
+            (item for item in self._conversation_history_service.list_sessions() if item.id == conversation_id),
+            None,
+        )
+        if session is None:
+            return
+        result = QMessageBox.question(
+            self,
+            "Sohbeti sil",
+            f'“{session.title}” sohbeti kalıcı olarak silinsin mi?',
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if result != QMessageBox.StandardButton.Ok:
+            return
+        self._conversation_history_service.delete(conversation_id)
+        active = self._conversation_history_service.active_session
+        if active is None or active.id == conversation_id:
+            self.start_new_chat()
+        self._refresh_conversation_sidebar()
+
+    def _clear_visible_messages(self) -> None:
         for row in list(self._message_rows):
             row.setParent(None)
             row.deleteLater()
@@ -340,11 +469,38 @@ class LinaMainWindow(QMainWindow):
         self._last_response_text = ""
         self._input_history.clear()
         self._input_history_index = 0
-        self._clear_screen_context()
-        self._set_session_title("Yeni Sohbet")
-        self._append_assistant_message(format_welcome_message())
-        self._set_status("Hazır")
-        self._schedule_scroll_to_top()
+
+    def _restore_initial_conversation(self) -> None:
+        if self._conversation_history_service is None:
+            self._append_assistant_message(format_welcome_message())
+            return
+        session = self._conversation_history_service.active_session
+        if session is None:
+            self._append_assistant_message(format_welcome_message())
+            return
+        self._set_session_title(session.title)
+        messages = self._conversation_history_service.loaded_messages()
+        if not messages:
+            self._append_assistant_message(format_welcome_message())
+        else:
+            for message in messages:
+                text = message.content
+                if message.had_image:
+                    text = f"▣ {_visual_placeholder(message.image_source)}\n{text}"
+                self._append_message(message.role, text)
+        self._refresh_conversation_sidebar()
+
+    def _refresh_conversation_sidebar(self) -> None:
+        if self._conversation_history_service is None:
+            self._sidebar.set_persistence_note("Kalıcı sohbet geçmişi kapalı.")
+            return
+        sessions = self._conversation_history_service.list_sessions()
+        active_id = (
+            self._conversation_history_service.active_session.id
+            if self._conversation_history_service.active_session is not None
+            else None
+        )
+        self._sidebar.set_sessions(sessions, active_id=active_id)
 
     def handle_screen_request(self) -> None:
         """Capture and preview one screen after an explicit user action."""
@@ -1002,3 +1158,15 @@ def _friendly_vision_error_message(error: Exception) -> str:
     if "http error: 404" in message or "not found" in message:
         return "Görüntü analizi için vision modeli kurulu değil."
     return "Ekran görüntüsü analiz edilirken bir sorun oluştu."
+
+
+def _visual_placeholder(source: str | None) -> str:
+    labels = {
+        "screen_full": "Ekran görüntüsü kullanıldı · Görsel güvenlik nedeniyle saklanmadı",
+        "screen_region": "Seçili ekran alanı kullanıldı · Görsel güvenlik nedeniyle saklanmadı",
+        "local_image": "Yerel görsel kullanıldı · Görsel güvenlik nedeniyle saklanmadı",
+    }
+    return labels.get(
+        source,
+        "Görsel eklendi · Görsel güvenlik nedeniyle saklanmadı",
+    )

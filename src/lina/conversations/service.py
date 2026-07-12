@@ -109,6 +109,10 @@ class ConversationHistoryService:
                 pending_user = None
         return tuple(turns[-self._model_history_messages :])
 
+    def loaded_messages(self) -> tuple[PersistedMessage, ...]:
+        """Return the bounded messages loaded for the active session."""
+        return tuple(self._memory_messages)
+
     def record_user_message(
         self,
         content: str,

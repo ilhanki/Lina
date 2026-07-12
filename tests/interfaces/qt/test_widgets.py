@@ -14,6 +14,7 @@ from lina.interfaces.qt.widgets.composer import (
     COMPOSER_INPUT_MIN_HEIGHT,
 )
 from lina.screen.models import ScreenContext
+from lina.conversations.models import ConversationSession
 
 
 def _visual_context(image_bytes: bytes) -> ScreenContext:
@@ -268,3 +269,20 @@ def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path
     assert not hasattr(sidebar, "font_increase_button")
     assert not hasattr(sidebar, "collapse_button")
     assert "Veriler cihazında" in sidebar.local_status.text()
+
+
+def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) -> None:
+    sidebar = SidebarWidget(tmp_path / "missing.png", "v0.test", "llama3")
+    qtbot.addWidget(sidebar)
+    timestamp = datetime.now()
+    sessions = (
+        ConversationSession(1, "İlk Sohbet", timestamp, timestamp, timestamp),
+        ConversationSession(2, "İkinci Sohbet", timestamp, timestamp, timestamp),
+    )
+
+    sidebar.set_sessions(sessions, active_id=2)
+
+    buttons = sidebar.session_list.findChildren(type(sidebar.new_chat_button))
+    session_buttons = [button for button in buttons if button.objectName() == "sessionButton"]
+    assert [button.text() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
+    assert session_buttons[1].isChecked() is True

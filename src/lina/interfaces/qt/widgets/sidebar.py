@@ -6,13 +6,26 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QMenu,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+
+from lina.conversations.models import ConversationSession
 
 
 class SidebarWidget(QWidget):
     """Show branding, current session, and compact local status."""
 
     new_chat_requested = Signal()
+    session_selected = Signal(int)
+    session_rename_requested = Signal(int)
+    session_delete_requested = Signal(int)
 
     WIDTH = 248
 
@@ -73,10 +86,21 @@ class SidebarWidget(QWidget):
         self.session_title = QLabel("Yeni Sohbet", self.session_panel)
         self.session_title.setWordWrap(True)
         session_layout.addWidget(self.session_title)
-        note = QLabel("Kalıcı sohbet geçmişi henüz aktif değil.", self.session_panel)
-        note.setWordWrap(True)
-        note.setObjectName("mutedLabel")
-        session_layout.addWidget(note)
+        self.session_note = QLabel("Henüz kayıtlı sohbet yok.", self.session_panel)
+        self.session_note.setWordWrap(True)
+        self.session_note.setObjectName("mutedLabel")
+        session_layout.addWidget(self.session_note)
+
+        self.session_scroll = QScrollArea(self.session_panel)
+        self.session_scroll.setWidgetResizable(True)
+        self.session_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.session_list = QWidget(self.session_scroll)
+        self.session_list_layout = QVBoxLayout(self.session_list)
+        self.session_list_layout.setContentsMargins(0, 4, 0, 0)
+        self.session_list_layout.setSpacing(4)
+        self.session_list_layout.addStretch(1)
+        self.session_scroll.setWidget(self.session_list)
+        session_layout.addWidget(self.session_scroll, 1)
         layout.addWidget(self.session_panel)
         layout.addStretch(1)
 
@@ -97,3 +121,51 @@ class SidebarWidget(QWidget):
 
     def set_session_title(self, title: str) -> None:
         self.session_title.setText(title)
+
+    def set_sessions(
+        self,
+        sessions: tuple[ConversationSession, ...],
+        active_id: int | None = None,
+    ) -> None:
+        """Render real persisted sessions in the sidebar."""
+        while self.session_list_layout.count() > 1:
+            item = self.session_list_layout.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        self.session_note.setText(
+            "Henüz kayıtlı sohbet yok." if not sessions else ""
+        )
+        for session in sessions:
+            button = QPushButton(session.title, self.session_list)
+            button.setObjectName("sessionButton")
+            button.setToolTip(session.title)
+            button.setCheckable(True)
+            button.setChecked(session.id == active_id)
+            button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            button.customContextMenuRequested.connect(
+                lambda position, conversation_id=session.id: self._show_session_menu(
+                    conversation_id or 0, button, position
+                )
+            )
+            button.clicked.connect(
+                lambda _checked=False, conversation_id=session.id: self.session_selected.emit(
+                    conversation_id or 0
+                )
+            )
+            self.session_list_layout.insertWidget(
+                self.session_list_layout.count() - 1, button
+            )
+
+    def set_persistence_note(self, text: str) -> None:
+        """Show a short persistence state without hiding the session list."""
+        self.session_note.setText(text)
+
+    def _show_session_menu(self, conversation_id: int, button: QPushButton, position) -> None:
+        menu = QMenu(button)
+        rename_action = menu.addAction("Yeniden Adlandır")
+        delete_action = menu.addAction("Sil")
+        selected = menu.exec(button.mapToGlobal(position))
+        if selected is rename_action:
+            self.session_rename_requested.emit(conversation_id)
+        elif selected is delete_action:
+            self.session_delete_requested.emit(conversation_id)
