@@ -120,6 +120,7 @@ class LinaMainWindow(QMainWindow):
         self._intent_router = intent_router
         self._routing_session_key = -1
         self._active_confirmation_cancel: Callable[[], None] | None = None
+        self._active_confirmation_card: ToolActivityCard | None = None
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
@@ -439,6 +440,9 @@ class LinaMainWindow(QMainWindow):
         if not settings.general.intent_routing_enabled and self._intent_router is not None:
             self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            if self._active_confirmation_card is not None:
+                self._active_confirmation_card.hide()
+                self._active_confirmation_card = None
         application = QApplication.instance()
         if application is not None:
             application.setFont(QFont(self._font_family, round(11 * settings.appearance.font_scale)))
@@ -587,6 +591,7 @@ class LinaMainWindow(QMainWindow):
                 return
             handled["value"] = True
             self._active_confirmation_cancel = None
+            self._active_confirmation_card = None
             self._execute_routed_tool(request, user_text, created_at, confirmed=True, card=card)
 
         def cancel() -> None:
@@ -594,6 +599,7 @@ class LinaMainWindow(QMainWindow):
                 return
             handled["value"] = True
             self._active_confirmation_cancel = None
+            self._active_confirmation_card = None
             self._intent_router.cancel_pending(self._routing_session_key)
             card.set_status(ToolStatus.CANCELLED, "İşlemden vazgeçildi.")
             self._finish_routed_intent(user_text, "İşlemden vazgeçildi.", created_at)
@@ -601,6 +607,7 @@ class LinaMainWindow(QMainWindow):
         card.confirmed.connect(confirm)
         card.cancelled.connect(cancel)
         self._active_confirmation_cancel = cancel
+        self._active_confirmation_card = card
 
     def _retry_readonly_tool(self, request: IntentRequest, card: ToolActivityCard) -> None:
         card.set_status(ToolStatus.RUNNING, "İşlem tekrar deneniyor.")
@@ -695,6 +702,7 @@ class LinaMainWindow(QMainWindow):
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_card = None
         self._set_session_title("Yeni Sohbet")
         self._update_session_date()
         self._refresh_conversation_sidebar()
@@ -726,6 +734,7 @@ class LinaMainWindow(QMainWindow):
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_card = None
         self._routing_session_key -= 1
         self._conversation_view = "chats"
         self._conversation_query = ""
@@ -750,6 +759,7 @@ class LinaMainWindow(QMainWindow):
             if self._intent_router is not None:
                 self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            self._active_confirmation_card = None
             self._routing_session_key = conversation_id
             self._conversation_view = "chats"
             self._conversation_query = ""
@@ -818,6 +828,10 @@ class LinaMainWindow(QMainWindow):
             return
         was_active = self._conversation_history_service.delete(conversation_id)
         if was_active:
+            if self._intent_router is not None:
+                self._intent_router.cancel_pending()
+            self._active_confirmation_cancel = None
+            self._active_confirmation_card = None
             active_session = self._conversation_history_service.active_session
             if active_session is not None and active_session.id is not None:
                 self.load_conversation(active_session.id)
@@ -844,6 +858,10 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Sohbet yönetimi şu anda kullanılamıyor.")
             return
         if was_active:
+            if self._intent_router is not None:
+                self._intent_router.cancel_pending()
+            self._active_confirmation_cancel = None
+            self._active_confirmation_card = None
             active_session = self._conversation_history_service.active_session
             if active_session is not None and active_session.id is not None:
                 self.load_conversation(active_session.id)
@@ -1625,6 +1643,7 @@ class LinaMainWindow(QMainWindow):
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_card = None
         if self._speech_service is not None:
             self._speech_service.stop_listening()
         if self._notification_scheduler is not None:

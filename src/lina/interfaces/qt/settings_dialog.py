@@ -185,7 +185,8 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(page)
         label = QLabel(
             "Lina\n\nLocal-first kişisel yapay zeka asistanı.\n"
-            "Ayarlar yalnızca bu cihazda tutulur; sohbet ve hafıza verileri bu dosyaya yazılmaz.",
+            "Ayarlar yalnızca bu cihazda tutulur; sohbet ve hafıza verileri bu dosyaya yazılmaz.\n\n"
+            "Lina araç işlemlerinde yalnız tür, durum ve süre gibi teknik bilgileri loglar.",
             page,
         )
         label.setWordWrap(True)

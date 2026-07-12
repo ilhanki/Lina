@@ -132,8 +132,10 @@ class FileAccessService:
         else:
             allowed_path = _normalize_requested_path(requested)
 
-        if allowed_path not in self._allowed_set:
+        matches = [candidate for candidate in self._allowed_paths if candidate.casefold() == allowed_path.casefold()]
+        if len(matches) != 1:
             raise UnknownAllowedFileError(f"File is not allowlisted: {requested}")
+        allowed_path = matches[0]
 
         self._resolve_project_file(allowed_path)
         return allowed_path

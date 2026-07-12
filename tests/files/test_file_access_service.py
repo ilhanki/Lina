@@ -37,6 +37,12 @@ def test_file_access_service_reads_readme(tmp_path: Path) -> None:
     assert content.truncated is False
 
 
+def test_file_access_service_matches_allowlist_case_insensitively(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("Hello Lina", encoding="utf-8")
+    service = FileAccessService(project_root=tmp_path, allowed_paths=("README.md",), aliases={})
+    assert service.read_allowed_file("readme.md").path == "README.md"
+
+
 def test_file_access_service_reads_nested_allowed_file(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
