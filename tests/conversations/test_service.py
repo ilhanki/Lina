@@ -10,8 +10,10 @@ def test_service_restores_bounded_history_and_ignores_greeting_title(tmp_path) -
     repository = ConversationRepository(tmp_path / "conversations.sqlite3")
     service = ConversationHistoryService(repository, model_history_messages=1)
     service.start()
+    assert service.active_session is None
     service.record_user_message("selam naber")
     service.record_assistant_message("Merhaba İlhan.")
+    assert service.active_session is not None
     assert service.active_session.title == "Yeni Sohbet"
     service.record_user_message("Lina projesi için bir plan yap")
     service.record_assistant_message("Elbette.")
@@ -32,6 +34,7 @@ def test_service_keeps_vision_as_metadata_without_raw_image(tmp_path) -> None:
     )
     service.record_assistant_message("Görselde bir pencere var.")
 
+    assert service.active_session is not None
     messages = repository.list_messages(service.active_session.id or 0)
 
     assert messages[0].had_image is True
@@ -57,9 +60,11 @@ def test_service_search_pin_archive_and_grouping(tmp_path) -> None:
     service.start()
     service.record_user_message("Vision notlarını ara")
     service.record_assistant_message("Vision sonucu")
+    assert service.active_session is not None
     first_id = service.active_session.id or 0
     service.new_session()
     service.record_user_message("İkinci sohbet")
+    assert service.active_session is not None
     second_id = service.active_session.id or 0
 
     assert service.search("vision")[0].conversation_id == first_id
@@ -70,3 +75,58 @@ def test_service_search_pin_archive_and_grouping(tmp_path) -> None:
         service.list_sessions(),
         now=datetime.now(timezone.utc),
     )[0][0] == "Bugün"
+
+
+def test_new_session_and_start_do_not_create_empty_rows(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+
+    service.start()
+    service.new_session()
+    service.new_session()
+
+    assert service.active_session is None
+    assert repository.list_conversations() == ()
+
+
+def test_first_user_message_materializes_draft_atomically(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+    service.start()
+
+    service.record_user_message("Lina projesini planla")
+
+    assert service.active_session is not None
+    sessions = repository.list_conversations()
+    assert len(sessions) == 1
+    assert sessions[0].id == service.active_session.id
+    assert len(repository.list_messages(sessions[0].id or 0)) == 1
+
+
+def test_deleting_last_conversation_returns_to_draft_without_new_row(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+    service.start()
+    service.record_user_message("Silinecek sohbet")
+    conversation_id = service.active_session.id or 0
+
+    assert service.delete(conversation_id) is True
+    assert service.active_session is None
+    assert repository.list_conversations() == ()
+
+
+def test_deleting_active_conversation_selects_latest_remaining_session(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+    service.start()
+    service.record_user_message("İlk sohbet")
+    first_id = service.active_session.id or 0
+    service.new_session()
+    service.record_user_message("İkinci sohbet")
+    second_id = service.active_session.id or 0
+
+    service.load_session(first_id)
+    assert service.delete(first_id) is True
+
+    assert service.active_session is not None
+    assert service.active_session.id == second_id

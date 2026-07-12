@@ -44,8 +44,8 @@ class ConversationHistoryService:
     def active_session(self) -> ConversationSession | None:
         return self._active_session
 
-    def start(self) -> ConversationSession:
-        """Open the newest session or create the first local session."""
+    def start(self) -> ConversationSession | None:
+        """Open the newest session or keep an ephemeral draft session."""
         if self._enabled and self._persistence_available:
             try:
                 sessions = self._repository.list_conversations()  # type: ignore[union-attr]
@@ -55,20 +55,10 @@ class ConversationHistoryService:
                 self._persistence_available = False
         return self.new_session()
 
-    def new_session(self) -> ConversationSession:
-        """Create an isolated session and make it active."""
+    def new_session(self) -> None:
+        """Start an isolated draft without writing an empty database row."""
         self._memory_messages.clear()
-        if self._enabled and self._persistence_available:
-            try:
-                self._active_session = self._repository.create_conversation(  # type: ignore[union-attr]
-                    now=self._clock()
-                )
-                return self._active_session
-            except ConversationRepositoryError:
-                self._persistence_available = False
-        now = self._clock()
-        self._active_session = ConversationSession(None, "Yeni Sohbet", now, now, None)
-        return self._active_session
+        self._active_session = None
 
     def list_sessions(
         self,
@@ -76,7 +66,7 @@ class ConversationHistoryService:
         view: str = "chats",
     ) -> tuple[ConversationSession, ...]:
         if not self._enabled or not self._persistence_available:
-            return (self._active_session,) if self._active_session else ()
+            return ()
         try:
             return self._repository.list_conversations(limit, view=view)  # type: ignore[union-attr]
         except ConversationRepositoryError:
@@ -129,7 +119,7 @@ class ConversationHistoryService:
             and self._active_session.id == conversation_id
         )
         if was_active:
-            self.new_session()
+            self._activate_latest_or_draft()
         return was_active
 
     @staticmethod
@@ -202,6 +192,14 @@ class ConversationHistoryService:
         image_source: str | None = None,
         created_at: datetime | None = None,
     ) -> None:
+        if self._active_session is None and self._enabled and self._persistence_available:
+            self._materialize_first_message(
+                content=content,
+                had_image=had_image,
+                image_source=image_source,
+                created_at=created_at,
+            )
+            return
         self._record_message(
             role="user",
             content=content,
@@ -228,7 +226,7 @@ class ConversationHistoryService:
 
     def rename(self, title: str) -> ConversationSession:
         if self._active_session is None:
-            self.new_session()
+            raise ConversationRepositoryError("No active persisted conversation")
         if self._enabled and self._persistence_available and self._active_session.id is not None:
             try:
                 self._active_session = self._repository.rename_conversation(  # type: ignore[union-attr]
@@ -261,7 +259,6 @@ class ConversationHistoryService:
     def clear(self) -> None:
         self._memory_messages.clear()
         if self._active_session is None:
-            self.new_session()
             return
         if self._enabled and self._persistence_available and self._active_session.id is not None:
             try:
@@ -285,8 +282,39 @@ class ConversationHistoryService:
                 self._persistence_available = False
                 return False
         if was_active:
-            self.new_session()
+            self._activate_latest_or_draft()
         return was_active
+
+    def _materialize_first_message(
+        self,
+        content: str,
+        had_image: bool,
+        image_source: str | None,
+        created_at: datetime | None,
+    ) -> None:
+        message = PersistedMessage(
+            id=None,
+            conversation_id=0,
+            role="user",
+            content=content,
+            created_at=created_at or self._clock(),
+            sequence=1,
+            had_image=had_image,
+            image_source=image_source,
+        )
+        session, persisted = self._repository.create_conversation_with_first_message(  # type: ignore[union-attr]
+            title=_derive_title(content),
+            message=message,
+        )
+        self._active_session = session
+        self._memory_messages = [persisted]
+
+    def _activate_latest_or_draft(self) -> None:
+        sessions = self.list_sessions(view="chats")
+        if sessions:
+            self.load_session(sessions[0].id or 0)
+        else:
+            self.new_session()
 
     def _record_message(
         self,
@@ -298,7 +326,20 @@ class ConversationHistoryService:
         created_at: datetime | None = None,
     ) -> None:
         if self._active_session is None:
-            self.new_session()
+            now = created_at or self._clock()
+            message = PersistedMessage(
+                id=None,
+                conversation_id=0,
+                role=role,
+                content=content,
+                created_at=now,
+                sequence=len(self._memory_messages) + 1,
+                had_image=had_image,
+                image_source=image_source,
+                model_name=model_name,
+            )
+            self._memory_messages.append(message)
+            return
         session_id = self._active_session.id or 0
         message = PersistedMessage(
             id=None,

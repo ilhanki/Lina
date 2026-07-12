@@ -121,6 +121,73 @@ class ConversationRepository:
         except sqlite3.Error as error:
             raise ConversationRepositoryError("Unable to create conversation") from error
 
+    def create_conversation_with_first_message(
+        self,
+        title: str,
+        message: PersistedMessage,
+    ) -> tuple[ConversationSession, PersistedMessage]:
+        """Create a conversation and its first message in one transaction."""
+        normalized_title = _normalize_title(title)
+        created_at = _ensure_datetime(message.created_at)
+        try:
+            with self._connection() as connection:
+                conversation_cursor = connection.execute(
+                    """
+                    INSERT INTO conversations (title, created_at, updated_at, last_message_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        normalized_title,
+                        _serialize_time(created_at),
+                        _serialize_time(created_at),
+                        _serialize_time(created_at),
+                    ),
+                )
+                conversation_id = int(conversation_cursor.lastrowid)
+                message_cursor = connection.execute(
+                    """
+                    INSERT INTO conversation_messages
+                    (conversation_id, role, content, created_at, sequence_number, message_type,
+                     had_image, image_source, model_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        conversation_id,
+                        message.role,
+                        message.content.strip(),
+                        _serialize_time(created_at),
+                        1,
+                        message.message_type,
+                        int(message.had_image),
+                        message.image_source,
+                        message.model_name,
+                    ),
+                )
+                session = ConversationSession(
+                    id=conversation_id,
+                    title=normalized_title,
+                    created_at=created_at,
+                    updated_at=created_at,
+                    last_message_at=created_at,
+                )
+                persisted_message = PersistedMessage(
+                    id=int(message_cursor.lastrowid),
+                    conversation_id=conversation_id,
+                    role=message.role,
+                    content=message.content.strip(),
+                    created_at=created_at,
+                    sequence=1,
+                    message_type=message.message_type,
+                    had_image=message.had_image,
+                    image_source=message.image_source,
+                    model_name=message.model_name,
+                )
+                return session, persisted_message
+        except sqlite3.Error as error:
+            raise ConversationRepositoryError(
+                "Unable to create conversation with first message"
+            ) from error
+
     def list_conversations(
         self,
         limit: int = 50,
@@ -135,6 +202,12 @@ class ConversationRepository:
             "pinned": "is_archived = 0 AND is_pinned = 1",
             "archive": "is_archived = 1",
         }[view]
+        if view == "chats":
+            visibility += (
+                " AND NOT (title = 'Yeni Sohbet' AND "
+                "NOT EXISTS (SELECT 1 FROM conversation_messages "
+                "WHERE conversation_messages.conversation_id = conversations.id))"
+            )
         try:
             with self._connection() as connection:
                 rows = connection.execute(
@@ -255,6 +328,12 @@ class ConversationRepository:
             "pinned": "c.is_archived = 0 AND c.is_pinned = 1",
             "archive": "c.is_archived = 1",
         }[view]
+        if view == "chats":
+            visibility += (
+                " AND NOT (c.title = 'Yeni Sohbet' AND "
+                "NOT EXISTS (SELECT 1 FROM conversation_messages "
+                "WHERE conversation_messages.conversation_id = c.id))"
+            )
         try:
             with self._connection() as connection:
                 rows = connection.execute(

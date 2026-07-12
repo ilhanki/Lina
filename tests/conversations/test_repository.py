@@ -69,6 +69,7 @@ def test_repository_orders_sessions_by_recent_activity(tmp_path) -> None:
         now=datetime(2026, 1, 1, tzinfo=timezone.utc)
     )
     second = repository.create_conversation(
+        title="İkinci sohbet",
         now=datetime(2026, 1, 2, tzinfo=timezone.utc)
     )
     repository.add_message(
@@ -103,6 +104,15 @@ def test_repository_handles_legacy_naive_and_malformed_timestamps(tmp_path) -> N
     assert loaded is not None
     assert loaded.created_at.tzinfo is not None
     assert loaded.updated_at.tzinfo is not None
+
+
+def test_repository_hides_legacy_empty_default_conversations(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    session = repository.create_conversation()
+
+    assert repository.list_conversations() == ()
+    assert repository.search_conversations("Yeni") == ()
+    assert repository.get_conversation(session.id or 0) is not None
 
 
 def test_repository_migrates_existing_schema_without_losing_data(tmp_path) -> None:
