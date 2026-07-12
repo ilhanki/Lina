@@ -3,11 +3,11 @@
 from datetime import datetime
 
 import pytest
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QPixmap
 
 from lina.interfaces.qt.screen_capture import QtScreenCaptureService
-from lina.screen.models import ScreenCaptureError
+from lina.screen.models import SCREEN_CAPTURE_REGION, ScreenCaptureError
 
 
 class FakeScreen:
@@ -23,6 +23,12 @@ class FakeScreen:
 
     def name(self) -> str:
         return self._name
+
+    def geometry(self) -> QRect:
+        return QRect(10, 20, self._pixmap.width(), self._pixmap.height())
+
+    def devicePixelRatio(self) -> float:
+        return 1.0
 
 
 def test_capture_uses_cursor_screen_and_returns_metadata(qtbot) -> None:
@@ -94,3 +100,22 @@ def test_capture_raises_for_null_pixmap(qtbot) -> None:
 
     with pytest.raises(ScreenCaptureError, match="empty image"):
         service.capture()
+
+
+def test_capture_region_crops_logical_screen_rectangle(qtbot) -> None:
+    pixmap = QPixmap(200, 100)
+    pixmap.fill()
+    screen = FakeScreen(pixmap, "Display 1")
+    service = QtScreenCaptureService(
+        screen_at=lambda position: screen,
+        primary_screen=lambda: None,
+        cursor_position=lambda: QPoint(20, 30),
+    )
+
+    context = service.capture_region(QRect(30, 40, 80, 50), screen)
+
+    assert context.source == SCREEN_CAPTURE_REGION
+    assert context.display_name == "Seçili Ekran Alanı"
+    assert context.source_screen_name == "Display 1"
+    assert context.width == 80
+    assert context.height == 50

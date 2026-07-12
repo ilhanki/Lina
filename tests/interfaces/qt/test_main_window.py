@@ -3,15 +3,15 @@
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice
-from PySide6.QtGui import QImage
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect
+from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QDialog
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
 from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
-from lina.screen.models import ScreenCaptureError, ScreenContext
+from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
 from lina.vision.models import PNG_SIGNATURE
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
@@ -145,7 +145,7 @@ def _screen_context(
         width=width,
         height=height,
         captured_at=datetime(2026, 7, 11, 22, 30),
-        display_name="selected.png" if source == "file_upload" else "Display 1",
+        display_name="selected.png" if source == LOCAL_FILE else "Display 1",
         estimated_byte_size=len(image_bytes),
         source=source,
     )
@@ -167,6 +167,10 @@ class FakeScreenCaptureService:
             raise self.error
         return self.context
 
+    def capture_region(self, rectangle, screen) -> ScreenContext:
+        self.capture_count += 1
+        return _screen_context(source="screen_capture_region")
+
 
 class FakeImageLoader:
     def __init__(
@@ -174,7 +178,7 @@ class FakeImageLoader:
         context: ScreenContext | None = None,
         error: Exception | None = None,
     ) -> None:
-        self.context = context or _screen_context(source="file_upload")
+        self.context = context or _screen_context(source=LOCAL_FILE)
         self.error = error
         self.paths: list[Path] = []
 
@@ -492,6 +496,51 @@ def test_screen_menu_contains_full_and_region_capture_actions(qtbot) -> None:
     assert window._composer.screen_button.toolTip() == (
         "Tam ekran veya seçili alan görüntüsü ekle"
     )
+
+
+def test_region_capture_opens_overlay_and_cancel_restores_ui(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+
+    window.handle_region_capture()
+
+    assert window._region_overlay is not None
+    assert window._is_screen_capture_busy is True
+    window._cancel_region_capture()
+    assert window._region_overlay is None
+    assert window._is_screen_capture_busy is False
+    assert window._composer.screen_button.isEnabled() is True
+    assert window._status_label.text() == "Alan seçimi iptal edildi."
+
+
+def test_region_capture_uses_same_preview_and_adds_region_context(qtbot) -> None:
+    capture = FakeScreenCaptureService()
+    dialog = FakePreviewDialog(QDialog.DialogCode.Accepted)
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        screen_capture_service=capture,
+        screen_preview_factory=lambda context, parent: dialog,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._is_screen_capture_busy = True
+    window._composer.screen_button.setEnabled(False)
+    screen = QGuiApplication.primaryScreen()
+
+    window._finish_region_capture(screen, QRect(10, 10, 100, 80))
+
+    assert dialog.exec_count == 1
+    assert window._screen_context is not None
+    assert window._screen_context.source == "screen_capture_region"
+    assert window._is_screen_capture_busy is False
+    assert window._composer.screen_button.isEnabled() is True
 
 
 def test_ready_vision_status_is_shown_on_screen_attachment(qtbot) -> None:

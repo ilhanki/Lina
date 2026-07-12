@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtGui import QImage
 
 from lina.interfaces.qt.image_loader import ImageLoadError, QtImageLoader
+from lina.screen.models import LOCAL_FILE
 from lina.vision.models import PNG_SIGNATURE
 
 
@@ -21,7 +22,7 @@ def test_image_loader_normalizes_selected_image_to_memory_png(tmp_path: Path) ->
     assert context.width == 320
     assert context.height == 180
     assert context.display_name == "selected.jpg"
-    assert context.source == "file_upload"
+    assert context.source == LOCAL_FILE
     assert context.estimated_byte_size == len(context.image_bytes)
 
 

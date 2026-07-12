@@ -8,7 +8,7 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice
 from PySide6.QtGui import QImageReader
 
-from lina.screen.models import ScreenContext
+from lina.screen.models import LOCAL_FILE, ScreenContext
 
 
 MAX_SOURCE_FILE_BYTES = 32 * 1024 * 1024
@@ -64,5 +64,5 @@ class QtImageLoader:
             captured_at=datetime.now(),
             display_name=path.name,
             estimated_byte_size=len(image_bytes),
-            source="file_upload",
+            source=LOCAL_FILE,
         )

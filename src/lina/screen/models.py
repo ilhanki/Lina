@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 
+SCREEN_CAPTURE_FULL = "screen_capture_full"
+SCREEN_CAPTURE_REGION = "screen_capture_region"
+LOCAL_FILE = "local_file"
+
+
 class ScreenCaptureError(RuntimeError):
     """Raised when a user-requested screen capture cannot be completed."""
 
@@ -20,4 +25,5 @@ class ScreenContext:
     captured_at: datetime
     display_name: str
     estimated_byte_size: int
-    source: str = "screen_capture"
+    source: str = SCREEN_CAPTURE_FULL
+    source_screen_name: str | None = None

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QTimer, QThreadPool
-from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
+from PySide6.QtGui import QAction, QCloseEvent, QCursor, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -32,13 +32,14 @@ from lina.interfaces.qt.formatting import (
 from lina.interfaces.qt.image_loader import ImageLoadError, QtImageLoader
 from lina.interfaces.qt.screen_capture import QtScreenCaptureService
 from lina.interfaces.qt.screen_preview_dialog import ScreenPreviewDialog
+from lina.interfaces.qt.region_capture_overlay import RegionCaptureOverlay
 from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
 from lina.services.conversation_models import ConversationInput, ConversationResult
 from lina.screen.capture_service import ScreenCaptureService
-from lina.screen.models import ScreenCaptureError, ScreenContext
+from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
     ModelDiagnosticsService,
@@ -100,6 +101,7 @@ class LinaMainWindow(QMainWindow):
         self._cancelled_request_ids: set[int] = set()
         self._is_speech_busy = False
         self._is_screen_capture_busy = False
+        self._region_overlay: RegionCaptureOverlay | None = None
         self._screen_context: ScreenContext | None = None
         self._vision_status: VisionDiagnosticsResult | None = None
         self._request_screen_contexts: dict[int, ScreenContext] = {}
@@ -375,8 +377,54 @@ class LinaMainWindow(QMainWindow):
         self._set_status("Görsel analize hazır")
 
     def handle_region_capture(self) -> None:
-        """Start the explicit region capture flow when it is available."""
-        self._set_status("Alan seçimi yakında etkinleştirilecek.")
+        """Start an explicit region selection on the cursor screen."""
+        if self._is_screen_capture_busy:
+            return
+        screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+        if screen is None:
+            self._set_status("Ekran bulunamadı.")
+            return
+        self._is_screen_capture_busy = True
+        self._composer.screen_button.setEnabled(False)
+        self._set_status("Analiz edilecek alanı seç...")
+        overlay = RegionCaptureOverlay(screen.geometry())
+        self._region_overlay = overlay
+        overlay.region_selected.connect(
+            lambda rectangle: self._finish_region_capture(screen, rectangle)
+        )
+        overlay.canceled.connect(self._cancel_region_capture)
+        overlay.show()
+
+    def _finish_region_capture(self, screen, rectangle) -> None:
+        overlay = self._region_overlay
+        self._region_overlay = None
+        if overlay is not None:
+            overlay.close()
+            overlay.deleteLater()
+        try:
+            context = self._screen_capture_service.capture_region(rectangle, screen)
+            dialog = self._screen_preview_factory(context, self)
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self._set_screen_context(context)
+            else:
+                self._set_status("Hazır")
+        except ScreenCaptureError:
+            self._set_status("Ekran alanı yakalanamadı.")
+        except Exception:
+            self._set_status("Ekran önizlemesi oluşturulamadı.")
+        finally:
+            self._is_screen_capture_busy = False
+            self._composer.screen_button.setEnabled(True)
+
+    def _cancel_region_capture(self) -> None:
+        overlay = self._region_overlay
+        self._region_overlay = None
+        if overlay is not None:
+            overlay.close()
+            overlay.deleteLater()
+        self._is_screen_capture_busy = False
+        self._composer.screen_button.setEnabled(True)
+        self._set_status("Alan seçimi iptal edildi.")
 
     def remove_screen_context(self) -> None:
         """Remove the active temporary screenshot from the GUI session."""
@@ -393,7 +441,7 @@ class LinaMainWindow(QMainWindow):
             self._vision_attachment_status_text(),
             (
                 f"Görsel · {context.display_name}"
-                if context.source == "file_upload"
+                if context.source == LOCAL_FILE
                 else "Ekran"
             ),
         )
@@ -711,7 +759,7 @@ class LinaMainWindow(QMainWindow):
                 self._vision_attachment_status_text(),
                 (
                     f"Görsel · {self._screen_context.display_name}"
-                    if self._screen_context.source == "file_upload"
+                    if self._screen_context.source == LOCAL_FILE
                     else "Ekran"
                 ),
             )
