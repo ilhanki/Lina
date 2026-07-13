@@ -7,9 +7,11 @@ import json
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
+SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
+SUPPORTED_KEEP_ALIVE = frozenset({"0", "5m", "15m", "-1"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +35,10 @@ class GeneralSettings:
 class ModelSettings:
     text_model: str = "llama3.2:3b"
     vision_model: str = "qwen3-vl:2b"
+    keep_alive: str = "5m"
+    max_output_tokens: int = 512
+    context_budget: int = 12000
+    warm_up_enabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +46,14 @@ class SpeechUserSettings:
     enabled: bool = True
     language: str = "tr"
     auto_insert_transcription: bool = True
+    voice_responses_enabled: bool = False
+    system_voice: str | None = None
+    speech_rate: float = 1.0
+    volume: float = 1.0
+    transcription_mode: str = "insert"
+    barge_in_enabled: bool = True
+    wake_word_enabled: bool = False
+    wake_phrase: str = "Hey Lina"
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +96,18 @@ class UserSettings:
             raise ValueError("Only Turkish user settings are supported")
         if self.speech.language != "tr":
             raise ValueError("Only Turkish speech settings are supported")
+        if self.speech.transcription_mode not in SUPPORTED_TRANSCRIPTION_MODES:
+            raise ValueError("Unsupported transcription mode")
+        if not 0.5 <= self.speech.speech_rate <= 2.0:
+            raise ValueError("Speech rate must be between 0.5 and 2.0")
+        if not 0.0 <= self.speech.volume <= 1.0:
+            raise ValueError("Speech volume must be between 0.0 and 1.0")
+        if self.models.keep_alive not in SUPPORTED_KEEP_ALIVE:
+            raise ValueError("Unsupported model keep-alive")
+        if not 32 <= self.models.max_output_tokens <= 8192:
+            raise ValueError("Maximum output tokens must be between 32 and 8192")
+        if not 1000 <= self.models.context_budget <= 100000:
+            raise ValueError("Context budget must be between 1000 and 100000")
         if self.system.close_behavior not in SUPPORTED_CLOSE_BEHAVIORS:
             raise ValueError("Unsupported close behavior")
         _validate_model_name(self.models.text_model)
@@ -107,11 +133,23 @@ class UserSettings:
             "models": {
                 "text_model": self.models.text_model,
                 "vision_model": self.models.vision_model,
+                "keep_alive": self.models.keep_alive,
+                "max_output_tokens": self.models.max_output_tokens,
+                "context_budget": self.models.context_budget,
+                "warm_up_enabled": self.models.warm_up_enabled,
             },
             "speech": {
                 "enabled": self.speech.enabled,
                 "language": self.speech.language,
                 "auto_insert_transcription": self.speech.auto_insert_transcription,
+                "voice_responses_enabled": self.speech.voice_responses_enabled,
+                "system_voice": self.speech.system_voice,
+                "speech_rate": self.speech.speech_rate,
+                "volume": self.speech.volume,
+                "transcription_mode": self.speech.transcription_mode,
+                "barge_in_enabled": self.speech.barge_in_enabled,
+                "wake_word_enabled": self.speech.wake_word_enabled,
+                "wake_phrase": self.speech.wake_phrase,
             },
             "vision": {
                 "enabled": self.vision.enabled,
@@ -133,7 +171,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -159,11 +197,23 @@ class UserSettings:
             models=ModelSettings(
                 text_model=_model_name(models, "text_model", defaults.models.text_model),
                 vision_model=_model_name(models, "vision_model", defaults.models.vision_model),
+                keep_alive=_choice(models, "keep_alive", defaults.models.keep_alive, SUPPORTED_KEEP_ALIVE),
+                max_output_tokens=_bounded_int(models, "max_output_tokens", defaults.models.max_output_tokens, 32, 8192),
+                context_budget=_bounded_int(models, "context_budget", defaults.models.context_budget, 1000, 100000),
+                warm_up_enabled=_bool(models, "warm_up_enabled", defaults.models.warm_up_enabled),
             ),
             speech=SpeechUserSettings(
                 enabled=_bool(speech, "enabled", defaults.speech.enabled),
                 language=_choice(speech, "language", "tr", {"tr"}),
                 auto_insert_transcription=_bool(speech, "auto_insert_transcription", defaults.speech.auto_insert_transcription),
+                voice_responses_enabled=_bool(speech, "voice_responses_enabled", defaults.speech.voice_responses_enabled),
+                system_voice=_optional_string(speech, "system_voice"),
+                speech_rate=_bounded_float(speech, "speech_rate", defaults.speech.speech_rate, 0.5, 2.0),
+                volume=_bounded_float(speech, "volume", defaults.speech.volume, 0.0, 1.0),
+                transcription_mode=_choice(speech, "transcription_mode", "send" if speech.get("auto_insert_transcription") is False else defaults.speech.transcription_mode, SUPPORTED_TRANSCRIPTION_MODES),
+                barge_in_enabled=_bool(speech, "barge_in_enabled", defaults.speech.barge_in_enabled),
+                wake_word_enabled=_bool(speech, "wake_word_enabled", defaults.speech.wake_word_enabled),
+                wake_phrase=_safe_string(speech, "wake_phrase", defaults.speech.wake_phrase, 40),
             ),
             vision=VisionUserSettings(
                 enabled=_bool(vision, "enabled", defaults.vision.enabled),
@@ -201,6 +251,27 @@ def _bounded_float(section: dict[str, Any], key: str, default: float, minimum: f
     if isinstance(value, (int, float)) and not isinstance(value, bool) and minimum <= value <= maximum:
         return float(value)
     return default
+
+
+def _bounded_int(section: dict[str, Any], key: str, default: int, minimum: int, maximum: int) -> int:
+    value = section.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and minimum <= value <= maximum else default
+
+
+def _optional_string(section: dict[str, Any], key: str) -> str | None:
+    value = section.get(key)
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    return candidate[:500] if candidate else None
+
+
+def _safe_string(section: dict[str, Any], key: str, default: str, maximum: int) -> str:
+    value = section.get(key)
+    if not isinstance(value, str):
+        return default
+    candidate = value.strip()
+    return candidate[:maximum] if candidate else default
 
 
 def _model_name(section: dict[str, Any], key: str, default: str) -> str:

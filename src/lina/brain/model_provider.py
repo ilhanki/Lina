@@ -23,6 +23,8 @@ class ModelRequest:
 
     messages: tuple[ModelMessage, ...]
     image_attachment: ImageAttachment | None = None
+    keep_alive: str | int | None = None
+    max_output_tokens: int | None = None
 
 
 @dataclass(frozen=True)

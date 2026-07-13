@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QTimer, QThreadPool
+from PySide6.QtCore import QTimer, QThreadPool, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -77,9 +77,12 @@ from lina.notifications.presenter import QtNotificationPresenter
 from lina.notifications.scheduler import NotificationScheduler
 from lina.notifications.service import NotificationService
 from lina.vision.models import ImageAttachment, VisionRequestError
+from lina.voice.controller import VoiceController
+from lina.voice.models import VoiceSettings, VoiceState
+from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 
 
-APP_VERSION = "v0.9.4-alpha"
+APP_VERSION = "v0.10.0-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -88,6 +91,9 @@ AUTO_SCROLL_THRESHOLD_PX = 110
 
 class LinaMainWindow(QMainWindow):
     """Modern PySide6 chat interface backed by Lina's existing services."""
+
+    voice_state_changed = Signal(object)
+    speech_state_changed = Signal(object)
 
     def __init__(
         self,
@@ -100,6 +106,9 @@ class LinaMainWindow(QMainWindow):
         intent_router: IntentRouter | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         image_loader: QtImageLoader | None = None,
+        voice_controller: VoiceController | None = None,
+        inference_diagnostics_service: InferenceDiagnosticsService | None = None,
+        model_lifecycle_service: ModelLifecycleService | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -110,7 +119,12 @@ class LinaMainWindow(QMainWindow):
         self._diagnostics_service = diagnostics_service
         self._vision_diagnostics_service = vision_diagnostics_service
         self._speech_service = speech_service
+        self._voice_controller = voice_controller
+        self._inference_diagnostics_service = inference_diagnostics_service
+        self._model_lifecycle_service = model_lifecycle_service
         self._speech_enabled = True
+        self._voice_responses_enabled = False
+        self._transcription_mode = "insert"
         self._vision_enabled = True
         self._user_settings_service = user_settings_service
         self._settings_dialog: SettingsDialog | None = None
@@ -164,6 +178,14 @@ class LinaMainWindow(QMainWindow):
         self.resize(1240, 780)
         self._apply_window_icon()
         self._build_layout()
+        self.voice_state_changed.connect(self._apply_voice_state)
+        self.speech_state_changed.connect(self._apply_speech_state)
+        if self._voice_controller is not None:
+            self._voice_controller.subscribe(self.voice_state_changed.emit)
+        if self._speech_service is not None and hasattr(self._speech_service, "subscribe_state"):
+            self._speech_service.subscribe_state(self.speech_state_changed.emit)
+        if self._user_settings_service is not None:
+            self._apply_user_settings(self._user_settings_service.current)
         self._setup_system_tray()
         self._setup_notifications()
         self._bind_shortcuts()
@@ -240,6 +262,9 @@ class LinaMainWindow(QMainWindow):
         self._speech_status = QLabel("Mic · hazırlanıyor", header)
         self._speech_status.setObjectName("statusChip")
         layout.addWidget(self._speech_status)
+        self._voice_status = QLabel("Ses · kapalı", header)
+        self._voice_status.setObjectName("statusChip")
+        layout.addWidget(self._voice_status)
         if self._user_settings_service is not None:
             if self._notification_service is not None:
                 self._notification_button = QPushButton("🔔", header)
@@ -346,6 +371,8 @@ class LinaMainWindow(QMainWindow):
                 self._user_settings_service,
                 model_diagnostics=self._diagnostics_service,
                 vision_diagnostics=self._vision_diagnostics_service,
+                voice_controller=self._voice_controller,
+                inference_diagnostics=self._inference_diagnostics_service,
                 parent=self,
             )
             self._settings_dialog.settings_applied.connect(self._apply_user_settings)
@@ -370,6 +397,8 @@ class LinaMainWindow(QMainWindow):
             notifications_action.triggered.connect(self.open_notifications)
         settings_action = menu.addAction("Ayarlar")
         settings_action.triggered.connect(self.open_settings)
+        stop_voice_action = menu.addAction("Sesi Durdur")
+        stop_voice_action.triggered.connect(self.stop_voice)
         menu.addSeparator()
         exit_action = menu.addAction("Çıkış")
         exit_action.triggered.connect(self._exit_from_tray)
@@ -465,6 +494,22 @@ class LinaMainWindow(QMainWindow):
         elif not settings.general.welcome_enabled:
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
+        self._voice_responses_enabled = settings.speech.voice_responses_enabled
+        self._transcription_mode = settings.speech.transcription_mode
+        if self._voice_controller is not None:
+            self._voice_controller.configure(
+                VoiceSettings(
+                    enabled=settings.speech.enabled,
+                    voice_id=settings.speech.system_voice,
+                    rate=settings.speech.speech_rate,
+                    volume=settings.speech.volume,
+                    barge_in_enabled=settings.speech.barge_in_enabled,
+                )
+            )
+            if settings.speech.voice_responses_enabled:
+                self._apply_voice_state(self._voice_controller.state)
+            else:
+                self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
         self._composer.attachment_button.setEnabled(self._vision_enabled)
         self._set_vision_controls_enabled(self._vision_enabled)
@@ -705,6 +750,11 @@ class LinaMainWindow(QMainWindow):
 
     def cancel_active_response(self) -> None:
         """Stop rendering the active response and keep the composer usable."""
+        self.stop_voice()
+        if self._model_lifecycle_service is not None:
+            self._model_lifecycle_service.cancel_active()
+        elif self._inference_diagnostics_service is not None:
+            self._inference_diagnostics_service.cancel()
         if not self._is_waiting:
             return
         self._cancelled_request_ids.add(self._active_request_id)
@@ -716,6 +766,10 @@ class LinaMainWindow(QMainWindow):
 
     def clear_chat(self) -> None:
         """Clear the active conversation and its visible messages."""
+        if self._is_waiting:
+            self.cancel_active_response()
+        else:
+            self.stop_voice()
         if self._is_speech_busy and self._speech_service is not None:
             self._speech_service.stop_listening()
         if self._conversation_history_service is not None:
@@ -1152,6 +1206,12 @@ class LinaMainWindow(QMainWindow):
 
     def handle_mic_request(self) -> None:
         """Start or stop an explicit push-to-talk transcription request."""
+        if (
+            self._voice_controller is not None
+            and self._voice_controller.state is VoiceState.SPEAKING
+            and not self._voice_controller.begin_listening()
+        ):
+            return
         if self._speech_service is None or not self._speech_service.is_stt_available():
             self._set_status("Mikrofon/STT şu anda hazır değil.")
             return
@@ -1164,6 +1224,8 @@ class LinaMainWindow(QMainWindow):
             return
 
         self._is_speech_busy = True
+        if self._voice_controller is not None:
+            self._voice_controller.begin_listening()
         self._composer.set_mic_state("listening")
         self._composer.mic_button.setEnabled(True)
         self._set_status("Dinliyorum...")
@@ -1248,6 +1310,11 @@ class LinaMainWindow(QMainWindow):
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text, created_at=assistant_created_at)
+        if self._voice_responses_enabled and self._voice_controller is not None:
+            if self._voice_controller.tts_available:
+                self._voice_controller.speak_response(text)
+            else:
+                self._set_status("Sesli yanıt şu anda kullanılamıyor.")
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
         self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
@@ -1302,6 +1369,12 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Hazır")
             return
         if self._composer.append_transcription(text):
+            if self._transcription_mode == "send":
+                if self._voice_controller is not None:
+                    self._voice_controller.begin_thinking()
+                self._reset_speech_ui()
+                self.send_message()
+                return
             self._append_assistant_message(
                 "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
             )
@@ -1311,6 +1384,43 @@ class LinaMainWindow(QMainWindow):
             "Transkripsiyonu mesaj alanına yazamadım İlhan. Tekrar deneyebiliriz."
         )
         self._set_status("Hata oluştu.")
+
+    def stop_voice(self) -> None:
+        """Stop local speech playback without removing written content."""
+        if self._voice_controller is not None and self._voice_controller.stop():
+            self._set_status("Ses durduruldu.")
+
+    def _apply_voice_state(self, state: object) -> None:
+        labels = {
+            VoiceState.IDLE: "Ses · hazır",
+            VoiceState.LISTENING: "Dinliyor",
+            VoiceState.TRANSCRIBING: "Yazıya çeviriyor",
+            VoiceState.THINKING: "Düşünüyor",
+            VoiceState.SPEAKING: "Konuşuyor · Sesi Durdur",
+            VoiceState.INTERRUPTED: "Durduruldu",
+            VoiceState.ERROR: "Ses kullanılamıyor",
+            VoiceState.DISABLED: "Ses · kapalı",
+        }
+        self._voice_status.setText(labels.get(state, "Ses · hazır"))
+
+    def _apply_speech_state(self, state: object) -> None:
+        if self._voice_controller is None:
+            return
+        if (
+            state is SpeechState.LISTENING
+            and self._voice_controller.state is not VoiceState.LISTENING
+        ):
+            self._voice_controller.begin_listening()
+        elif (
+            state is SpeechState.TRANSCRIBING
+            and self._voice_controller.state is VoiceState.LISTENING
+        ):
+            self._voice_controller.begin_transcribing()
+        elif state is SpeechState.IDLE and self._voice_controller.state in {
+            VoiceState.LISTENING,
+            VoiceState.TRANSCRIBING,
+        }:
+            self._voice_controller.finish_interaction()
 
     def _handle_transcription_error(self, error: object) -> None:
         if isinstance(error, SpeechUnavailableError):
@@ -1324,6 +1434,13 @@ class LinaMainWindow(QMainWindow):
 
     def _reset_speech_ui(self) -> None:
         self._is_speech_busy = False
+        if (
+            self._voice_controller is not None
+            and self._transcription_mode != "send"
+            and self._voice_controller.state
+            in {VoiceState.LISTENING, VoiceState.TRANSCRIBING, VoiceState.ERROR}
+        ):
+            self._voice_controller.finish_interaction()
         self._composer.set_mic_state("idle")
         self._composer.mic_button.setEnabled(
             self._speech_enabled
@@ -1668,7 +1785,16 @@ class LinaMainWindow(QMainWindow):
         self._active_confirmation_cancel = None
         self._active_confirmation_card = None
         if self._speech_service is not None:
-            self._speech_service.stop_listening()
+            if hasattr(self._speech_service, "shutdown"):
+                self._speech_service.shutdown()
+            else:
+                self._speech_service.stop_listening()
+        if self._voice_controller is not None:
+            self._voice_controller.shutdown()
+        if self._inference_diagnostics_service is not None:
+            self._inference_diagnostics_service.cancel()
+        if self._model_lifecycle_service is not None:
+            self._model_lifecycle_service.shutdown()
         if self._notification_scheduler is not None:
             self._notification_scheduler.stop()
         if self._tray_icon is not None:

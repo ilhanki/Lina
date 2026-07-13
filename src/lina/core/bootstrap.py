@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+import threading
 
 from lina.brain.brain import Brain
 from lina.brain.context_manager import ContextManager
@@ -34,6 +35,11 @@ from lina.speech.audio_recorder import NoOpAudioRecorder, SoundDeviceAudioRecord
 from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
 from lina.speech.service import SpeechService
+from lina.voice.controller import VoiceController
+from lina.voice.models import VoiceSettings
+from lina.voice.playback import AudioPlaybackService
+from lina.voice.tts_provider import WindowsSapiTTSProvider
+from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 from lina.settings.repository import UserSettingsRepository, default_user_settings_path
 from lina.settings.service import UserSettingsService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
@@ -53,6 +59,9 @@ class ApplicationServices:
     user_settings_service: UserSettingsService | None = None
     notification_service: NotificationService | None = None
     intent_router: IntentRouter | None = None
+    voice_controller: VoiceController | None = None
+    inference_diagnostics_service: InferenceDiagnosticsService | None = None
+    model_lifecycle_service: ModelLifecycleService | None = None
 
 
 def create_application_services(
@@ -67,17 +76,28 @@ def create_application_services(
     context = ApplicationContext(settings=settings, paths=paths, logger=logger)
     application = LinaApplication(context=context)
 
+    user_settings_service = UserSettingsService(
+        UserSettingsRepository(user_settings_path or default_user_settings_path())
+    )
+    user_preferences = user_settings_service.current
+
     provider = OllamaProvider(
         base_url=settings.ollama.base_url,
-        model=settings.ollama.default_model,
+        model=user_preferences.models.text_model,
         timeout=settings.ollama.request_timeout,
+        keep_alive=user_preferences.models.keep_alive,
+        max_output_tokens=user_preferences.models.max_output_tokens,
+        stream=True,
     )
     brain = Brain(model_provider=provider)
     vision_provider = OllamaProvider(
         base_url=settings.ollama.base_url,
-        model=settings.vision.model,
+        model=user_preferences.models.vision_model,
         timeout=settings.vision.request_timeout,
         max_image_bytes=settings.vision.max_image_bytes,
+        keep_alive="0",
+        max_output_tokens=user_preferences.models.max_output_tokens,
+        stream=True,
     )
     vision_brain = Brain(
         model_provider=vision_provider,
@@ -108,14 +128,16 @@ def create_application_services(
         history_limit=settings.runtime.conversation_history_limit,
         memory_context_max_items=settings.memory.max_context_items,
         memory_context_max_characters=settings.memory.max_context_characters,
+        context_character_budget=user_preferences.models.context_budget,
     )
+    model_lifecycle_service = ModelLifecycleService(provider, vision_provider)
     tool_registry = ToolRegistry()
     tool_registry.register(EchoTool())
     tool_registry.register(CurrentTimeTool())
     tool_execution_service = ToolExecutionService(tool_registry=tool_registry)
     vision_diagnostics_service = VisionDiagnosticsService(
         base_url=settings.ollama.base_url,
-        model=settings.vision.model,
+        model=user_preferences.models.vision_model,
         enabled=settings.vision.enabled,
         timeout=min(settings.vision.request_timeout, 5.0),
     )
@@ -132,26 +154,42 @@ def create_application_services(
         ),
         history_limit=settings.runtime.conversation_history_limit,
         conversation_history_service=conversation_history_service,
+        model_lifecycle_service=model_lifecycle_service,
     )
     diagnostics_service = ModelDiagnosticsService(
         base_url=settings.ollama.base_url,
-        model=settings.ollama.default_model,
+        model=user_preferences.models.text_model,
         timeout=min(settings.ollama.request_timeout, 5.0),
     )
     speech_service = _create_speech_service(settings.speech)
-    user_settings_service = UserSettingsService(
-        UserSettingsRepository(user_settings_path or default_user_settings_path())
-    )
     user_settings_service.subscribe(
         lambda user_settings: _apply_user_model_settings(
-            user_settings.models.text_model,
-            user_settings.models.vision_model,
+            user_settings.models,
             provider,
             vision_provider,
             diagnostics_service,
             vision_diagnostics_service,
         )
     )
+    tts_provider = WindowsSapiTTSProvider()
+    voice_controller = VoiceController(
+        AudioPlaybackService(tts_provider),
+        settings=VoiceSettings(
+            enabled=user_preferences.speech.enabled,
+            voice_id=user_preferences.speech.system_voice,
+            rate=user_preferences.speech.speech_rate,
+            volume=user_preferences.speech.volume,
+            barge_in_enabled=user_preferences.speech.barge_in_enabled,
+        ),
+    )
+    inference_diagnostics_service = InferenceDiagnosticsService(provider)
+    if user_preferences.models.warm_up_enabled:
+        threading.Thread(
+            target=_warm_up_safely,
+            args=(model_lifecycle_service,),
+            name="lina-model-warmup",
+            daemon=True,
+        ).start()
     notification_service = NotificationService(NotificationRepository(project_root / "data" / "notifications.sqlite3"))
     intent_router = IntentRouter(
         build_safe_tool_registry(notification_service, file_access_service, memory_service),
@@ -168,20 +206,36 @@ def create_application_services(
         user_settings_service=user_settings_service,
         notification_service=notification_service,
         intent_router=intent_router,
+        voice_controller=voice_controller,
+        inference_diagnostics_service=inference_diagnostics_service,
+        model_lifecycle_service=model_lifecycle_service,
     )
 
 
+def _warm_up_safely(lifecycle: ModelLifecycleService) -> None:
+    try:
+        lifecycle.warm_up()
+    except Exception:
+        return
+
+
 def _apply_user_model_settings(
-    text_model: str,
-    vision_model: str,
+    model_settings: object,
     provider: OllamaProvider,
     vision_provider: OllamaProvider,
     diagnostics_service: ModelDiagnosticsService,
     vision_diagnostics_service: VisionDiagnosticsService,
 ) -> None:
     """Apply user-selected model names to future provider requests."""
+    text_model = str(getattr(model_settings, "text_model"))
+    vision_model = str(getattr(model_settings, "vision_model"))
     provider.set_model(text_model)
     vision_provider.set_model(vision_model)
+    provider.configure(
+        str(getattr(model_settings, "keep_alive")),
+        int(getattr(model_settings, "max_output_tokens")),
+    )
+    vision_provider.configure("0", int(getattr(model_settings, "max_output_tokens")))
     diagnostics_service.set_model(text_model)
     vision_diagnostics_service.set_model(vision_model)
 

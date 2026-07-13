@@ -25,6 +25,7 @@ from lina.services.model_diagnostics_service import VisionDiagnosticsService, Vi
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionError, ToolExecutionService
 from lina.vision.models import VisionRequestError
+from lina.inference.service import ModelLifecycleService
 
 
 class ConversationService:
@@ -45,6 +46,7 @@ class ConversationService:
         consume_vision_attachment_on_success: bool = True,
         history_limit: int = 6,
         conversation_history_service: ConversationHistoryService | None = None,
+        model_lifecycle_service: ModelLifecycleService | None = None,
     ) -> None:
         self._brain = brain
         self._intent_analyzer = intent_analyzer or IntentAnalyzer()
@@ -65,6 +67,7 @@ class ConversationService:
         )
         self._history_limit = history_limit
         self._conversation_history_service = conversation_history_service
+        self._model_lifecycle_service = model_lifecycle_service
         if conversation_history_service is not None:
             conversation_history_service.start()
             self._history = list(conversation_history_service.model_history())
@@ -145,16 +148,24 @@ class ConversationService:
                 conversation_history=self._history,
             )
             if conversation_input.image_attachment is None:
+                if self._model_lifecycle_service is not None:
+                    self._model_lifecycle_service.prepare_text()
                 response = self._brain.respond_with_context(context)
             else:
+                if self._model_lifecycle_service is not None:
+                    self._model_lifecycle_service.prepare_vision()
                 self._ensure_vision_ready()
                 if self._vision_brain is None:
                     raise VisionRequestError("Vision servisi yapılandırılmamış.")
-                response = self._vision_brain.respond_with_image(
-                    context,
-                    conversation_input.image_attachment,
-                )
-                attachment_consumed = self._consume_vision_attachment_on_success
+                try:
+                    response = self._vision_brain.respond_with_image(
+                        context,
+                        conversation_input.image_attachment,
+                    )
+                    attachment_consumed = self._consume_vision_attachment_on_success
+                finally:
+                    if self._model_lifecycle_service is not None:
+                        self._model_lifecycle_service.finish_vision()
 
         self._history.append(
             ConversationTurn(

@@ -1,6 +1,7 @@
 """Runtime context management for Lina's Brain."""
 
 from collections.abc import Sequence
+import re
 
 from lina.brain.conversation_context import ConversationContext
 from lina.brain.intent import Intent, IntentType
@@ -21,6 +22,7 @@ class ContextManager:
         history_limit: int = 6,
         memory_context_max_items: int = 8,
         memory_context_max_characters: int = 1200,
+        context_character_budget: int = 12000,
     ) -> None:
         self._project_context_service = project_context_service
         self._git_context_service = git_context_service
@@ -28,6 +30,7 @@ class ContextManager:
         self._history_limit = history_limit
         self._memory_context_max_items = memory_context_max_items
         self._memory_context_max_characters = memory_context_max_characters
+        self._context_character_budget = max(1000, context_character_budget)
 
     def build_context(
         self,
@@ -35,9 +38,14 @@ class ContextManager:
         intent: Intent,
         conversation_history: Sequence[ConversationTurn],
     ) -> ConversationContext:
+        safe_history = trim_conversation_history(
+            conversation_history,
+            max_turns=self._history_limit,
+            character_budget=self._context_character_budget,
+        )
         return ConversationContext(
             user_message=user_message,
-            conversation_history=tuple(conversation_history[-self._history_limit :]),
+            conversation_history=safe_history,
             project_context=self._collect_project_context(intent),
             memory_context=self._collect_memory_context(),
         )
@@ -70,3 +78,40 @@ class ContextManager:
             return "Proje bağlamı şu anda yapılandırılmamış."
 
         return "\n\n".join(sections)
+
+
+_BASE64_PATTERN = re.compile(r"(?i)\b[A-Za-z0-9+/]{200,}={0,2}\b")
+
+
+def trim_conversation_history(
+    history: Sequence[ConversationTurn],
+    max_turns: int,
+    character_budget: int,
+) -> tuple[ConversationTurn, ...]:
+    """Keep newest complete user/assistant pairs within a deterministic budget."""
+    selected: list[ConversationTurn] = []
+    used = 0
+    for turn in reversed(history[-max_turns:]):
+        user = _safe_context_text(turn.user_message)
+        assistant = _safe_context_text(turn.assistant_response)
+        if not user or not assistant:
+            continue
+        cost = len(user) + len(assistant)
+        if selected and used + cost > character_budget:
+            break
+        if not selected and cost > character_budget:
+            available = max(1, character_budget // 2)
+            user = user[-available:]
+            assistant = assistant[-available:]
+            cost = len(user) + len(assistant)
+        selected.append(ConversationTurn(user_message=user, assistant_response=assistant))
+        used += cost
+    selected.reverse()
+    return tuple(selected)
+
+
+def _safe_context_text(text: str) -> str:
+    value = _BASE64_PATTERN.sub("[binary omitted]", text)
+    value = re.sub(r"(?is)<(?:tool_debug|internal_metadata)>.*?</(?:tool_debug|internal_metadata)>", "", value)
+    value = re.sub(r"(?i)data:image/[^;]+;base64,\S+", "[image omitted]", value)
+    return value.strip()

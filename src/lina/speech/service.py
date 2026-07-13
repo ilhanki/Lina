@@ -1,5 +1,6 @@
 """Speech capability orchestration."""
 
+from collections.abc import Callable
 import threading
 
 from lina.speech.audio_recorder import AudioRecorder, NoOpAudioRecorder
@@ -27,6 +28,23 @@ class SpeechService:
         self._audio_recorder = audio_recorder or NoOpAudioRecorder()
         self._state = SpeechState.IDLE
         self._transcription_lock = threading.Lock()
+        self._state_listeners: list[Callable[[SpeechState], None]] = []
+
+    def subscribe_state(self, listener: Callable[[SpeechState], None]) -> None:
+        if listener not in self._state_listeners:
+            self._state_listeners.append(listener)
+
+    def unsubscribe_state(self, listener: Callable[[SpeechState], None]) -> None:
+        if listener in self._state_listeners:
+            self._state_listeners.remove(listener)
+
+    def _set_state(self, state: SpeechState) -> None:
+        self._state = state
+        for listener in tuple(self._state_listeners):
+            try:
+                listener(state)
+            except Exception:
+                continue
 
     def get_state(self) -> SpeechState:
         """Return the current speech state."""
@@ -50,28 +68,28 @@ class SpeechService:
 
         try:
             if not self.is_stt_available():
-                self._state = SpeechState.UNAVAILABLE
+                self._set_state(SpeechState.UNAVAILABLE)
                 raise SpeechUnavailableError("Speech-to-text is unavailable")
 
-            self._state = SpeechState.LISTENING
+            self._set_state(SpeechState.LISTENING)
             recording = self._audio_recorder.record_once()
-            self._state = SpeechState.TRANSCRIBING
+            self._set_state(SpeechState.TRANSCRIBING)
             result = self._stt_provider.transcribe(recording)
         except SpeechUnavailableError:
-            self._state = SpeechState.UNAVAILABLE
+            self._set_state(SpeechState.UNAVAILABLE)
             raise
         except SpeechServiceError:
-            self._state = SpeechState.ERROR
-            self._state = SpeechState.IDLE
+            self._set_state(SpeechState.ERROR)
+            self._set_state(SpeechState.IDLE)
             raise
         except Exception as error:
-            self._state = SpeechState.ERROR
-            self._state = SpeechState.IDLE
+            self._set_state(SpeechState.ERROR)
+            self._set_state(SpeechState.IDLE)
             raise SpeechServiceError("Speech transcription failed") from error
         finally:
             self._transcription_lock.release()
 
-        self._state = SpeechState.IDLE
+        self._set_state(SpeechState.IDLE)
         return result
 
     def stop_listening(self) -> None:
@@ -82,20 +100,20 @@ class SpeechService:
     def speak(self, text: str) -> SpeechSynthesisResult:
         """Speak text when synthesis is available."""
         if not self.is_tts_available():
-            self._state = SpeechState.UNAVAILABLE
+            self._set_state(SpeechState.UNAVAILABLE)
             return SpeechSynthesisResult(
                 success=False,
                 message="Text-to-speech provider is unavailable",
             )
 
-        self._state = SpeechState.SPEAKING
+        self._set_state(SpeechState.SPEAKING)
         try:
             result = self._tts_provider.speak(text)
         except Exception as error:
-            self._state = SpeechState.ERROR
+            self._set_state(SpeechState.ERROR)
             raise SpeechServiceError("Speech synthesis failed") from error
 
-        self._state = SpeechState.IDLE
+        self._set_state(SpeechState.IDLE)
         return result
 
     def stop_speaking(self) -> None:
@@ -103,7 +121,16 @@ class SpeechService:
         try:
             self._tts_provider.stop()
         except Exception as error:
-            self._state = SpeechState.ERROR
+            self._set_state(SpeechState.ERROR)
             raise SpeechServiceError("Could not stop speech synthesis") from error
 
-        self._state = SpeechState.IDLE
+        self._set_state(SpeechState.IDLE)
+
+    def shutdown(self) -> None:
+        """Stop active local speech work and prevent later state callbacks."""
+        self.stop_listening()
+        try:
+            self._tts_provider.stop()
+        except Exception:
+            pass
+        self._state_listeners.clear()

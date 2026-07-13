@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSlider,
+    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -32,11 +33,14 @@ class SettingsDialog(QDialog):
 
     settings_applied = Signal(object)
 
-    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, parent=None) -> None:
+    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, voice_controller=None, inference_diagnostics=None, parent=None) -> None:
         super().__init__(parent)
         self._settings_service = settings_service
         self._model_diagnostics = model_diagnostics
         self._vision_diagnostics = vision_diagnostics
+        self._voice_controller = voice_controller
+        self._inference_diagnostics = inference_diagnostics
+        self._benchmark_worker = None
         self._refresh_worker = None
         self._refresh_generation = 0
         self._vision_valid_models: set[str] = set()
@@ -127,12 +131,34 @@ class SettingsDialog(QDialog):
         form = QFormLayout(page)
         self._text_model = QLineEdit(page)
         self._vision_model = QLineEdit(page)
+        self._keep_alive = QComboBox(page)
+        self._keep_alive.addItem("Kapalı", "0")
+        self._keep_alive.addItem("5 dakika", "5m")
+        self._keep_alive.addItem("15 dakika", "15m")
+        self._keep_alive.addItem("Sürekli", "-1")
+        self._max_output_tokens = QSpinBox(page)
+        self._max_output_tokens.setRange(32, 8192)
+        self._context_budget = QSpinBox(page)
+        self._context_budget.setRange(1000, 100000)
+        self._context_budget.setSingleStep(1000)
+        self._warm_up = QCheckBox("Modeli açılışta arka planda hazırla", page)
         self._refresh_models = QPushButton("Modelleri Yenile", page)
         self._model_status = QLabel("", page)
         form.addRow("Text model", self._text_model)
         form.addRow("Vision model", self._vision_model)
+        form.addRow("Modeli bellekte tut", self._keep_alive)
+        form.addRow("Maksimum cevap uzunluğu", self._max_output_tokens)
+        form.addRow("Context bütçesi", self._context_budget)
+        form.addRow(self._warm_up)
         form.addRow(self._refresh_models)
         form.addRow(self._model_status)
+        self._performance_status = QLabel("Henüz ölçüm yok.", page)
+        self._performance_status.setWordWrap(True)
+        self._benchmark_button = QPushButton("Performans Testi", page)
+        self._benchmark_button.setEnabled(self._inference_diagnostics is not None)
+        self._benchmark_button.clicked.connect(self._run_benchmark)
+        form.addRow(self._benchmark_button)
+        form.addRow(self._performance_status)
         self._refresh_models.clicked.connect(self._refresh_model_list)
         note = QLabel("Yalnız cihazında kurulu Ollama modellerini kullan.", page)
         note.setWordWrap(True)
@@ -145,10 +171,36 @@ class SettingsDialog(QDialog):
         self._speech_enabled = QCheckBox("Konuşma özelliğini etkinleştir", page)
         self._speech_language = QComboBox(page)
         self._speech_language.addItem("Türkçe", "tr")
-        self._speech_insert = QCheckBox("Transkripsiyonu composer'a ekle", page)
+        self._voice_responses = QCheckBox("Sesli yanıtlar etkin", page)
+        self._system_voice = QComboBox(page)
+        self._system_voice.addItem("Varsayılan sistem sesi", None)
+        if self._voice_controller is not None:
+            for voice in self._voice_controller.list_voices():
+                self._system_voice.addItem(voice.name, voice.id)
+        self._speech_rate = QSlider(Qt.Orientation.Horizontal, page)
+        self._speech_rate.setRange(50, 200)
+        self._volume = QSlider(Qt.Orientation.Horizontal, page)
+        self._volume.setRange(0, 100)
+        self._transcription_mode = QComboBox(page)
+        self._transcription_mode.addItem("Composer'a ekle", "insert")
+        self._transcription_mode.addItem("Otomatik gönder", "send")
+        self._barge_in = QCheckBox("Lina konuşurken mikrofonla sesi kes", page)
+        self._wake_word = QCheckBox("Wake word (Deneysel)", page)
+        self._wake_phrase = QLineEdit(page)
+        wake_available = bool(self._voice_controller and self._voice_controller.wake_word_available)
+        self._wake_word.setEnabled(wake_available)
+        if not wake_available:
+            self._wake_word.setToolTip("Bu sürümde detector kurulu değil.")
         form.addRow(self._speech_enabled)
         form.addRow("Dil", self._speech_language)
-        form.addRow(self._speech_insert)
+        form.addRow(self._voice_responses)
+        form.addRow("Sistem sesi", self._system_voice)
+        form.addRow("Konuşma hızı", self._speech_rate)
+        form.addRow("Ses seviyesi", self._volume)
+        form.addRow("Transcription davranışı", self._transcription_mode)
+        form.addRow(self._barge_in)
+        form.addRow(self._wake_word)
+        form.addRow("Wake phrase", self._wake_phrase)
         return page
 
     def _vision_page(self) -> QWidget:
@@ -193,6 +245,13 @@ class SettingsDialog(QDialog):
         )
         label.setWordWrap(True)
         layout.addWidget(label)
+        privacy = QLabel(
+            "Ses işleme yereldir. Wake word varsayılan olarak kapalıdır; audio kayıtları "
+            "saklanmaz. Lina konuşurken sesi manuel olarak durdurabilirsin.",
+            page,
+        )
+        privacy.setWordWrap(True)
+        layout.addWidget(privacy)
         layout.addStretch(1)
         return page
 
@@ -209,9 +268,20 @@ class SettingsDialog(QDialog):
         self._reduce_motion.setChecked(settings.appearance.reduce_motion)
         self._text_model.setText(settings.models.text_model)
         self._vision_model.setText(settings.models.vision_model)
+        _select_data(self._keep_alive, settings.models.keep_alive)
+        self._max_output_tokens.setValue(settings.models.max_output_tokens)
+        self._context_budget.setValue(settings.models.context_budget)
+        self._warm_up.setChecked(settings.models.warm_up_enabled)
         self._speech_enabled.setChecked(settings.speech.enabled)
         _select_data(self._speech_language, settings.speech.language)
-        self._speech_insert.setChecked(settings.speech.auto_insert_transcription)
+        self._voice_responses.setChecked(settings.speech.voice_responses_enabled)
+        _select_data(self._system_voice, settings.speech.system_voice)
+        self._speech_rate.setValue(round(settings.speech.speech_rate * 100))
+        self._volume.setValue(round(settings.speech.volume * 100))
+        _select_data(self._transcription_mode, settings.speech.transcription_mode)
+        self._barge_in.setChecked(settings.speech.barge_in_enabled)
+        self._wake_word.setChecked(settings.speech.wake_word_enabled and self._wake_word.isEnabled())
+        self._wake_phrase.setText(settings.speech.wake_phrase)
         self._vision_enabled.setChecked(settings.vision.enabled)
         self._vision_consume.setChecked(settings.vision.consume_attachment_on_success)
         self._minimize_to_tray.setChecked(settings.system.minimize_to_tray)
@@ -226,8 +296,8 @@ class SettingsDialog(QDialog):
         return UserSettings(
             appearance=replace(self._draft.appearance, theme=str(self._theme.currentData()), font_scale=self._font_scale.value() / 100, compact_mode=self._compact_mode.isChecked(), reduce_motion=self._reduce_motion.isChecked()),
             general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked(), intent_routing_enabled=self._intent_routing.isChecked()),
-            models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model()),
-            speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._speech_insert.isChecked()),
+            models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model(), keep_alive=str(self._keep_alive.currentData()), max_output_tokens=self._max_output_tokens.value(), context_budget=self._context_budget.value(), warm_up_enabled=self._warm_up.isChecked()),
+            speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._transcription_mode.currentData() == "insert", voice_responses_enabled=self._voice_responses.isChecked(), system_voice=self._system_voice.currentData(), speech_rate=self._speech_rate.value() / 100, volume=self._volume.value() / 100, transcription_mode=str(self._transcription_mode.currentData()), barge_in_enabled=self._barge_in.isChecked(), wake_word_enabled=self._wake_word.isChecked() and self._wake_word.isEnabled(), wake_phrase=self._wake_phrase.text().strip() or "Hey Lina"),
             vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),
             system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked(), reminders_enabled=self._reminders_enabled.isChecked(), desktop_notifications_enabled=self._desktop_notifications.isChecked(), show_missed_reminders=self._show_missed.isChecked()),
         )
@@ -272,6 +342,40 @@ class SettingsDialog(QDialog):
         worker.signals.error.connect(lambda error: self._handle_model_refresh_error(generation, error))
         worker.signals.finished.connect(lambda: self._finish_model_refresh(worker))
         QThreadPool.globalInstance().start(worker)
+
+    def _run_benchmark(self) -> None:
+        if self._inference_diagnostics is None or self._benchmark_worker is not None:
+            return
+        self._benchmark_button.setEnabled(False)
+        self._performance_status.setText("Performans ölçülüyor...")
+        worker = FunctionWorker(self._inference_diagnostics.benchmark)
+        self._benchmark_worker = worker
+        worker.signals.result.connect(self._show_benchmark)
+        worker.signals.error.connect(
+            lambda _error: self._performance_status.setText("Ollama'ya ulaşılamadı.")
+        )
+        worker.signals.finished.connect(lambda: self._finish_benchmark(worker))
+        QThreadPool.globalInstance().start(worker)
+
+    def _show_benchmark(self, metrics: object) -> None:
+        first = getattr(metrics, "first_token_ms", None)
+        speed = getattr(metrics, "tokens_per_second", None)
+        total = getattr(metrics, "total_ms", None)
+        prompt = getattr(metrics, "prompt_tokens", None)
+        generated = getattr(metrics, "generated_tokens", None)
+        load = getattr(metrics, "load_ms", None)
+        lines = [f"Son model: {getattr(metrics, 'model', '-')}"]
+        lines.append(f"İlk token: {first / 1000:.1f} sn" if first is not None else "İlk token: -")
+        lines.append(f"Hız: {speed:.1f} token/sn" if speed is not None else "Hız: -")
+        lines.append(f"Toplam: {total / 1000:.1f} sn" if total is not None else "Toplam: -")
+        lines.append(f"Prompt / generated: {prompt or '-'} / {generated or '-'}")
+        lines.append(f"Model yükleme: {load / 1000:.1f} sn" if load is not None else "Model yükleme: -")
+        self._performance_status.setText("\n".join(lines))
+
+    def _finish_benchmark(self, worker: object) -> None:
+        if self._benchmark_worker is worker:
+            self._benchmark_worker = None
+            self._benchmark_button.setEnabled(True)
 
     def _load_models_and_validate_vision(self) -> tuple[tuple[str, ...], tuple[str, ...]]:
         models = self._model_diagnostics.list_models()
