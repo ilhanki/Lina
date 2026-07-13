@@ -453,6 +453,10 @@ class LinaMainWindow(QMainWindow):
                     font_scale=settings.appearance.font_scale,
                 )
             )
+            for widget in application.topLevelWidgets():
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
         if settings.general.welcome_enabled and self._welcome_state is None and not self._message_rows:
             self._show_welcome_state()
         elif not settings.general.welcome_enabled:

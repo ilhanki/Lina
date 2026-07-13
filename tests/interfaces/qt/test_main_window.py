@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect
 from PySide6.QtGui import QGuiApplication, QImage
-from PySide6.QtWidgets import QDialog, QPushButton
+from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.interfaces.qt.main_window import LinaMainWindow
@@ -23,6 +23,7 @@ from lina.speech.models import SpeechState, SpeechTranscriptionResult
 from lina.settings.models import UserSettings
 from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
+from lina.interfaces.qt.theme import theme_palette
 
 
 class ImmediateThreadPool:
@@ -239,6 +240,23 @@ def test_settings_toggle_disables_speech_and_vision_controls(qtbot, tmp_path) ->
     assert window._composer.mic_button.isEnabled() is False
     assert window._composer.attachment_button.isEnabled() is False
     assert window._composer.screen_button.isEnabled() is False
+
+
+def test_runtime_light_theme_refreshes_open_settings_dialog(qtbot, tmp_path) -> None:
+    settings_service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    window = LinaMainWindow(FakeConversationService(), user_settings_service=settings_service, thread_pool=ImmediateThreadPool())
+    qtbot.addWidget(window)
+    window.open_settings()
+    updated = UserSettings.from_dict({"appearance": {"theme": "light", "font_scale": 1.35}})
+    window._apply_user_settings(updated)
+    stylesheet = QApplication.instance().styleSheet()
+    assert theme_palette("light")["app_bg"] in stylesheet
+    assert "font-size: 15pt" in stylesheet
+    assert window._settings_dialog.isVisible()
+    window._settings_dialog.close()
+    window._force_exit = True
+    window.close()
+    qtbot.wait(300)
 
 
 def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:

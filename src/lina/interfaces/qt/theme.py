@@ -54,7 +54,7 @@ def clamp_message_font_size(size: int) -> int:
 
 def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 1.0) -> str:
     """Build Lina's centralized high-contrast Qt stylesheet."""
-    palette = _palette_for_theme(theme)
+    palette = theme_palette(theme)
     app_bg = palette["app_bg"]
     sidebar_bg = palette["sidebar_bg"]
     panel_bg = palette["panel_bg"]
@@ -70,6 +70,15 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
     accent = palette["accent"]
     accent_hover = palette["accent_hover"]
     disabled = palette["disabled"]
+    pressed = palette["pressed"]
+    selected = palette["selected"]
+    focus = palette["focus"]
+    user_border = palette["user_border"]
+    user_text = palette["user_text"]
+    success = palette["success"]
+    warning = palette["warning"]
+    error = palette["error"]
+    info = palette["info"]
     base_font_size = max(9, min(round(11 * font_scale), 15))
     return f"""
         QWidget {{
@@ -77,9 +86,17 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             font-family: \"{font_family}\";
             font-size: {base_font_size}pt;
         }}
-        QMainWindow, QWidget#centralWidget, QWidget#chatPanel {{
+        QMainWindow, QDialog, QMessageBox, QWidget#centralWidget, QWidget#chatPanel {{
             background: {app_bg};
         }}
+        QDialog#notificationCenter, QDialog#reminderDialog {{ background: {app_bg}; }}
+        QStackedWidget#settingsPages {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 9px; }}
+        QListWidget#settingsNavigation {{ background: {sidebar_bg}; border: 1px solid {border}; }}
+        QListWidget#settingsNavigation::item {{ margin: 2px; padding: 9px; }}
+        QListWidget#settingsNavigation::item:selected {{ background: {selected}; color: {text_primary}; border-left: 3px solid {accent}; }}
+        QComboBox#notificationFilter {{ background: {panel_bg}; font-weight: 600; }}
+        QListWidget#notificationItems {{ background: {panel_bg}; }}
+        QPushButton#notificationButton {{ min-width: 42px; border-color: {accent}; }}
         QWidget#sidebar {{
             background: {sidebar_bg};
             border-right: 1px solid {border};
@@ -150,15 +167,15 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#conversationSearchResult {{
             background: transparent;
-            color: {TEXT_SECONDARY};
+            color: {text_secondary};
             border: 1px solid transparent;
             border-radius: 8px;
             text-align: left;
             padding: 7px 10px;
         }}
         QPushButton#conversationSearchResult:hover {{
-            background: {ELEVATED_BG};
-            border-color: {BORDER};
+            background: {elevated_bg};
+            border-color: {border};
         }}
         QWidget#assistantBubble {{
             background: {assistant_bubble};
@@ -167,9 +184,10 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QWidget#userBubble {{
             background: {user_bubble};
-            border: 1px solid #3b6bed;
+            border: 1px solid {user_border};
             border-radius: 14px;
         }}
+        QWidget#userBubble QLabel {{ color: {user_text}; }}
         QLabel#bubbleText {{
             background: transparent;
             border: none;
@@ -181,7 +199,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-radius: 8px;
             padding: 2px;
         }}
-        QLabel#mutedLabel {{ color: {text_muted}; }}
+        QLabel#mutedLabel, QLabel#messageTimestamp {{ color: {text_muted}; }}
         QLabel#sessionDateLabel {{
             color: {text_muted};
             font-size: 9pt;
@@ -197,12 +215,12 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             font-size: 11pt;
         }}
         QLabel#welcomeFallbackLogo {{
-            color: {ACCENT};
+            color: {accent};
             font-size: 42pt;
             font-weight: 700;
         }}
         QLabel#senderLabel {{
-            color: {TEXT_MUTED};
+            color: {text_muted};
             font-weight: 600;
             font-size: 9pt;
         }}
@@ -220,9 +238,9 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: 1px solid {soft_border};
             border-radius: 10px;
             padding: 8px 10px;
-            selection-background-color: {ACCENT};
+            selection-background-color: {selected};
         }}
-        QPlainTextEdit:focus {{ border: 1px solid {accent}; }}
+        QPlainTextEdit:focus, QLineEdit:focus, QComboBox:focus, QListWidget:focus {{ border: 2px solid {focus}; }}
         QPushButton {{
             background: {elevated_bg};
             color: {text_primary};
@@ -231,12 +249,13 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             min-height: 32px;
             padding: 4px 10px;
         }}
-        QPushButton:hover {{ background: {elevated_bg}; border-color: {accent}; }}
-        QPushButton:pressed {{ background: #303846; }}
-        QPushButton:disabled {{ color: {disabled}; border-color: {soft_border}; }}
+        QPushButton:hover {{ background: {selected}; border-color: {accent}; }}
+        QPushButton:pressed {{ background: {pressed}; }}
+        QPushButton:focus {{ border: 2px solid {focus}; }}
+        QPushButton:disabled {{ color: {disabled}; background: {panel_bg}; border-color: {soft_border}; }}
         QPushButton#accentButton {{
             background: {accent};
-            color: {text_primary};
+            color: {user_text};
             border-color: {accent};
             font-weight: 600;
         }}
@@ -248,28 +267,65 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#copyButton {{
             background: transparent;
-            color: {TEXT_MUTED};
+            color: {text_muted};
             border: none;
             min-height: 20px;
             padding: 0 2px;
             font-size: 9pt;
         }}
-        QPushButton#copyButton:hover {{ color: {TEXT_PRIMARY}; }}
+        QPushButton#copyButton:hover {{ color: {text_primary}; }}
         QPushButton#secondaryButton {{
             background: transparent;
-            color: {TEXT_SECONDARY};
+            color: {text_secondary};
             min-height: 28px;
             padding: 2px 9px;
         }}
         QPushButton#screenContextRemoveButton {{
             background: transparent;
-            color: {TEXT_SECONDARY};
+            color: {text_secondary};
             border: none;
             min-height: 22px;
             padding: 0 4px;
             font-size: 9pt;
         }}
-        QPushButton#screenContextRemoveButton:hover {{ color: {TEXT_PRIMARY}; }}
+        QPushButton#screenContextRemoveButton:hover {{ color: {text_primary}; }}
+        QLineEdit, QComboBox, QDateTimeEdit, QListWidget {{
+            background: {composer_bg};
+            color: {text_primary};
+            border: 1px solid {border};
+            border-radius: 8px;
+            padding: 5px 8px;
+            selection-background-color: {selected};
+        }}
+        QLineEdit:disabled, QComboBox:disabled, QDateTimeEdit:disabled, QListWidget:disabled {{
+            color: {disabled}; background: {elevated_bg}; border-color: {soft_border};
+        }}
+        QListWidget::item {{ padding: 7px; border-radius: 6px; }}
+        QListWidget::item:hover {{ background: {elevated_bg}; }}
+        QListWidget::item:selected {{ background: {selected}; color: {text_primary}; }}
+        QComboBox QAbstractItemView {{
+            background: {panel_bg}; color: {text_primary}; border: 1px solid {border};
+            selection-background-color: {selected}; selection-color: {text_primary};
+        }}
+        QCheckBox {{ color: {text_primary}; spacing: 8px; }}
+        QCheckBox:disabled {{ color: {disabled}; }}
+        QCheckBox::indicator {{ width: 17px; height: 17px; border: 1px solid {border}; border-radius: 4px; background: {composer_bg}; }}
+        QCheckBox::indicator:checked {{ background: {accent}; border-color: {accent}; }}
+        QCheckBox::indicator:focus {{ border: 2px solid {focus}; }}
+        QSlider::groove:horizontal {{ height: 5px; background: {border}; border-radius: 2px; }}
+        QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 2px; }}
+        QSlider::handle:horizontal {{ width: 16px; margin: -6px 0; background: {panel_bg}; border: 2px solid {accent}; border-radius: 8px; }}
+        QMenu {{ background: {panel_bg}; color: {text_primary}; border: 1px solid {border}; padding: 5px; }}
+        QMenu::item {{ padding: 7px 22px 7px 10px; border-radius: 5px; }}
+        QMenu::item:selected {{ background: {selected}; color: {text_primary}; }}
+        QMenu::item:disabled {{ color: {disabled}; }}
+        QFrame#toolActivityCard {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 10px; }}
+        QFrame#toolActivityCard QLabel {{ background: transparent; border: none; }}
+        QLabel#toolStatusSuccess {{ color: {success}; font-weight: 600; }}
+        QLabel#toolStatusFailure {{ color: {error}; font-weight: 600; }}
+        QLabel#toolStatusWarning {{ color: {warning}; font-weight: 600; }}
+        QLabel#toolStatusInfo {{ color: {info}; font-weight: 600; }}
+        QLabel#errorLabel {{ color: {error}; font-weight: 600; }}
         QScrollArea {{ border: none; background: {app_bg}; }}
         QScrollBar:vertical {{
             background: {app_bg};
@@ -281,6 +337,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-radius: 5px;
             min-height: 32px;
         }}
+        QScrollBar::handle:vertical:hover {{ background: {accent}; }}
         QToolTip {{
             background: {panel_bg};
             color: {text_primary};
@@ -290,18 +347,23 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
     """
 
 
-def _palette_for_theme(theme: str) -> dict[str, str]:
+def theme_palette(theme: str, system_lightness: int | None = None) -> dict[str, str]:
+    """Return semantic colors for dark, light, or the current system palette."""
     if theme == "system":
-        application = QGuiApplication.instance()
-        if application is not None:
-            theme = "light" if application.palette().window().color().lightness() > 160 else "dark"
+        if system_lightness is None:
+            application = QGuiApplication.instance()
+            system_lightness = application.palette().window().color().lightness() if application is not None else 0
+        theme = "light" if system_lightness > 160 else "dark"
     if theme == "light":
         return {
-            "app_bg": "#f4f6f8", "sidebar_bg": "#e9edf2", "panel_bg": "#ffffff",
-            "elevated_bg": "#eef1f5", "composer_bg": "#ffffff", "assistant_bubble": "#ffffff",
-            "user_bubble": "#3767d6", "text_primary": "#17202b", "text_secondary": "#304052",
-            "text_muted": "#5d6b7b", "border": "#c7d0da", "soft_border": "#b5c0cc",
-            "accent": "#315fd4", "accent_hover": "#2552c4", "disabled": "#8995a3",
+            "app_bg": "#f3f5f8", "sidebar_bg": "#e7ebf0", "panel_bg": "#ffffff",
+            "elevated_bg": "#edf1f5", "composer_bg": "#ffffff", "assistant_bubble": "#ffffff",
+            "user_bubble": "#2858c7", "text_primary": "#17202b", "text_secondary": "#344457",
+            "text_muted": "#59697a", "border": "#b9c4cf", "soft_border": "#c9d1da",
+            "accent": "#2858c7", "accent_hover": "#1f49ad", "disabled": "#748191",
+            "pressed": "#dce4ee", "selected": "#dce7fa", "focus": "#174ea6",
+            "user_border": "#1f49ad", "user_text": "#ffffff", "success": "#176b3a",
+            "warning": "#7a4b00", "error": "#a8202a", "info": "#2858c7",
         }
     return {
         "app_bg": APP_BG, "sidebar_bg": SIDEBAR_BG, "panel_bg": PANEL_BG,
@@ -310,4 +372,10 @@ def _palette_for_theme(theme: str) -> dict[str, str]:
         "text_primary": TEXT_PRIMARY, "text_secondary": TEXT_SECONDARY,
         "text_muted": TEXT_MUTED, "border": BORDER, "soft_border": SOFT_BORDER,
         "accent": ACCENT, "accent_hover": ACCENT_HOVER, "disabled": DISABLED,
+        "pressed": "#303846", "selected": "#252d3a", "focus": ACCENT_HOVER,
+        "user_border": "#3b6bed", "user_text": "#ffffff", "success": SUCCESS,
+        "warning": WARNING, "error": ERROR, "info": ACCENT,
     }
+
+
+_palette_for_theme = theme_palette
