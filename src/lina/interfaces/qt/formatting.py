@@ -120,6 +120,12 @@ def friendly_error_message(error: Exception) -> str:
     """Map controlled runtime failures to a short Turkish GUI message."""
     name = error.__class__.__name__.casefold()
     message = str(error).strip()
+    if "first token" in message.casefold():
+        return "Model yanıt vermeye başlamadı."
+    if "generation timed out" in message.casefold():
+        return "Yanıt çok uzun sürdüğü için durduruldu."
+    if "network error" in message.casefold() or "request failed" in message.casefold():
+        return "Ollama'ya ulaşılamadı."
     if "timeout" in name or "timeout" in message.casefold():
         return (
             "Model yanıt vermedi İlhan. Ollama çalışıyor olabilir ama bu istek "

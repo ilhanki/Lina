@@ -35,6 +35,8 @@ class OllamaProvider(ModelProvider):
         keep_alive: str | int | None = None,
         max_output_tokens: int | None = None,
         stream: bool = False,
+        first_token_timeout: float | None = None,
+        total_timeout: float | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
@@ -44,6 +46,8 @@ class OllamaProvider(ModelProvider):
         self._keep_alive = keep_alive
         self._max_output_tokens = max_output_tokens
         self._stream = stream
+        self._first_token_timeout = first_token_timeout or timeout
+        self._total_timeout = total_timeout or timeout * 4
         self._last_metrics: InferenceMetrics | None = None
         self._cancelled = threading.Event()
         self._response_lock = threading.Lock()
@@ -95,7 +99,7 @@ class OllamaProvider(ModelProvider):
         if request.image_attachment is not None:
             payload["think"] = False
         try:
-            chunks = self._post_stream("/api/chat", payload)
+            chunks = self._post_stream("/api/chat", payload, started)
         except OllamaProviderError as error:
             self._last_metrics = InferenceMetrics(
                 provider="ollama", model=model, first_token_ms=None,
@@ -160,12 +164,18 @@ class OllamaProvider(ModelProvider):
             return False
         return True
 
-    def _post_stream(self, path: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
+    def _post_stream(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        started: float,
+    ) -> list[dict[str, Any]]:
         if not self._stream:
             response = self._post_json(path, payload)
             response["_received_at"] = time.perf_counter()
             return [response]
         http_request = self._request(path, payload)
+        first_token_received = False
         try:
             with self._opener(http_request, timeout=self._timeout) as response:
                 with self._response_lock:
@@ -176,6 +186,20 @@ class OllamaProvider(ModelProvider):
                     if not line:
                         break
                     raw_lines.append((line, time.perf_counter()))
+                    elapsed = time.perf_counter() - started
+                    if elapsed >= self._total_timeout:
+                        raise OllamaProviderError("Ollama generation timed out")
+                    try:
+                        preview = json.loads(line.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        preview = None
+                    if isinstance(preview, dict) and _chunk_text(preview):
+                        first_token_received = True
+                    if (
+                        not first_token_received
+                        and elapsed >= self._first_token_timeout
+                    ):
+                        raise OllamaProviderError("Ollama first token timed out")
                     if self._cancelled.is_set():
                         raise OllamaProviderError("Ollama request cancelled")
         except Exception as error:
@@ -183,6 +207,13 @@ class OllamaProvider(ModelProvider):
                 raise
             if self._cancelled.is_set():
                 raise OllamaProviderError("Ollama request cancelled") from error
+            if isinstance(error, TimeoutError):
+                message = (
+                    "Ollama generation timed out"
+                    if first_token_received
+                    else "Ollama first token timed out"
+                )
+                raise OllamaProviderError(message) from error
             self._raise_transport_error(error)
         finally:
             with self._response_lock:
@@ -277,8 +308,12 @@ def _error_category(error: Exception) -> str:
     message = str(error).casefold()
     if "cancel" in message:
         return "cancelled"
+    if "first token" in message:
+        return "first_token_timeout"
+    if "generation timed out" in message:
+        return "total_timeout"
     if "timed out" in message:
-        return "timeout"
+        return "connection_timeout"
     if "network" in message or "request failed" in message:
         return "connection"
     if "http" in message:
