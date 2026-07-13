@@ -38,7 +38,11 @@ def make_controller(enabled=True, barge_in=True):
     playback = AudioPlaybackService(provider)
     controller = VoiceController(
         playback,
-        settings=VoiceSettings(enabled=enabled, barge_in_enabled=barge_in),
+        settings=VoiceSettings(
+            enabled=enabled,
+            responses_enabled=enabled,
+            barge_in_enabled=barge_in,
+        ),
     )
     return controller, provider
 
@@ -77,6 +81,21 @@ def test_speaking_and_barge_in_stop_playback():
     assert controller.state is VoiceState.LISTENING
 
 
+def test_thinking_transitions_to_speaking_then_idle():
+    controller, provider = make_controller()
+    controller.begin_thinking()
+    assert controller.state is VoiceState.THINKING
+    assert controller.speak("Merhaba")
+    assert provider.started.wait(1)
+    assert controller.state is VoiceState.SPEAKING
+    provider.release.set()
+    for _ in range(20):
+        if controller.state is VoiceState.IDLE:
+            break
+        time.sleep(0.01)
+    assert controller.state is VoiceState.IDLE
+
+
 def test_barge_in_can_be_disabled():
     controller, provider = make_controller(barge_in=False)
     controller.speak_response("Merhaba")
@@ -110,3 +129,49 @@ def test_voice_list_and_unavailable_wake_word_contract():
     controller, _ = make_controller()
     assert controller.list_voices()[0].language == "tr"
     assert not controller.wake_word_available
+
+
+def test_voice_responses_disabled_skips_speak_even_when_mic_is_enabled():
+    provider = BlockingProvider()
+    controller = VoiceController(
+        AudioPlaybackService(provider),
+        settings=VoiceSettings(enabled=True, responses_enabled=False),
+    )
+    assert not controller.speak("Merhaba")
+    assert controller.state is VoiceState.IDLE
+    assert not provider.started.is_set()
+
+
+def test_tts_lifecycle_logging_is_privacy_safe(caplog):
+    controller, provider = make_controller()
+    with caplog.at_level("INFO", logger="lina.voice"):
+        assert controller.speak("gizli kullanıcı metni")
+        assert provider.started.wait(1)
+        provider.release.set()
+        time.sleep(0.03)
+    log_text = caplog.text
+    assert "tts_requested" in log_text
+    assert "tts_synthesis_started" in log_text
+    assert "playback_started" in log_text
+    assert "playback_completed" in log_text
+    assert "gizli kullanıcı metni" not in log_text
+
+
+def test_tts_failure_log_contains_only_safe_category(caplog):
+    class FailingProvider(BlockingProvider):
+        def speak(self, text, voice_id, rate, volume):
+            raise RuntimeError("private engine detail")
+
+    controller = VoiceController(
+        AudioPlaybackService(FailingProvider()),
+        settings=VoiceSettings(enabled=True, responses_enabled=True),
+    )
+    with caplog.at_level("INFO", logger="lina.voice"):
+        assert controller.speak("gizli metin")
+        for _ in range(20):
+            if controller.state is VoiceState.ERROR:
+                break
+            time.sleep(0.01)
+    assert "tts_failed error_category=synthesis" in caplog.text
+    assert "gizli metin" not in caplog.text
+    assert "private engine detail" not in caplog.text

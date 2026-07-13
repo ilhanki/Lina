@@ -176,6 +176,7 @@ def create_application_services(
         AudioPlaybackService(tts_provider),
         settings=VoiceSettings(
             enabled=user_preferences.speech.enabled,
+            responses_enabled=user_preferences.speech.voice_responses_enabled,
             voice_id=user_preferences.speech.system_voice,
             rate=user_preferences.speech.speech_rate,
             volume=user_preferences.speech.volume,

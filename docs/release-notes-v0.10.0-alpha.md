@@ -28,7 +28,7 @@
 
 ## Bilinen Sınırlar
 
-- Yerel TTS mevcut PySide6 Windows WinRT/SAPI motorunu kullanır; sistem motoru veya voice yoksa güvenli unavailable fallback devreye girer.
+- Yerel TTS mevcut PySide6 Windows WinRT motorunu kullanır; SAPI/System.Speech sesleri WinRT listesine karıştırılmaz. WinRT motoru veya voice yoksa güvenli unavailable fallback devreye girer.
 - Production wake-word/hands-free detector v0.10.1-alpha kapsamındadır.
 - Full camera/live vision v0.11.0-alpha, agent mode v0.12.0-alpha ve Codex bridge v0.13.0-alpha kapsamındadır.
 - Gerçek Windows voice, audio device, Ollama VRAM ve font scaling davranışı release öncesi manuel smoke test gerektirir.

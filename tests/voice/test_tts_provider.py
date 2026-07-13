@@ -63,6 +63,9 @@ class FakeQtEngine:
     def availableVoices(self):
         return [FakeQtVoice()]
 
+    def setVoice(self, voice):
+        self.selected_voice = voice
+
 
 def test_normalize_spoken_text_removes_code_urls_json_and_base64():
     text = "Merhaba. ```python\nprint('secret')\n``` https://example.com/" + "a" * 80
@@ -109,3 +112,21 @@ def test_qt_windows_provider_discovers_turkish_system_voice():
     assert provider.list_voices() == (
         SystemVoice("Microsoft Tolga|tr_TR", "Microsoft Tolga", "tr"),
     )
+
+
+def test_selected_winrt_voice_failure_retries_engine_default():
+    engines = [FakeQtEngine(), FakeQtEngine()]
+
+    class FallbackProvider(QtWindowsTTSProvider):
+        attempts = 0
+
+        def _speak_once(self, engine, *args):
+            self.attempts += 1
+            if self.attempts == 1:
+                from lina.voice.models import VoicePlaybackError
+
+                raise VoicePlaybackError("selected voice failed")
+
+    provider = FallbackProvider(engine_factory=lambda: engines.pop(0))
+    provider.speak("Merhaba", "Microsoft Tolga|tr_TR", 1.0, 1.0)
+    assert provider.attempts == 2

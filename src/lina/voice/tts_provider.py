@@ -50,7 +50,7 @@ class UnavailableTTSProvider:
 
 
 class QtWindowsTTSProvider:
-    """Use PySide6's installed Windows WinRT/SAPI engines without new dependencies."""
+    """Use only PySide6's Windows WinRT engine without mixing SAPI voices."""
 
     def __init__(self, engine_factory: Any | None = None, synthesis_timeout: float = 60.0) -> None:
         self._cancelled = threading.Event()
@@ -68,9 +68,10 @@ class QtWindowsTTSProvider:
         if QCoreApplication.instance() is None:
             return None
         engines = QTextToSpeech.availableEngines()
-        selected = next((name for name in ("winrt", "sapi") if name in engines), None)
+        if "winrt" not in engines:
+            return None
         try:
-            return QTextToSpeech(selected) if selected else QTextToSpeech()
+            return QTextToSpeech("winrt")
         except Exception:
             return None
 
@@ -117,42 +118,76 @@ class QtWindowsTTSProvider:
             selected = self._select_voice(engine, voice_id)
             if selected is not None:
                 engine.setVoice(selected)
-            engine.setRate(max(-1.0, min(1.0, rate - 1.0)))
-            engine.setVolume(max(0.0, min(1.0, volume)))
-            loop = QEventLoop()
-            timer = QTimer()
-            timer.setInterval(50)
-            started = time.monotonic()
-            timed_out = [False]
-
-            def poll_cancel() -> None:
-                if self._cancelled.is_set():
-                    engine.stop()
-                    loop.quit()
-                elif time.monotonic() - started >= self._synthesis_timeout:
-                    timed_out[0] = True
-                    engine.stop()
-                    loop.quit()
-
-            def state_changed(state) -> None:
-                if state in {QTextToSpeech.State.Ready, QTextToSpeech.State.Error}:
-                    loop.quit()
-
-            timer.timeout.connect(poll_cancel)
-            engine.stateChanged.connect(state_changed)
-            timer.start()
-            engine.say(text)
-            if engine.state() not in {QTextToSpeech.State.Ready, QTextToSpeech.State.Error}:
-                loop.exec()
-            timer.stop()
-            if timed_out[0]:
-                raise VoicePlaybackError("Sesli yanıt oluşturulamadı.")
-            if engine.state() is QTextToSpeech.State.Error:
-                raise VoicePlaybackError("Sesli yanıt oynatılamadı.")
+            self._speak_once(engine, text, rate, volume, QEventLoop, QTimer, QTextToSpeech)
         except VoicePlaybackError:
-            raise
+            if not voice_id:
+                raise
+            fallback_engine = self._create_engine()
+            if fallback_engine is None:
+                raise
+            self._cancelled.clear()
+            self._speak_once(
+                fallback_engine,
+                text,
+                rate,
+                volume,
+                QEventLoop,
+                QTimer,
+                QTextToSpeech,
+            )
         except Exception as error:
+            if voice_id:
+                fallback_engine = self._create_engine()
+                if fallback_engine is not None:
+                    try:
+                        self._cancelled.clear()
+                        self._speak_once(
+                            fallback_engine,
+                            text,
+                            rate,
+                            volume,
+                            QEventLoop,
+                            QTimer,
+                            QTextToSpeech,
+                        )
+                        return
+                    except Exception:
+                        pass
             raise VoicePlaybackError("Sesli yanıt oynatılamadı.") from error
+
+    def _speak_once(self, engine: Any, text: str, rate: float, volume: float, event_loop_type: Any, timer_type: Any, tts_type: Any) -> None:
+        engine.setRate(max(-1.0, min(1.0, rate - 1.0)))
+        engine.setVolume(max(0.0, min(1.0, volume)))
+        loop = event_loop_type()
+        timer = timer_type()
+        timer.setInterval(50)
+        started = time.monotonic()
+        timed_out = [False]
+
+        def poll_cancel() -> None:
+            if self._cancelled.is_set():
+                engine.stop()
+                loop.quit()
+            elif time.monotonic() - started >= self._synthesis_timeout:
+                timed_out[0] = True
+                engine.stop()
+                loop.quit()
+
+        def state_changed(state) -> None:
+            if state in {tts_type.State.Ready, tts_type.State.Error}:
+                loop.quit()
+
+        timer.timeout.connect(poll_cancel)
+        engine.stateChanged.connect(state_changed)
+        timer.start()
+        engine.say(text)
+        if engine.state() not in {tts_type.State.Ready, tts_type.State.Error}:
+            loop.exec()
+        timer.stop()
+        if timed_out[0]:
+            raise VoicePlaybackError("Sesli yanıt oluşturulamadı.")
+        if engine.state() is tts_type.State.Error:
+            raise VoicePlaybackError("Sesli yanıt oynatılamadı.")
 
     def _select_voice(self, engine: Any, voice_id: str | None):
         voices = list(engine.availableVoices())

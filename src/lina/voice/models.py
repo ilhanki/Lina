@@ -20,6 +20,7 @@ class VoiceState(str, Enum):
 @dataclass(frozen=True, slots=True)
 class VoiceSettings:
     enabled: bool = False
+    responses_enabled: bool = False
     voice_id: str | None = None
     rate: float = 1.0
     volume: float = 1.0

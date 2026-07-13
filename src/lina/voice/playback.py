@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 import threading
 
 from lina.voice.models import VoicePlaybackResult
@@ -10,6 +11,7 @@ from lina.voice.tts_provider import TextToSpeechProvider
 
 
 PlaybackCallback = Callable[[int, VoicePlaybackResult], None]
+_logger = logging.getLogger("lina.voice")
 
 
 class AudioPlaybackService:
@@ -58,9 +60,17 @@ class AudioPlaybackService:
 
     def _run(self, generation: int, text: str, voice_id: str | None, rate: float, volume: float, callback: PlaybackCallback | None) -> None:
         try:
+            _logger.info("tts_synthesis_started")
+            _logger.info("playback_started")
             self._provider.speak(text, voice_id, rate, volume)
+            _logger.info("tts_synthesis_completed")
+            _logger.info("playback_completed")
             result = VoicePlaybackResult(completed=True)
-        except Exception:
+        except Exception as error:
+            _logger.warning(
+                "tts_failed error_category=%s",
+                _safe_error_category(error),
+            )
             result = VoicePlaybackResult(completed=False, error_message="Sesli yanıt oluşturulamadı.")
         with self._lock:
             current = generation == self._generation and not self._shutdown
@@ -82,3 +92,14 @@ class AudioPlaybackService:
         with self._lock:
             self._shutdown = True
         self.stop()
+
+
+def _safe_error_category(error: Exception) -> str:
+    name = error.__class__.__name__.casefold()
+    if "unavailable" in name:
+        return "unavailable"
+    if "timeout" in name or "timed out" in str(error).casefold():
+        return "timeout"
+    if "playback" in name:
+        return "playback"
+    return "synthesis"

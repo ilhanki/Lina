@@ -500,6 +500,7 @@ class LinaMainWindow(QMainWindow):
             self._voice_controller.configure(
                 VoiceSettings(
                     enabled=settings.speech.enabled,
+                    responses_enabled=settings.speech.voice_responses_enabled,
                     voice_id=settings.speech.system_voice,
                     rate=settings.speech.speech_rate,
                     volume=settings.speech.volume,
@@ -567,6 +568,12 @@ class LinaMainWindow(QMainWindow):
         )
         self._set_waiting_state(True)
         self._set_status("Cevap bekleniyor...")
+        if (
+            self._voice_controller is not None
+            and self._voice_controller.responses_enabled
+            and self._voice_controller.state is VoiceState.IDLE
+        ):
+            self._voice_controller.begin_thinking()
 
         self._active_request_id += 1
         request_id = self._active_request_id
@@ -741,6 +748,7 @@ class LinaMainWindow(QMainWindow):
 
     def _finish_routed_intent(self, user_text: str, assistant_text: str, created_at: datetime) -> None:
         self._append_assistant_message(assistant_text)
+        self.speak_assistant_response(assistant_text)
         if self._conversation_history_service is not None:
             self._conversation_history_service.record_user_message(user_text, created_at=created_at)
             self._conversation_history_service.record_assistant_message(assistant_text)
@@ -751,6 +759,11 @@ class LinaMainWindow(QMainWindow):
     def cancel_active_response(self) -> None:
         """Stop rendering the active response and keep the composer usable."""
         self.stop_voice()
+        if (
+            self._voice_controller is not None
+            and self._voice_controller.state is VoiceState.THINKING
+        ):
+            self._voice_controller.finish_interaction()
         if self._model_lifecycle_service is not None:
             self._model_lifecycle_service.cancel_active()
         elif self._inference_diagnostics_service is not None:
@@ -1310,11 +1323,7 @@ class LinaMainWindow(QMainWindow):
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text, created_at=assistant_created_at)
-        if self._voice_responses_enabled and self._voice_controller is not None:
-            if self._voice_controller.tts_available:
-                self._voice_controller.speak_response(text)
-            else:
-                self._set_status("Sesli yanıt şu anda kullanılamıyor.")
+        self.speak_assistant_response(text)
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
         self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
@@ -1389,6 +1398,12 @@ class LinaMainWindow(QMainWindow):
         """Stop local speech playback without removing written content."""
         if self._voice_controller is not None and self._voice_controller.stop():
             self._set_status("Ses durduruldu.")
+
+    def speak_assistant_response(self, text: str) -> bool:
+        """Speak one finalized assistant response through the single safe runtime path."""
+        if self._voice_controller is None:
+            return False
+        return self._voice_controller.speak(text)
 
     def _apply_voice_state(self, state: object) -> None:
         labels = {
@@ -1799,6 +1814,8 @@ class LinaMainWindow(QMainWindow):
             self._notification_scheduler.stop()
         if self._tray_icon is not None:
             self._tray_icon.hide()
+        self._pending_scroll_to_bottom = False
+        self._pending_scroll_to_top = False
         event.accept()
 
 

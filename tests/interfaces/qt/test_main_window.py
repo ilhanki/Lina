@@ -21,6 +21,7 @@ from lina.services.model_diagnostics_service import (
 )
 from lina.speech.models import SpeechState, SpeechTranscriptionResult
 from lina.settings.models import UserSettings
+from lina.voice.models import VoiceState
 from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.theme import theme_palette
@@ -127,6 +128,49 @@ class FakeSpeechService:
         self.stop_count += 1
 
 
+class FakeVoiceController:
+    def __init__(self) -> None:
+        self.state = VoiceState.IDLE
+        self.settings = None
+        self.spoken: list[str] = []
+        self.listeners = []
+
+    @property
+    def wake_word_available(self):
+        return False
+
+    def list_voices(self):
+        return ()
+
+    def subscribe(self, listener):
+        self.listeners.append(listener)
+
+    def configure(self, settings):
+        self.settings = settings
+
+    def speak(self, text):
+        if self.settings is None or not self.settings.responses_enabled:
+            return False
+        self.spoken.append(text)
+        return True
+
+    @property
+    def responses_enabled(self):
+        return bool(self.settings and self.settings.responses_enabled)
+
+    def begin_thinking(self):
+        self.state = VoiceState.THINKING
+
+    def finish_interaction(self):
+        self.state = VoiceState.IDLE
+
+    def stop(self):
+        return False
+
+    def shutdown(self):
+        return None
+
+
 def _valid_png() -> bytes:
     image = QImage(16, 9, QImage.Format.Format_RGB32)
     image.fill(0x336699)
@@ -219,6 +263,110 @@ def _user_messages(window: LinaMainWindow) -> list[object]:
         if getattr(message, "role", None) == "user":
             messages.append(message)
     return messages
+
+
+def test_final_normal_chat_response_uses_common_voice_path(qtbot, tmp_path) -> None:
+    settings_service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    enabled = UserSettings.from_dict({"speech": {"voice_responses_enabled": True}})
+    settings_service.update(enabled)
+    voice = FakeVoiceController()
+    window = LinaMainWindow(
+        FakeConversationService(response_text="Final yanıt"),
+        speech_service=FakeSpeechService(available=False),
+        user_settings_service=settings_service,
+        voice_controller=voice,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._composer.set_text("Merhaba")
+    window.send_message()
+    assert voice.spoken == ["Final yanıt"]
+    qtbot.wait(20)
+    window._force_exit = True
+    window.close()
+
+
+def test_voice_disabled_skips_final_response(qtbot) -> None:
+    voice = FakeVoiceController()
+    window = LinaMainWindow(
+        FakeConversationService(response_text="Sessiz yanıt"),
+        speech_service=FakeSpeechService(available=False),
+        voice_controller=voice,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._composer.set_text("Merhaba")
+    window.send_message()
+    assert voice.spoken == []
+    qtbot.wait(20)
+    window._force_exit = True
+    window.close()
+
+
+def test_settings_apply_updates_runtime_voice_controller(qtbot, tmp_path) -> None:
+    voice = FakeVoiceController()
+    settings_service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    window = LinaMainWindow(
+        FakeConversationService(),
+        speech_service=FakeSpeechService(available=False),
+        user_settings_service=settings_service,
+        voice_controller=voice,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.open_settings()
+    window._settings_dialog._voice_responses.setChecked(True)
+    window._settings_dialog._apply()
+    assert voice.settings.responses_enabled
+    assert settings_service.current.speech.voice_responses_enabled
+    window._settings_dialog.close()
+    qtbot.wait(20)
+    window._force_exit = True
+    window.close()
+
+
+def test_short_tool_result_uses_common_voice_path(qtbot) -> None:
+    voice = FakeVoiceController()
+    window = LinaMainWindow(
+        FakeConversationService(),
+        speech_service=FakeSpeechService(available=False),
+        voice_controller=voice,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window._apply_user_settings(
+        UserSettings.from_dict({"speech": {"voice_responses_enabled": True}})
+    )
+    window._finish_routed_intent("Saat kaç?", "Saat 12:30.", datetime.now())
+    assert voice.spoken == ["Saat 12:30."]
+    qtbot.wait(20)
+    window._force_exit = True
+    window.close()
+
+
+def test_cancelled_stale_response_does_not_start_tts(qtbot) -> None:
+    voice = FakeVoiceController()
+    pool = DeferredThreadPool()
+    window = LinaMainWindow(
+        FakeConversationService(response_text="Geç yanıt"),
+        speech_service=FakeSpeechService(available=False),
+        voice_controller=voice,
+        thread_pool=pool,
+    )
+    qtbot.addWidget(window)
+    window._apply_user_settings(
+        UserSettings.from_dict({"speech": {"voice_responses_enabled": True}})
+    )
+    while pool.workers:
+        pool.run_next()
+    window._composer.set_text("Merhaba")
+    window.send_message()
+    window.cancel_active_response()
+    pool.run_next()
+    assert voice.spoken == []
+    qtbot.wait(20)
+    window._force_exit = True
+    window.close()
 
 
 def test_settings_toggle_disables_speech_and_vision_controls(qtbot, tmp_path) -> None:

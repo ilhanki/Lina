@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 import threading
 
 from lina.voice.models import VoiceSettings, VoiceState
@@ -12,6 +13,7 @@ from lina.voice.wake_word import UnavailableWakeWordDetector, WakeWordDetector
 
 
 StateListener = Callable[[VoiceState], None]
+_logger = logging.getLogger("lina.voice")
 
 
 class VoiceController:
@@ -71,12 +73,20 @@ class VoiceController:
     def begin_thinking(self) -> None:
         self._transition({VoiceState.LISTENING, VoiceState.TRANSCRIBING, VoiceState.IDLE}, VoiceState.THINKING)
 
-    def speak_response(self, text: str) -> bool:
-        if self._shutdown or not self._settings.enabled:
+    @property
+    def responses_enabled(self) -> bool:
+        return self._settings.responses_enabled
+
+    def speak(self, text: str) -> bool:
+        if self._shutdown or not self._settings.enabled or not self._settings.responses_enabled:
             return False
         spoken = normalize_spoken_text(text)
         if not spoken:
             self._set_state(VoiceState.IDLE)
+            return False
+        _logger.info("tts_requested")
+        if not self.tts_available:
+            _logger.warning("tts_failed error_category=unavailable")
             return False
         self._set_state(VoiceState.SPEAKING)
         self._playback.play(
@@ -87,6 +97,10 @@ class VoiceController:
             self._playback_finished,
         )
         return True
+
+    def speak_response(self, text: str) -> bool:
+        """Backward-compatible alias for final assistant response speech."""
+        return self.speak(text)
 
     def _playback_finished(self, generation: int, result: object) -> None:
         if self._shutdown:
