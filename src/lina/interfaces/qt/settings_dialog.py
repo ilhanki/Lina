@@ -41,6 +41,7 @@ class SettingsDialog(QDialog):
         self._voice_controller = voice_controller
         self._inference_diagnostics = inference_diagnostics
         self._benchmark_worker = None
+        self._benchmark_cancelled = False
         self._refresh_worker = None
         self._refresh_generation = 0
         self._vision_valid_models: set[str] = set()
@@ -156,7 +157,7 @@ class SettingsDialog(QDialog):
         self._performance_status.setWordWrap(True)
         self._benchmark_button = QPushButton("Performans Testi", page)
         self._benchmark_button.setEnabled(self._inference_diagnostics is not None)
-        self._benchmark_button.clicked.connect(self._run_benchmark)
+        self._benchmark_button.clicked.connect(self._toggle_benchmark)
         form.addRow(self._benchmark_button)
         form.addRow(self._performance_status)
         self._refresh_models.clicked.connect(self._refresh_model_list)
@@ -343,19 +344,33 @@ class SettingsDialog(QDialog):
         worker.signals.finished.connect(lambda: self._finish_model_refresh(worker))
         QThreadPool.globalInstance().start(worker)
 
+    def _toggle_benchmark(self) -> None:
+        if self._benchmark_worker is not None:
+            self._benchmark_cancelled = True
+            self._performance_status.setText("Performans testi iptal ediliyor...")
+            self._inference_diagnostics.cancel()
+            return
+        self._run_benchmark()
+
     def _run_benchmark(self) -> None:
         if self._inference_diagnostics is None or self._benchmark_worker is not None:
             return
-        self._benchmark_button.setEnabled(False)
+        self._benchmark_cancelled = False
+        self._benchmark_button.setText("Testi Durdur")
         self._performance_status.setText("Performans ölçülüyor...")
         worker = FunctionWorker(self._inference_diagnostics.benchmark)
         self._benchmark_worker = worker
         worker.signals.result.connect(self._show_benchmark)
-        worker.signals.error.connect(
-            lambda _error: self._performance_status.setText("Ollama'ya ulaşılamadı.")
-        )
+        worker.signals.error.connect(self._show_benchmark_error)
         worker.signals.finished.connect(lambda: self._finish_benchmark(worker))
         QThreadPool.globalInstance().start(worker)
+
+    def _show_benchmark_error(self, _error: object) -> None:
+        self._performance_status.setText(
+            "Performans testi iptal edildi."
+            if self._benchmark_cancelled
+            else "Ollama'ya ulaşılamadı."
+        )
 
     def _show_benchmark(self, metrics: object) -> None:
         first = getattr(metrics, "first_token_ms", None)
@@ -375,6 +390,7 @@ class SettingsDialog(QDialog):
     def _finish_benchmark(self, worker: object) -> None:
         if self._benchmark_worker is worker:
             self._benchmark_worker = None
+            self._benchmark_button.setText("Performans Testi")
             self._benchmark_button.setEnabled(True)
 
     def _load_models_and_validate_vision(self) -> tuple[tuple[str, ...], tuple[str, ...]]:

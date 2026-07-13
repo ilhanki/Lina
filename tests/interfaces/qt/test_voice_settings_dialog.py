@@ -29,3 +29,24 @@ def test_dialog_collects_send_mode_and_bounds(qtbot, tmp_path):
     assert not collected.speech.auto_insert_transcription
     assert collected.speech.speech_rate == 1.5
     assert collected.speech.volume == 0.3
+
+
+def test_benchmark_button_cancels_active_test(qtbot, tmp_path):
+    class Diagnostics:
+        cancelled = False
+
+        def benchmark(self):
+            return None
+
+        def cancel(self):
+            self.cancelled = True
+
+    diagnostics = Diagnostics()
+    service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    dialog = SettingsDialog(service, inference_diagnostics=diagnostics)
+    qtbot.addWidget(dialog)
+    dialog._benchmark_worker = object()
+    dialog._toggle_benchmark()
+    assert diagnostics.cancelled
+    assert dialog._benchmark_cancelled
+    assert "iptal" in dialog._performance_status.text().casefold()
