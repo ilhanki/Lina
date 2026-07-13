@@ -49,6 +49,127 @@ class UnavailableTTSProvider:
         return None
 
 
+class QtWindowsTTSProvider:
+    """Use PySide6's installed Windows WinRT/SAPI engines without new dependencies."""
+
+    def __init__(self, engine_factory: Any | None = None, synthesis_timeout: float = 60.0) -> None:
+        self._cancelled = threading.Event()
+        self._engine_factory = engine_factory
+        self._synthesis_timeout = max(1.0, synthesis_timeout)
+
+    def _create_engine(self):
+        if self._engine_factory is not None:
+            return self._engine_factory()
+        try:
+            from PySide6.QtCore import QCoreApplication
+            from PySide6.QtTextToSpeech import QTextToSpeech
+        except ImportError:
+            return None
+        if QCoreApplication.instance() is None:
+            return None
+        engines = QTextToSpeech.availableEngines()
+        selected = next((name for name in ("winrt", "sapi") if name in engines), None)
+        try:
+            return QTextToSpeech(selected) if selected else QTextToSpeech()
+        except Exception:
+            return None
+
+    def is_available(self) -> bool:
+        engine = self._create_engine()
+        if engine is None:
+            return False
+        try:
+            state_name = getattr(engine.state(), "name", str(engine.state()).rsplit(".", 1)[-1])
+            return state_name != "Error" and bool(engine.availableVoices())
+        except Exception:
+            return False
+
+    def list_voices(self) -> tuple[SystemVoice, ...]:
+        engine = self._create_engine()
+        if engine is None:
+            return ()
+        voices: list[SystemVoice] = []
+        try:
+            for voice in engine.availableVoices():
+                locale = voice.locale().name()
+                voices.append(
+                    SystemVoice(
+                        id=f"{voice.name()}|{locale}",
+                        name=voice.name(),
+                        language="tr" if locale.casefold().startswith("tr") else locale,
+                    )
+                )
+        except Exception:
+            return ()
+        return tuple(voices)
+
+    def speak(self, text: str, voice_id: str | None, rate: float, volume: float) -> None:
+        try:
+            from PySide6.QtCore import QEventLoop, QTimer
+            from PySide6.QtTextToSpeech import QTextToSpeech
+        except ImportError as error:
+            raise VoiceUnavailableError("Sesli yanıt şu anda kullanılamıyor.") from error
+        engine = self._create_engine()
+        if engine is None:
+            raise VoiceUnavailableError("Sesli yanıt şu anda kullanılamıyor.")
+        self._cancelled.clear()
+        try:
+            selected = self._select_voice(engine, voice_id)
+            if selected is not None:
+                engine.setVoice(selected)
+            engine.setRate(max(-1.0, min(1.0, rate - 1.0)))
+            engine.setVolume(max(0.0, min(1.0, volume)))
+            loop = QEventLoop()
+            timer = QTimer()
+            timer.setInterval(50)
+            started = time.monotonic()
+            timed_out = [False]
+
+            def poll_cancel() -> None:
+                if self._cancelled.is_set():
+                    engine.stop()
+                    loop.quit()
+                elif time.monotonic() - started >= self._synthesis_timeout:
+                    timed_out[0] = True
+                    engine.stop()
+                    loop.quit()
+
+            def state_changed(state) -> None:
+                if state in {QTextToSpeech.State.Ready, QTextToSpeech.State.Error}:
+                    loop.quit()
+
+            timer.timeout.connect(poll_cancel)
+            engine.stateChanged.connect(state_changed)
+            timer.start()
+            engine.say(text)
+            if engine.state() not in {QTextToSpeech.State.Ready, QTextToSpeech.State.Error}:
+                loop.exec()
+            timer.stop()
+            if timed_out[0]:
+                raise VoicePlaybackError("Sesli yanıt oluşturulamadı.")
+            if engine.state() is QTextToSpeech.State.Error:
+                raise VoicePlaybackError("Sesli yanıt oynatılamadı.")
+        except VoicePlaybackError:
+            raise
+        except Exception as error:
+            raise VoicePlaybackError("Sesli yanıt oynatılamadı.") from error
+
+    def _select_voice(self, engine: Any, voice_id: str | None):
+        voices = list(engine.availableVoices())
+        if voice_id:
+            for voice in voices:
+                identifier = f"{voice.name()}|{voice.locale().name()}"
+                if identifier == voice_id:
+                    return voice
+        for voice in voices:
+            if voice.locale().name().casefold().startswith("tr"):
+                return voice
+        return voices[0] if voices else None
+
+    def stop(self) -> None:
+        self._cancelled.set()
+
+
 class WindowsSapiTTSProvider:
     """Use installed Windows SAPI voices when optional COM bindings are present."""
 

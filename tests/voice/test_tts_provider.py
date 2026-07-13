@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from lina.voice.models import VoiceUnavailableError
+from lina.voice.models import SystemVoice, VoiceUnavailableError
 from lina.voice.tts_provider import (
     UnavailableTTSProvider,
+    QtWindowsTTSProvider,
     WindowsSapiTTSProvider,
     normalize_spoken_text,
 )
@@ -40,6 +41,27 @@ class FakeSpeaker:
 
     def WaitUntilDone(self, timeout):
         return True
+
+
+class FakeLocale:
+    def name(self):
+        return "tr_TR"
+
+
+class FakeQtVoice:
+    def name(self):
+        return "Microsoft Tolga"
+
+    def locale(self):
+        return FakeLocale()
+
+
+class FakeQtEngine:
+    def state(self):
+        return type("State", (), {"name": "Ready"})()
+
+    def availableVoices(self):
+        return [FakeQtVoice()]
 
 
 def test_normalize_spoken_text_removes_code_urls_json_and_base64():
@@ -79,3 +101,11 @@ def test_windows_provider_lists_and_uses_turkish_voice():
     assert speaker.Rate == 2
     assert speaker.Volume == 60
     assert speaker.spoken == [("Merhaba dünya", 1)]
+
+
+def test_qt_windows_provider_discovers_turkish_system_voice():
+    provider = QtWindowsTTSProvider(engine_factory=FakeQtEngine)
+    assert provider.is_available()
+    assert provider.list_voices() == (
+        SystemVoice("Microsoft Tolga|tr_TR", "Microsoft Tolga", "tr"),
+    )

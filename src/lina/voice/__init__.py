@@ -3,7 +3,7 @@
 from lina.voice.controller import VoiceController
 from lina.voice.models import VoiceError, VoiceSettings, VoiceState
 from lina.voice.playback import AudioPlaybackService
-from lina.voice.tts_provider import WindowsSapiTTSProvider
+from lina.voice.tts_provider import QtWindowsTTSProvider, WindowsSapiTTSProvider
 
 __all__ = [
     "AudioPlaybackService",
@@ -11,5 +11,6 @@ __all__ = [
     "VoiceError",
     "VoiceSettings",
     "VoiceState",
+    "QtWindowsTTSProvider",
     "WindowsSapiTTSProvider",
 ]

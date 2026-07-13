@@ -38,7 +38,7 @@ from lina.speech.service import SpeechService
 from lina.voice.controller import VoiceController
 from lina.voice.models import VoiceSettings
 from lina.voice.playback import AudioPlaybackService
-from lina.voice.tts_provider import WindowsSapiTTSProvider
+from lina.voice.tts_provider import QtWindowsTTSProvider
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 from lina.settings.repository import UserSettingsRepository, default_user_settings_path
 from lina.settings.service import UserSettingsService
@@ -171,7 +171,7 @@ def create_application_services(
             vision_diagnostics_service,
         )
     )
-    tts_provider = WindowsSapiTTSProvider()
+    tts_provider = QtWindowsTTSProvider()
     voice_controller = VoiceController(
         AudioPlaybackService(tts_provider),
         settings=VoiceSettings(

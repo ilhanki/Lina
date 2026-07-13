@@ -21,7 +21,7 @@ v0.10.0-alpha ile yazılı yanıt korunurken isteğe bağlı yerel Windows TTS, 
 
 ### Voice Interaction
 
-- Sesli yanıtlar varsayılan kapalıdır; TTS yalnız yerel Windows SAPI kullanılabiliyorsa çalışır.
+- Sesli yanıtlar varsayılan kapalıdır; TTS mevcut PySide6 Windows WinRT/SAPI motorunu kullanır.
 - TTS unavailable olduğunda yazılı cevap kesilmez ve uygulama hata vermez.
 - Mic akışı `insert` veya açık kullanıcı seçimiyle `send` modunda çalışır.
 - Lina konuşurken mic veya “Sesi Durdur” mevcut playback’i keser; yazılı cevap silinmez.
