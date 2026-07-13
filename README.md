@@ -1,228 +1,174 @@
 <p align="center">
-  <img src="assets/branding/lina-logo.png" alt="Lina Logo" width="180">
+  <img src="assets/branding/lina-logo.png" alt="Lina logosu" width="180">
 </p>
 
-# Lina
+<h1 align="center">Lina</h1>
 
-**Local-first çalışan, hafıza, güvenli proje dosyası erişimi, yerel konuşmayı metne çevirme ve modern PySide6 masaüstü arayüzü sunan kişisel yapay zekâ asistanı.**
+<p align="center">
+  <strong>Windows için local-first, gizlilik odaklı kişisel yapay zekâ asistanı.</strong>
+</p>
 
-> Bu proje kişisel kullanım amacıyla geliştirildiği için dokümantasyon dili Türkçedir. Kod tabanı ise uluslararası yazılım geliştirme standartlarına uygun olarak İngilizce yazılmaktadır.
+<p align="center">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.10.0--alpha-7c5cff">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
+  <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
+  <img alt="Lisans" src="https://img.shields.io/badge/lisans-Proprietary-b45309">
+</p>
 
-## Proje Durumu
+Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıcıları ve güvenli yerel araçları tek bir PySide6 masaüstü deneyiminde birleştirir. Metin ve görsel modeller [Ollama](https://ollama.com/) üzerinden yerel çalışır; mikrofon kaydı, konuşma sentezi, sohbet geçmişi ve kullanıcı tercihleri açık sınırlar içinde cihazda tutulur.
 
-- **Sürüm:** `v0.10.0-alpha`
-- **Durum:** Alpha / aktif geliştirme
-- **Platform:** Windows masaüstü
-- **Çalışma modeli:** Local-first
+> [!IMPORTANT]
+> Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
 
-Lina; Ollama üzerinden yerel model kullanır, konuşma rollerini structured `/api/chat` mesajlarıyla ayırır, açık kullanıcı komutlarıyla yerel hafızaya kayıt yapar, yalnız izinli proje dosyalarını read-only okuyabilir ve push-to-talk ile Türkçe konuşmayı yerelde metne çevirebilir. PySide6 tabanlı modern masaüstü arayüzü günlük kullanıma odaklanırken capability sınırları privacy-first ve safety-first ilkeleriyle korunur.
+## İçindekiler
 
-v0.10.0-alpha ile yazılı yanıt korunurken isteğe bağlı yerel Windows TTS, push-to-talk otomatik gönderim, barge-in, inference ölçümleri, deterministik context trimming ve düşük VRAM için text/vision model lifecycle yönetimi eklendi. Wake-word mimarisi hazırdır ancak detector eklenmediği için özellik deneysel ve devre dışıdır.
+- [Neden Lina?](#neden-lina)
+- [Özellikler](#özellikler)
+- [Hızlı başlangıç](#hızlı-başlangıç)
+- [Kullanım örnekleri](#kullanım-örnekleri)
+- [Sesli etkileşim](#sesli-etkileşim)
+- [Görsel analiz](#görsel-analiz)
+- [Hatırlatıcılar ve güvenli araçlar](#hatırlatıcılar-ve-güvenli-araçlar)
+- [Ayarlar ve yerel veriler](#ayarlar-ve-yerel-veriler)
+- [Gizlilik ve güvenlik modeli](#gizlilik-ve-güvenlik-modeli)
+- [Mimari](#mimari)
+- [Geliştirme ve test](#geliştirme-ve-test)
+- [Bilinen sınırlar](#bilinen-sınırlar)
+- [Dokümantasyon](#dokümantasyon)
 
-### Voice Interaction
+## Neden Lina?
 
-- Sesli yanıtlar varsayılan kapalıdır; TTS mevcut PySide6 Windows WinRT motorunu kullanır ve SAPI ses listesini karıştırmaz.
-- TTS unavailable olduğunda yazılı cevap kesilmez ve uygulama hata vermez.
-- Mic akışı `insert` veya açık kullanıcı seçimiyle `send` modunda çalışır.
-- Lina konuşurken mic veya “Sesi Durdur” mevcut playback’i keser; yazılı cevap silinmez.
-- Kod blokları, uzun URL’ler, ham JSON, stack trace ve Base64 seslendirilmez; uzun metin 700 karakter civarında sınırlandırılır.
-- Mikrofon yalnız kullanıcı başlatınca açılır. Audio ve TTS çıktısı kalıcı olarak saklanmaz veya cloud’a gönderilmez.
+Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya çalışmaz. Yetkileri dar, davranışı görünür ve verisi yerel bir yardımcı olmayı hedefler.
 
-### Inference Performance
+| İlke | Lina’daki karşılığı |
+| --- | --- |
+| **Local-first** | Metin ve vision inference yerel Ollama’ya, STT yerel faster-whisper’a, TTS Windows WinRT’ye gider. |
+| **Kullanıcı kontrolü** | Mikrofon, ekran yakalama, görsel yükleme ve kalıcı araç işlemleri açık kullanıcı eylemiyle başlar. |
+| **Güvenli varsayılanlar** | Sesli yanıt ve wake word varsayılan kapalıdır; belirsiz intent’ler normal sohbete döner. |
+| **Denetlenebilir araçlar** | Araç çalışmaları timeline’da durum kartlarıyla görünür; riskli kalıcı işlemler onay ister. |
+| **Veri minimizasyonu** | Ham ses, TTS çıktısı, screenshot bytes ve Base64 konuşma veritabanına kalıcı yazılmaz. |
+| **Graceful fallback** | Ollama, vision, STT veya TTS kullanılamadığında uygulama kontrollü hata verir; mevcut yazılı içerik korunur. |
 
-- Ollama streaming cevabından ilk token, toplam süre, prompt/generated token, token/sn ve model load süresi ölçülür.
-- Metrics prompt veya kullanıcı mesajı içermez.
-- Ayarlar > Modeller içindeki “Performans Testi” sabit, history’siz bir prompt kullanır ve GUI thread’ini bloklamaz.
-- Keep-alive, maksimum çıktı ve context budget ayarlanabilir; warm-up varsayılan kapalıdır.
-- Vision isteği öncesi text model, normal chat öncesi vision model best-effort boşaltılır; vision model istek sonunda bellekte tutulmaz.
+## Özellikler
 
-## Öne Çıkan Özellikler
+### Yerel sohbet ve inference
 
-### Sohbet
+- Ollama `/api/chat` ile structured `system`, `user` ve `assistant` rolleri.
+- Varsayılan metin modeli: `llama3.2:3b`.
+- Streaming yanıt ve privacy-safe performans ölçümleri.
+- İlk token süresi, toplam süre, token sayıları, token/sn ve model yükleme süresi.
+- Ayarlanabilir keep-alive, maksimum çıktı token’ı ve context bütçesi.
+- İsteğe bağlı arka plan warm-up.
+- Düşük VRAM sistemler için text/vision model unload koordinasyonu.
+- En yeni tamamlanmış konuşma çiftlerini koruyan deterministik context trimming.
 
-- Ollama `/api/chat` entegrasyonu.
-- Ayrı `system`, `user` ve `assistant` rolleriyle structured mesajlaşma.
-- Oturum içi conversation history ve sınırlı history bounding.
-- Basit istekler için deterministic intent cevapları.
-- Model gerektirmeyen işlemler için no-model fallback.
-- Türkçe-first, kısa ve dürüst cevap davranışı.
+### Kalıcı sohbet deneyimi
+
+- SQLite tabanlı çoklu sohbet geçmişi.
+- İlk gerçek mesaja kadar veritabanına yazılmayan ephemeral yeni sohbet.
+- Sohbet oluşturma, yeniden adlandırma, silme, sabitleme ve arşivleme.
+- Başlık ve mesaj metninde yerel arama.
+- Bugün, dün, son 7 gün, son 30 gün ve daha eski tarih grupları.
+- Gerçek mesaj zamanlarını koruyan conversation timeline.
+- Boş sohbette veritabanına yazılmayan zamana duyarlı welcome alanı.
+- Uygulama yeniden açıldığında son sohbeti geri yükleme seçeneği.
 
 ### Memory
 
-- Yerel SQLite tabanlı kalıcı hafıza.
-- Açık `remember`, `list`, `forget` ve `clear` işlemleri.
-- Duplicate kayıt önleme.
-- Sensitive memory guard.
-- Kullanıcı istemeden hassas bilgi kaydetmeme.
+- Ayrı SQLite veritabanında açık komutlarla yönetilen kalıcı hafıza.
+- Hatırlama, listeleme, unutma ve temizleme akışları.
+- Duplicate kayıt koruması.
+- Hassas bilgi filtresi.
+- Memory store işlemi için kullanıcı onayı.
 
-```text
-bunu hatırla: kısa cevapları seviyorum
-ne hatırlıyorsun
-şunu unut: kısa cevapları seviyorum
-hafızanı sıfırla
-```
+### Güvenli dosya erişimi
 
-### Files
+- Yalnız sabit allowlist içindeki proje dokümanlarına read-only erişim.
+- UTF-8 metin doğrulaması ve bounded context.
+- Absolute path, drive path, UNC path, `..` traversal ve symlink escape reddi.
+- Dosya yazma, silme, taşıma veya yeniden adlandırma yetkisi yoktur.
 
-- Yalnız açıkça allowlist içine alınmış proje dosyalarına read-only erişim.
-- Path traversal ve absolute path reddi.
-- Dosya yazma, silme, taşıma veya yeniden adlandırma yeteneği yoktur.
-- Dosya özetlerinin okunan içerikle sınırlandırıldığı grounded summary akışı.
+### Konuşma
 
-```text
-hangi dosyaları okuyabiliyorsun
-README dosyasını oku
-roadmap dosyasını özetle
-development log'da son ne var
-```
-
-### Speech
-
-- Kullanıcı eylemiyle başlayan local push-to-talk STT.
-- `sounddevice` ile sınırlı mikrofon kaydı.
+- Kullanıcı eylemiyle başlayan push-to-talk.
+- `sounddevice` ile süre ve sessizlik sınırı bulunan kayıt.
 - `faster-whisper` ile yerel Türkçe transcription.
-- Varsayılan `base` model, `cpu` cihazı ve `int8` compute type.
-- Transcription mevcut input alanına yazılır, otomatik gönderilmez.
-- Ham ses kalıcı tutulmaz; always-on listening yoktur.
-- TTS henüz aktif değildir.
+- Transcription’ı composer’a ekleme veya doğrudan gönderme modu.
+- Windows WinRT ile isteğe bağlı Türkçe sesli yanıt.
+- Final normal chat ve kısa tool sonuçları için ortak TTS akışı.
+- Barge-in ve “Sesi Durdur” ile aktif playback’i kesme.
+- Kod blokları, uzun URL’ler, ham JSON, stack trace ve Base64 için konuşma normalizasyonu.
 
-### Screen Context
+### Vision ve ekran bağlamı
 
-- Ekran görüntüsü yalnız kullanıcının `Ekran` butonuna basmasıyla alınır.
-- Cursor'ın bulunduğu ekran yakalanır; bulunamazsa primary screen kullanılır.
-- Görüntü sohbete eklenmeden önce önizleme ve açık onay gösterilir.
-- Onaylanan tek screenshot yalnız mevcut GUI oturumunda bellekte tutulur.
-- Kullanıcı context'i kaldırabilir; yeni screenshot eskisinin yerini alır.
-- Kullanıcı görüntü hakkında bir soru gönderdiğinde screenshot yalnız o istek için yerel Ollama vision modeline aktarılır.
-- Başarılı analizden sonra attachment tüketilir; hata durumunda yeniden deneme için korunur.
-- Screenshot diske kaydedilmez, Memory'ye, Files capability'sine veya conversation history'ye yazılmaz.
-- Sürekli ekran izleme ve ayrı bir OCR paketi yoktur.
+- Varsayılan vision modeli: `qwen3-vl:2b`.
+- PNG, JPEG, WebP ve BMP görsel yükleme.
+- Tam ekran veya alan seçerek ekran yakalama.
+- Göndermeden önce önizleme ve açık kullanıcı onayı.
+- Attachment thumbnail, değiştir, kaldır ve yeniden analiz akışları.
+- Model yeteneğini Ollama `/api/show` içindeki `vision` capability ile doğrulama.
+- Görseldeki metni güvenilmeyen içerik kabul eden prompt-injection sınırı.
+- Başarılı analizden sonra geçici attachment’ı tüketme seçeneği.
 
-### Local Vision Analysis
+### Bildirimler ve hatırlatıcılar
 
-- Normal metin sohbetleri mevcut `llama3.2:3b` text modeliyle devam eder.
-- Ekran attachment içeren sorular ayrı `qwen3-vl:2b` vision modeliyle işlenir.
-- Model uygunluğu adından tahmin edilmez; Ollama `/api/show` cevabındaki `vision` capability doğrulanır.
-- PNG bytes framework-neutral request modelinde taşınır; Base64 yalnız Ollama provider payload sınırında üretilir.
-- Görsel içindeki metinler güvenilmeyen içerik kabul edilir ve sistem talimatı olarak uygulanmaz.
-- Vision başarısız olursa text modele sahte analiz fallback'i yapılmaz.
-- Composer içindeki `+` butonu ile PNG, JPEG, WebP veya BMP görsel seçilebilir.
-- Seçilen görsel yalnız kullanıcı eylemiyle bellekte PNG'ye normalize edilir; kaynak dosya değiştirilmez.
-- Gönderilen görsel, kullanıcı mesaj balonunda metnin üstünde thumbnail olarak görünür.
-- Ekran butonunda tam ekran ve alan seçimi menüsü bulunur.
-- Composer içindeki görsel attachment chip'i thumbnail, `Değiştir` ve `Kaldır` kontrollerini sunar.
-- Composer ve mesaj balonundaki thumbnail tıklanarak büyük önizleme açılabilir.
-- Başarılı veya başarısız vision durumu mesaj balonunda görünür; başarısız görsel `Yeniden analiz et` ile otomatik göndermeden geri yüklenebilir.
+- Tek seferlik, günlük ve haftalık yerel hatırlatıcılar.
+- Notification Center ve okunmamış bildirim sayacı.
+- Uygulama açıkken veya sistem tepsisindeyken arka plan scheduler.
+- Kaçırılan hatırlatıcıları sonraki açılışta işleme.
+- Reminder verisini conversation ve Memory’den ayrı SQLite veritabanında tutma.
 
-### Kalıcı Sohbet Geçmişi
+### Masaüstü deneyimi
 
-- Sohbetler local SQLite veritabanında session ve mesaj olarak saklanır.
-- Uygulama yeniden açıldığında son sohbet ve text mesajları geri yüklenir.
-- Sidebar üzerinden sohbet seçme, yeni sohbet, yeniden adlandırma ve silme işlemleri yapılabilir.
-- `Temizle` aktif sohbet için confirmation sonrasında mesajları siler; sohbet kaydı korunur.
-- Conversation DB ayrı tutulur; Memory verileriyle aynı tablolar paylaşılmaz.
-- Görsel bytes, Base64, thumbnail veya tam dosya yolu kalıcı olarak saklanmaz.
-- Geçmiş görsel mesajları yalnızca `Görsel güvenlik nedeniyle saklanmadı` metadata göstergesiyle açılır; yeniden analiz yalnızca canlı bellekteki attachment için mümkündür.
-- Persistence kapatılırsa Lina mevcut in-memory davranışla çalışmaya devam eder.
-- Mesajların gerçek gönderim zamanları yeniden açılış sonrasında korunur.
-- Conversation sidebar'ında son aktivite tarihi gösterilir ve aktif sohbet en üste taşınır.
-- Header'da aktif sohbetin tarihi görünür.
-- Boş yeni sohbetlerde zamana duyarlı UI-only welcome alanı gösterilir; welcome mesajı history veya database'e yazılmaz.
-- Sidebar üzerinden sohbet başlığı ve mesaj metinlerinde local arama yapılabilir.
-- Sohbetler `Sohbetler`, `Sabitlenenler` ve `Arşiv` görünümlerinde yönetilebilir.
-- Sohbetler tarih gruplarıyla gösterilir; sabitleme ve arşivleme mesajları silmez.
-- `Ctrl+F` aramaya odaklanır, `Escape` aramayı temizler.
-- Arama yalnız text içerik üzerinde çalışır; görsel bytes, Base64, thumbnail ve Memory içeriği aranmaz.
-- Mevcut UX'te `Clear` aksiyonu bulunmaz.
-- Vision modeli boş cevap döndürürse boş Lina balonu oluşturulmaz; istek hata kabul edilir ve attachment korunur.
+- PySide6 tabanlı modern Windows arayüzü.
+- Dark, light ve system tema.
+- `%85–135` font ölçeği, compact mode ve reduce motion tercihleri.
+- System tray, kapanış davranışı ve başlangıçta küçültme seçenekleri.
+- Mesaj başına kopyalama, akıllı auto-scroll ve input history.
+- Tool confirmation, çalışma, başarı, hata, retry ve cancel durum kartları.
+- Ayarlar içinden kurulu Ollama modellerini yenileme ve vision capability doğrulama.
 
-Akış:
-
-```text
-Ekran → Önizleme → Sohbete Ekle → Görüntü hakkında soru yaz → Gönder
-+ → Görsel seç → Görüntü hakkında soru yaz → Gönder
-```
-
-Yerel vision modelini kurmak için:
-
-```powershell
-ollama pull qwen3-vl:2b
-```
-
-[Resmî Ollama model sayfasına](https://ollama.com/library/qwen3-vl) göre Qwen3-VL modelleri Ollama `0.12.7` veya üzerini gerektirir. Kurulum öncesinde `ollama --version` ile yerel sürümü doğrulayın.
-
-### Masaüstü Arayüzü
-
-- PySide6 tabanlı profesyonel koyu sohbet arayüzü ve Lina branding.
-- Windows DPI awareness ve güvenli font fallback.
-- Sadeleştirilmiş sidebar ve kompakt status göstergeleri.
-- Daha doğal Lina/kullanıcı chat bubbles.
-- Güvenilir smart auto-scroll davranışı.
-- Kompakt composer ve hizalı action butonları.
-- Mesaj balonu içinde saat ve mesaj başına kopyalama.
-- Buton tooltips ve belirgin disabled durumları.
-- `↑` / `↓` ile input history.
-- `Enter`: Gönder.
-- `Shift+Enter`: Yeni satır.
-- `Ctrl+L`: Composer'a odaklan.
-- `Ctrl+N` veya `Ctrl+K`: Yeni sohbet.
-- Eski Tkinter GUI kodu geçici legacy fallback olarak korunur; varsayılan `python gui.py` akışı PySide6 kullanır.
-
-## Güvenlik ve Gizlilik
-
-Lina'nın mevcut capability sınırları bilinçli olarak dardır:
-
-- Genel dosya sistemi erişimi yoktur.
-- Shell command execution yoktur.
-- Dosya yazma, silme veya taşıma yoktur.
-- Kamera ve ekran anlama henüz aktif değildir.
-- Screen capture yalnız açık kullanıcı eylemiyle, önizleme ve onay sonrasında geçici context üretir.
-- Screenshot diske veya kalıcı hafızaya gönderilmez; yalnız kullanıcı sorusu sırasında local Ollama `/api/chat` endpointine aktarılır.
-- Cloud vision endpointi desteklenmez.
-- Görseldeki prompt injection metinleri yetki veya capability çağrısı oluşturmaz.
-- Browser veya Windows automation yoktur.
-- Always-on microphone yoktur; kayıt yalnız kullanıcı eylemiyle başlar.
-- Ses kayıtları kalıcı olarak saklanmaz.
-- Memory yalnız explicit komutlarla yazılır.
-- Hassas bilgiler otomatik kaydedilmez.
-- Cloud sync yoktur.
-- LLM kendi başına capability veya tool çalıştıramaz.
-
-Bu sınırlar eksik özelliklerden ibaret değildir. Lina'nın ileride kazanacağı yeteneklerin kullanıcı kontrolü, açık izin ve denetlenebilir davranış üzerine kurulmasını sağlar.
-
-## Kurulum
+## Hızlı başlangıç
 
 ### Gereksinimler
 
 - Windows 10 veya üzeri.
-- Python `3.11` veya üzeri.
-- Yerel olarak çalışan [Ollama](https://ollama.com/).
-- Speech için kullanılabilir bir mikrofon ve Windows mikrofon izni.
+- Python `3.11+`.
+- Yerel olarak kurulu ve çalışan [Ollama](https://ollama.com/).
+- STT kullanacaksanız mikrofon ve Windows mikrofon izni.
+- Vision kullanacaksanız yeterli RAM/VRAM ve uyumlu bir vision modeli.
+
+### 1. Repoyu ve Python ortamını hazırlayın
 
 ```powershell
 git clone https://github.com/ilhanki/Lina.git
 cd Lina
+
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.\\.venv\\Scripts\\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Geliştirme ve test bağımlılıkları:
+PowerShell activation policy sanal ortamı etkinleştirmeyi engellerse komutları doğrudan `.venv` Python’ıyla çalıştırabilirsiniz:
 
 ```powershell
-python -m pip install -r requirements-dev.txt
+.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
 ```
 
-Varsayılan Ollama modelini hazırlamak için:
+### 2. Ollama modellerini hazırlayın
 
 ```powershell
 ollama pull llama3.2:3b
-ollama run llama3.2:3b
+ollama pull qwen3-vl:2b
 ```
 
-## Çalıştırma
+Yalnız metin sohbeti kullanacaksanız vision modelini indirmeniz gerekmez. Model adlarını daha sonra **Ayarlar → Modeller** bölümünden değiştirebilirsiniz.
 
-Masaüstü GUI:
+### 3. Lina’yı başlatın
+
+Masaüstü uygulaması:
 
 ```powershell
 python gui.py
@@ -234,141 +180,288 @@ Terminal arayüzü:
 python main.py
 ```
 
-Testler:
+## Kullanım örnekleri
+
+```text
+Bugün için kısa bir çalışma planı hazırlar mısın?
+
+Bunu hatırla: kısa ve doğrudan cevapları tercih ediyorum.
+Benim hakkımda ne hatırlıyorsun?
+
+README dosyasını özetle.
+Roadmap'te sıradaki hedef ne?
+
+Yarın saat 09:30 için “stand-up” hatırlatıcısı oluştur.
+Hatırlatıcılarımı listele.
+
+Bu ekran görüntüsündeki hatayı açıkla.
+```
+
+Kalıcı bir işlem gerekiyorsa Lina önce açıklama ve onay kartı gösterir. Eksik tarih veya saat gibi bilgiler clarification akışıyla tamamlanır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` mevcut pending işlemi kapatır.
+
+## Sesli etkileşim
+
+### Push-to-talk STT
+
+İlk mikrofon kullanımında `faster-whisper` modeli indirilebilir; süre bağlantıya ve sisteme göre değişir. Sonraki çalışmalar yerel model cache’ini kullanır. Varsayılan yapılandırma:
+
+| Ayar | Varsayılan |
+| --- | --- |
+| Model | `base` |
+| Dil | `tr` |
+| Device | `cpu` |
+| Compute type | `int8` |
+| Maksimum kayıt | `12 saniye` |
+| Transcription modu | Composer’a ekle |
+
+Mikrofon yalnız kullanıcı Mic düğmesine bastığında açılır. Ham kayıt kalıcı dosyaya veya conversation veritabanına yazılmaz.
+
+### Windows TTS
+
+Sesli yanıtlar varsayılan olarak kapalıdır. **Ayarlar → Ses → Sesli yanıtlar etkin** seçeneği açıldığında yalnız final assistant cevabı seslendirilir; streaming token’ları okunmaz.
+
+Runtime TTS hattı PySide6’nın Windows **WinRT** motorunu kullanır:
+
+- WinRT sesleri ile SAPI/System.Speech sesleri aynı listeye karıştırılmaz.
+- Yalnız SAPI tarafında bulunan bir ses Lina’da sahte biçimde gösterilmez.
+- Seçili WinRT sesi sentezlenemezse kullanılabilir varsayılan WinRT sese fallback yapılır.
+- Motor gerçek `Speaking → Ready` yaşam döngüsü bitene kadar GUI thread’inde tutulur.
+- TTS çıktısı geçici veya kalıcı ses dosyası olarak yazılmaz.
+- TTS hatası yazılı cevabı veya timeline’ı silmez.
+
+Chat ve Ollama kullanmadan gerçek Windows TTS hattını test etmek için:
+
+```powershell
+python scripts/tts_smoke.py
+```
+
+Başarılı çalışmada terminalde `tts_synthesis_started`, `playback_started` ve `playback_completed` zinciri görünür.
+
+> [!NOTE]
+> Wake-word contract ve ayar altyapısı hazırdır ancak production detector bulunmadığı için wake word seçeneği devre dışıdır. Lina always-on microphone kullanmaz.
+
+## Görsel analiz
+
+Lina görüntüyü yalnız açık kullanıcı eylemiyle alır:
+
+```text
+Ekran → Tüm Ekranı Yakala / Alan Seçerek Yakala → Önizle → Sohbete Ekle
++ → Görsel seç → Sorunu yaz → Gönder
+```
+
+- Aktif attachment bellekte tutulur ve yalnız ilgili vision isteğine eklenir.
+- Kaynak görsel değiştirilmez.
+- Screenshot veya image bytes kalıcı conversation history’ye yazılmaz.
+- Geçmişteki görsel mesaj yalnız güvenli metadata placeholder’ıyla gösterilir.
+- Vision başarısız olursa text modele sahte görsel analiz yaptırılmaz.
+- Başarısız attachment kullanıcı isterse yeniden analiz için korunur.
+
+## Hatırlatıcılar ve güvenli araçlar
+
+Deterministik intent router yalnız açık ve desteklenen Türkçe kalıpları araç akışına yönlendirir. Belirsiz istekler normal sohbet olarak işlenir.
+
+Desteklenen araç alanları:
+
+- Reminder oluşturma ve listeleme.
+- Memory kaydetme ve geri çağırma.
+- Allowlist içindeki proje dosyalarını okuma.
+- Mevcut ekran, alan seçimi ve görsel yükleme akışlarını başlatma.
+
+Reminder oluşturma ve Memory kaydetme her zaman kullanıcı onayı ister. Read-only araçlar kontrollü retry edilebilir. Yeni sohbet, sohbet değişimi, arşivleme, silme, zaman aşımı veya gerçek uygulama çıkışı pending işlemi temizler.
+
+Hatırlatmaların zamanında gösterilebilmesi için Lina’nın açık veya system tray’de çalışıyor olması gerekir. Lina tamamen kapalıyken Windows bildirimi üretemez.
+
+## Ayarlar ve yerel veriler
+
+### Uygulama yapılandırması
+
+Çalışma ortamı varsayılanları [`config/default.toml`](config/default.toml) içindedir:
+
+| Bölüm | Sorumluluk |
+| --- | --- |
+| `ollama` | Base URL, varsayılan model ve request timeout |
+| `runtime` | Conversation history ve proje context sınırları |
+| `memory` | Memory durumu, SQLite yolu ve context limitleri |
+| `speech` | STT provider, model, dil, cihaz ve kayıt sınırları |
+| `vision` | Vision model, timeout, maksimum görsel boyutu ve tüketim politikası |
+| `conversations` | Conversation SQLite yolu, sidebar ve history limitleri |
+| `paths` | Data, log, model ve cache dizinleri |
+| `logging` | Uygulama log seviyesi |
+
+### Kullanıcı tercihleri
+
+GUI’de değiştirilen tercihler atomik JSON olarak şu konumda saklanır:
+
+```text
+%LOCALAPPDATA%\\Lina\\user-settings.json
+```
+
+Bu dosya tema, model seçimi, ses tercihleri, vision davranışı, tray ve bildirim ayarlarını içerir. Bozuk veya gelecekteki bir schema uygulamayı çökertmez; güvenli varsayılanlar kullanılır.
+
+### Yerel veri özeti
+
+| Veri | Varsayılan konum | Kalıcı mı? |
+| --- | --- | --- |
+| Memory | `data/lina_memory.sqlite3` | Evet |
+| Sohbetler | `data/conversations.sqlite3` | Evet |
+| Hatırlatıcılar/bildirimler | `data/notifications.sqlite3` | Evet |
+| Kullanıcı tercihleri | `%LOCALAPPDATA%\\Lina\\user-settings.json` | Evet |
+| Loglar | `logs/` | Evet, içerik-minimize logging politikasıyla |
+| Mikrofonun ham sesi | Bellek | Hayır |
+| TTS ses çıktısı | Windows WinRT doğrudan output | Hayır |
+| Screenshot/image bytes | Aktif oturum belleği | Hayır |
+
+## Klavye kısayolları
+
+| Kısayol | İşlem |
+| --- | --- |
+| `Enter` | Mesajı gönder |
+| `Shift+Enter` | Yeni satır |
+| `↑` / `↓` | Composer ilk/son satırındayken input geçmişi |
+| `Ctrl+L` | Composer’a odaklan |
+| `Ctrl+F` | Sohbet aramasına odaklan |
+| `Ctrl+N` | Yeni sohbet |
+| `Ctrl+,` | Ayarları aç |
+| `Escape` | Aktif arama veya pending UI akışını bağlama göre kapat |
+
+## Gizlilik ve güvenlik modeli
+
+Lina’nın mevcut yetki sınırları bilinçli olarak dardır:
+
+- Genel dosya sistemi erişimi yoktur.
+- Shell, PowerShell/CMD veya arbitrary code execution aracı yoktur.
+- Dosya yazma, silme, taşıma veya yeniden adlandırma yoktur.
+- Browser automation, mouse/keyboard kontrolü ve process/application launch yoktur.
+- Cloud LLM, cloud vision, cloud STT veya cloud TTS entegrasyonu yoktur.
+- Always-on microphone, sürekli ekran izleme ve kamera erişimi yoktur.
+- Memory yalnız açık komut ve gerekli onayla yazılır.
+- Görseldeki metin yetki veya sistem talimatı olarak uygulanmaz.
+- LLM tek başına tool çalıştıramaz; typed registry, validation ve permission policy sınırları geçerlidir.
+- Privacy-safe loglar kullanıcı mesajını, prompt’u, dosya içeriğini, ham görseli veya ses içeriğini taşımaz.
+
+Lina’nın Ollama ile yaptığı HTTP iletişimi varsayılan olarak `http://localhost:11434` adresindeki yerel servise gider. Model dosyalarının ilk indirilmesi ve faster-whisper modelinin ilk hazırlanması internet erişimi gerektirebilir.
+
+## Mimari
+
+```mermaid
+flowchart LR
+    UI["PySide6 GUI / CLI"] --> Services["Application Services"]
+    Services --> Brain["Brain + Context"]
+    Services --> Router["Intent Router + Safe Tools"]
+    Services --> Capabilities["Memory · Files · Vision · Speech · Notifications"]
+    Brain --> Ollama["Local Ollama"]
+    Router --> Capabilities
+    Capabilities --> SQLite["Local SQLite"]
+    Capabilities --> Whisper["faster-whisper"]
+    Capabilities --> WinRT["Windows WinRT TTS"]
+```
+
+Ana paketler:
+
+| Paket | Sorumluluk |
+| --- | --- |
+| `core` | Bootstrap, application lifecycle, config, paths ve logging |
+| `interfaces` | PySide6 GUI, widget’lar, worker’lar ve CLI |
+| `services` | Conversation ve capability koordinasyonu |
+| `brain` | Prompt, context, model orchestration ve deterministic routing |
+| `integrations` | Ollama adapter’ı |
+| `conversations` | Session/message modelleri ve SQLite persistence |
+| `memory` | Açık kullanıcı kontrollü kalıcı hafıza |
+| `files` | Allowlist tabanlı read-only proje dosyası erişimi |
+| `vision` / `screen` | Geçici image context ve capture contract’ları |
+| `speech` | Mikrofon kaydı ve STT |
+| `voice` | TTS provider, playback ve voice state controller |
+| `notifications` | Reminder repository, scheduler ve presenter |
+| `inference` | Metrics, benchmark ve model lifecycle |
+| `settings` | Framework-neutral kullanıcı tercihleri ve atomik persistence |
+
+Bağımlılık yönü UI’dan servis ve contract katmanlarına doğrudur. Business logic widget sınıflarına, dış sistem ayrıntıları domain servislerine gömülmez.
+
+## Geliştirme ve test
+
+Geliştirme bağımlılıklarını kurun:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+```
+
+Tüm test paketi:
 
 ```powershell
 python -m pytest
 ```
 
-## Speech İlk Kullanım Notu
+Belirli bir alan:
 
-İlk `Mic` kullanımında `faster-whisper` modeli indirilebilir veya yerel kullanım için hazırlanabilir. Bu işlem bağlantı ve sistem performansına göre zaman alabilir; sonraki kullanımlar local cache üzerinden devam eder. Model cache'i repository'ye commitlenmez.
-
-Windows mikrofon izni gerekebilir. Transcription yalnız composer input alanına yazılır; kullanıcı kontrol etmeden otomatik gönderilmez.
-
-## Konfigürasyon
-
-Varsayılan ayarlar [`config/default.toml`](config/default.toml) içinde tutulur.
-
-| Bölüm | Mevcut ayarlar | Amaç |
-| --- | --- | --- |
-| `ollama` | `base_url`, `default_model`, `request_timeout` | Ollama adresi, model ve HTTP timeout değeri |
-| `runtime` | `conversation_history_limit`, `project_context_max_characters` | Oturum geçmişi ve proje context sınırları |
-| `memory` | `enabled`, `database_path`, `max_context_items`, `max_context_characters` | Yerel memory deposu ve prompt context sınırları |
-| `speech` | `enabled`, `stt_provider`, `model_size`, `language`, `device`, `compute_type`, kayıt ve sessizlik sınırları, `auto_send` | Yerel STT çalışma ve güvenlik ayarları |
-| `vision` | `enabled`, `model`, `request_timeout`, `max_image_bytes`, `consume_attachment_on_success` | Yerel vision modeli, timeout ve attachment güvenlik sınırları |
-| `logging` | `level` | Uygulama log seviyesi |
-| `paths` | `data`, `logs`, `models`, `cache` | Uygulama çalışma dizinleri |
-
-Files allowlist için şu anda ayrı bir `[files]` config bölümü yoktur. İzin verilen yollar uygulama tarafından açık ve sabit bir read-only listeyle yönetilir; genel dosya erişimine dönüşmez.
-
-## Mimari
-
-Lina, business logic ile kullanıcı arayüzünü ayıran modüler bir `src` yapısı kullanır:
-
-- `core`: Application lifecycle, settings, paths, logging ve bootstrap.
-- `brain`: Provider-independent orchestration, intent ve prompt contract'ları.
-- `services`: Conversation ve capability koordinasyonu.
-- `memory`: SQLite repository ve explicit memory işlemleri.
-- `files`: Güvenli read-only allowlisted proje dosyası erişimi.
-- `speech`: Kayıt, STT/TTS provider contract'ları ve speech orchestration.
-- `screen`: Geçici screen context modeli ve capture contract'ı.
-- `vision`: Framework-neutral image attachment ve local vision request modelleri.
-- `integrations`: Ollama gibi dış sistem adapter'ları.
-- `interfaces`: CLI, birincil PySide6 GUI ve legacy Tkinter GUI.
-
-Ayrıntılı dokümanlar:
-
-- [Mimari](docs/architecture.md)
-- [Brain Specification v1](docs/brain-specification-v1.md)
-- [Conversation Flow v1](docs/conversation-flow-v1.md)
-- [Speech Architecture v1](docs/speech-architecture-v1.md)
-- [Roadmap](docs/roadmap.md)
-- [Development Log](docs/development-log.md)
-
-## Roadmap Özeti
-
-- `v0.4.x`: Local-first Memory Capability.
-- `v0.5.x`: Files Capability, Professional GUI ve Branding.
-- `v0.6.0-alpha`: Speech Skeleton ve GUI Mic Flow.
-- `v0.6.1-alpha`: Local Push-to-Talk STT ve Structured Chat.
-- `v0.6.2-alpha`: UI Readability & Accessibility Polish.
-- `v0.6.3-alpha`: PySide6 Desktop UI Migration.
-- `v0.6.4-alpha`: PySide6 UI Refinement & Chat Experience.
-- `v0.7.0-alpha`: Kullanıcı onaylı Screen Context Foundation.
-- `v0.7.1-alpha`: Local Vision Integration tamamlandı.
-- `v0.7.2-alpha`: Vision UX ve Region Capture tamamlandı.
-- `v0.8.0-alpha`: Conversation Persistence Foundation.
-- `v0.8.1-alpha`: Conversation Timeline ve Welcome Experience.
-- `v0.8.2-alpha`: Conversation Search ve Management UX.
-- `v0.8.3-alpha`: Lazy Conversation Creation ve Delete Lifecycle Fix.
-- `v0.9.0-alpha`: Settings ve System Integration Foundation.
-- `v0.9.1-alpha`: Yerel Notification Center, reminder yönetimi, tray presenter ve background scheduler.
-- `v0.9.2-alpha`: Deterministic intent routing, güvenli tool registry, confirmation ve clarification foundation.
-- `v0.9.3-alpha`: Tool status kartları, güvenli retry/cancel, availability ve v0.9.x stabilizasyonu.
-- `v0.9.4-alpha`: Light theme kontrast, component state ve görsel tutarlılık düzeltmeleri.
-- `v0.10.0-alpha`: Local voice interaction, inference metrics, context ve model lifecycle foundation.
-
-Settings içindeki `Modelleri Yenile` yalnız cihazda kurulu Ollama modellerini sorgular; otomatik indirme yapmaz. Vision model seçimleri `/api/show` capability sonucu ile doğrulanır.
-
-Bu sürümde yeni sohbetler ilk gerçek kullanıcı mesajına kadar ephemeral draft olarak tutulur. Boş draft sidebar veya database'e yazılmaz; ilk mesaj conversation ve user message olarak atomik biçimde persist edilir. Son kalıcı sohbet silindiğinde arayüz yeni boş kayıt üretmeden welcome draft'a döner.
-
-Detaylı sürüm hattı için [docs/roadmap.md](docs/roadmap.md) dosyasına bakın.
-
-## Hatırlatıcılar ve bildirimler
-
-Lina; tek seferlik, günlük ve haftalık yerel hatırlatıcıları Notification Center üzerinden yönetir. Gerçek zamanlı hatırlatma için Lina açık veya sistem tepsisinde çalışıyor olmalıdır. Lina tamamen kapalıyken bildirim gösteremez; sonraki açılışta kaçırılan hatırlatıcılar işlenir.
-
-Cloud push, e-posta, SMS ve webhook desteği yoktur. Reminder ve notification event verileri yalnızca yerel SQLite veritabanında tutulur. Notification veritabanı conversation, Memory, ham görsel veya Base64 veri içermez.
-
-## Akıllı araç yönlendirme
-
-Lina açık ve güvenli Türkçe kalıpları önce deterministic classifier ile ayırır; belirsiz veya düşük güvenli mesajlar normal sohbete gider. Bu sürüm model-assisted classification kullanmaz. Desteklenen araçlar reminder create/list, mevcut screen/region/image UI akışları, allowlist içindeki dosyaları okuma ve açık Memory store/recall istekleridir.
-
-Reminder create ve Memory store her zaman kullanıcı onayı ister. Eksik reminder tarihi/saati clarification ile tamamlanır ve pending intent yalnız ilgili sohbette, bellekte ve süreli tutulur. Yeni sohbet veya sohbet değişimi pending işlemi iptal eder.
-
-Shell, PowerShell/CMD, arbitrary code execution, file write/delete/move, browser automation, mouse/keyboard kontrolü, process/application launch, network, e-posta ve webhook araçları yoktur. Files yalnız mevcut read-only allowlist üzerinden çalışır; `..`, absolute/UNC/drive path ve symlink escape reddedilir. İşleme local cihazda kalır; raw image/Base64 persist edilmez.
-
-Tool işlemleri chat timeline içinde Hazırlanıyor, Onay bekleniyor, Çalışıyor, Tamamlandı, Başarısız, İptal edildi veya Kullanılamıyor durum kartlarıyla görünür. Kalıcı işlemler tekrar denenirken yeni confirmation gerekir; read-only reminder list, Memory recall, file read ve Vision işlemleri güvenli retry kapsamındadır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` pending işlemi kapatır.
-
-## Tema ve görünüm
-
-Dark, light ve system tema seçenekleri aynı semantic palette ve component-state stylesheet'ini kullanır. Light theme metin, border, hover, selected, disabled ve focus durumları yüksek kontrast için ayrıştırılmıştır. Runtime tema değişimi açık pencere ve dialog'lara uygulanır; font scale %85–135 aralığındadır.
-
-## Bilinen Sınırlar
-
-- Proje alpha aşamasındadır; API ve kullanıcı deneyimi değişebilir.
-- Speech doğruluğu modele, mikrofona, işlemciye ve ortam gürültüsüne bağlıdır.
-- TTS yoktur.
-- Vision yalnız açıkça eklenen tek görsel veya ekran alanı ve yerel Ollama modeliyle çalışır; sürekli izleme yoktur.
-- Kalıcı multi-session conversation history yoktur.
-- Genel dosya sistemi erişimi yoktur.
-- Browser ve Windows automation yoktur.
-- PySide6 GUI yeni varsayılan arayüzdür; legacy Tkinter kodu kısa süreli geri dönüş yolu olarak korunur.
-- PySide6 migration sonrası gerçek kullanıcı deneyimi manuel smoke testlerle izlenmeye devam etmelidir.
-
-## Test Durumu
-
-`v0.7.1-alpha` Local Vision Integration doğrulamasında tam test paketi:
-
-```text
-548 passed
+```powershell
+python -m pytest tests/voice -q
 ```
 
-Testler gerçek Ollama, mikrofon, Tkinter mainloop veya PySide6 event loop çalıştırmadan izole fake provider ve servislerle çalışır.
+Son yerel doğrulama sonucu:
 
-## Geliştirme İlkeleri
+```text
+720 passed
+```
 
-- Python `>=3.11` ve type hints.
-- Standard library first yaklaşımı.
-- YAGNI, küçük ve tek sorumluluklu commitler.
+Testler dış sistemleri mümkün olduğunca fake provider ve geçici repository’lerle izole eder. Gerçek mikrofon, Windows voice, audio device, Ollama modeli, VRAM davranışı ve GUI görsel kalitesi için manuel smoke test gerekir. Ayrıntılı kontrol listesi: [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md).
+
+Kod standardı özeti:
+
+- Python `3.11+` ve type hints.
+- Kod ve identifier’lar İngilizce; kullanıcı metinleri ve dokümantasyon Türkçe.
+- Küçük sorumluluklar ve YAGNI.
 - Conventional Commits.
-- Kod değişiklikleriyle birlikte zorunlu testler.
+- Kod değişikliğiyle birlikte ilgili testler.
 - Repository içinde secret, token veya kişisel veri tutmama.
-- Local-first, privacy-first ve safety-first kararlar.
 
-Katkı kuralları için [contributing.md](contributing.md) dosyasına bakın.
+Katkı ayrıntıları için [contributing.md](contributing.md) dosyasına bakın.
+
+## Bilinen sınırlar
+
+- Proje alpha aşamasındadır.
+- Yalnız Windows masaüstü birincil hedef ve gerçek TTS platformudur.
+- Model yanıt kalitesi seçilen yerel modele bağlıdır.
+- Speech doğruluğu mikrofona, gürültüye, modele ve işlemciye bağlıdır.
+- Wake-word için production detector yoktur.
+- Vision tek aktif attachment ve açık kullanıcı eylemiyle çalışır; canlı kamera veya sürekli ekran analizi yoktur.
+- Files capability genel dosya yöneticisi değildir; yalnız sabit proje dokümanlarını okuyabilir.
+- Hatırlatıcı bildirimi için uygulamanın açık veya tray’de olması gerekir.
+- Autostart/Windows registry entegrasyonu uygulanmamıştır.
+- Agent mode, genel bilgisayar kontrolü ve Codex bridge mevcut sürüm kapsamı dışındadır.
+
+## Yol haritası
+
+Tamamlanan ana hat:
+
+- `v0.4.x` — Local Memory.
+- `v0.5.x` — Güvenli Files ve masaüstü deneyimi.
+- `v0.6.x` — Local STT ve PySide6 geçişi.
+- `v0.7.x` — Screen context ve local vision.
+- `v0.8.x` — Conversation persistence, timeline, search ve management.
+- `v0.9.x` — Settings, system tray, notifications ve güvenli tool routing.
+- `v0.10.0-alpha` — Voice interaction ve inference performance foundation.
+
+Planlanan sonraki alanlar wake-word/hands-free araştırması, daha gelişmiş live vision, kontrollü agent yetenekleri ve Codex entegrasyonudur. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+
+## Dokümantasyon
+
+- [Mimari](docs/architecture.md)
+- [v0.10.0-alpha sürüm notları](docs/release-notes-v0.10.0-alpha.md)
+- [Speech Architecture v1](docs/speech-architecture-v1.md)
+- [Brain Specification v1](docs/brain-specification-v1.md)
+- [Conversation Flow v1](docs/conversation-flow-v1.md)
+- [Vision](docs/vision.md)
+- [Roadmap](docs/roadmap.md)
+- [Smoke Test Checklist](docs/smoke-test-checklist.md)
+- [Development Log](docs/development-log.md)
+- [Katkı ve geliştirme standartları](contributing.md)
 
 ## Lisans
 
-Bu proje şu anda kişisel kullanım amacıyla geliştirilen proprietary bir projedir. Kullanım ve dağıtım koşulları proje sahibi tarafından belirlenir.
+Lina şu anda kişisel kullanım amacıyla geliştirilen **proprietary** bir projedir. Kullanım, değiştirme ve dağıtım hakları açık kaynak lisansı verilmiş sayılmaz; koşullar proje sahibi tarafından belirlenir.
+
+---
+
+<p align="center">
+  <strong>Lina — verinizin, bağlamınızın ve kontrolün sizde kaldığı kişisel asistan.</strong>
+</p>
