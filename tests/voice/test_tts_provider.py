@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import time
+
 import pytest
+from PySide6.QtTextToSpeech import QTextToSpeech
 
 from lina.voice.models import SystemVoice, VoiceUnavailableError
 from lina.voice.tts_provider import (
     UnavailableTTSProvider,
     QtWindowsTTSProvider,
     WindowsSapiTTSProvider,
+    _QtSpeechBridge,
+    _clamp_volume,
     normalize_spoken_text,
 )
 
@@ -130,3 +135,65 @@ def test_selected_winrt_voice_failure_retries_engine_default():
     provider = FallbackProvider(engine_factory=lambda: engines.pop(0))
     provider.speak("Merhaba", "Microsoft Tolga|tr_TR", 1.0, 1.0)
     assert provider.attempts == 2
+
+
+def test_winrt_lifecycle_logs_only_real_state_transitions(monkeypatch, qtbot, caplog):
+    monkeypatch.setattr(_QtSpeechBridge, "_replace_engine", lambda self: False)
+    bridge = _QtSpeechBridge()
+    bridge._request_id = 7
+    bridge._started_at = time.monotonic()
+
+    with caplog.at_level("INFO", logger="lina.voice"):
+        bridge._about_to_synthesize(1)
+        bridge._state_changed(QTextToSpeech.State.Synthesizing)
+        assert "playback_started" not in caplog.text
+        bridge._state_changed(QTextToSpeech.State.Speaking)
+        assert "playback_started" in caplog.text
+        assert "playback_completed" not in caplog.text
+        bridge._state_changed(QTextToSpeech.State.Ready)
+
+    assert "playback_completed" in caplog.text
+    assert "audio_bytes=not_exposed" in caplog.text
+    assert "mime=audio/winrt-direct" in caplog.text
+
+
+def test_winrt_error_log_is_privacy_safe(monkeypatch, qtbot, caplog):
+    monkeypatch.setattr(_QtSpeechBridge, "_replace_engine", lambda self: False)
+    bridge = _QtSpeechBridge()
+    outcomes = []
+    bridge.finished.connect(lambda request_id, success, category: outcomes.append((request_id, success, category)))
+    bridge._request_id = 9
+
+    with caplog.at_level("INFO", logger="lina.voice"):
+        bridge._error_occurred(QTextToSpeech.ErrorReason.Playback, "private media detail")
+
+    assert outcomes == [(9, False, "playback")]
+    assert "tts_engine_error error_category=playback" in caplog.text
+    assert "private media detail" not in caplog.text
+
+
+def test_winrt_stop_cleans_active_request_without_false_completion(monkeypatch, qtbot, caplog):
+    monkeypatch.setattr(_QtSpeechBridge, "_replace_engine", lambda self: False)
+    bridge = _QtSpeechBridge()
+    outcomes = []
+
+    class Engine:
+        def stop(self):
+            bridge._state_changed(QTextToSpeech.State.Ready)
+
+    bridge._engine = Engine()
+    bridge._request_id = 11
+    bridge._playing = True
+    bridge.finished.connect(lambda request_id, success, category: outcomes.append((request_id, success, category)))
+
+    with caplog.at_level("INFO", logger="lina.voice"):
+        bridge._stop()
+
+    assert outcomes == [(11, False, "cancelled")]
+    assert bridge._request_id == 0
+    assert "playback_completed" not in caplog.text
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(-2.0, 0.0), (0.5, 0.5), (2.0, 1.0)])
+def test_qt_volume_is_clamped_to_documented_bounds(raw, expected):
+    assert _clamp_volume(raw) == expected

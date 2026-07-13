@@ -60,11 +60,7 @@ class AudioPlaybackService:
 
     def _run(self, generation: int, text: str, voice_id: str | None, rate: float, volume: float, callback: PlaybackCallback | None) -> None:
         try:
-            _logger.info("tts_synthesis_started")
-            _logger.info("playback_started")
             self._provider.speak(text, voice_id, rate, volume)
-            _logger.info("tts_synthesis_completed")
-            _logger.info("playback_completed")
             result = VoicePlaybackResult(completed=True)
         except Exception as error:
             _logger.warning(

@@ -2,15 +2,157 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
 import time
 from typing import Any, Protocol
 
+from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtTextToSpeech import QTextToSpeech
+
 from lina.voice.models import SystemVoice, VoicePlaybackError, VoiceUnavailableError
 
 
 MAX_SPOKEN_CHARACTERS = 700
+_logger = logging.getLogger("lina.voice")
+
+
+class _QtSpeechBridge(QObject):
+    """Own the WinRT engine on the GUI thread until real playback completes."""
+
+    start_requested = Signal(int, str, object, float, float)
+    stop_requested = Signal()
+    finished = Signal(int, bool, str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._engine: QTextToSpeech | None = None
+        self._request_id = 0
+        self._selected_voice_id: str | None = None
+        self._retried_default = False
+        self._playing = False
+        self._started_at = 0.0
+        self._text = ""
+        self._rate = 1.0
+        self._volume = 1.0
+        self.start_requested.connect(self._start)
+        self.stop_requested.connect(self._stop)
+        self._replace_engine()
+
+    @property
+    def available(self) -> bool:
+        return self._engine is not None and bool(self._engine.availableVoices())
+
+    def voices(self) -> tuple[SystemVoice, ...]:
+        if self._engine is None:
+            return ()
+        return tuple(_qt_system_voice(voice) for voice in self._engine.availableVoices())
+
+    def _replace_engine(self) -> bool:
+        if self._engine is not None:
+            self._engine.deleteLater()
+        if "winrt" not in QTextToSpeech.availableEngines():
+            self._engine = None
+            return False
+        engine = QTextToSpeech("winrt", self)
+        engine.stateChanged.connect(self._state_changed)
+        engine.errorOccurred.connect(self._error_occurred)
+        engine.aboutToSynthesize.connect(self._about_to_synthesize)
+        self._engine = engine
+        return True
+
+    @Slot(int, str, object, float, float)
+    def _start(self, request_id: int, text: str, voice_id: object, rate: float, volume: float) -> None:
+        if self._engine is None:
+            self.finished.emit(request_id, False, "unavailable")
+            return
+        self._request_id = request_id
+        self._selected_voice_id = voice_id if isinstance(voice_id, str) else None
+        self._retried_default = False
+        self._playing = False
+        self._started_at = time.monotonic()
+        self._text = text
+        self._rate = rate
+        self._volume = volume
+        self._apply_voice(self._selected_voice_id)
+        self._engine.setRate(max(-1.0, min(1.0, rate - 1.0)))
+        self._engine.setVolume(_clamp_volume(volume))
+        self._engine.say(text)
+
+    def _apply_voice(self, voice_id: str | None) -> None:
+        if self._engine is None or not voice_id:
+            return
+        for voice in self._engine.availableVoices():
+            if _qt_voice_id(voice) == voice_id:
+                self._engine.setVoice(voice)
+                return
+
+    @Slot(int)
+    def _about_to_synthesize(self, _utterance_id: int) -> None:
+        _logger.info("tts_synthesis_started")
+
+    @Slot(QTextToSpeech.State)
+    def _state_changed(self, state: QTextToSpeech.State) -> None:
+        if not self._request_id:
+            return
+        _logger.info("tts_state state=%s", state.name)
+        if state is QTextToSpeech.State.Speaking and not self._playing:
+            self._playing = True
+            _logger.info(
+                "tts_synthesis_completed audio_bytes=not_exposed "
+                "audio_duration_ms=not_exposed mime=audio/winrt-direct"
+            )
+            _logger.info("playback_started")
+            return
+        if state is QTextToSpeech.State.Ready and self._playing:
+            duration_ms = round((time.monotonic() - self._started_at) * 1000)
+            _logger.info("playback_completed audio_duration_ms=%d", duration_ms)
+            request_id = self._request_id
+            self._request_id = 0
+            self._playing = False
+            self.finished.emit(request_id, True, "")
+
+    @Slot(QTextToSpeech.ErrorReason, str)
+    def _error_occurred(self, _reason: QTextToSpeech.ErrorReason, _message: str) -> None:
+        if not self._request_id:
+            return
+        _logger.warning("tts_engine_error error_category=playback")
+        if self._selected_voice_id and not self._retried_default:
+            self._retried_default = True
+            self._playing = False
+            if self._replace_engine() and self._engine is not None:
+                self._engine.setRate(max(-1.0, min(1.0, self._rate - 1.0)))
+                self._engine.setVolume(_clamp_volume(self._volume))
+                self._engine.say(self._text)
+                return
+        request_id = self._request_id
+        self._request_id = 0
+        self._playing = False
+        self.finished.emit(request_id, False, "playback")
+
+    @Slot()
+    def _stop(self) -> None:
+        request_id = self._request_id
+        self._request_id = 0
+        self._playing = False
+        if self._engine is not None:
+            self._engine.stop()
+        if request_id:
+            self.finished.emit(request_id, False, "cancelled")
+
+
+def _qt_voice_id(voice: Any) -> str:
+    return f"{voice.name()}|{voice.locale().name()}"
+
+
+def _qt_system_voice(voice: Any) -> SystemVoice:
+    locale = voice.locale().name()
+    return SystemVoice(
+        id=_qt_voice_id(voice),
+        name=voice.name(),
+        language="tr" if locale.casefold().startswith("tr") else locale,
+    )
 
 
 class TextToSpeechProvider(Protocol):
@@ -56,6 +198,34 @@ class QtWindowsTTSProvider:
         self._cancelled = threading.Event()
         self._engine_factory = engine_factory
         self._synthesis_timeout = max(1.0, synthesis_timeout)
+        self._bridge: _QtSpeechBridge | None = None
+        self._request_lock = threading.Lock()
+        self._request_sequence = 0
+        self._pending: dict[int, tuple[threading.Event, list[object]]] = {}
+
+    def _ensure_bridge(self) -> _QtSpeechBridge | None:
+        if self._bridge is not None:
+            return self._bridge
+        try:
+            from PySide6.QtCore import QCoreApplication
+        except ImportError:
+            return None
+        application = QCoreApplication.instance()
+        if application is None or QThread.currentThread() is not application.thread():
+            return None
+        bridge = _QtSpeechBridge()
+        bridge.finished.connect(self._bridge_finished)
+        self._bridge = bridge
+        return bridge
+
+    def _bridge_finished(self, request_id: int, success: bool, category: str) -> None:
+        with self._request_lock:
+            pending = self._pending.get(request_id)
+        if pending is None:
+            return
+        event, result = pending
+        result[:] = [success, category]
+        event.set()
 
     def _create_engine(self):
         if self._engine_factory is not None:
@@ -76,6 +246,9 @@ class QtWindowsTTSProvider:
             return None
 
     def is_available(self) -> bool:
+        if self._engine_factory is None:
+            bridge = self._ensure_bridge()
+            return bool(bridge and bridge.available)
         engine = self._create_engine()
         if engine is None:
             return False
@@ -86,6 +259,9 @@ class QtWindowsTTSProvider:
             return False
 
     def list_voices(self) -> tuple[SystemVoice, ...]:
+        if self._engine_factory is None:
+            bridge = self._ensure_bridge()
+            return bridge.voices() if bridge is not None else ()
         engine = self._create_engine()
         if engine is None:
             return ()
@@ -105,6 +281,9 @@ class QtWindowsTTSProvider:
         return tuple(voices)
 
     def speak(self, text: str, voice_id: str | None, rate: float, volume: float) -> None:
+        if self._engine_factory is None:
+            self._speak_via_bridge(text, voice_id, rate, volume)
+            return
         try:
             from PySide6.QtCore import QEventLoop, QTimer
             from PySide6.QtTextToSpeech import QTextToSpeech
@@ -157,7 +336,7 @@ class QtWindowsTTSProvider:
 
     def _speak_once(self, engine: Any, text: str, rate: float, volume: float, event_loop_type: Any, timer_type: Any, tts_type: Any) -> None:
         engine.setRate(max(-1.0, min(1.0, rate - 1.0)))
-        engine.setVolume(max(0.0, min(1.0, volume)))
+        engine.setVolume(_clamp_volume(volume))
         loop = event_loop_type()
         timer = timer_type()
         timer.setInterval(50)
@@ -203,6 +382,31 @@ class QtWindowsTTSProvider:
 
     def stop(self) -> None:
         self._cancelled.set()
+        if self._bridge is not None:
+            self._bridge.stop_requested.emit()
+
+    def _speak_via_bridge(self, text: str, voice_id: str | None, rate: float, volume: float) -> None:
+        bridge = self._bridge
+        if bridge is None:
+            raise VoiceUnavailableError("Sesli yanıt şu anda kullanılamıyor.")
+        self._cancelled.clear()
+        with self._request_lock:
+            self._request_sequence += 1
+            request_id = self._request_sequence
+            event = threading.Event()
+            result: list[object] = []
+            self._pending[request_id] = (event, result)
+        bridge.start_requested.emit(request_id, text, voice_id, rate, volume)
+        completed = event.wait(self._synthesis_timeout)
+        with self._request_lock:
+            self._pending.pop(request_id, None)
+        if not completed:
+            bridge.stop_requested.emit()
+            raise VoicePlaybackError("Sesli yanıt zaman aşımına uğradı.")
+        success = bool(result and result[0])
+        category = str(result[1]) if len(result) > 1 else "playback"
+        if not success and category != "cancelled":
+            raise VoicePlaybackError("Sesli yanıt oynatılamadı.")
 
 
 class WindowsSapiTTSProvider:
@@ -286,6 +490,11 @@ class WindowsSapiTTSProvider:
 
     def stop(self) -> None:
         self._cancelled.set()
+
+
+def _clamp_volume(volume: float) -> float:
+    """Return the Qt audio volume in its documented zero-to-one range."""
+    return max(0.0, min(1.0, volume))
 
 
 def _voice_language(description: str) -> str | None:

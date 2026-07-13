@@ -151,9 +151,9 @@ def test_tts_lifecycle_logging_is_privacy_safe(caplog):
         time.sleep(0.03)
     log_text = caplog.text
     assert "tts_requested" in log_text
-    assert "tts_synthesis_started" in log_text
-    assert "playback_started" in log_text
-    assert "playback_completed" in log_text
+    # Only the WinRT state bridge may report real playback lifecycle events.
+    assert "playback_started" not in log_text
+    assert "playback_completed" not in log_text
     assert "gizli kullanıcı metni" not in log_text
 
 
