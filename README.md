@@ -10,12 +10,31 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.9.4-alpha`
+- **Sürüm:** `v0.10.0-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
 
 Lina; Ollama üzerinden yerel model kullanır, konuşma rollerini structured `/api/chat` mesajlarıyla ayırır, açık kullanıcı komutlarıyla yerel hafızaya kayıt yapar, yalnız izinli proje dosyalarını read-only okuyabilir ve push-to-talk ile Türkçe konuşmayı yerelde metne çevirebilir. PySide6 tabanlı modern masaüstü arayüzü günlük kullanıma odaklanırken capability sınırları privacy-first ve safety-first ilkeleriyle korunur.
+
+v0.10.0-alpha ile yazılı yanıt korunurken isteğe bağlı yerel Windows TTS, push-to-talk otomatik gönderim, barge-in, inference ölçümleri, deterministik context trimming ve düşük VRAM için text/vision model lifecycle yönetimi eklendi. Wake-word mimarisi hazırdır ancak detector eklenmediği için özellik deneysel ve devre dışıdır.
+
+### Voice Interaction
+
+- Sesli yanıtlar varsayılan kapalıdır; TTS yalnız yerel Windows SAPI kullanılabiliyorsa çalışır.
+- TTS unavailable olduğunda yazılı cevap kesilmez ve uygulama hata vermez.
+- Mic akışı `insert` veya açık kullanıcı seçimiyle `send` modunda çalışır.
+- Lina konuşurken mic veya “Sesi Durdur” mevcut playback’i keser; yazılı cevap silinmez.
+- Kod blokları, uzun URL’ler, ham JSON, stack trace ve Base64 seslendirilmez; uzun metin 700 karakter civarında sınırlandırılır.
+- Mikrofon yalnız kullanıcı başlatınca açılır. Audio ve TTS çıktısı kalıcı olarak saklanmaz veya cloud’a gönderilmez.
+
+### Inference Performance
+
+- Ollama streaming cevabından ilk token, toplam süre, prompt/generated token, token/sn ve model load süresi ölçülür.
+- Metrics prompt veya kullanıcı mesajı içermez.
+- Ayarlar > Modeller içindeki “Performans Testi” sabit, history’siz bir prompt kullanır ve GUI thread’ini bloklamaz.
+- Keep-alive, maksimum çıktı ve context budget ayarlanabilir; warm-up varsayılan kapalıdır.
+- Vision isteği öncesi text model, normal chat öncesi vision model best-effort boşaltılır; vision model istek sonunda bellekte tutulmaz.
 
 ## Öne Çıkan Özellikler
 
@@ -288,6 +307,7 @@ Ayrıntılı dokümanlar:
 - `v0.9.2-alpha`: Deterministic intent routing, güvenli tool registry, confirmation ve clarification foundation.
 - `v0.9.3-alpha`: Tool status kartları, güvenli retry/cancel, availability ve v0.9.x stabilizasyonu.
 - `v0.9.4-alpha`: Light theme kontrast, component state ve görsel tutarlılık düzeltmeleri.
+- `v0.10.0-alpha`: Local voice interaction, inference metrics, context ve model lifecycle foundation.
 
 Settings içindeki `Modelleri Yenile` yalnız cihazda kurulu Ollama modellerini sorgular; otomatik indirme yapmaz. Vision model seçimleri `/api/show` capability sonucu ile doğrulanır.
 

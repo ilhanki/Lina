@@ -2,7 +2,18 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.8.2-alpha Conversation Search & Management UX
+## Voice ve Agent Roadmap
+
+- `v0.9.x`: tamamlandı.
+- `v0.10.0-alpha`: Voice Interaction & Inference Performance Foundation tamamlandı.
+- `v0.10.1-alpha`: Wake Word & Hands-Free Conversation.
+- `v0.11.0-alpha`: Live Vision & Camera Mode.
+- `v0.12.0-alpha`: Agent Mode Foundation.
+- `v0.13.0-alpha`: Codex Bridge.
+
+v0.10.0-alpha production wake-word, always-on mic, cloud TTS, camera/live vision veya Codex bridge içermez. Bu sınırlar sonraki sprintler için bilinçli olarak korunur.
+
+## Mevcut Durum: v0.10.0-alpha Voice Interaction & Inference Performance Foundation
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 
@@ -530,5 +541,5 @@ Sonraki hedefler:
 - `v0.9.2-alpha`: Assistant Tools & Intent Routing Foundation tamamlandı.
 - `v0.9.3-alpha`: Tool UX, Reliability ve v0.9.x Stabilization tamamlandı.
 - `v0.9.4-alpha`: Light Theme Polish & Visual Consistency tamamlandı.
-- Sonraki hedef: `v1.0.0-alpha` Stability, Packaging & First-Run Experience.
-- Stability ve packaging foundation için `v1.0.0-alpha` değerlendirmesi.
+- v0.9.x serisi tamamlandı; sonraki aktif hedef `v0.10.1-alpha` Wake Word & Hands-Free Conversation.
+- Stability ve packaging foundation, voice/live vision/agent temellerinden sonra yeniden değerlendirilecek.

@@ -2,6 +2,20 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Voice Interaction & Inference Performance Foundation (v0.10.0-alpha)
+
+`lina.voice` GUI’den bağımsız typed katmandır. `VoiceController` idle, listening, transcribing, thinking, speaking, interrupted, error ve disabled durumlarını yönetir. `AudioPlaybackService` generation kimliğiyle tek aktif playback sağlar; stop eski callback’i geçersiz kılar. Mic speaking sırasında başlatılırsa barge-in önce playback’i keser, sonra listening’e geçer.
+
+`WindowsSapiTTSProvider` yeni paket veya shell çalıştırmadan, sistemde mevcutsa opsiyonel `win32com` üzerinden SAPI kullanır. Her konuşma dedicated worker thread’inde kendi COM bağlamını açar. SAPI bulunmazsa provider unavailable olur; timeline’daki yazılı cevap normal çalışır. TTS öncesi kod blokları, uzun URL, JSON/trace/Base64 benzeri içerik çıkarılır ve yalnız ses kopyası sınırlandırılır.
+
+Wake-word için yalnız `WakeWordDetector` protokolü ve unavailable default bulunur. Detector olmadan ayar disable edilir; always-on microphone veya sahte detection yoktur.
+
+`InferenceMetrics` yalnız provider/model ve süre/sayaç metadata’sı taşır. Ollama stream satırlarının alınma zamanı first-token ölçümünü, final Ollama metadata’sı prompt/eval token ve nanosecond duration değerlerini sağlar. Eksik metadata tahmin edilmez. `InferenceDiagnosticsService` sabit history’siz benchmark prompt’u; `ModelLifecycleService` warm-up, cancel ve text/vision best-effort unload koordinasyonunu sağlar.
+
+Context manager, görünür conversation’ı değiştirmeden modele gönderilen en yeni complete user/assistant turn’lerini karakter bütçesine göre deterministik biçimde seçer. Image data URI, uzun Base64 ve işaretlenmiş internal/tool debug metadata modele aktarılmaz.
+
+Shutdown sırası mic stop, voice playback/TTS stop, benchmark cancel, warm-up/model lifecycle cancel, notification scheduler stop ve tray cleanup’tır. Audio bytes loglanmaz; kayıt veya TTS çıktısı kalıcı depolanmaz.
+
 ## Temel Mimari İlkeler
 
 - Kod tabanı İngilizce, dokümantasyon Türkçe olacaktır.

@@ -1,6 +1,20 @@
 # Lina Smoke Test Checklist
 
-Bu doküman `v0.3.0-alpha` öncesi manuel doğrulama adımlarını tanımlar.
+Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
+
+## Windows Voice & Performance Smoke Test
+
+- Sesli yanıt kapalıyken normal chat ve tool cevaplarının yazılı kaldığını doğrula.
+- Sistem Türkçe sesi varsa seç, “Merhaba İlhan” yanıtını rate/volume değiştirerek dinle.
+- Sistem TTS yoksa “Sesli yanıt şu anda kullanılamıyor.” durumunu ve yazılı cevabın korunduğunu doğrula.
+- Push-to-talk `insert` modunda transcription’ın composer’a geldiğini, `send` modunda otomatik gönderildiğini doğrula.
+- Lina konuşurken mic’e bas; sesin kesilip listening durumuna geçtiğini doğrula.
+- Header ve tray “Sesi Durdur” ile yalnız playback’in durduğunu, mesajın silinmediğini doğrula.
+- Wake word seçeneğinin detector yokken disabled ve varsayılan kapalı olduğunu doğrula.
+- Performans Testi sırasında UI’ın responsive kaldığını; first token, token/sn, total ve mevcut token/load alanlarının gösterildiğini doğrula.
+- Keep-alive seçeneklerini, warm-up kapalı varsayılanını ve restart persistence’ı doğrula.
+- Ardışık normal chat → vision → normal chat ile iki modelin gereksiz birlikte resident kalmadığını Ollama/VRAM üzerinden gözle.
+- New chat, conversation switch ve gerçek exit sırasında mic/playback/benchmark/warm-up worker kalmadığını doğrula.
 
 ## Ön Koşullar
 

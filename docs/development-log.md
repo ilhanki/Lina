@@ -2,6 +2,17 @@
 
 Bu dosya önemli geliştirme kararlarını ve milestone ilerlemesini kısa notlar halinde takip etmek için kullanılır.
 
+## 2026-07-13 - Voice Interaction & Inference Performance Foundation
+
+- Framework-neutral voice state machine, single-playback service, barge-in ve shutdown cleanup eklendi.
+- Opsiyonel Windows SAPI TTS, Turkish voice tercihi, unavailable fallback ve güvenli spoken-text normalizasyonu eklendi.
+- Push-to-talk için insert/send davranışı, speaking/stop indicator ve tray “Sesi Durdur” aksiyonu eklendi.
+- Wake-word protokolü hazırlandı; detector ve always-on mic eklenmedi, ayar varsayılan kapalı ve unavailable durumda disabled.
+- Ollama streaming, privacy-safe inference metrics, async benchmark, keep-alive/max-output/context ayarları ve warm-up eklendi.
+- Text/vision best-effort unload lifecycle ve deterministik pair-preserving context trimming eklendi.
+- Settings schema v2 migration eski değerleri koruyacak biçimde eklendi.
+- Yeni dependency, cloud audio, raw audio/image persistence, live camera veya Codex bridge eklenmedi.
+
 ## 2026-07-05
 
 - Proje klasör yapısı oluşturuldu.
