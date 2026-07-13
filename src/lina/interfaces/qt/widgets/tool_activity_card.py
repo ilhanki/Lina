@@ -15,6 +15,15 @@ STATUS_LABELS = {
     ToolStatus.CANCELLED: "İptal edildi",
     ToolStatus.UNAVAILABLE: "Kullanılamıyor",
 }
+STATUS_MARKS = {
+    ToolStatus.PREPARING: "•",
+    ToolStatus.AWAITING_CONFIRMATION: "?",
+    ToolStatus.RUNNING: "•",
+    ToolStatus.SUCCESS: "✓",
+    ToolStatus.FAILURE: "×",
+    ToolStatus.CANCELLED: "–",
+    ToolStatus.UNAVAILABLE: "!",
+}
 
 
 class ToolActivityCard(QFrame):
@@ -43,7 +52,16 @@ class ToolActivityCard(QFrame):
         self.set_status(ToolStatus.AWAITING_CONFIRMATION if confirmation else ToolStatus.PREPARING)
 
     def set_status(self, status: ToolStatus, summary: str = "", retryable: bool = False) -> None:
-        self._status.setText(f"Durum: {STATUS_LABELS[status]}")
+        status_names = {
+            ToolStatus.SUCCESS: "toolStatusSuccess",
+            ToolStatus.FAILURE: "toolStatusFailure",
+            ToolStatus.CANCELLED: "toolStatusWarning",
+            ToolStatus.UNAVAILABLE: "toolStatusWarning",
+        }
+        self._status.setObjectName(status_names.get(status, "toolStatusInfo"))
+        self._status.style().unpolish(self._status)
+        self._status.style().polish(self._status)
+        self._status.setText(f"Durum: {STATUS_MARKS[status]} {STATUS_LABELS[status]}")
         if summary:
             self._description.setText(summary)
         confirmation = status is ToolStatus.AWAITING_CONFIRMATION

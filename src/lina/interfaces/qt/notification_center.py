@@ -13,15 +13,18 @@ from lina.notifications.service import NotificationService
 class NotificationCenterDialog(QDialog):
     def __init__(self, service: NotificationService, parent=None) -> None:
         super().__init__(parent)
+        self.setObjectName("notificationCenter")
         self._service = service
         self.setWindowTitle("Bildirimler")
         self.setMinimumSize(560, 520)
         layout = QVBoxLayout(self)
         self._filter = QComboBox(self)
+        self._filter.setObjectName("notificationFilter")
         self._filter.addItems(["Yaklaşanlar", "Geçmiş", "Tamamlananlar"])
         self._filter.currentIndexChanged.connect(self.refresh)
         layout.addWidget(self._filter)
         self._items = QListWidget(self)
+        self._items.setObjectName("notificationItems")
         layout.addWidget(self._items, 1)
         actions = QHBoxLayout()
         for text, handler in (("Yeni", self.create_reminder), ("Düzenle", self.edit_selected), ("Tamamla", self.complete_selected), ("Sil", self.delete_selected)):

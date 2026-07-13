@@ -11,6 +11,7 @@ import lina.interfaces.qt.main_window as main_window_module
 from lina.interfaces.qt.main_window import LinaMainWindow
 from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
+from lina.interfaces.qt.theme import build_stylesheet
 
 
 def test_notification_center_renders_empty_state(qtbot, tmp_path) -> None:
@@ -20,6 +21,10 @@ def test_notification_center_renders_empty_state(qtbot, tmp_path) -> None:
 
     assert dialog._items.count() == 1
     assert "Henüz" in dialog._items.item(0).text()
+    dialog.setStyleSheet(build_stylesheet("Segoe UI", "light", 1.35))
+    assert dialog.objectName() == "notificationCenter"
+    assert dialog._filter.objectName() == "notificationFilter"
+    assert dialog._items.objectName() == "notificationItems"
 
 
 def test_notification_center_complete_snooze_and_mark_read(qtbot, tmp_path) -> None:

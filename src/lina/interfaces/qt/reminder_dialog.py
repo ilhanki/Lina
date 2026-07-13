@@ -11,6 +11,7 @@ from lina.notifications.models import Reminder, ReminderRecurrence
 class ReminderDialog(QDialog):
     def __init__(self, reminder: Reminder | None = None, parent=None) -> None:
         super().__init__(parent)
+        self.setObjectName("reminderDialog")
         self.setWindowTitle("Hatırlatıcıyı Düzenle" if reminder else "Yeni Hatırlatıcı")
         layout = QVBoxLayout(self)
         form = QFormLayout()

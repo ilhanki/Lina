@@ -51,12 +51,14 @@ class SettingsDialog(QDialog):
         root = QVBoxLayout(self)
         content = QHBoxLayout()
         self._navigation = QListWidget(self)
+        self._navigation.setObjectName("settingsNavigation")
         self._navigation.setFixedWidth(150)
         self._navigation.addItems(
             ["Genel", "Görünüm", "Modeller", "Konuşma", "Vision", "Sistem", "Hakkında"]
         )
         content.addWidget(self._navigation)
         self._pages = QStackedWidget(self)
+        self._pages.setObjectName("settingsPages")
         self._pages.addWidget(self._general_page())
         self._pages.addWidget(self._appearance_page())
         self._pages.addWidget(self._models_page())

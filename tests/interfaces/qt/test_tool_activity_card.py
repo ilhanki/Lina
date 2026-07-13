@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 
 from lina.brain.routing.models import ToolStatus
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
+from lina.interfaces.qt.theme import build_stylesheet
 
 
 def test_confirmation_card_accessibility_keyboard_and_statuses(qtbot) -> None:
@@ -35,3 +36,14 @@ def test_retry_button_only_for_retryable_failure(qtbot) -> None:
     assert retried == [True]
     card.set_status(ToolStatus.SUCCESS)
     assert card.retry_button.isHidden()
+
+
+def test_tool_and_confirmation_cards_inherit_light_theme(qtbot) -> None:
+    card = ToolActivityCard("Hafızaya kaydet", "Onay", "Koyu tema", "Kalıcı", True)
+    qtbot.addWidget(card)
+    card.setStyleSheet(build_stylesheet("Segoe UI", "light", 1.35))
+    card.set_status(ToolStatus.UNAVAILABLE, "Kullanılamıyor", retryable=True)
+    assert card.objectName() == "toolActivityCard"
+    assert card._status.objectName() == "toolStatusWarning"
+    assert "QFrame#toolActivityCard" in card.styleSheet()
+    assert card.confirm_button.isVisible() is False
