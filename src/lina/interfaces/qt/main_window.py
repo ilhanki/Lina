@@ -254,8 +254,11 @@ class LinaMainWindow(QMainWindow):
 
     def _build_chat_area(self, parent_layout: QVBoxLayout) -> None:
         self._scroll = QScrollArea(self)
+        self._scroll.setObjectName("chatTimelineScroll")
+        self._scroll.viewport().setObjectName("chatTimelineViewport")
         self._scroll.setWidgetResizable(True)
         self._message_container = QWidget(self._scroll)
+        self._message_container.setObjectName("chatTimeline")
         self._message_layout = QVBoxLayout(self._message_container)
         self._message_layout.setContentsMargins(24, 14, 24, 14)
         self._message_layout.setSpacing(14)

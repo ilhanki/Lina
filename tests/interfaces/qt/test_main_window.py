@@ -275,6 +275,9 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert window._composer.mic_button.isEnabled() is False
     assert window._model_status.text() == "Model · hazır"
     assert window._speech_status.text() == "Mic · kapalı"
+    assert window._scroll.objectName() == "chatTimelineScroll"
+    assert window._scroll.viewport().objectName() == "chatTimelineViewport"
+    assert window._message_container.objectName() == "chatTimeline"
 
 
 def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:

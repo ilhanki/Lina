@@ -97,6 +97,7 @@ class SidebarWidget(QWidget):
         layout.addWidget(self.new_chat_button)
 
         self.session_panel = QWidget(self)
+        self.session_panel.setObjectName("sidebarSessionPanel")
         session_layout = QVBoxLayout(self.session_panel)
         session_layout.setContentsMargins(0, 12, 0, 0)
         session_layout.setSpacing(6)
@@ -112,9 +113,12 @@ class SidebarWidget(QWidget):
         session_layout.addWidget(self.session_note)
 
         self.session_scroll = QScrollArea(self.session_panel)
+        self.session_scroll.setObjectName("sidebarConversationScroll")
+        self.session_scroll.viewport().setObjectName("sidebarConversationViewport")
         self.session_scroll.setWidgetResizable(True)
         self.session_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         self.session_list = QWidget(self.session_scroll)
+        self.session_list.setObjectName("sidebarConversationList")
         self.session_list_layout = QVBoxLayout(self.session_list)
         self.session_list_layout.setContentsMargins(0, 4, 0, 0)
         self.session_list_layout.setSpacing(4)
@@ -128,6 +132,7 @@ class SidebarWidget(QWidget):
         layout.addWidget(self.session_panel, 1)
 
         self.status_panel = QWidget(self)
+        self.status_panel.setObjectName("sidebarStatusPanel")
         status_layout = QVBoxLayout(self.status_panel)
         status_layout.setContentsMargins(0, 0, 0, 0)
         status_layout.setSpacing(4)

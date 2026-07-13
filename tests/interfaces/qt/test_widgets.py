@@ -284,6 +284,9 @@ def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path
     assert not hasattr(sidebar, "font_increase_button")
     assert not hasattr(sidebar, "collapse_button")
     assert "Veriler cihazında" in sidebar.local_status.text()
+    assert sidebar.session_scroll.objectName() == "sidebarConversationScroll"
+    assert sidebar.session_scroll.viewport().objectName() == "sidebarConversationViewport"
+    assert sidebar.session_list.objectName() == "sidebarConversationList"
 
 
 def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) -> None:

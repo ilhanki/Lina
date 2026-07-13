@@ -101,6 +101,16 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {sidebar_bg};
             border-right: 1px solid {border};
         }}
+        QWidget#sidebarSessionPanel, QWidget#sidebarStatusPanel,
+        QWidget#sidebarConversationViewport, QWidget#sidebarConversationList,
+        QScrollArea#sidebarConversationScroll {{
+            background: {sidebar_bg};
+            border: none;
+        }}
+        QScrollArea#chatTimelineScroll, QWidget#chatTimelineViewport, QWidget#chatTimeline {{
+            background: {app_bg};
+            border: none;
+        }}
         QWidget#header {{
             background: {panel_bg};
             border: 1px solid {border};

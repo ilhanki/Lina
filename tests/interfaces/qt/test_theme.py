@@ -42,6 +42,10 @@ def test_stylesheet_uses_theme_specific_component_states() -> None:
     assert palette["focus"] in light
     assert light != dark
     assert "#303846" not in light
+    assert "QScrollArea#chatTimelineScroll" in light
+    assert "QScrollArea#sidebarConversationScroll" in light
+    assert "QWidget#chatTimelineViewport" in light
+    assert "QWidget#sidebarConversationViewport" in light
 
 
 def test_font_scale_bounds_are_reflected_without_component_changes() -> None:
