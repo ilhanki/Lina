@@ -529,5 +529,6 @@ Sonraki hedefler:
 - `v0.9.1-alpha`: Notification Center, reminder CRUD/snooze/recurrence, tray presenter, missed policy ve scheduler lifecycle tamamlandı.
 - `v0.9.2-alpha`: Assistant Tools & Intent Routing Foundation tamamlandı.
 - `v0.9.3-alpha`: Tool UX, Reliability ve v0.9.x Stabilization tamamlandı.
+- `v0.9.4-alpha`: Light Theme Polish & Visual Consistency tamamlandı.
 - Sonraki hedef: `v1.0.0-alpha` Stability, Packaging & First-Run Experience.
 - Stability ve packaging foundation için `v1.0.0-alpha` değerlendirmesi.

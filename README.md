@@ -10,7 +10,7 @@
 
 ## Proje Durumu
 
-- **Sürüm:** `v0.9.3-alpha`
+- **Sürüm:** `v0.9.4-alpha`
 - **Durum:** Alpha / aktif geliştirme
 - **Platform:** Windows masaüstü
 - **Çalışma modeli:** Local-first
@@ -287,6 +287,7 @@ Ayrıntılı dokümanlar:
 - `v0.9.1-alpha`: Yerel Notification Center, reminder yönetimi, tray presenter ve background scheduler.
 - `v0.9.2-alpha`: Deterministic intent routing, güvenli tool registry, confirmation ve clarification foundation.
 - `v0.9.3-alpha`: Tool status kartları, güvenli retry/cancel, availability ve v0.9.x stabilizasyonu.
+- `v0.9.4-alpha`: Light theme kontrast, component state ve görsel tutarlılık düzeltmeleri.
 
 Settings içindeki `Modelleri Yenile` yalnız cihazda kurulu Ollama modellerini sorgular; otomatik indirme yapmaz. Vision model seçimleri `/api/show` capability sonucu ile doğrulanır.
 
@@ -309,6 +310,10 @@ Reminder create ve Memory store her zaman kullanıcı onayı ister. Eksik remind
 Shell, PowerShell/CMD, arbitrary code execution, file write/delete/move, browser automation, mouse/keyboard kontrolü, process/application launch, network, e-posta ve webhook araçları yoktur. Files yalnız mevcut read-only allowlist üzerinden çalışır; `..`, absolute/UNC/drive path ve symlink escape reddedilir. İşleme local cihazda kalır; raw image/Base64 persist edilmez.
 
 Tool işlemleri chat timeline içinde Hazırlanıyor, Onay bekleniyor, Çalışıyor, Tamamlandı, Başarısız, İptal edildi veya Kullanılamıyor durum kartlarıyla görünür. Kalıcı işlemler tekrar denenirken yeni confirmation gerekir; read-only reminder list, Memory recall, file read ve Vision işlemleri güvenli retry kapsamındadır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` pending işlemi kapatır.
+
+## Tema ve görünüm
+
+Dark, light ve system tema seçenekleri aynı semantic palette ve component-state stylesheet'ini kullanır. Light theme metin, border, hover, selected, disabled ve focus durumları yüksek kontrast için ayrıştırılmıştır. Runtime tema değişimi açık pencere ve dialog'lara uygulanır; font scale %85–135 aralığındadır.
 
 ## Bilinen Sınırlar
 

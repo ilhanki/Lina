@@ -2364,3 +2364,15 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Reminder list 10 satırla sınırlandı; local timezone ve kalan kayıt özeti eklendi.
 - File allowlist canonical casing güvenli biçimde çözümleniyor; traversal/absolute/UNC/symlink/binary/oversize sınırları korunuyor.
 - v0.9.0 Settings, v0.9.1 Notifications ve v0.9.2 Routing regresyonları birlikte geçti. Dokümantasyon öncesi tam paket `663 passed`.
+
+## 2026-07-13 - Light Theme Polish & Visual Consistency
+
+- Light theme içindeki dark token sızıntıları kaldırıldı; tüm selector'lar semantic palette'e bağlandı.
+- Main/sidebar/header/composer/input ile conversation hover, active, selected, disabled ve focus durumları ayrıştırıldı.
+- User/assistant bubble, timestamp, welcome, typing ve attachment yüzeyleri light palette ile uyumlu hale getirildi.
+- Tool/confirmation kartlarına semantic success/error/warning/info durum selector'ları ve metinsel durum işaretleri eklendi.
+- Notification Center, Reminder dialog ve Settings navigation için merkezi component selector'ları eklendi.
+- ComboBox, CheckBox, Slider, menu, tooltip, scrollbar ve dialog yüzeyleri merkezi QSS içinde tamamlandı.
+- System theme light/dark fallback'i ve runtime açık dialog repolish akışı doğrulandı.
+- %85, %100 ve %135 font scale; Tool card ve Notification Center selector'larıyla test edildi.
+- Dark theme temel token'ları korunarak tam regresyon paketi `670 passed` tamamlandı. Yeni dependency eklenmedi.
