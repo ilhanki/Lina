@@ -275,6 +275,16 @@ class SettingsDialog(QDialog):
         self._live_change_sensitivity.addItem("Yüksek", "high")
         self._live_voice = QCheckBox("Live Vision sonuçlarını seslendir", page)
         self._live_meaningful_only = QCheckBox("Yalnız önemli değişikliklerde konuş", page)
+        self._camera_conversation = QCheckBox("Realtime camera conversation", page)
+        self._camera_auto_commentary = QCheckBox("Automatic camera commentary", page)
+        self._camera_mirror = QCheckBox("Kamera önizlemesini aynala", page)
+        self._camera_speak_semantic = QCheckBox("Semantik kamera değişikliklerini seslendir", page)
+        self._camera_commentary_cooldown = QDoubleSpinBox(page)
+        self._camera_commentary_cooldown.setRange(8.0, 60.0)
+        self._camera_commentary_cooldown.setSuffix(" sn")
+        self._camera_analysis_interval = QDoubleSpinBox(page)
+        self._camera_analysis_interval.setRange(2.0, 60.0)
+        self._camera_analysis_interval.setSuffix(" sn")
         self._live_camera_device = QComboBox(page)
         self._live_camera_device.addItem("Varsayılan kamera", None)
         for device_id, name in camera_devices():
@@ -291,6 +301,12 @@ class SettingsDialog(QDialog):
         form.addRow("Değişim hassasiyeti", self._live_change_sensitivity)
         form.addRow(self._live_voice)
         form.addRow(self._live_meaningful_only)
+        form.addRow(self._camera_conversation)
+        form.addRow(self._camera_auto_commentary)
+        form.addRow(self._camera_mirror)
+        form.addRow(self._camera_speak_semantic)
+        form.addRow("Yorum cooldown", self._camera_commentary_cooldown)
+        form.addRow("Kamera analiz aralığı", self._camera_analysis_interval)
         form.addRow("Kamera", self._live_camera_device)
         form.addRow("Ekran", self._live_screen)
         return page
@@ -380,6 +396,12 @@ class SettingsDialog(QDialog):
         _select_data(self._live_change_sensitivity, settings.live_vision.change_sensitivity)
         self._live_voice.setChecked(settings.live_vision.voice_live_vision_enabled)
         self._live_meaningful_only.setChecked(settings.live_vision.speak_only_meaningful_changes)
+        self._camera_conversation.setChecked(settings.live_vision.realtime_camera_conversation_enabled)
+        self._camera_auto_commentary.setChecked(settings.live_vision.automatic_camera_commentary_enabled)
+        self._camera_mirror.setChecked(settings.live_vision.mirror_camera_preview)
+        self._camera_speak_semantic.setChecked(settings.live_vision.speak_semantic_changes)
+        self._camera_commentary_cooldown.setValue(settings.live_vision.commentary_cooldown_seconds)
+        self._camera_analysis_interval.setValue(settings.live_vision.camera_analysis_interval_seconds)
         _select_data(self._live_camera_device, settings.live_vision.camera_device_id)
         _select_data(self._live_screen, settings.live_vision.default_screen_name)
         self._minimize_to_tray.setChecked(settings.system.minimize_to_tray)
@@ -451,6 +473,12 @@ class SettingsDialog(QDialog):
                 change_sensitivity=str(self._live_change_sensitivity.currentData()),
                 voice_live_vision_enabled=self._live_voice.isChecked(),
                 speak_only_meaningful_changes=self._live_meaningful_only.isChecked(),
+                realtime_camera_conversation_enabled=self._camera_conversation.isChecked(),
+                automatic_camera_commentary_enabled=self._camera_auto_commentary.isChecked(),
+                mirror_camera_preview=self._camera_mirror.isChecked(),
+                speak_semantic_changes=self._camera_speak_semantic.isChecked(),
+                commentary_cooldown_seconds=self._camera_commentary_cooldown.value(),
+                camera_analysis_interval_seconds=self._camera_analysis_interval.value(),
                 camera_device_id=self._live_camera_device.currentData(),
                 default_screen_name=self._live_screen.currentData(),
             ),

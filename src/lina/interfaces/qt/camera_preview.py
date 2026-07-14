@@ -6,21 +6,32 @@ from PySide6.QtCore import QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCloseEvent, QImage, QPainter, QPen
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from lina.vision.live.models import ChangeRegion, LiveVisionState
+from lina.vision.live.models import CameraConversationState, ChangeRegion, LiveVisionState
 
 
 class CameraPreviewCanvas(QWidget):
     """Render one implicitly-shared QImage and normalized non-semantic boxes."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, *, mirror_enabled: bool = True) -> None:
         super().__init__(parent)
+        self._mirror_enabled = mirror_enabled
         self._image = QImage()
         self._regions: tuple[ChangeRegion, ...] = ()
         self.setMinimumSize(320, 180)
         self.setAccessibleName("Canlı kamera görüntüsü ve değişiklik bölgeleri")
 
     def set_frame(self, image: QImage) -> None:
-        self._image = QImage(image)
+        # Mirror only the local preview; model analysis keeps the original frame.
+        self._image = (
+            QImage(image).flipped(Qt.Orientation.Horizontal)
+            if self._mirror_enabled else QImage(image)
+        )
+        self.update()
+
+    def set_mirror_enabled(self, enabled: bool) -> None:
+        if enabled != self._mirror_enabled and not self._image.isNull():
+            self._image = self._image.flipped(Qt.Orientation.Horizontal)
+        self._mirror_enabled = enabled
         self.update()
 
     def set_regions(self, regions: tuple[ChangeRegion, ...]) -> None:
@@ -47,8 +58,9 @@ class CameraPreviewCanvas(QWidget):
         painter.drawImage(target, self._image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         for region in self._regions:
+            rendered_x = _rendered_region_x(region, self._mirror_enabled)
             box = QRectF(
-                target.x() + region.x * target.width(),
+                target.x() + rendered_x * target.width(),
                 target.y() + region.y * target.height(),
                 region.width * target.width(),
                 region.height * target.height(),
@@ -67,8 +79,10 @@ class CameraPreviewWindow(QWidget):
     pause_requested = Signal()
     stop_requested = Signal()
     hidden = Signal()
+    automatic_commentary_toggled = Signal(bool)
+    mute_toggled = Signal(bool)
 
-    def __init__(self, device_name: str, session_id: str, parent=None) -> None:
+    def __init__(self, device_name: str, session_id: str, parent=None, *, mirror_enabled: bool = True, automatic_commentary_enabled: bool = True, commentary_muted: bool = False) -> None:
         super().__init__(parent, Qt.WindowType.Tool)
         self.session_id = session_id
         self._programmatic_close = False
@@ -81,7 +95,7 @@ class CameraPreviewWindow(QWidget):
         self.setMinimumSize(420, 320)
         root = QVBoxLayout(self)
         header = QHBoxLayout()
-        self.active_label = QLabel("● Kamera aktif", self)
+        self.active_label = QLabel("● Konuşmalı Kamera", self)
         self.active_label.setAccessibleName("Kamera aktif gizlilik göstergesi")
         self.device_label = QLabel(device_name or "Kamera", self)
         self.status_label = QLabel("Kamera açılıyor", self)
@@ -89,21 +103,29 @@ class CameraPreviewWindow(QWidget):
         header.addWidget(self.device_label, 1)
         header.addWidget(self.status_label)
         root.addLayout(header)
-        self.canvas = CameraPreviewCanvas(self)
+        self.canvas = CameraPreviewCanvas(self, mirror_enabled=mirror_enabled)
         root.addWidget(self.canvas, 1)
         note = QLabel("Kutular nesne kimliği değil, görüntü değişikliği bölgeleridir.", self)
         note.setObjectName("mutedLabel")
         root.addWidget(note)
         controls = QHBoxLayout()
-        self.analyze_button = QPushButton("Şimdi Analiz Et", self)
+        self.analyze_button = QPushButton("Şimdi Bak", self)
         self.pause_button = QPushButton("Duraklat", self)
-        self.stop_button = QPushButton("Takibi Durdur", self)
+        self.auto_commentary_button = QPushButton("Otomatik Yorum", self)
+        self.auto_commentary_button.setCheckable(True)
+        self.auto_commentary_button.setChecked(automatic_commentary_enabled)
+        self.mute_button = QPushButton("Sessize Al", self)
+        self.mute_button.setCheckable(True)
+        self.mute_button.setChecked(commentary_muted)
+        self.stop_button = QPushButton("Kamerayı Kapat", self)
         self.hide_button = QPushButton("Preview’i Gizle", self)
         self.analyze_button.clicked.connect(self.analyze_requested)
         self.pause_button.clicked.connect(self.pause_requested)
         self.stop_button.clicked.connect(self.stop_requested)
+        self.auto_commentary_button.toggled.connect(self.automatic_commentary_toggled)
+        self.mute_button.toggled.connect(self._mute_changed)
         self.hide_button.clicked.connect(self.hide_preview)
-        for button in (self.analyze_button, self.pause_button, self.stop_button, self.hide_button):
+        for button in (self.analyze_button, self.pause_button, self.auto_commentary_button, self.mute_button, self.stop_button, self.hide_button):
             controls.addWidget(button)
         root.addLayout(controls)
 
@@ -136,6 +158,21 @@ class CameraPreviewWindow(QWidget):
         self.pause_button.setText("Devam Et" if state is LiveVisionState.PAUSED else "Duraklat")
         self.analyze_button.setEnabled(state not in {LiveVisionState.ANALYZING, LiveVisionState.PAUSED})
 
+    def apply_conversation_state(self, state: CameraConversationState) -> None:
+        self.status_label.setText({
+            CameraConversationState.INACTIVE: "Kamera konuşması durduruldu",
+            CameraConversationState.OBSERVING: "Kamerayı izliyorum",
+            CameraConversationState.ANALYZING: "Görüntüyü analiz ediyorum",
+            CameraConversationState.SPEAKING: "Cevap veriyorum",
+            CameraConversationState.LISTENING: "Seni dinliyorum",
+            CameraConversationState.PAUSED: "Otomatik yorum duraklatıldı",
+            CameraConversationState.ERROR: "Görüntüyü şu anda yorumlayamıyorum",
+        }[state])
+
+    def _mute_changed(self, muted: bool) -> None:
+        self.mute_button.setText("Sesi Aç" if muted else "Sessize Al")
+        self.mute_toggled.emit(muted)
+
     def hide_preview(self) -> None:
         self.hide()
         self.hidden.emit()
@@ -167,3 +204,7 @@ def _fit_rect(container_width: int, container_height: int, image_width: int, ima
     width = image_width * scale
     height = image_height * scale
     return QRectF((container_width - width) / 2, (container_height - height) / 2, width, height)
+
+
+def _rendered_region_x(region: ChangeRegion, mirror_enabled: bool) -> float:
+    return 1.0 - region.x - region.width if mirror_enabled else region.x

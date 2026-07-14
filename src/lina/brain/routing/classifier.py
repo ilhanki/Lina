@@ -16,9 +16,9 @@ class DeterministicIntentClassifier:
             return self._request(IntentType.CHAT, original, 0.99)
         if any(phrase in normalized for phrase in ("şu an neyi izliyorsun", "su an neyi izliyorsun", "takip durumu", "canlı takip durumu", "canli takip durumu")):
             return self._request(IntentType.LIVE_VISION_STATUS, original, 0.99)
-        if any(phrase in normalized for phrase in ("takibi duraklat", "izlemeyi duraklat", "canlı takibi duraklat", "canli takibi duraklat")):
+        if any(phrase in normalized for phrase in ("takibi duraklat", "izlemeyi duraklat", "canlı takibi duraklat", "canli takibi duraklat", "konuşmayı durdur", "konusmayi durdur")):
             return self._request(IntentType.LIVE_VISION_PAUSE, original, 0.99)
-        if any(phrase in normalized for phrase in ("takibe devam et", "tekrar devam et", "izlemeye devam et")):
+        if any(phrase in normalized for phrase in ("takibe devam et", "tekrar devam et", "izlemeye devam et", "yorum yapmaya devam et")):
             return self._request(IntentType.LIVE_VISION_RESUME, original, 0.99)
         if any(phrase in normalized for phrase in ("takibi durdur", "izlemeyi durdur", "kamerayı kapat", "kamerayi kapat", "canlı takibi kapat", "canli takibi kapat")):
             return self._request(IntentType.LIVE_VISION_STOP, original, 0.99)

@@ -231,7 +231,7 @@ def create_application_services(
 
     live_vision_controller = LiveVisionController(
         analyze_live_frame,
-        speaker=voice_controller.speak,
+        speaker=voice_controller.speak_live_vision,
         cancel_analysis=model_lifecycle_service.cancel_active,
     )
     inference_diagnostics_service = InferenceDiagnosticsService(provider)

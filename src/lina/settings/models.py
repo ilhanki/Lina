@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -82,6 +82,12 @@ class LiveVisionUserSettings:
     speak_only_meaningful_changes: bool = True
     camera_device_id: str | None = None
     default_screen_name: str | None = None
+    realtime_camera_conversation_enabled: bool = True
+    automatic_camera_commentary_enabled: bool = True
+    mirror_camera_preview: bool = True
+    speak_semantic_changes: bool = True
+    commentary_cooldown_seconds: float = 10.0
+    camera_analysis_interval_seconds: float = 3.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +150,10 @@ class UserSettings:
             raise ValueError("Live vision analysis interval must be between 1 and 3600")
         if self.live_vision.monitor_duration_minutes not in {0, 1, 5, 15}:
             raise ValueError("Unsupported live vision duration")
+        if not 8 <= self.live_vision.commentary_cooldown_seconds <= 60:
+            raise ValueError("Camera commentary cooldown must be between 8 and 60")
+        if not 2 <= self.live_vision.camera_analysis_interval_seconds <= 60:
+            raise ValueError("Camera analysis interval must be between 2 and 60")
         _validate_model_name(self.models.text_model)
         _validate_model_name(self.models.vision_model)
 
@@ -205,6 +215,12 @@ class UserSettings:
                 "speak_only_meaningful_changes": self.live_vision.speak_only_meaningful_changes,
                 "camera_device_id": self.live_vision.camera_device_id,
                 "default_screen_name": self.live_vision.default_screen_name,
+                "realtime_camera_conversation_enabled": self.live_vision.realtime_camera_conversation_enabled,
+                "automatic_camera_commentary_enabled": self.live_vision.automatic_camera_commentary_enabled,
+                "mirror_camera_preview": self.live_vision.mirror_camera_preview,
+                "speak_semantic_changes": self.live_vision.speak_semantic_changes,
+                "commentary_cooldown_seconds": self.live_vision.commentary_cooldown_seconds,
+                "camera_analysis_interval_seconds": self.live_vision.camera_analysis_interval_seconds,
             },
             "system": {
                 "minimize_to_tray": self.system.minimize_to_tray,
@@ -222,7 +238,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -294,6 +310,12 @@ class UserSettings:
                 speak_only_meaningful_changes=_bool(live_vision, "speak_only_meaningful_changes", defaults.live_vision.speak_only_meaningful_changes),
                 camera_device_id=_optional_string(live_vision, "camera_device_id"),
                 default_screen_name=_optional_string(live_vision, "default_screen_name"),
+                realtime_camera_conversation_enabled=_bool(live_vision, "realtime_camera_conversation_enabled", defaults.live_vision.realtime_camera_conversation_enabled),
+                automatic_camera_commentary_enabled=_bool(live_vision, "automatic_camera_commentary_enabled", defaults.live_vision.automatic_camera_commentary_enabled),
+                mirror_camera_preview=_bool(live_vision, "mirror_camera_preview", defaults.live_vision.mirror_camera_preview),
+                speak_semantic_changes=_bool(live_vision, "speak_semantic_changes", defaults.live_vision.speak_semantic_changes),
+                commentary_cooldown_seconds=_bounded_float(live_vision, "commentary_cooldown_seconds", defaults.live_vision.commentary_cooldown_seconds, 8, 60),
+                camera_analysis_interval_seconds=_bounded_float(live_vision, "camera_analysis_interval_seconds", defaults.live_vision.camera_analysis_interval_seconds, 2, 60),
             ),
             system=SystemSettings(
                 minimize_to_tray=_bool(system, "minimize_to_tray", defaults.system.minimize_to_tray),

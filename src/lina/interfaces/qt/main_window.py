@@ -87,7 +87,7 @@ from lina.interfaces.qt.camera_preview import CameraPreviewWindow
 from lina.interfaces.qt.live_vision import QtCaptureInvoker
 from lina.interfaces.qt.monitoring_overlay import MonitoringBorderOverlay
 from lina.vision.live import (
-    CameraFrameSource, ChangeRegionsEvent, ChangeSensitivity, LiveVisionConfig,
+    CameraConversationState, CameraFrameSource, ChangeRegionsEvent, ChangeSensitivity, LiveVisionConfig,
     LiveVisionController, LiveVisionError, LiveVisionSession, LiveVisionSnapshot,
     LiveVisionSource, LiveVisionState, OverlayGeometry, PreviewFrameEvent,
     RegionFrameSource, ScreenFrameSource, SessionStoppedEvent,
@@ -99,6 +99,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
 AUTO_SCROLL_THRESHOLD_PX = 110
+LIVE_CAMERA_CONTEXT = "live_camera"
+
+
+def _is_camera_question(text: str) -> bool:
+    normalized = " ".join(text.casefold().split())
+    return any(phrase in normalized for phrase in (
+        "ne görüyorsun", "ne goruyorsun", "elimde ne var", "bu ne renk",
+        "bunu tarif et", "şu an ne yapıyorum", "su an ne yapiyorum",
+    ))
 
 
 class LinaMainWindow(QMainWindow):
@@ -674,6 +683,10 @@ class LinaMainWindow(QMainWindow):
                 self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
         self._live_vision_enabled = settings.live_vision.enabled and settings.vision.enabled
+        if self._camera_preview is not None:
+            self._camera_preview.canvas.set_mirror_enabled(settings.live_vision.mirror_camera_preview)
+            self._camera_preview.auto_commentary_button.setChecked(settings.live_vision.automatic_camera_commentary_enabled)
+            self._camera_preview.mute_button.setChecked(not settings.live_vision.speak_semantic_changes)
         if hasattr(self, "_hands_free_toggle"):
             self._hands_free_toggle.setText("Hands-free Açık" if settings.speech.hands_free_enabled else "Hands-free Kapalı")
             self._hands_free_pause.setEnabled(settings.speech.hands_free_enabled)
@@ -732,6 +745,13 @@ class LinaMainWindow(QMainWindow):
                 self._voice_controller.request_confirmation_listening()
                 self.speak_assistant_response(prompt)
                 return
+        if _is_camera_question(message) and not self._camera_is_active():
+            self._finish_routed_intent(
+                message,
+                "Kamera şu anda açık değil.",
+                request_created_at,
+            )
+            return
         if self._intent_router is not None:
             routed = self._intent_router.route(
                 message, self._routing_session_key, self._active_request_id
@@ -739,6 +759,10 @@ class LinaMainWindow(QMainWindow):
             if routed.intent is not RoutingIntentType.CHAT:
                 self._handle_routed_intent(routed, message, request_created_at)
                 return
+        if request_screen_context is None:
+            request_screen_context = self._capture_live_camera_context(message)
+            if request_screen_context is not None:
+                user_message.set_visual_status("Canlı kamera karesi analiz ediliyor")
         self._show_typing_indicator(
             "Lina ekranı inceliyor..."
             if request_screen_context is not None
@@ -944,6 +968,8 @@ class LinaMainWindow(QMainWindow):
             return ToolResult(success, "Canlı takip duraklatıldı." if success else "Duraklatılacak aktif takip yok.")
         if intent is RoutingIntentType.LIVE_VISION_RESUME:
             success = controller.resume()
+            if not success and controller.snapshot.source is LiveVisionSource.CAMERA:
+                success = controller.set_automatic_commentary(True)
             return ToolResult(success, "Canlı takip devam ediyor." if success else "Devam ettirilecek takip yok.")
         if intent is RoutingIntentType.LIVE_VISION_STOP:
             success = controller.stop()
@@ -965,7 +991,7 @@ class LinaMainWindow(QMainWindow):
                 source = CameraFrameSource(backend)
                 session_id = self._start_live_source(
                     source, focus,
-                    analyze_immediately=intent is not RoutingIntentType.CAMERA_OPEN,
+                    analyze_immediately=True,
                     single_shot=intent is RoutingIntentType.CAMERA_ANALYZE,
                 )
                 self._camera_backend = backend
@@ -981,17 +1007,22 @@ class LinaMainWindow(QMainWindow):
         except LiveVisionError as error:
             return ToolResult(False, str(error), error_code="unavailable", retryable=True)
 
-    def _live_config(self) -> LiveVisionConfig:
+    def _live_config(self, source: LiveVisionSource | None = None) -> LiveVisionConfig:
         settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
         if settings is None:
             return LiveVisionConfig()
         return LiveVisionConfig(
             capture_interval_seconds=settings.capture_interval_seconds,
-            minimum_analysis_interval_seconds=settings.minimum_analysis_interval_seconds,
+            minimum_analysis_interval_seconds=(
+                settings.camera_analysis_interval_seconds
+                if source is LiveVisionSource.CAMERA else settings.minimum_analysis_interval_seconds
+            ),
             duration_seconds=(settings.monitor_duration_minutes * 60.0) if settings.monitor_duration_minutes else None,
             sensitivity=ChangeSensitivity(settings.change_sensitivity),
-            voice_feedback_enabled=settings.voice_live_vision_enabled,
+            voice_feedback_enabled=settings.voice_live_vision_enabled and settings.speak_semantic_changes,
             speak_only_meaningful_changes=settings.speak_only_meaningful_changes,
+            repeat_speech_cooldown_seconds=settings.commentary_cooldown_seconds,
+            automatic_commentary_enabled=settings.automatic_camera_commentary_enabled,
         )
 
     def _selected_live_screen(self):
@@ -1022,7 +1053,7 @@ class LinaMainWindow(QMainWindow):
         if not overlay.isVisible():
             self._cleanup_live_visuals()
             raise LiveVisionError("Ekran takip çerçevesi gösterilemedi.")
-        session = LiveVisionSession(source.source, focus, self._live_config())
+        session = LiveVisionSession(source.source, focus, self._live_config(source.source))
         try:
             session_id = self._live_vision_controller.start(source, session, analyze_immediately=True)
         except Exception:
@@ -1057,7 +1088,7 @@ class LinaMainWindow(QMainWindow):
         if not overlay.isVisible():
             self._cleanup_live_visuals()
             raise LiveVisionError("Ekran takip çerçevesi gösterilemedi.")
-        session = LiveVisionSession(source.source, focus, self._live_config())
+        session = LiveVisionSession(source.source, focus, self._live_config(source.source))
         try:
             session_id = self._live_vision_controller.start(source, session, analyze_immediately=True)
         except Exception:
@@ -1069,7 +1100,7 @@ class LinaMainWindow(QMainWindow):
 
     def _start_live_source(self, source, focus: str = "", *, analyze_immediately: bool = False, single_shot: bool = False) -> str:
         self._cleanup_live_visuals()
-        session = LiveVisionSession(source.source, focus, self._live_config())
+        session = LiveVisionSession(source.source, focus, self._live_config(source.source))
         session_id = self._live_vision_controller.start(source, session, analyze_immediately=analyze_immediately, single_shot=single_shot)
         self._live_session_id = session_id
         return session_id
@@ -1077,10 +1108,19 @@ class LinaMainWindow(QMainWindow):
     def _show_camera_preview(self, device_name: str, session_id: str) -> None:
         if self._camera_preview is not None:
             self._camera_preview.close_permanently()
-        preview = CameraPreviewWindow(device_name, session_id)
+        settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
+        preview = CameraPreviewWindow(
+            device_name,
+            session_id,
+            mirror_enabled=settings.mirror_camera_preview if settings else True,
+            automatic_commentary_enabled=settings.automatic_camera_commentary_enabled if settings else True,
+            commentary_muted=not settings.speak_semantic_changes if settings else False,
+        )
         preview.analyze_requested.connect(self._live_analyze_now)
         preview.pause_requested.connect(self._toggle_live_pause)
         preview.stop_requested.connect(self._stop_live_vision)
+        preview.automatic_commentary_toggled.connect(self._set_camera_auto_commentary)
+        preview.mute_toggled.connect(self._set_camera_commentary_muted)
         preview.hidden.connect(lambda: self._live_show_preview.setEnabled(True))
         self._camera_preview = preview
         self._live_show_preview.setEnabled(False)
@@ -1099,6 +1139,55 @@ class LinaMainWindow(QMainWindow):
         if self._live_vision_controller is not None and self._live_vision_controller.snapshot.state is LiveVisionState.PAUSED:
             return
         self._camera_preview.set_frame(image, session_id)
+
+    def _capture_live_camera_context(self, question: str = "") -> ScreenContext | None:
+        """Attach the current in-memory camera frame to an ordinary chat question."""
+        controller = self._live_vision_controller
+        if controller is None or not hasattr(controller, "capture_current_frame"):
+            return None
+        settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
+        if settings is not None and not settings.realtime_camera_conversation_enabled:
+            return None
+        snapshot = controller.snapshot
+        if snapshot.source is not LiveVisionSource.CAMERA or snapshot.state in {
+            LiveVisionState.IDLE,
+            LiveVisionState.PAUSED,
+            LiveVisionState.STOPPING,
+            LiveVisionState.UNAVAILABLE,
+        }:
+            return None
+        frame = controller.capture_current_frame(question)
+        if frame is None:
+            return None
+        return ScreenContext(
+            image_bytes=frame.data,
+            width=frame.width,
+            height=frame.height,
+            captured_at=frame.captured_at,
+            display_name=frame.source_label or snapshot.source_label or "Kamera",
+            estimated_byte_size=len(frame.data),
+            source=LIVE_CAMERA_CONTEXT,
+        )
+
+    def _camera_is_active(self) -> bool:
+        if self._live_vision_controller is None:
+            return False
+        snapshot = self._live_vision_controller.snapshot
+        return snapshot.source is LiveVisionSource.CAMERA and snapshot.state not in {
+            LiveVisionState.IDLE,
+            LiveVisionState.STOPPING,
+            LiveVisionState.UNAVAILABLE,
+        }
+
+    def _set_camera_auto_commentary(self, enabled: bool) -> None:
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.set_automatic_commentary(enabled)
+        if self._camera_preview is not None and not enabled:
+            self._camera_preview.apply_conversation_state(CameraConversationState.PAUSED)
+
+    def _set_camera_commentary_muted(self, muted: bool) -> None:
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.set_commentary_muted(muted)
 
     def _apply_live_preview_event(self, event: object) -> None:
         if not isinstance(event, PreviewFrameEvent) or event.session_id != self._live_session_id:
@@ -1188,6 +1277,12 @@ class LinaMainWindow(QMainWindow):
         self._live_stop.setEnabled(active)
         if self._camera_preview is not None and snapshot.session_id == self._live_session_id:
             self._camera_preview.apply_state(snapshot.state)
+            if (
+                snapshot.source is LiveVisionSource.CAMERA
+                and self._live_vision_controller is not None
+                and hasattr(self._live_vision_controller, "camera_context")
+            ):
+                self._camera_preview.apply_conversation_state(self._live_vision_controller.camera_context.state)
             self._live_show_preview.setEnabled(not self._camera_preview.isVisible())
         if self._monitoring_overlay is not None and snapshot.session_id == self._live_session_id:
             self._monitoring_overlay.set_paused(snapshot.state is LiveVisionState.PAUSED)
@@ -1863,7 +1958,14 @@ class LinaMainWindow(QMainWindow):
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text, created_at=assistant_created_at)
-        self.speak_assistant_response(text)
+        if request_screen_context is not None and request_screen_context.source == LIVE_CAMERA_CONTEXT:
+            live_speaker = getattr(self._voice_controller, "speak_live_vision", None)
+            if callable(live_speaker):
+                live_speaker(text)
+            else:
+                self.speak_assistant_response(text)
+        else:
+            self.speak_assistant_response(text)
         if self._hands_free_service is not None:
             self._hands_free_service.mark_response_completed()
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
@@ -1966,6 +2068,17 @@ class LinaMainWindow(QMainWindow):
         if state is VoiceState.WAKE_LISTENING and not getattr(self, "_wake_indicator_enabled", True):
             label = "🎙 Mikrofon aktif"
         self._voice_status.setText(label)
+        if (
+            self._camera_preview is not None
+            and self._live_vision_controller is not None
+            and self._live_vision_controller.snapshot.source is LiveVisionSource.CAMERA
+        ):
+            if state in {VoiceState.LISTENING, VoiceState.COMMAND_LISTENING, VoiceState.TRANSCRIBING}:
+                self._camera_preview.apply_conversation_state(CameraConversationState.LISTENING)
+            elif state is VoiceState.SPEAKING:
+                self._camera_preview.apply_conversation_state(CameraConversationState.SPEAKING)
+            elif self._live_vision_controller.snapshot.state is LiveVisionState.MONITORING:
+                self._camera_preview.apply_conversation_state(CameraConversationState.OBSERVING)
         if hasattr(self, "_hands_free_pause") and self._voice_controller is not None:
             self._hands_free_pause.setText("Dinlemeye Devam Et" if self._voice_controller.hands_free_paused else "Dinlemeyi Duraklat")
         if self._tray_icon is not None:

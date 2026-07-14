@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 import logging
 import threading
 import time
@@ -12,7 +13,7 @@ import time
 from lina.vision.live.change_detector import FrameChangeDetector
 from lina.vision.live.frame_source import FrameSource
 from lina.vision.live.models import (
-    ChangeRegionsEvent, LiveVisionError, LiveVisionFrame, LiveVisionMetrics,
+    CameraConversationContext, CameraConversationState, ChangeRegionsEvent, LiveVisionError, LiveVisionFrame, LiveVisionMetrics,
     LiveVisionSession, LiveVisionSnapshot, LiveVisionSource, LiveVisionState,
     OverlayGeometry, OverlayGeometryEvent, PreviewFrameEvent, SessionStoppedEvent,
 )
@@ -54,11 +55,27 @@ class LiveVisionController:
         self._last_spoken_at = float("-inf")
         self._durations: list[int] = []
         self._single_shot = False
+        self._latest_frame: LiveVisionFrame | None = None
+        self._last_user_question = ""
 
     @property
     def snapshot(self) -> LiveVisionSnapshot:
         with self._lock:
             return self._with_duration(self._snapshot)
+
+    @property
+    def camera_context(self) -> CameraConversationContext:
+        with self._lock:
+            session_id = self._session.session_id if self._session is not None else ""
+            return CameraConversationContext(
+                session_id=session_id,
+                state=self._camera_state(self._snapshot.state),
+                latest_frame=self._latest_frame,
+                latest_semantic_summary=self._snapshot.last_result,
+                latest_spoken_summary=self._last_spoken,
+                last_analysis_at=self._snapshot.last_analysis_at,
+                last_user_question=self._last_user_question,
+            )
 
     def subscribe(self, listener: Listener) -> None:
         if listener not in self._listeners:
@@ -108,6 +125,10 @@ class LiveVisionController:
             self._last_analysis_clock = float("-inf")
             self._durations.clear()
             self._single_shot = single_shot
+            self._latest_frame = None
+            self._last_user_question = ""
+            self._last_spoken = ""
+            self._last_spoken_at = float("-inf")
             self._snapshot = LiveVisionSnapshot(LiveVisionState.STARTING, session.source, source.label, session.session_id, metrics=LiveVisionMetrics(source=session.source))
         self._emit()
         try:
@@ -140,10 +161,52 @@ class LiveVisionController:
             self.stop()
             return False
         self._record_capture()
+        with self._lock: self._latest_frame = frame
         with self._lock:
             generation = self._generation
         self._emit_preview(frame, generation, session.session_id)
         self._queue(frame, force=True)
+        return True
+
+    def capture_current_frame(self, question: str = "") -> LiveVisionFrame | None:
+        """Capture one ephemeral camera frame for a user question."""
+        with self._lock:
+            source, session, state = self._source, self._session, self._snapshot.state
+            generation = self._generation
+        if (
+            source is None or session is None or session.source is not LiveVisionSource.CAMERA
+            or state in {LiveVisionState.IDLE, LiveVisionState.PAUSED, LiveVisionState.STOPPING, LiveVisionState.UNAVAILABLE}
+        ):
+            return None
+        try:
+            frame = source.capture()
+        except LiveVisionError:
+            return None
+        self._record_capture()
+        with self._lock:
+            self._latest_frame = frame
+            self._last_user_question = " ".join(question.split())[:500]
+        self._emit_preview(frame, generation, session.session_id)
+        return frame
+
+    def set_automatic_commentary(self, enabled: bool) -> bool:
+        with self._lock:
+            if self._session is None or self._session.source is not LiveVisionSource.CAMERA:
+                return False
+            self._session = replace(
+                self._session,
+                config=replace(self._session.config, automatic_commentary_enabled=enabled),
+            )
+        return True
+
+    def set_commentary_muted(self, muted: bool) -> bool:
+        with self._lock:
+            if self._session is None or self._session.source is not LiveVisionSource.CAMERA:
+                return False
+            self._session = replace(
+                self._session,
+                config=replace(self._session.config, voice_feedback_enabled=not muted),
+            )
         return True
 
     def pause(self) -> bool:
@@ -180,7 +243,7 @@ class LiveVisionController:
             if worker and worker is not current:
                 worker.join(timeout=2.0)
         with self._lock:
-            self._source = None; self._session = None; self._pending = None
+            self._source = None; self._session = None; self._pending = None; self._latest_frame = None
             self._capture_thread = None; self._analysis_thread = None; self._analysis_active = False
             previous = self._with_duration(self._snapshot)
             self._snapshot = LiveVisionSnapshot(
@@ -218,12 +281,13 @@ class LiveVisionController:
             try:
                 frame = source.capture()
                 self._record_capture()
+                with self._lock: self._latest_frame = frame
                 self._emit_preview(frame, generation, session.session_id)
                 changed = self._detector.observe(frame)
                 self._emit_change_regions(generation, session.session_id)
                 if first and analyze_immediately:
                     self._queue(frame, force=True)
-                elif changed:
+                elif changed and session.config.automatic_commentary_enabled:
                     self._record_change(); self._queue(frame)
                 first = False
             except LiveVisionError as error:
@@ -268,13 +332,19 @@ class LiveVisionController:
                 self._increment_metric("analysis_request_count")
             self._emit(); started = self._clock()
             try:
-                result = self._analyzer(frame, build_analysis_prompt(session.source, session.user_focus))
+                with self._lock:
+                    previous_result = self._snapshot.last_result
+                result = self._analyzer(frame, build_analysis_prompt(session.source, session.user_focus, previous_result))
             except Exception:
                 with self._lock: self._analysis_active = False
                 if self._is_current(generation):
+                    if session.source is LiveVisionSource.CAMERA:
+                        with self._lock:
+                            self._last_analysis_clock = self._clock()
+                        self._set_state(LiveVisionState.MONITORING, "Görüntüyü şu anda yorumlayamıyorum.")
+                        continue
                     self._set_state(LiveVisionState.ERROR, "Vision modeli şu anda kullanılamıyor.")
-                    self.stop()
-                    return
+                    self.stop(); return
                 continue
             duration = round((self._clock() - started) * 1000)
             with self._lock:
@@ -291,7 +361,7 @@ class LiveVisionController:
     def _speak_if_needed(self, result: str, session: LiveVisionSession) -> None:
         if not self._speaker or not session.config.voice_feedback_enabled or not result: return
         now = self._clock(); normalized = result.casefold()
-        if normalized == self._last_spoken and now - self._last_spoken_at < session.config.repeat_speech_cooldown_seconds: return
+        if _similar_summary(normalized, self._last_spoken) and now - self._last_spoken_at < session.config.repeat_speech_cooldown_seconds: return
         self._last_spoken, self._last_spoken_at = normalized, now
         try: self._speaker(speech_summary(result))
         except Exception: return
@@ -300,8 +370,9 @@ class LiveVisionController:
     def _record_change(self) -> None: self._increment_metric("meaningful_change_count")
 
     def _increment_metric(self, field: str) -> None:
-        metrics = self._snapshot.metrics
-        self._snapshot = replace(self._snapshot, metrics=replace(metrics, **{field: getattr(metrics, field) + 1}))
+        with self._lock:
+            metrics = self._snapshot.metrics
+            self._snapshot = replace(self._snapshot, metrics=replace(metrics, **{field: getattr(metrics, field) + 1}))
 
     def _set_state(self, state: LiveVisionState, message: str = "") -> None:
         with self._lock: self._snapshot = replace(self._snapshot, state=state, user_message=message)
@@ -347,3 +418,24 @@ class LiveVisionController:
         for listener in tuple(listeners):
             try: listener(event)
             except Exception: continue
+
+    @staticmethod
+    def _camera_state(state: LiveVisionState) -> CameraConversationState:
+        return {
+            LiveVisionState.ANALYZING: CameraConversationState.ANALYZING,
+            LiveVisionState.SPEAKING: CameraConversationState.SPEAKING,
+            LiveVisionState.PAUSED: CameraConversationState.PAUSED,
+            LiveVisionState.ERROR: CameraConversationState.ERROR,
+            LiveVisionState.UNAVAILABLE: CameraConversationState.ERROR,
+            LiveVisionState.IDLE: CameraConversationState.INACTIVE,
+        }.get(state, CameraConversationState.OBSERVING)
+
+
+def _similar_summary(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    if left == right or SequenceMatcher(None, left, right).ratio() >= 0.82:
+        return True
+    left_words, right_words = set(left.split()), set(right.split())
+    union = left_words | right_words
+    return bool(union) and len(left_words & right_words) / len(union) >= 0.8

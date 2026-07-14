@@ -145,7 +145,14 @@ class VoiceController:
         return self._settings.responses_enabled
 
     def speak(self, text: str) -> bool:
-        if self._shutdown or not self._settings.enabled or not (self._settings.responses_enabled or self.hands_free_enabled):
+        return self._speak(text, allow=self._settings.responses_enabled or self.hands_free_enabled)
+
+    def speak_live_vision(self, text: str) -> bool:
+        """Speak consented Live Vision feedback independently of chat response speech."""
+        return self._speak(text, allow=True)
+
+    def _speak(self, text: str, *, allow: bool) -> bool:
+        if self._shutdown or not self._settings.enabled or not allow:
             return False
         spoken = normalize_spoken_text(text)
         if not spoken:

@@ -8,15 +8,25 @@ from lina.vision.live.models import LiveVisionSource
 
 
 _PROMPTS = {
-    LiveVisionSource.CAMERA: "Bu kamera karesinde önemli olan şeyi kısa ve doğal biçimde açıkla. Kişi kimliği veya biyometrik çıkarım yapma.",
+    LiveVisionSource.CAMERA: (
+        "Bu kamera karesini canlı bir gözlemci gibi yorumla. Yalnızca açıkça görülen, "
+        "konuşmaya değer eylemi veya nesneyi tek kısa ve doğal Türkçe cümleyle söyle; "
+        "örneğin el kaldırma ya da elde tutulan fare, bardak veya su şişesi. "
+        "Belirsiz bir nesneyi kesinmiş gibi adlandırma. Kişi kimliği, duygu, sağlık veya "
+        "biyometrik özellik çıkarımı yapma."
+    ),
     LiveVisionSource.SCREEN: "Bu ekran görüntüsündeki önemli değişikliği kısa biçimde açıkla. Yeni veya dikkat edilmesi gereken şeyi belirt.",
     LiveVisionSource.REGION: "Seçili ekran bölgesindeki önemli değişikliği kısa biçimde açıkla.",
 }
 
 
-def build_analysis_prompt(source: LiveVisionSource, user_focus: str = "") -> str:
+def build_analysis_prompt(source: LiveVisionSource, user_focus: str = "", previous_result: str = "") -> str:
     focus = sanitize_focus(user_focus)
-    return _PROMPTS[source] + (f" Kullanıcının takip hedefi: {focus}" if focus else "")
+    prompt = _PROMPTS[source]
+    previous = sanitize_focus(previous_result, maximum=300)
+    if source is LiveVisionSource.CAMERA and previous:
+        prompt += f" Önceki gözlem: {previous} Şimdiki karede değişen eylem veya nesneyi öne çıkar."
+    return prompt + (f" Kullanıcının takip hedefi: {focus}" if focus else "")
 
 
 def sanitize_focus(value: str, maximum: int = 500) -> str:

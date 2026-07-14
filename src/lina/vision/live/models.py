@@ -29,6 +29,16 @@ class LiveVisionState(str, Enum):
     ERROR = "error"
 
 
+class CameraConversationState(str, Enum):
+    INACTIVE = "inactive"
+    OBSERVING = "observing"
+    ANALYZING = "analyzing"
+    SPEAKING = "speaking"
+    LISTENING = "listening"
+    PAUSED = "paused"
+    ERROR = "error"
+
+
 class ChangeSensitivity(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
@@ -106,6 +116,7 @@ class LiveVisionConfig:
     speak_only_meaningful_changes: bool = True
     repeat_speech_cooldown_seconds: float = 30.0
     duration_seconds: float | None = 300.0
+    automatic_commentary_enabled: bool = True
 
     def __post_init__(self) -> None:
         if not 0.25 <= self.capture_interval_seconds <= 60:
@@ -148,6 +159,17 @@ class LiveVisionSession:
         if len(clean) > 500:
             raise ValueError("Takip hedefi en fazla 500 karakter olabilir")
         object.__setattr__(self, "user_focus", clean)
+
+
+@dataclass(frozen=True, slots=True)
+class CameraConversationContext:
+    session_id: str
+    state: CameraConversationState
+    latest_frame: LiveVisionFrame | None = None
+    latest_semantic_summary: str = ""
+    latest_spoken_summary: str = ""
+    last_analysis_at: datetime | None = None
+    last_user_question: str = ""
 
 
 @dataclass(frozen=True, slots=True)
