@@ -7,7 +7,7 @@ from io import BytesIO
 import pytest
 
 from lina.speech.audio_recorder import NoOpAudioRecorder, SoundDeviceAudioRecorder
-from lina.speech.models import SpeechRecordingError, SpeechUnavailableError
+from lina.speech.models import SpeechNoInputError, SpeechRecordingError, SpeechUnavailableError
 
 
 class FakeInputStream:
@@ -36,8 +36,10 @@ class FakeSoundDevice:
         self.device = {"max_input_channels": 1}
         self.after_chunks = None
 
-    def query_devices(self, kind: str):
-        assert kind == "input"
+    def query_devices(self, device=None, kind=None):
+        if device is not None and device != 0:
+            raise RuntimeError("missing")
+        assert device is not None or kind == "input"
         return self.device
 
     def InputStream(self, **kwargs):
@@ -93,18 +95,28 @@ def test_record_once_returns_bounded_in_memory_wav() -> None:
     assert backend.input_stream_arguments["dtype"] == "int16"
 
 
-def test_record_once_stops_after_configured_silence() -> None:
+def test_record_once_rejects_silence_only_after_bounded_timeout() -> None:
+    backend = FakeSoundDevice(
+        chunks=[(_audio_chunk(0, 10), 10, False)] * 10,
+    )
+    recorder = _create_recorder(backend)
+
+    with pytest.raises(SpeechNoInputError):
+        recorder.record_once()
+
+
+def test_record_once_stops_after_speech_end_silence() -> None:
     backend = FakeSoundDevice(
         chunks=[
+            (_audio_chunk(10000, 10), 10, False),
+            (_audio_chunk(10000, 10), 10, False),
+            (_audio_chunk(10000, 10), 10, False),
             (_audio_chunk(0, 10), 10, False),
             (_audio_chunk(0, 10), 10, False),
         ],
     )
-    recorder = _create_recorder(backend)
-
-    result = recorder.record_once()
-
-    assert result.duration_seconds == 0.2
+    result = _create_recorder(backend).record_once()
+    assert result.duration_seconds == 0.5
 
 
 def test_stream_failure_becomes_controlled_recording_error() -> None:
@@ -130,3 +142,13 @@ def test_stop_ends_an_active_recording() -> None:
     result = recorder.record_once()
 
     assert result.duration_seconds == 0.1
+
+
+def test_missing_selected_device_falls_back_to_default(caplog) -> None:
+    backend = FakeSoundDevice(chunks=[(_audio_chunk(2000, 100), 100, False)])
+    recorder = _create_recorder(backend)
+    recorder.set_device(99)
+    assert recorder.is_available()
+    recorder.record_once()
+    assert backend.input_stream_arguments["device"] is None
+    assert "audio_input_fallback" in caplog.text

@@ -7,6 +7,7 @@ import logging
 import re
 import threading
 import unicodedata
+from typing import Protocol
 
 from lina.speech.models import AudioRecordingResult
 from lina.speech.providers import STTProvider
@@ -17,26 +18,26 @@ WakeUtteranceSource = Callable[[threading.Event], Iterable[AudioRecordingResult]
 _logger = logging.getLogger("lina.voice")
 
 
-class WakeWordDetector:
+class WakeWordDetector(Protocol):
     """Framework-neutral detector interface used by the voice controller."""
 
     def is_available(self) -> bool:
-        raise NotImplementedError
+        ...
 
     def is_running(self) -> bool:
-        raise NotImplementedError
+        ...
 
     def start(self, callback: WakeDetectedCallback | None = None) -> bool:
-        raise NotImplementedError
+        ...
 
     def stop(self) -> None:
-        raise NotImplementedError
+        ...
 
     def set_phrase(self, phrase: str) -> None:
-        raise NotImplementedError
+        ...
 
     def shutdown(self) -> None:
-        raise NotImplementedError
+        ...
 
 
 class STTWakeWordDetector(WakeWordDetector):
@@ -59,7 +60,8 @@ class STTWakeWordDetector(WakeWordDetector):
         self._shutdown = False
 
     def is_available(self) -> bool:
-        return not self._shutdown and self._stt_provider.is_available()
+        source_available = getattr(self._utterance_source, "is_available", lambda: True)
+        return not self._shutdown and self._stt_provider.is_available() and bool(source_available())
 
     def is_running(self) -> bool:
         with self._lock:
@@ -69,6 +71,11 @@ class STTWakeWordDetector(WakeWordDetector):
         normalized = validate_wake_phrase(phrase)
         with self._lock:
             self._phrase = normalized
+
+    def set_device(self, device_id: int | None) -> None:
+        setter = getattr(self._utterance_source, "set_device", None)
+        if setter is not None:
+            setter(device_id)
 
     def start(self, callback: WakeDetectedCallback | None = None) -> bool:
         with self._lock:

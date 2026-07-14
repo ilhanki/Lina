@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from io import BytesIO
 import threading
+import logging
 from typing import Any, Protocol
 import wave
 
@@ -13,8 +14,13 @@ import sounddevice
 from lina.speech.models import (
     AudioRecordingResult,
     SpeechRecordingError,
+    SpeechNoInputError,
     SpeechUnavailableError,
 )
+from lina.voice.vad import VADResult, VoiceActivityDetector
+
+
+_logger = logging.getLogger("lina.voice")
 
 
 class AudioRecorder(Protocol):
@@ -54,6 +60,7 @@ class SoundDeviceAudioRecorder:
         silence_threshold: float,
         silence_duration_seconds: float,
         backend: Any = sounddevice,
+        device_id: int | None = None,
     ) -> None:
         self._sample_rate = sample_rate
         self._channels = channels
@@ -61,16 +68,21 @@ class SoundDeviceAudioRecorder:
         self._silence_threshold = silence_threshold
         self._silence_duration_seconds = silence_duration_seconds
         self._backend = backend
+        self._device_id = device_id
         self._stop_event = threading.Event()
         self._recording_lock = threading.Lock()
         self._is_recording = False
 
     def is_available(self) -> bool:
         try:
-            device = self._backend.query_devices(kind="input")
+            device_id = self._resolve_device()
+            device = self._backend.query_devices(device_id) if device_id is not None else self._backend.query_devices(kind="input")
         except Exception:
             return False
         return int(device.get("max_input_channels", 0)) >= self._channels
+
+    def set_device(self, device_id: int | None) -> None:
+        self._device_id = device_id
 
     def record_once(self) -> AudioRecordingResult:
         with self._recording_lock:
@@ -81,11 +93,20 @@ class SoundDeviceAudioRecorder:
         self._stop_event.clear()
         chunks: list[bytes] = []
         recorded_frames = 0
-        silent_seconds = 0.0
         callback_error: Exception | None = None
+        vad_result: VADResult | None = None
+        vad = VoiceActivityDetector(
+            sample_rate=self._sample_rate,
+            channels=self._channels,
+            noise_threshold=self._silence_threshold,
+            silence_timeout=self._silence_duration_seconds,
+            minimum_speech_duration=0.25,
+            maximum_duration=self._max_recording_seconds,
+            no_speech_timeout=min(5.0, self._max_recording_seconds),
+        )
 
         def capture(indata, frames, time_info, status) -> None:
-            nonlocal recorded_frames, silent_seconds, callback_error
+            nonlocal recorded_frames, callback_error, vad_result
             if status:
                 callback_error = SpeechRecordingError("Audio input stream reported an error")
                 self._stop_event.set()
@@ -94,15 +115,8 @@ class SoundDeviceAudioRecorder:
             chunk = indata.tobytes()
             chunks.append(chunk)
             recorded_frames += frames
-            duration = frames / self._sample_rate
-            if _pcm_peak(chunk) < self._silence_threshold:
-                silent_seconds += duration
-            else:
-                silent_seconds = 0.0
-
-            if silent_seconds >= self._silence_duration_seconds:
-                self._stop_event.set()
-            if recorded_frames / self._sample_rate >= self._max_recording_seconds:
+            vad_result = vad.feed(chunk)
+            if vad_result is not None:
                 self._stop_event.set()
 
         try:
@@ -111,8 +125,11 @@ class SoundDeviceAudioRecorder:
                 raise callback_error
             if not chunks:
                 raise SpeechRecordingError("Audio recording produced no data")
+            if vad_result is not None and not vad_result.accepted:
+                raise SpeechNoInputError("No valid speech was detected")
+            pcm_data = vad_result.pcm_data if vad_result is not None else b"".join(chunks)
             audio_data = _build_wav(
-                pcm_data=b"".join(chunks),
+                pcm_data=pcm_data,
                 sample_rate=self._sample_rate,
                 channels=self._channels,
             )
@@ -140,16 +157,23 @@ class SoundDeviceAudioRecorder:
             samplerate=self._sample_rate,
             channels=self._channels,
             dtype="int16",
+            device=self._resolve_device(),
             callback=callback,
         ):
             if not self._stop_event.wait(timeout):
                 raise SpeechRecordingError("Audio recording did not stop in time")
 
-
-def _pcm_peak(pcm_data: bytes) -> float:
-    samples = memoryview(pcm_data).cast("h")
-    peak = max((abs(sample) for sample in samples), default=0)
-    return peak / 32768.0
+    def _resolve_device(self) -> int | None:
+        if self._device_id is None:
+            return None
+        try:
+            device = self._backend.query_devices(self._device_id)
+            if int(device.get("max_input_channels", 0)) >= self._channels:
+                return self._device_id
+        except Exception:
+            pass
+        _logger.warning("audio_input_fallback reason=selected_device_unavailable")
+        return None
 
 
 def _build_wav(pcm_data: bytes, sample_rate: int, channels: int) -> bytes:

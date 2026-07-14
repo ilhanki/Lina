@@ -50,6 +50,11 @@ class SpeechService:
         """Return the current speech state."""
         return self._state
 
+    @property
+    def stt_provider(self) -> STTProvider:
+        """Expose the shared local provider to the energy-gated wake detector."""
+        return self._stt_provider
+
     def is_stt_available(self) -> bool:
         """Return whether speech transcription is available."""
         return (
@@ -60,6 +65,11 @@ class SpeechService:
     def is_tts_available(self) -> bool:
         """Return whether speech synthesis is available."""
         return self._tts_provider.is_available()
+
+    def set_microphone_device(self, device_id: int | None) -> None:
+        setter = getattr(self._audio_recorder, "set_device", None)
+        if setter is not None:
+            setter(device_id)
 
     def transcribe_once(self) -> SpeechTranscriptionResult:
         """Run one explicit transcription request without sending its text."""

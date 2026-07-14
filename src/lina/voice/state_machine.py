@@ -14,14 +14,14 @@ StateListener = Callable[[VoiceState], None]
 _TRANSITIONS: dict[VoiceState, frozenset[VoiceState]] = {
     VoiceState.DISABLED: frozenset({VoiceState.IDLE}),
     VoiceState.IDLE: frozenset({VoiceState.DISABLED, VoiceState.LISTENING, VoiceState.WAKE_LISTENING, VoiceState.THINKING, VoiceState.SPEAKING}),
-    VoiceState.LISTENING: frozenset({VoiceState.TRANSCRIBING, VoiceState.IDLE, VoiceState.ERROR}),
-    VoiceState.WAKE_LISTENING: frozenset({VoiceState.WAKE_DETECTED, VoiceState.IDLE, VoiceState.DISABLED, VoiceState.ERROR}),
+    VoiceState.LISTENING: frozenset({VoiceState.TRANSCRIBING, VoiceState.THINKING, VoiceState.IDLE, VoiceState.ERROR}),
+    VoiceState.WAKE_LISTENING: frozenset({VoiceState.WAKE_DETECTED, VoiceState.SPEAKING, VoiceState.IDLE, VoiceState.DISABLED, VoiceState.ERROR}),
     VoiceState.WAKE_DETECTED: frozenset({VoiceState.COMMAND_LISTENING, VoiceState.COOLDOWN, VoiceState.ERROR}),
     VoiceState.COMMAND_LISTENING: frozenset({VoiceState.TRANSCRIBING, VoiceState.COOLDOWN, VoiceState.INTERRUPTED, VoiceState.ERROR}),
     VoiceState.TRANSCRIBING: frozenset({VoiceState.THINKING, VoiceState.COOLDOWN, VoiceState.IDLE, VoiceState.ERROR}),
     VoiceState.THINKING: frozenset({VoiceState.SPEAKING, VoiceState.COOLDOWN, VoiceState.IDLE, VoiceState.ERROR}),
     VoiceState.SPEAKING: frozenset({VoiceState.INTERRUPTED, VoiceState.COOLDOWN, VoiceState.IDLE, VoiceState.ERROR}),
-    VoiceState.INTERRUPTED: frozenset({VoiceState.COMMAND_LISTENING, VoiceState.COOLDOWN, VoiceState.IDLE}),
+    VoiceState.INTERRUPTED: frozenset({VoiceState.LISTENING, VoiceState.COMMAND_LISTENING, VoiceState.COOLDOWN, VoiceState.IDLE}),
     VoiceState.COOLDOWN: frozenset({VoiceState.WAKE_LISTENING, VoiceState.IDLE, VoiceState.DISABLED}),
     VoiceState.ERROR: frozenset({VoiceState.COOLDOWN, VoiceState.WAKE_LISTENING, VoiceState.IDLE, VoiceState.DISABLED}),
 }

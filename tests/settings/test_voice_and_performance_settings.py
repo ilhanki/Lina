@@ -25,7 +25,7 @@ def test_schema_one_migrates_without_losing_old_values():
         "models": {"text_model": "old-text", "vision_model": "old-vision"},
         "speech": {"enabled": False, "language": "tr", "auto_insert_transcription": False},
     })
-    assert settings.schema_version == SCHEMA_VERSION == 2
+    assert settings.schema_version == SCHEMA_VERSION == 3
     assert settings.appearance.theme == "light"
     assert settings.models.text_model == "old-text"
     assert not settings.speech.enabled
@@ -61,6 +61,65 @@ def test_new_settings_restart_persistence(tmp_path):
     loaded = repository.load()
     assert loaded == settings
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     assert payload["speech"]["voice_responses_enabled"] is True
     assert payload["models"]["keep_alive"] == "15m"
+
+
+def test_hands_free_defaults_are_private_and_opt_in():
+    speech = UserSettings().speech
+    assert not speech.hands_free_enabled
+    assert not speech.wake_word_enabled
+    assert speech.wake_phrase == "Hey Lina"
+    assert speech.wake_word_indicator_enabled
+    assert speech.return_to_wake_listening
+    assert speech.voice_confirmation_enabled
+    assert speech.barge_in_enabled
+    assert speech.microphone_device_id is None
+
+
+def test_schema_two_migrates_and_preserves_voice_values():
+    settings = UserSettings.from_dict(
+        {
+            "schema_version": 2,
+            "speech": {
+                "enabled": False,
+                "voice_responses_enabled": True,
+                "wake_phrase": "Hey Asistan",
+                "volume": 0.4,
+            },
+        }
+    )
+    assert settings.schema_version == 3
+    assert not settings.speech.enabled
+    assert settings.speech.voice_responses_enabled
+    assert settings.speech.wake_phrase == "Hey Asistan"
+    assert settings.speech.volume == 0.4
+    assert not settings.speech.hands_free_enabled
+
+
+def test_invalid_wake_phrase_safely_falls_back():
+    settings = UserSettings.from_dict({"speech": {"wake_phrase": "Lina"}})
+    assert settings.speech.wake_phrase == "Hey Lina"
+
+
+def test_hands_free_settings_restart_persistence(tmp_path):
+    path = tmp_path / "user-settings.json"
+    repository = UserSettingsRepository(path)
+    raw = UserSettings().to_dict()
+    raw["speech"].update(
+        {
+            "hands_free_enabled": True,
+            "wake_word_enabled": True,
+            "return_to_wake_listening": False,
+            "voice_confirmation_enabled": False,
+            "microphone_device_id": 3,
+        }
+    )
+    repository.save(UserSettings.from_dict(raw))
+    loaded = repository.load().speech
+    assert loaded.hands_free_enabled
+    assert loaded.wake_word_enabled
+    assert not loaded.return_to_wake_listening
+    assert not loaded.voice_confirmation_enabled
+    assert loaded.microphone_device_id == 3

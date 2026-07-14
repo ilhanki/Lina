@@ -36,9 +36,12 @@ from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 from lina.speech.providers import NoOpSTTProvider, NoOpTTSProvider
 from lina.speech.service import SpeechService
 from lina.voice.controller import VoiceController
+from lina.voice.hands_free import HandsFreeConversationService
 from lina.voice.models import VoiceSettings
 from lina.voice.playback import AudioPlaybackService
 from lina.voice.tts_provider import QtWindowsTTSProvider
+from lina.voice.wake_audio import SoundDeviceWakeAudioSource
+from lina.voice.wake_word import STTWakeWordDetector
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 from lina.settings.repository import UserSettingsRepository, default_user_settings_path
 from lina.settings.service import UserSettingsService
@@ -62,6 +65,7 @@ class ApplicationServices:
     voice_controller: VoiceController | None = None
     inference_diagnostics_service: InferenceDiagnosticsService | None = None
     model_lifecycle_service: ModelLifecycleService | None = None
+    hands_free_service: HandsFreeConversationService | None = None
 
 
 def create_application_services(
@@ -172,8 +176,20 @@ def create_application_services(
         )
     )
     tts_provider = QtWindowsTTSProvider()
+    wake_audio_source = SoundDeviceWakeAudioSource(
+        sample_rate=settings.speech.sample_rate,
+        channels=settings.speech.channels,
+        noise_threshold=settings.speech.silence_threshold,
+        device_id=user_preferences.speech.microphone_device_id,
+    )
+    wake_word_detector = STTWakeWordDetector(
+        speech_service.stt_provider,
+        wake_audio_source,
+        phrase=user_preferences.speech.wake_phrase,
+    )
     voice_controller = VoiceController(
         AudioPlaybackService(tts_provider),
+        wake_word=wake_word_detector,
         settings=VoiceSettings(
             enabled=user_preferences.speech.enabled,
             responses_enabled=user_preferences.speech.voice_responses_enabled,
@@ -181,8 +197,15 @@ def create_application_services(
             rate=user_preferences.speech.speech_rate,
             volume=user_preferences.speech.volume,
             barge_in_enabled=user_preferences.speech.barge_in_enabled,
+            hands_free_enabled=user_preferences.speech.hands_free_enabled,
+            wake_word_enabled=user_preferences.speech.wake_word_enabled,
+            wake_phrase=user_preferences.speech.wake_phrase,
+            return_to_wake_listening=user_preferences.speech.return_to_wake_listening,
+            voice_confirmation_enabled=user_preferences.speech.voice_confirmation_enabled,
+            microphone_device_id=user_preferences.speech.microphone_device_id,
         ),
     )
+    hands_free_service = HandsFreeConversationService(voice_controller, speech_service)
     inference_diagnostics_service = InferenceDiagnosticsService(provider)
     if user_preferences.models.warm_up_enabled:
         threading.Thread(
@@ -210,6 +233,7 @@ def create_application_services(
         voice_controller=voice_controller,
         inference_diagnostics_service=inference_diagnostics_service,
         model_lifecycle_service=model_lifecycle_service,
+        hands_free_service=hands_free_service,
     )
 
 

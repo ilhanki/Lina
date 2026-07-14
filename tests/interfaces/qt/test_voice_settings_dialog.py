@@ -3,6 +3,13 @@ from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 
 
+class AvailableVoiceController:
+    wake_word_available = True
+
+    def list_voices(self):
+        return ()
+
+
 def test_voice_and_performance_controls_are_present(qtbot, tmp_path):
     service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
     dialog = SettingsDialog(service)
@@ -13,6 +20,7 @@ def test_voice_and_performance_controls_are_present(qtbot, tmp_path):
     assert not dialog._wake_word.isEnabled()
     assert dialog._benchmark_button.text() == "Performans Testi"
     assert not dialog._benchmark_button.isEnabled()
+    assert not dialog._hands_free.isEnabled()
 
 
 def test_dialog_collects_send_mode_and_bounds(qtbot, tmp_path):
@@ -50,3 +58,33 @@ def test_benchmark_button_cancels_active_test(qtbot, tmp_path):
     assert diagnostics.cancelled
     assert dialog._benchmark_cancelled
     assert "iptal" in dialog._performance_status.text().casefold()
+
+
+def test_hands_free_privacy_acceptance_enables_wake_and_collects_defaults(qtbot, tmp_path):
+    service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    dialog = SettingsDialog(
+        service,
+        voice_controller=AvailableVoiceController(),
+        privacy_confirmation=lambda: True,
+    )
+    qtbot.addWidget(dialog)
+    dialog._hands_free.click()
+    collected = dialog._collect_settings()
+    assert collected.speech.hands_free_enabled
+    assert collected.speech.wake_word_enabled
+    assert collected.speech.return_to_wake_listening
+    assert collected.speech.voice_confirmation_enabled
+    assert collected.speech.wake_word_indicator_enabled
+
+
+def test_hands_free_privacy_rejection_keeps_microphone_off(qtbot, tmp_path):
+    service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    dialog = SettingsDialog(
+        service,
+        voice_controller=AvailableVoiceController(),
+        privacy_confirmation=lambda: False,
+    )
+    qtbot.addWidget(dialog)
+    dialog._hands_free.click()
+    assert not dialog._hands_free.isChecked()
+    assert not dialog._collect_settings().speech.hands_free_enabled

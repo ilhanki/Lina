@@ -57,5 +57,9 @@ class SpeechRecordingError(SpeechServiceError):
     """Raised when an explicit microphone recording cannot be completed."""
 
 
+class SpeechNoInputError(SpeechRecordingError):
+    """Raised when bounded recording contains no valid speech segment."""
+
+
 class SpeechTranscriptionError(SpeechServiceError):
     """Raised when recorded audio cannot be transcribed."""

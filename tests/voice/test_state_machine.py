@@ -22,7 +22,7 @@ def test_hands_free_state_machine_happy_path():
 
 def test_invalid_transition_is_ignored_without_crash():
     machine = VoiceStateMachine(VoiceState.WAKE_LISTENING)
-    assert not machine.transition(VoiceState.SPEAKING)
+    assert not machine.transition(VoiceState.TRANSCRIBING)
     assert machine.state is VoiceState.WAKE_LISTENING
 
 

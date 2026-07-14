@@ -78,11 +78,11 @@ class VoiceActivityDetector:
             self._trailing_silence += duration
             self._chunks.append(pcm_data)
 
-        if self._total_seconds >= self.maximum_duration:
+        if self._total_seconds + 1e-9 >= self.maximum_duration:
             return self._finish(VADEndReason.MAX_DURATION)
-        if not self._speech_started and self._total_seconds >= self.no_speech_timeout:
+        if not self._speech_started and self._total_seconds + 1e-9 >= self.no_speech_timeout:
             return self._finish(VADEndReason.NO_SPEECH)
-        if self._speech_started and self._trailing_silence >= self.silence_timeout:
+        if self._speech_started and self._trailing_silence + 1e-9 >= self.silence_timeout:
             reason = VADEndReason.SPEECH_END if self._speech_seconds >= self.minimum_speech_duration else VADEndReason.SHORT_NOISE
             return self._finish(reason)
         return None

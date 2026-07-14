@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Any
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -52,8 +53,13 @@ class SpeechUserSettings:
     volume: float = 1.0
     transcription_mode: str = "insert"
     barge_in_enabled: bool = True
+    hands_free_enabled: bool = False
     wake_word_enabled: bool = False
     wake_phrase: str = "Hey Lina"
+    wake_word_indicator_enabled: bool = True
+    return_to_wake_listening: bool = True
+    voice_confirmation_enabled: bool = True
+    microphone_device_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +104,7 @@ class UserSettings:
             raise ValueError("Only Turkish speech settings are supported")
         if self.speech.transcription_mode not in SUPPORTED_TRANSCRIPTION_MODES:
             raise ValueError("Unsupported transcription mode")
+        _validate_wake_phrase(self.speech.wake_phrase)
         if not 0.5 <= self.speech.speech_rate <= 2.0:
             raise ValueError("Speech rate must be between 0.5 and 2.0")
         if not 0.0 <= self.speech.volume <= 1.0:
@@ -148,8 +155,13 @@ class UserSettings:
                 "volume": self.speech.volume,
                 "transcription_mode": self.speech.transcription_mode,
                 "barge_in_enabled": self.speech.barge_in_enabled,
+                "hands_free_enabled": self.speech.hands_free_enabled,
                 "wake_word_enabled": self.speech.wake_word_enabled,
                 "wake_phrase": self.speech.wake_phrase,
+                "wake_word_indicator_enabled": self.speech.wake_word_indicator_enabled,
+                "return_to_wake_listening": self.speech.return_to_wake_listening,
+                "voice_confirmation_enabled": self.speech.voice_confirmation_enabled,
+                "microphone_device_id": self.speech.microphone_device_id,
             },
             "vision": {
                 "enabled": self.vision.enabled,
@@ -171,7 +183,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -212,8 +224,13 @@ class UserSettings:
                 volume=_bounded_float(speech, "volume", defaults.speech.volume, 0.0, 1.0),
                 transcription_mode=_choice(speech, "transcription_mode", "send" if speech.get("auto_insert_transcription") is False else defaults.speech.transcription_mode, SUPPORTED_TRANSCRIPTION_MODES),
                 barge_in_enabled=_bool(speech, "barge_in_enabled", defaults.speech.barge_in_enabled),
+                hands_free_enabled=_bool(speech, "hands_free_enabled", defaults.speech.hands_free_enabled),
                 wake_word_enabled=_bool(speech, "wake_word_enabled", defaults.speech.wake_word_enabled),
-                wake_phrase=_safe_string(speech, "wake_phrase", defaults.speech.wake_phrase, 40),
+                wake_phrase=_wake_phrase(speech, defaults.speech.wake_phrase),
+                wake_word_indicator_enabled=_bool(speech, "wake_word_indicator_enabled", defaults.speech.wake_word_indicator_enabled),
+                return_to_wake_listening=_bool(speech, "return_to_wake_listening", defaults.speech.return_to_wake_listening),
+                voice_confirmation_enabled=_bool(speech, "voice_confirmation_enabled", defaults.speech.voice_confirmation_enabled),
+                microphone_device_id=_optional_int(speech, "microphone_device_id"),
             ),
             vision=VisionUserSettings(
                 enabled=_bool(vision, "enabled", defaults.vision.enabled),
@@ -266,12 +283,32 @@ def _optional_string(section: dict[str, Any], key: str) -> str | None:
     return candidate[:500] if candidate else None
 
 
+def _optional_int(section: dict[str, Any], key: str) -> int | None:
+    value = section.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
 def _safe_string(section: dict[str, Any], key: str, default: str, maximum: int) -> str:
     value = section.get(key)
     if not isinstance(value, str):
         return default
     candidate = value.strip()
     return candidate[:maximum] if candidate else default
+
+
+def _wake_phrase(section: dict[str, Any], default: str) -> str:
+    candidate = _safe_string(section, "wake_phrase", default, 40)
+    try:
+        _validate_wake_phrase(candidate)
+    except ValueError:
+        return default
+    return candidate
+
+
+def _validate_wake_phrase(value: str) -> None:
+    normalized = " ".join(re.sub(r"[^\w\s]", " ", value.casefold()).split())
+    if not 2 <= len(normalized) <= 40 or len(normalized.split()) not in {2, 3}:
+        raise ValueError("Wake phrase must contain two or three short words")
 
 
 def _model_name(section: dict[str, Any], key: str, default: str) -> str:

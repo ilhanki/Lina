@@ -8,7 +8,7 @@ from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
-from lina.interfaces.qt.main_window import LinaMainWindow
+from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation
 from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
@@ -169,6 +169,35 @@ class FakeVoiceController:
 
     def shutdown(self):
         return None
+
+
+def test_voice_confirmation_variants_are_conservative():
+    for text in ("evet", "Onayla!", "tamam", "oluştur", "kaydet"):
+        assert _classify_voice_confirmation(text) == "yes"
+    for text in ("hayır", "iptal", "vazgeç", "boşver", "gerek yok"):
+        assert _classify_voice_confirmation(text) == "no"
+    assert _classify_voice_confirmation("belki") is None
+    assert _classify_voice_confirmation("evet ama") is None
+
+
+def test_hands_free_voice_states_have_visible_text_indicators(qtbot):
+    window = LinaMainWindow(FakeConversationService(), thread_pool=ImmediateThreadPool())
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.wait(10)
+    expected = {
+        VoiceState.WAKE_LISTENING: "Hey Lina bekleniyor",
+        VoiceState.WAKE_DETECTED: "Dinliyorum",
+        VoiceState.COMMAND_LISTENING: "Dinliyorum",
+        VoiceState.TRANSCRIBING: "Yazıya çeviriyor",
+        VoiceState.THINKING: "Düşünüyor",
+        VoiceState.SPEAKING: "Konuşuyor",
+        VoiceState.COOLDOWN: "Beklemeye alındı",
+        VoiceState.DISABLED: "kapalı",
+    }
+    for state, label in expected.items():
+        window._apply_voice_state(state)
+        assert label in window._voice_status.text()
 
 
 def _valid_png() -> bytes:

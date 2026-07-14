@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -78,6 +79,7 @@ from lina.notifications.scheduler import NotificationScheduler
 from lina.notifications.service import NotificationService
 from lina.vision.models import ImageAttachment, VisionRequestError
 from lina.voice.controller import VoiceController
+from lina.voice.hands_free import HandsFreeConversationService
 from lina.voice.models import VoiceSettings, VoiceState
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 
@@ -94,6 +96,8 @@ class LinaMainWindow(QMainWindow):
 
     voice_state_changed = Signal(object)
     speech_state_changed = Signal(object)
+    hands_free_command_received = Signal(str)
+    hands_free_feedback_received = Signal(str)
 
     def __init__(
         self,
@@ -109,6 +113,7 @@ class LinaMainWindow(QMainWindow):
         voice_controller: VoiceController | None = None,
         inference_diagnostics_service: InferenceDiagnosticsService | None = None,
         model_lifecycle_service: ModelLifecycleService | None = None,
+        hands_free_service: HandsFreeConversationService | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -122,6 +127,7 @@ class LinaMainWindow(QMainWindow):
         self._voice_controller = voice_controller
         self._inference_diagnostics_service = inference_diagnostics_service
         self._model_lifecycle_service = model_lifecycle_service
+        self._hands_free_service = hands_free_service
         self._speech_enabled = True
         self._voice_responses_enabled = False
         self._transcription_mode = "insert"
@@ -134,6 +140,7 @@ class LinaMainWindow(QMainWindow):
         self._intent_router = intent_router
         self._routing_session_key = -1
         self._active_confirmation_cancel: Callable[[], None] | None = None
+        self._active_confirmation_confirm: Callable[[], None] | None = None
         self._active_confirmation_card: ToolActivityCard | None = None
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
@@ -180,6 +187,13 @@ class LinaMainWindow(QMainWindow):
         self._build_layout()
         self.voice_state_changed.connect(self._apply_voice_state)
         self.speech_state_changed.connect(self._apply_speech_state)
+        self.hands_free_command_received.connect(self._submit_hands_free_command)
+        self.hands_free_feedback_received.connect(self._handle_hands_free_feedback)
+        if self._hands_free_service is not None:
+            self._hands_free_service.bind(
+                self.hands_free_command_received.emit,
+                self.hands_free_feedback_received.emit,
+            )
         if self._voice_controller is not None:
             self._voice_controller.subscribe(self.voice_state_changed.emit)
         if self._speech_service is not None and hasattr(self._speech_service, "subscribe_state"):
@@ -265,6 +279,16 @@ class LinaMainWindow(QMainWindow):
         self._voice_status = QLabel("Ses · kapalı", header)
         self._voice_status.setObjectName("statusChip")
         layout.addWidget(self._voice_status)
+        if self._hands_free_service is not None:
+            self._hands_free_toggle = QPushButton("Hands-free Kapalı", header)
+            self._hands_free_toggle.setAccessibleName("Hands-free conversation aç veya kapat")
+            self._hands_free_toggle.clicked.connect(self._toggle_hands_free_from_tray)
+            layout.addWidget(self._hands_free_toggle)
+            self._hands_free_pause = QPushButton("Dinlemeyi Duraklat", header)
+            self._hands_free_pause.setAccessibleName("Hands-free dinlemeyi duraklat veya sürdür")
+            self._hands_free_pause.clicked.connect(self._toggle_hands_free_pause)
+            self._hands_free_pause.setEnabled(False)
+            layout.addWidget(self._hands_free_pause)
         if self._user_settings_service is not None:
             if self._notification_service is not None:
                 self._notification_button = QPushButton("🔔", header)
@@ -399,6 +423,11 @@ class LinaMainWindow(QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         stop_voice_action = menu.addAction("Sesi Durdur")
         stop_voice_action.triggered.connect(self.stop_voice)
+        if self._hands_free_service is not None:
+            self._tray_hands_free_action = menu.addAction("Hands-free Aç/Kapat")
+            self._tray_hands_free_action.triggered.connect(self._toggle_hands_free_from_tray)
+            self._tray_pause_action = menu.addAction("Dinlemeyi Duraklat")
+            self._tray_pause_action.triggered.connect(self._toggle_hands_free_pause)
         menu.addSeparator()
         exit_action = menu.addAction("Çıkış")
         exit_action.triggered.connect(self._exit_from_tray)
@@ -464,6 +493,46 @@ class LinaMainWindow(QMainWindow):
         self._force_exit = True
         self.close()
 
+    def _toggle_hands_free_from_tray(self) -> None:
+        if self._user_settings_service is None:
+            return
+        current = self._user_settings_service.current
+        enabled = not current.speech.hands_free_enabled
+        if enabled and not self._confirm_hands_free_privacy():
+            return
+        updated = replace(
+            current,
+            speech=replace(
+                current.speech,
+                hands_free_enabled=enabled,
+                wake_word_enabled=enabled,
+            ),
+        )
+        self._user_settings_service.update(updated)
+        self._apply_user_settings(updated)
+
+    def _toggle_hands_free_pause(self) -> None:
+        if self._hands_free_service is None or self._voice_controller is None:
+            return
+        if self._voice_controller.hands_free_paused:
+            resumed = self._hands_free_service.resume()
+            self._set_status("Hands-free dinleme devam ediyor." if resumed else "Wake-word algılama şu anda kullanılamıyor.")
+        else:
+            self._hands_free_service.pause()
+            self._set_status("Sesli konuşma durduruldu.")
+
+    def _confirm_hands_free_privacy(self) -> bool:
+        box = QMessageBox(self)
+        box.setWindowTitle("Hands-free conversation")
+        box.setText(
+            "Hands-free modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
+            "yerel olarak dinler. Ses kayıtları saklanmaz ve cloud’a gönderilmez."
+        )
+        enable = box.addButton("Etkinleştir", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        return box.clickedButton() is enable
+
     def _clear_settings_dialog(self, _result: int) -> None:
         self._settings_dialog = None
 
@@ -472,6 +541,7 @@ class LinaMainWindow(QMainWindow):
         if not settings.general.intent_routing_enabled and self._intent_router is not None:
             self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             if self._active_confirmation_card is not None:
                 self._active_confirmation_card.hide()
                 self._active_confirmation_card = None
@@ -495,7 +565,10 @@ class LinaMainWindow(QMainWindow):
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
         self._voice_responses_enabled = settings.speech.voice_responses_enabled
+        self._wake_indicator_enabled = settings.speech.wake_word_indicator_enabled
         self._transcription_mode = settings.speech.transcription_mode
+        if self._speech_service is not None and hasattr(self._speech_service, "set_microphone_device"):
+            self._speech_service.set_microphone_device(settings.speech.microphone_device_id)
         if self._voice_controller is not None:
             self._voice_controller.configure(
                 VoiceSettings(
@@ -505,6 +578,12 @@ class LinaMainWindow(QMainWindow):
                     rate=settings.speech.speech_rate,
                     volume=settings.speech.volume,
                     barge_in_enabled=settings.speech.barge_in_enabled,
+                    hands_free_enabled=settings.speech.hands_free_enabled,
+                    wake_word_enabled=settings.speech.wake_word_enabled,
+                    wake_phrase=settings.speech.wake_phrase,
+                    return_to_wake_listening=settings.speech.return_to_wake_listening,
+                    voice_confirmation_enabled=settings.speech.voice_confirmation_enabled,
+                    microphone_device_id=settings.speech.microphone_device_id,
                 )
             )
             if settings.speech.voice_responses_enabled:
@@ -512,6 +591,9 @@ class LinaMainWindow(QMainWindow):
             else:
                 self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
+        if hasattr(self, "_hands_free_toggle"):
+            self._hands_free_toggle.setText("Hands-free Açık" if settings.speech.hands_free_enabled else "Hands-free Kapalı")
+            self._hands_free_pause.setEnabled(settings.speech.hands_free_enabled)
         self._composer.attachment_button.setEnabled(self._vision_enabled)
         self._set_vision_controls_enabled(self._vision_enabled)
         if not self._vision_enabled and self._screen_context is not None:
@@ -551,9 +633,20 @@ class LinaMainWindow(QMainWindow):
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
-        if self._active_confirmation_cancel is not None and " ".join(message.casefold().split()).strip(" .!?") in {"iptal", "vazgeç", "boşver", "gerek yok"}:
-            self._active_confirmation_cancel()
-            return
+        if self._active_confirmation_cancel is not None:
+            confirmation = _classify_voice_confirmation(message)
+            if confirmation == "yes" and self._active_confirmation_confirm is not None:
+                self._active_confirmation_confirm()
+                return
+            if confirmation == "no":
+                self._active_confirmation_cancel()
+                return
+            if self._voice_controller is not None and self._voice_controller.hands_free_enabled:
+                prompt = "Onaylıyor musun, iptal mi ediyorsun?"
+                self._append_assistant_message(prompt)
+                self._voice_controller.request_confirmation_listening()
+                self.speak_assistant_response(prompt)
+                return
         if self._intent_router is not None:
             routed = self._intent_router.route(
                 message, self._routing_session_key, self._active_request_id
@@ -657,6 +750,7 @@ class LinaMainWindow(QMainWindow):
                 return
             handled["value"] = True
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             self._active_confirmation_card = None
             self._execute_routed_tool(request, user_text, created_at, confirmed=True, card=card)
 
@@ -665,6 +759,7 @@ class LinaMainWindow(QMainWindow):
                 return
             handled["value"] = True
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             self._active_confirmation_card = None
             self._intent_router.cancel_pending(self._routing_session_key)
             card.set_status(ToolStatus.CANCELLED, "İşlemden vazgeçildi.")
@@ -673,7 +768,12 @@ class LinaMainWindow(QMainWindow):
         card.confirmed.connect(confirm)
         card.cancelled.connect(cancel)
         self._active_confirmation_cancel = cancel
+        self._active_confirmation_confirm = confirm
         self._active_confirmation_card = card
+        confirmation_text = self._intent_router.confirmation_message(request)
+        if self._voice_controller is not None and self._voice_controller.request_confirmation_listening():
+            self.speak_assistant_response(confirmation_text)
+            QTimer.singleShot(25_000, lambda: self._expire_voice_confirmation(card, cancel))
 
     def _retry_readonly_tool(self, request: IntentRequest, card: ToolActivityCard) -> None:
         card.set_status(ToolStatus.RUNNING, "İşlem tekrar deneniyor.")
@@ -749,6 +849,8 @@ class LinaMainWindow(QMainWindow):
     def _finish_routed_intent(self, user_text: str, assistant_text: str, created_at: datetime) -> None:
         self._append_assistant_message(assistant_text)
         self.speak_assistant_response(assistant_text)
+        if self._hands_free_service is not None:
+            self._hands_free_service.mark_response_completed()
         if self._conversation_history_service is not None:
             self._conversation_history_service.record_user_message(user_text, created_at=created_at)
             self._conversation_history_service.record_assistant_message(assistant_text)
@@ -785,6 +887,7 @@ class LinaMainWindow(QMainWindow):
             self.stop_voice()
         if self._is_speech_busy and self._speech_service is not None:
             self._speech_service.stop_listening()
+        self._cancel_hands_free_command()
         if self._conversation_history_service is not None:
             self._conversation_service.clear_session()
         self._clear_visible_messages()
@@ -792,6 +895,7 @@ class LinaMainWindow(QMainWindow):
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_confirm = None
         self._active_confirmation_card = None
         self._set_session_title("Yeni Sohbet")
         self._update_session_date()
@@ -821,9 +925,11 @@ class LinaMainWindow(QMainWindow):
             return
         if self._conversation_history_service is not None:
             self._conversation_service.start_new_session()
+        self._cancel_hands_free_command()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_confirm = None
         self._active_confirmation_card = None
         self._routing_session_key -= 1
         self._conversation_view = "chats"
@@ -846,9 +952,11 @@ class LinaMainWindow(QMainWindow):
         if self._conversation_history_service is None:
             return
         try:
+            self._cancel_hands_free_command()
             if self._intent_router is not None:
                 self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             self._active_confirmation_card = None
             self._routing_session_key = conversation_id
             self._conversation_view = "chats"
@@ -878,6 +986,12 @@ class LinaMainWindow(QMainWindow):
             self._schedule_scroll_to_bottom()
         except Exception:
             self._set_status("Sohbet geçmişi yüklenemedi.")
+
+    def _cancel_hands_free_command(self) -> None:
+        if self._hands_free_service is not None:
+            self._hands_free_service.cancel_active()
+        if self._voice_controller is not None and getattr(self._voice_controller, "hands_free_enabled", False):
+            self._voice_controller.finish_interaction()
 
     def rename_conversation(self, conversation_id: int) -> None:
         """Rename a conversation through a bounded local dialog."""
@@ -921,6 +1035,7 @@ class LinaMainWindow(QMainWindow):
             if self._intent_router is not None:
                 self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             self._active_confirmation_card = None
             active_session = self._conversation_history_service.active_session
             if active_session is not None and active_session.id is not None:
@@ -951,6 +1066,7 @@ class LinaMainWindow(QMainWindow):
             if self._intent_router is not None:
                 self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
+            self._active_confirmation_confirm = None
             self._active_confirmation_card = None
             active_session = self._conversation_history_service.active_session
             if active_session is not None and active_session.id is not None:
@@ -1248,6 +1364,24 @@ class LinaMainWindow(QMainWindow):
         worker.signals.finished.connect(self._reset_speech_ui)
         self._start_worker(worker)
 
+    def _submit_hands_free_command(self, text: str) -> None:
+        if self._is_waiting:
+            self._handle_hands_free_feedback("Beklemeye alındı.")
+            if self._voice_controller is not None:
+                self._voice_controller.finish_interaction()
+            return
+        self._composer.input.setPlainText(text)
+        self.send_message()
+
+    def _handle_hands_free_feedback(self, message: str) -> None:
+        self._set_status(message)
+        if message not in {"Dinliyorum.", "Beklemeye alındı."}:
+            self._append_assistant_message(message)
+
+    def _expire_voice_confirmation(self, card: ToolActivityCard, cancel: Callable[[], None]) -> None:
+        if self._active_confirmation_card is card:
+            cancel()
+
     def _run_conversation_request(
         self,
         request_id: int,
@@ -1324,6 +1458,8 @@ class LinaMainWindow(QMainWindow):
         self._auto_scroll_enabled = True
         self._append_assistant_message(text, created_at=assistant_created_at)
         self.speak_assistant_response(text)
+        if self._hands_free_service is not None:
+            self._hands_free_service.mark_response_completed()
         self._set_visual_status_for_context(request_screen_context, "Analiz edildi")
         self._refresh_conversation_sidebar()
         self._set_waiting_state(False)
@@ -1409,30 +1545,42 @@ class LinaMainWindow(QMainWindow):
         labels = {
             VoiceState.IDLE: "Ses · hazır",
             VoiceState.LISTENING: "Dinliyor",
+            VoiceState.WAKE_LISTENING: "🎙 Hey Lina bekleniyor",
+            VoiceState.WAKE_DETECTED: "🎙 Dinliyorum",
+            VoiceState.COMMAND_LISTENING: "🎙 Dinliyorum",
             VoiceState.TRANSCRIBING: "Yazıya çeviriyor",
             VoiceState.THINKING: "Düşünüyor",
             VoiceState.SPEAKING: "Konuşuyor · Sesi Durdur",
             VoiceState.INTERRUPTED: "Durduruldu",
+            VoiceState.COOLDOWN: "Beklemeye alındı",
             VoiceState.ERROR: "Ses kullanılamıyor",
             VoiceState.DISABLED: "Ses · kapalı",
         }
-        self._voice_status.setText(labels.get(state, "Ses · hazır"))
+        label = labels.get(state, "Ses · hazır")
+        if state is VoiceState.WAKE_LISTENING and not getattr(self, "_wake_indicator_enabled", True):
+            label = "Ses · hazır"
+        self._voice_status.setText(label)
+        if hasattr(self, "_hands_free_pause") and self._voice_controller is not None:
+            self._hands_free_pause.setText("Dinlemeye Devam Et" if self._voice_controller.hands_free_paused else "Dinlemeyi Duraklat")
+        if self._tray_icon is not None:
+            self._tray_icon.setToolTip(f"Lina · {labels.get(state, 'Hazır')}")
 
     def _apply_speech_state(self, state: object) -> None:
         if self._voice_controller is None:
             return
         if (
             state is SpeechState.LISTENING
-            and self._voice_controller.state is not VoiceState.LISTENING
+            and self._voice_controller.state not in {VoiceState.LISTENING, VoiceState.COMMAND_LISTENING}
         ):
             self._voice_controller.begin_listening()
         elif (
             state is SpeechState.TRANSCRIBING
-            and self._voice_controller.state is VoiceState.LISTENING
+            and self._voice_controller.state in {VoiceState.LISTENING, VoiceState.COMMAND_LISTENING}
         ):
             self._voice_controller.begin_transcribing()
         elif state is SpeechState.IDLE and self._voice_controller.state in {
             VoiceState.LISTENING,
+            VoiceState.COMMAND_LISTENING,
             VoiceState.TRANSCRIBING,
         }:
             self._voice_controller.finish_interaction()
@@ -1798,7 +1946,10 @@ class LinaMainWindow(QMainWindow):
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
+        self._active_confirmation_confirm = None
         self._active_confirmation_card = None
+        if self._hands_free_service is not None:
+            self._hands_free_service.shutdown()
         if self._speech_service is not None:
             if hasattr(self._speech_service, "shutdown"):
                 self._speech_service.shutdown()
@@ -1817,6 +1968,15 @@ class LinaMainWindow(QMainWindow):
         self._pending_scroll_to_bottom = False
         self._pending_scroll_to_top = False
         event.accept()
+
+
+def _classify_voice_confirmation(text: str) -> str | None:
+    normalized = " ".join(text.casefold().split()).strip(" .!?,;:")
+    if normalized in {"evet", "onayla", "tamam", "oluştur", "kaydet"}:
+        return "yes"
+    if normalized in {"hayır", "iptal", "vazgeç", "boşver", "gerek yok"}:
+        return "no"
+    return None
 
 
 def _format_model_status_chip(result: DiagnosticsResult) -> str:

@@ -49,6 +49,7 @@ def run_qt_application(
         voice_controller=services.voice_controller,
         inference_diagnostics_service=services.inference_diagnostics_service,
         model_lifecycle_service=services.model_lifecycle_service,
+        hands_free_service=services.hands_free_service,
     )
     window.show()
     if (

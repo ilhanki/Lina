@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from lina.settings.models import UserSettings
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.worker import FunctionWorker
+from lina.speech.audio_devices import AudioInputDeviceService
 
 
 class SettingsDialog(QDialog):
@@ -33,17 +34,20 @@ class SettingsDialog(QDialog):
 
     settings_applied = Signal(object)
 
-    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, voice_controller=None, inference_diagnostics=None, parent=None) -> None:
+    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, voice_controller=None, inference_diagnostics=None, privacy_confirmation=None, parent=None) -> None:
         super().__init__(parent)
         self._settings_service = settings_service
         self._model_diagnostics = model_diagnostics
         self._vision_diagnostics = vision_diagnostics
         self._voice_controller = voice_controller
         self._inference_diagnostics = inference_diagnostics
+        self._privacy_confirmation = privacy_confirmation or self._show_hands_free_privacy_confirmation
         self._benchmark_worker = None
         self._benchmark_cancelled = False
         self._refresh_worker = None
         self._refresh_generation = 0
+        self._audio_worker = None
+        self._audio_devices = AudioInputDeviceService()
         self._vision_valid_models: set[str] = set()
         self._draft = settings_service.current
         self._build_ui()
@@ -186,12 +190,23 @@ class SettingsDialog(QDialog):
         self._transcription_mode.addItem("Composer'a ekle", "insert")
         self._transcription_mode.addItem("Otomatik gönder", "send")
         self._barge_in = QCheckBox("Lina konuşurken mikrofonla sesi kes", page)
+        self._hands_free = QCheckBox("Hands-free conversation", page)
         self._wake_word = QCheckBox("Wake word (Deneysel)", page)
         self._wake_phrase = QLineEdit(page)
+        self._wake_indicator = QCheckBox("Wake-word listening indicator", page)
+        self._return_to_wake = QCheckBox("Lina cevap verdikten sonra tekrar dinlemeye dön", page)
+        self._voice_confirmation = QCheckBox("Confirmation cevaplarını sesle kabul et", page)
+        self._microphone_device = QComboBox(page)
+        self._microphone_device.addItem("Varsayılan mikrofon", None)
+        self._refresh_microphones = QPushButton("Mikrofonları Yenile", page)
+        self._test_microphone = QPushButton("Mikrofonu Test Et", page)
+        self._microphone_status = QLabel("", page)
         wake_available = bool(self._voice_controller and self._voice_controller.wake_word_available)
+        self._hands_free.setEnabled(wake_available)
         self._wake_word.setEnabled(wake_available)
         if not wake_available:
             self._wake_word.setToolTip("Bu sürümde detector kurulu değil.")
+            self._hands_free.setToolTip("Wake-word algılama şu anda kullanılamıyor.")
         form.addRow(self._speech_enabled)
         form.addRow("Dil", self._speech_language)
         form.addRow(self._voice_responses)
@@ -200,8 +215,24 @@ class SettingsDialog(QDialog):
         form.addRow("Ses seviyesi", self._volume)
         form.addRow("Transcription davranışı", self._transcription_mode)
         form.addRow(self._barge_in)
+        form.addRow(self._hands_free)
         form.addRow(self._wake_word)
         form.addRow("Wake phrase", self._wake_phrase)
+        form.addRow(self._wake_indicator)
+        form.addRow(self._return_to_wake)
+        form.addRow(self._voice_confirmation)
+        form.addRow("Mikrofon", self._microphone_device)
+        microphone_actions = QWidget(page)
+        microphone_layout = QHBoxLayout(microphone_actions)
+        microphone_layout.setContentsMargins(0, 0, 0, 0)
+        microphone_layout.addWidget(self._refresh_microphones)
+        microphone_layout.addWidget(self._test_microphone)
+        form.addRow(microphone_actions)
+        form.addRow(self._microphone_status)
+        self._hands_free.clicked.connect(self._confirm_hands_free_enable)
+        self._refresh_microphones.clicked.connect(self._refresh_audio_input_devices)
+        self._test_microphone.clicked.connect(self._test_selected_microphone)
+        self._refresh_audio_input_devices()
         return page
 
     def _vision_page(self) -> QWidget:
@@ -281,8 +312,13 @@ class SettingsDialog(QDialog):
         self._volume.setValue(round(settings.speech.volume * 100))
         _select_data(self._transcription_mode, settings.speech.transcription_mode)
         self._barge_in.setChecked(settings.speech.barge_in_enabled)
+        self._hands_free.setChecked(settings.speech.hands_free_enabled)
         self._wake_word.setChecked(settings.speech.wake_word_enabled and self._wake_word.isEnabled())
         self._wake_phrase.setText(settings.speech.wake_phrase)
+        self._wake_indicator.setChecked(settings.speech.wake_word_indicator_enabled)
+        self._return_to_wake.setChecked(settings.speech.return_to_wake_listening)
+        self._voice_confirmation.setChecked(settings.speech.voice_confirmation_enabled)
+        _select_data(self._microphone_device, settings.speech.microphone_device_id)
         self._vision_enabled.setChecked(settings.vision.enabled)
         self._vision_consume.setChecked(settings.vision.consume_attachment_on_success)
         self._minimize_to_tray.setChecked(settings.system.minimize_to_tray)
@@ -298,7 +334,7 @@ class SettingsDialog(QDialog):
             appearance=replace(self._draft.appearance, theme=str(self._theme.currentData()), font_scale=self._font_scale.value() / 100, compact_mode=self._compact_mode.isChecked(), reduce_motion=self._reduce_motion.isChecked()),
             general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked(), intent_routing_enabled=self._intent_routing.isChecked()),
             models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model(), keep_alive=str(self._keep_alive.currentData()), max_output_tokens=self._max_output_tokens.value(), context_budget=self._context_budget.value(), warm_up_enabled=self._warm_up.isChecked()),
-            speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._transcription_mode.currentData() == "insert", voice_responses_enabled=self._voice_responses.isChecked(), system_voice=self._system_voice.currentData(), speech_rate=self._speech_rate.value() / 100, volume=self._volume.value() / 100, transcription_mode=str(self._transcription_mode.currentData()), barge_in_enabled=self._barge_in.isChecked(), wake_word_enabled=self._wake_word.isChecked() and self._wake_word.isEnabled(), wake_phrase=self._wake_phrase.text().strip() or "Hey Lina"),
+            speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._transcription_mode.currentData() == "insert", voice_responses_enabled=self._voice_responses.isChecked(), system_voice=self._system_voice.currentData(), speech_rate=self._speech_rate.value() / 100, volume=self._volume.value() / 100, transcription_mode=str(self._transcription_mode.currentData()), barge_in_enabled=self._barge_in.isChecked(), hands_free_enabled=self._hands_free.isChecked(), wake_word_enabled=(self._wake_word.isChecked() or self._hands_free.isChecked()) and self._wake_word.isEnabled(), wake_phrase=self._wake_phrase.text().strip() or "Hey Lina", wake_word_indicator_enabled=self._wake_indicator.isChecked(), return_to_wake_listening=self._return_to_wake.isChecked(), voice_confirmation_enabled=self._voice_confirmation.isChecked(), microphone_device_id=self._microphone_device.currentData()),
             vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),
             system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked(), reminders_enabled=self._reminders_enabled.isChecked(), desktop_notifications_enabled=self._desktop_notifications.isChecked(), show_missed_reminders=self._show_missed.isChecked()),
         )
@@ -329,6 +365,67 @@ class SettingsDialog(QDialog):
 
     def _reset_form(self) -> None:
         self._load_settings(UserSettings())
+
+    def _confirm_hands_free_enable(self, checked: bool) -> None:
+        if not checked or self._draft.speech.hands_free_enabled:
+            return
+        if self._privacy_confirmation():
+            self._wake_word.setChecked(True)
+        else:
+            self._hands_free.setChecked(False)
+
+    def _show_hands_free_privacy_confirmation(self) -> bool:
+        box = QMessageBox(self)
+        box.setWindowTitle("Hands-free conversation")
+        box.setText(
+            "Hands-free modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
+            "yerel olarak dinler. Ses kayıtları saklanmaz ve cloud’a gönderilmez."
+        )
+        enable = box.addButton("Etkinleştir", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        return box.clickedButton() is enable
+
+    def _refresh_audio_input_devices(self) -> None:
+        if self._audio_worker is not None:
+            return
+        self._refresh_microphones.setEnabled(False)
+        worker = FunctionWorker(self._audio_devices.list_devices)
+        self._audio_worker = worker
+        worker.signals.result.connect(self._show_audio_input_devices)
+        worker.signals.error.connect(lambda _error: self._microphone_status.setText("Mikrofona erişilemiyor."))
+        worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
+        QThreadPool.globalInstance().start(worker)
+
+    def _show_audio_input_devices(self, devices: object) -> None:
+        selected = self._microphone_device.currentData()
+        self._microphone_device.clear()
+        self._microphone_device.addItem("Varsayılan mikrofon", None)
+        for device in devices if isinstance(devices, tuple) else ():
+            self._microphone_device.addItem(device.name, device.id)
+        _select_data(self._microphone_device, selected)
+        available_ids = {device.id for device in devices} if isinstance(devices, tuple) else set()
+        if selected is not None and selected not in available_ids:
+            self._microphone_status.setText("Seçili mikrofon kullanılamıyor. Varsayılan mikrofon kullanılıyor.")
+        else:
+            self._microphone_status.setText(f"{len(devices)} giriş aygıtı bulundu." if devices else "Kullanılabilir mikrofon bulunamadı.")
+
+    def _test_selected_microphone(self) -> None:
+        if self._audio_worker is not None:
+            return
+        self._test_microphone.setEnabled(False)
+        worker = FunctionWorker(self._audio_devices.test_device, self._microphone_device.currentData())
+        self._audio_worker = worker
+        worker.signals.result.connect(lambda ready: self._microphone_status.setText("Mikrofon hazır." if ready else "Mikrofona erişilemiyor."))
+        worker.signals.error.connect(lambda _error: self._microphone_status.setText("Mikrofona erişilemiyor."))
+        worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
+        QThreadPool.globalInstance().start(worker)
+
+    def _finish_audio_worker(self, worker: object) -> None:
+        if self._audio_worker is worker:
+            self._audio_worker = None
+            self._refresh_microphones.setEnabled(True)
+            self._test_microphone.setEnabled(True)
 
     def _refresh_model_list(self) -> None:
         if self._model_diagnostics is None or self._refresh_worker is not None:

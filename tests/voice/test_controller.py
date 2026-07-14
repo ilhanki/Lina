@@ -3,8 +3,6 @@ from __future__ import annotations
 import threading
 import time
 
-import pytest
-
 from lina.voice.controller import VoiceController
 from lina.voice.models import SystemVoice, VoiceSettings, VoiceState
 from lina.voice.playback import AudioPlaybackService
@@ -31,6 +29,42 @@ class BlockingProvider:
     def stop(self):
         self.stops += 1
         self.release.set()
+
+
+class FakeWakeDetector:
+    def __init__(self):
+        self.callback = None
+        self.running = False
+        self.phrase = None
+        self.device_id = None
+        self.shutdowns = 0
+
+    def is_available(self):
+        return True
+
+    def is_running(self):
+        return self.running
+
+    def start(self, callback=None):
+        self.callback = callback or self.callback
+        self.running = True
+        return True
+
+    def stop(self):
+        self.running = False
+
+    def set_phrase(self, phrase):
+        self.phrase = phrase
+
+    def set_device(self, device_id):
+        self.device_id = device_id
+
+    def shutdown(self):
+        self.shutdowns += 1
+        self.running = False
+
+    def detect(self):
+        self.callback()
 
 
 def make_controller(enabled=True, barge_in=True):
@@ -67,8 +101,8 @@ def test_valid_listen_transcribe_think_flow():
 
 def test_invalid_transition_is_rejected():
     controller, _ = make_controller()
-    with pytest.raises(ValueError):
-        controller.begin_transcribing()
+    controller.begin_transcribing()
+    assert controller.state is VoiceState.IDLE
 
 
 def test_speaking_and_barge_in_stop_playback():
@@ -175,3 +209,129 @@ def test_tts_failure_log_contains_only_safe_category(caplog):
     assert "tts_failed error_category=synthesis" in caplog.text
     assert "gizli metin" not in caplog.text
     assert "private engine detail" not in caplog.text
+
+
+def test_hands_free_disabled_by_default_does_not_start_detector():
+    wake = FakeWakeDetector()
+    controller = VoiceController(
+        AudioPlaybackService(BlockingProvider()),
+        wake_word=wake,
+        settings=VoiceSettings(enabled=True),
+    )
+    controller.configure(VoiceSettings(enabled=True))
+    assert not wake.running
+    assert controller.state is VoiceState.IDLE
+
+
+def test_hands_free_start_detect_pause_resume_and_shutdown():
+    wake = FakeWakeDetector()
+    controller = VoiceController(
+        AudioPlaybackService(BlockingProvider()),
+        wake_word=wake,
+        settings=VoiceSettings(enabled=True),
+    )
+    detected = []
+    controller.subscribe_wake_detected(lambda: detected.append(True))
+    settings = VoiceSettings(
+        enabled=True,
+        hands_free_enabled=True,
+        wake_word_enabled=True,
+        wake_phrase="Hey Lina",
+        microphone_device_id=4,
+    )
+    controller.configure(settings)
+    assert controller.state is VoiceState.WAKE_LISTENING
+    assert wake.phrase == "Hey Lina"
+    assert wake.device_id == 4
+    wake.detect()
+    assert detected == [True]
+    assert controller.state is VoiceState.WAKE_DETECTED
+    assert controller.begin_listening()
+    assert controller.state is VoiceState.COMMAND_LISTENING
+    assert controller.pause_hands_free()
+    assert controller.state is VoiceState.IDLE
+    assert controller.resume_hands_free()
+    assert controller.state is VoiceState.WAKE_LISTENING
+    controller.shutdown()
+    assert wake.shutdowns == 1
+
+
+def test_hands_free_speaking_enters_cooldown_then_restarts_wake(monkeypatch):
+    class ImmediateTimer:
+        daemon = False
+
+        def __init__(self, _delay, callback):
+            self.callback = callback
+
+        def start(self):
+            self.callback()
+
+        def cancel(self):
+            return None
+
+    monkeypatch.setattr("lina.voice.controller.threading.Timer", ImmediateTimer)
+    provider = BlockingProvider()
+    wake = FakeWakeDetector()
+    controller = VoiceController(
+        AudioPlaybackService(provider),
+        wake_word=wake,
+        settings=VoiceSettings(
+            enabled=True,
+            hands_free_enabled=True,
+            wake_word_enabled=True,
+        ),
+    )
+    controller.configure(controller._settings)
+    assert controller.speak("Merhaba")
+    assert provider.started.wait(1)
+    provider.release.set()
+    for _ in range(100):
+        if controller.state is VoiceState.WAKE_LISTENING:
+            break
+        time.sleep(0.005)
+    assert controller.state is VoiceState.WAKE_LISTENING
+
+
+def test_hands_free_barge_in_requires_wake_phrase_and_stales_playback():
+    provider = BlockingProvider()
+    wake = FakeWakeDetector()
+    controller = VoiceController(
+        AudioPlaybackService(provider),
+        wake_word=wake,
+        settings=VoiceSettings(
+            enabled=True,
+            hands_free_enabled=True,
+            wake_word_enabled=True,
+            barge_in_enabled=True,
+        ),
+    )
+    detected = []
+    controller.subscribe_wake_detected(lambda: detected.append(True))
+    controller.configure(controller._settings)
+    assert controller.speak("Normal assistant yanıtı")
+    assert provider.started.wait(1)
+    assert wake.running
+    wake.detect()
+    assert provider.stops == 1
+    assert controller.state is VoiceState.WAKE_DETECTED
+    assert detected == [True]
+
+
+def test_hands_free_barge_in_disabled_pauses_detector_during_speech():
+    provider = BlockingProvider()
+    wake = FakeWakeDetector()
+    controller = VoiceController(
+        AudioPlaybackService(provider),
+        wake_word=wake,
+        settings=VoiceSettings(
+            enabled=True,
+            hands_free_enabled=True,
+            wake_word_enabled=True,
+            barge_in_enabled=False,
+        ),
+    )
+    controller.configure(controller._settings)
+    assert controller.speak("Yanıt")
+    assert provider.started.wait(1)
+    assert not wake.running
+    controller.shutdown()

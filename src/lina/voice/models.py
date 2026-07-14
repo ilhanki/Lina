@@ -29,12 +29,21 @@ class VoiceSettings:
     rate: float = 1.0
     volume: float = 1.0
     barge_in_enabled: bool = True
+    hands_free_enabled: bool = False
+    wake_word_enabled: bool = False
+    wake_phrase: str = "Hey Lina"
+    return_to_wake_listening: bool = True
+    voice_confirmation_enabled: bool = True
+    microphone_device_id: int | None = None
+    cooldown_seconds: float = 1.5
 
     def __post_init__(self) -> None:
         if not 0.5 <= self.rate <= 2.0:
             raise ValueError("Speech rate must be between 0.5 and 2.0")
         if not 0.0 <= self.volume <= 1.0:
             raise ValueError("Speech volume must be between 0.0 and 1.0")
+        if not 1.0 <= self.cooldown_seconds <= 3.0:
+            raise ValueError("Wake cooldown must be between one and three seconds")
 
 
 @dataclass(frozen=True, slots=True)
