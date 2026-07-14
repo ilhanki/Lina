@@ -47,7 +47,7 @@ class LiveVisionConfig:
     voice_feedback_enabled: bool = True
     speak_only_meaningful_changes: bool = True
     repeat_speech_cooldown_seconds: float = 30.0
-    duration_seconds: float | None = None
+    duration_seconds: float | None = 300.0
 
     def __post_init__(self) -> None:
         if not 0.25 <= self.capture_interval_seconds <= 60:

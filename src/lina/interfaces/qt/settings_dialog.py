@@ -264,6 +264,11 @@ class SettingsDialog(QDialog):
         self._live_capture_interval.setSingleStep(0.5)
         self._live_analysis_interval = QDoubleSpinBox(page)
         self._live_analysis_interval.setRange(1.0, 3600.0)
+        self._live_duration = QComboBox(page)
+        self._live_duration.addItem("1 dakika", 1)
+        self._live_duration.addItem("5 dakika", 5)
+        self._live_duration.addItem("15 dakika", 15)
+        self._live_duration.addItem("Kullanıcı durdurana kadar", 0)
         self._live_change_sensitivity = QComboBox(page)
         self._live_change_sensitivity.addItem("Düşük", "low")
         self._live_change_sensitivity.addItem("Orta", "medium")
@@ -282,6 +287,7 @@ class SettingsDialog(QDialog):
         form.addRow("Varsayılan kaynak", self._live_default_source)
         form.addRow("Yakalama aralığı (sn)", self._live_capture_interval)
         form.addRow("Minimum analiz aralığı (sn)", self._live_analysis_interval)
+        form.addRow("Takip süresi", self._live_duration)
         form.addRow("Değişim hassasiyeti", self._live_change_sensitivity)
         form.addRow(self._live_voice)
         form.addRow(self._live_meaningful_only)
@@ -370,6 +376,7 @@ class SettingsDialog(QDialog):
         _select_data(self._live_default_source, settings.live_vision.default_source)
         self._live_capture_interval.setValue(settings.live_vision.capture_interval_seconds)
         self._live_analysis_interval.setValue(settings.live_vision.minimum_analysis_interval_seconds)
+        _select_data(self._live_duration, settings.live_vision.monitor_duration_minutes)
         _select_data(self._live_change_sensitivity, settings.live_vision.change_sensitivity)
         self._live_voice.setChecked(settings.live_vision.voice_live_vision_enabled)
         self._live_meaningful_only.setChecked(settings.live_vision.speak_only_meaningful_changes)
@@ -440,6 +447,7 @@ class SettingsDialog(QDialog):
                 default_source=str(self._live_default_source.currentData()),
                 capture_interval_seconds=self._live_capture_interval.value(),
                 minimum_analysis_interval_seconds=self._live_analysis_interval.value(),
+                monitor_duration_minutes=int(self._live_duration.currentData()),
                 change_sensitivity=str(self._live_change_sensitivity.currentData()),
                 voice_live_vision_enabled=self._live_voice.isChecked(),
                 speak_only_meaningful_changes=self._live_meaningful_only.isChecked(),

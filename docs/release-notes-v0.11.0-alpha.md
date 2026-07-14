@@ -11,6 +11,7 @@ Bu sürüm, açık kullanıcı onayıyla kamera, tam ekran ve seçili ekran böl
 - Tek kare kamera analizi, periyodik kamera/ekran/bölge takibi, pause/resume/stop ve manuel “Şimdi Analiz Et”.
 - 16×16 luminance signature ile dependency-free deterministic change detection.
 - Varsayılan 2 saniye capture ve 5 saniye minimum analiz aralığı.
+- Varsayılan 5 dakika takip süresi; 1/5/15 dakika veya açıkça kullanıcı durdurana kadar seçeneği.
 - Tek aktif inference, maksimum bir pending frame ve latest-frame-wins backpressure.
 - Source-aware güvenli prompt, 500 karakter user-focus sınırı ve kimlik/biometric çıkarım yasağı.
 - Opsiyonel kısa voice feedback ve aynı sonuç için konuşma cooldown’u.

@@ -4,7 +4,7 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
 ## Windows Live Vision & Camera Smoke Test
 
-- Ayarlar → Vision içinde Live Vision default değerlerinin açık, capture `2 sn`, minimum analiz `5 sn`, sensitivity `Orta` olduğunu doğrula; restart sonrası tercihlerin korunduğunu kontrol et.
+- Ayarlar → Vision içinde Live Vision default değerlerinin açık, capture `2 sn`, minimum analiz `5 sn`, süre `5 dakika`, sensitivity `Orta` olduğunu doğrula; 1/5/15 dakika ve kullanıcı durdurana kadar seçenekleriyle restart persistence’ı kontrol et.
 - `Kamerayı aç` de; explicit yerel analiz/no persistence onayı görünmeden kameranın başlamadığını doğrula. `Vazgeç` ile cihaz LED/handle’ının kapalı kaldığını kontrol et.
 - Onayla; panelde metinsel `Kamera · Takip ediliyor`, cihaz adı, Şimdi Analiz Et, Duraklat ve Durdur kontrollerini gör.
 - `Kamerayı aç, elimdeki şeye bak` ile tek kare analizi çalıştır; sonuç geldikten sonra kamera handle’ının bırakıldığını doğrula.

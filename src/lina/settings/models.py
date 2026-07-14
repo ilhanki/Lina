@@ -76,6 +76,7 @@ class LiveVisionUserSettings:
     default_source: str = "screen"
     capture_interval_seconds: float = 2.0
     minimum_analysis_interval_seconds: float = 5.0
+    monitor_duration_minutes: int = 5
     change_sensitivity: str = "medium"
     voice_live_vision_enabled: bool = True
     speak_only_meaningful_changes: bool = True
@@ -141,6 +142,8 @@ class UserSettings:
             raise ValueError("Live vision capture interval must be between 0.5 and 60")
         if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
             raise ValueError("Live vision analysis interval must be between 1 and 3600")
+        if self.live_vision.monitor_duration_minutes not in {0, 1, 5, 15}:
+            raise ValueError("Unsupported live vision duration")
         _validate_model_name(self.models.text_model)
         _validate_model_name(self.models.vision_model)
 
@@ -196,6 +199,7 @@ class UserSettings:
                 "default_source": self.live_vision.default_source,
                 "capture_interval_seconds": self.live_vision.capture_interval_seconds,
                 "minimum_analysis_interval_seconds": self.live_vision.minimum_analysis_interval_seconds,
+                "monitor_duration_minutes": self.live_vision.monitor_duration_minutes,
                 "change_sensitivity": self.live_vision.change_sensitivity,
                 "voice_live_vision_enabled": self.live_vision.voice_live_vision_enabled,
                 "speak_only_meaningful_changes": self.live_vision.speak_only_meaningful_changes,
@@ -284,6 +288,7 @@ class UserSettings:
                 default_source=_choice(live_vision, "default_source", defaults.live_vision.default_source, SUPPORTED_LIVE_VISION_SOURCES),
                 capture_interval_seconds=_bounded_float(live_vision, "capture_interval_seconds", defaults.live_vision.capture_interval_seconds, 0.5, 60),
                 minimum_analysis_interval_seconds=_bounded_float(live_vision, "minimum_analysis_interval_seconds", defaults.live_vision.minimum_analysis_interval_seconds, 1, 3600),
+                monitor_duration_minutes=_choice_int(live_vision, "monitor_duration_minutes", defaults.live_vision.monitor_duration_minutes, {0, 1, 5, 15}),
                 change_sensitivity=_choice(live_vision, "change_sensitivity", defaults.live_vision.change_sensitivity, SUPPORTED_CHANGE_SENSITIVITY),
                 voice_live_vision_enabled=_bool(live_vision, "voice_live_vision_enabled", defaults.live_vision.voice_live_vision_enabled),
                 speak_only_meaningful_changes=_bool(live_vision, "speak_only_meaningful_changes", defaults.live_vision.speak_only_meaningful_changes),
@@ -315,6 +320,11 @@ def _bool(section: dict[str, Any], key: str, default: bool) -> bool:
 def _choice(section: dict[str, Any], key: str, default: str, choices: set[str] | frozenset[str]) -> str:
     value = section.get(key)
     return value if isinstance(value, str) and value in choices else default
+
+
+def _choice_int(section: dict[str, Any], key: str, default: int, choices: set[int]) -> int:
+    value = section.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value in choices else default
 
 
 def _bounded_float(section: dict[str, Any], key: str, default: float, minimum: float, maximum: float) -> float:

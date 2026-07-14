@@ -961,6 +961,7 @@ class LinaMainWindow(QMainWindow):
         return LiveVisionConfig(
             capture_interval_seconds=settings.capture_interval_seconds,
             minimum_analysis_interval_seconds=settings.minimum_analysis_interval_seconds,
+            duration_seconds=(settings.monitor_duration_minutes * 60.0) if settings.monitor_duration_minutes else None,
             sensitivity=ChangeSensitivity(settings.change_sensitivity),
             voice_feedback_enabled=settings.voice_live_vision_enabled,
             speak_only_meaningful_changes=settings.speak_only_meaningful_changes,
