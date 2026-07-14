@@ -2,6 +2,22 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Live Vision & Camera Mode (v0.11.0-alpha)
+
+Live Vision çekirdeği `lina.vision.live` altında Qt’den bağımsızdır. `LiveVisionController`, typed `LiveVisionSession` ve `LiveVisionSnapshot` modelleriyle start/stop, pause/resume, manuel analiz, süre sınırı, metrics ve stale-result generation kontrolünü yönetir. `FrameSource` protokolünün kamera, ekran ve bölge implementasyonları yalnız tek ephemeral encoded frame döndürür; raw dict UI’ya taşınmaz.
+
+Kamera adaptörü mevcut PySide6 Qt Multimedia `QMediaDevices`, `QCamera`, `QMediaCaptureSession`, `QVideoSink` ve `QVideoFrame` API’lerini kullanır. OpenCV veya yeni image-processing dependency yoktur. En son `QImage` memory’de tutulur, istek anında PNG’ye memory içinde encode edilir ve stop/shutdown sırasında kamera handle’ı ile frame referansı bırakılır. Ekran ve bölge kaynakları mevcut `QtScreenCaptureService` üzerinden çalışır; `QtCaptureInvoker` QScreen çağrılarını GUI thread’ine taşır. Region ekran geometrisi değişirse session güvenli hata verir.
+
+`FrameChangeDetector` görüntüyü 16×16 luminance signature’a küçültür ve düşük/orta/yüksek sensitivity eşiğiyle deterministik ortalama fark hesaplar. İlk frame baseline’dır; aynı veya küçük değişiklik vision isteği üretmez. Varsayılan capture aralığı 2 saniye, minimum analiz aralığı 5 saniyedir. Gerçek zamanlı video anlayışı veya her kareyi modele gönderme yoktur.
+
+Controller aynı anda yalnız bir vision inference çalıştırır. Analiz sürerken en fazla son anlamlı frame referansı tutulur; yenisi geldiğinde eskisi drop edilir. Bu latest-frame-wins politikası backlog ve büyüyen raw frame queue oluşmasını engeller. Stop/source switch/exit generation’ı artırır, pending frame’i temizler, provider cancel çağırır ve geç dönen sonucu yok sayar. Text analizi öncesi vision unload, vision analizi öncesi text unload ve inference sonrası kısa `keep_alive=0` mevcut `ModelLifecycleService` ile korunur.
+
+Prompt’lar source türüne göre sabittir. Kullanıcı focus metni 500 karakterle sınırlanır, role etiketi temizlenir ve system safety kurallarının yerine geçmez. Kamera prompt’u kişi kimliği veya biyometrik çıkarımı açıkça yasaklar. UI sonucu sohbet veritabanına otomatik yazmaz: session application-level sürer, conversation değişse de sonuç yalnız Live Vision panelinde kalır. Böylece yanlış conversation’a result yazma riski yoktur.
+
+Kamera/ekran başlangıcı explicit confirmation ister. Ana panel ve tray kaynak adı, aktif/pause durumu ve stop action gösterir; yalnız renge dayanmaz. Ayarlar capture/analysis aralığı, sensitivity, cihaz/ekran ve voice feedback tercihlerini schema v4 ile taşır. Log ve metrics yalnız frame sayısı, drop/change/request sayısı, süre ve source tipidir; frame bytes, Base64, focus, prompt ve tam model cevabı loglanmaz.
+
+Bilinen sınırlar: camera preview, neural object tracking, OCR pipeline, face recognition, video recording ve cloud stream yoktur. Kamera izni, fiziksel cihaz, çoklu ekran/DPI ve gerçek Ollama/4 GB VRAM davranışı Windows üzerinde manuel smoke test gerektirir.
+
 ## Wake Word & Hands-Free Conversation (v0.10.1-alpha)
 
 Hands-free lifecycle `lina.voice` içinde framework-neutral tutulur. `WakeWordDetector` protokolü `start`, `stop`, `is_available`, `is_running`, `set_phrase` ve `shutdown` sözleşmelerini tanımlar. Runtime implementasyonu yeni bir keyword modeli indirmez: `SoundDeviceWakeAudioSource` düşük maliyetli peak-energy VAD ile bounded PCM segmentleri üretir, `STTWakeWordDetector` yalnız geçerli segmentlerde mevcut local faster-whisper provider’ını çağırır. Sessizlik ve minimum sürenin altındaki gürültü full STT’ye gitmez.

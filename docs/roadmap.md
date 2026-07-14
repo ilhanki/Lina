@@ -7,19 +7,22 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.9.x`: tamamlandı.
 - `v0.10.0-alpha`: Voice Interaction & Inference Performance Foundation tamamlandı.
 - `v0.10.1-alpha`: Wake Word & Hands-Free Conversation tamamlandı.
-- `v0.11.0-alpha`: Live Vision & Camera Mode.
+- `v0.11.0-alpha`: Live Vision & Camera Mode tamamlandı.
+- `v0.11.1-alpha`: Live Vision Reliability & Object Tracking.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
-v0.10.1-alpha; opt-in enerji kapılı local wake detection, bounded VAD, hands-free command capture, voice confirmation, cooldown, wake-phrase barge-in, mikrofon device fallback ve tray kontrollerini tamamladı. Cloud wake/speech, audio persistence, kamera/live vision, autonomous agent ve Codex bridge eklenmedi.
+v0.11.0-alpha; opt-in kamera/ekran/bölge snapshot takibi, deterministic change detection, bounded analysis scheduling, latest-frame-wins, sesli sonuç, privacy indicator ve tray kontrollerini tamamladı. Video kaydı, frame persistence, cloud vision, yüz tanıma, autonomous agent ve Codex bridge eklenmedi.
 
-## Mevcut Durum: v0.10.1-alpha Wake Word & Hands-Free Conversation
+## Mevcut Durum: v0.11.0-alpha Live Vision & Camera Mode
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
-`v0.10.1-alpha` Wake Word & Hands-Free Conversation kod, test ve dokümantasyon tarafında tamamlandı. Hands-free ve wake word varsayılan kapalıdır; açılış privacy confirmation’ı olmadan mikrofon listening başlamaz. Mevcut sounddevice/faster-whisper hattı enerji kapılı kullanılır; yeni ağır dependency veya model download eklenmez. Sonraki hedefler:
+`v0.10.1-alpha` Wake Word & Hands-Free Conversation tamamlandı ve tag’lendi.
 
-- `v0.11.0-alpha`: Live Vision & Camera Mode.
+`v0.11.0-alpha` Live Vision & Camera Mode kod, test ve dokümantasyon tarafında tamamlandı. Kamera ve ekran takibi açık onay ister; raw frame yalnız bellek içinde yaşar. Yeni ağır dependency veya cloud provider eklenmedi. Sonraki hedefler:
+
+- `v0.11.1-alpha`: Live Vision Reliability & Object Tracking.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
@@ -549,5 +552,5 @@ Sonraki hedefler:
 - `v0.9.2-alpha`: Assistant Tools & Intent Routing Foundation tamamlandı.
 - `v0.9.3-alpha`: Tool UX, Reliability ve v0.9.x Stabilization tamamlandı.
 - `v0.9.4-alpha`: Light Theme Polish & Visual Consistency tamamlandı.
-- v0.9.x, v0.10.0 ve v0.10.1 serileri tamamlandı; sonraki aktif hedef `v0.11.0-alpha` Live Vision & Camera Mode.
+- v0.9.x, v0.10.x ve `v0.11.0-alpha` tamamlandı; sonraki aktif hedef `v0.11.1-alpha` Live Vision Reliability & Object Tracking.
 - Stability ve packaging foundation, voice/live vision/agent temellerinden sonra yeniden değerlendirilecek.

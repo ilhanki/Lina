@@ -2,6 +2,26 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## Windows Live Vision & Camera Smoke Test
+
+- Ayarlar → Vision içinde Live Vision default değerlerinin açık, capture `2 sn`, minimum analiz `5 sn`, sensitivity `Orta` olduğunu doğrula; restart sonrası tercihlerin korunduğunu kontrol et.
+- `Kamerayı aç` de; explicit yerel analiz/no persistence onayı görünmeden kameranın başlamadığını doğrula. `Vazgeç` ile cihaz LED/handle’ının kapalı kaldığını kontrol et.
+- Onayla; panelde metinsel `Kamera · Takip ediliyor`, cihaz adı, Şimdi Analiz Et, Duraklat ve Durdur kontrollerini gör.
+- `Kamerayı aç, elimdeki şeye bak` ile tek kare analizi çalıştır; sonuç geldikten sonra kamera handle’ının bırakıldığını doğrula.
+- Kamera unavailable ve permission denied durumlarında raw exception yerine sırasıyla `Kameraya erişilemiyor.` ve `Kamera izni verilmedi.` mesajlarını doğrula.
+- `Ekranı takip et, hata çıkarsa söyle` akışını onayla; panel/tray privacy indicator ve kısa sonucu doğrula.
+- `Bu bölgeyi izle, indirme bitince haber ver` de; alanı seç, aynı alanın periyodik yakalandığını ve ekran geometrisi değişince güvenli durduğunu doğrula.
+- Aynı statik görüntüde vision isteklerinin tekrarlanmadığını; anlamlı değişiklikte analiz başladığını gözle.
+- Analiz sürerken birkaç hızlı değişiklik üret; backlog oluşmadığını ve yalnız en son anlamlı durumun işlendiğini doğrula.
+- Şimdi Analiz Et, Duraklat, Devam Et ve Durdur kontrollerini hem panelden hem tray’den doğrula.
+- Voice feedback açık/kapalı, meaningful-only ve aynı sonuç cooldown davranışlarını dene; uzun sonuç panelde tam kalırken sesin kısa olduğunu kontrol et.
+- Hands-free ile `Hey Lina` → kamera komutu → sesli onay → kısa sonuç akışını doğrula; barge-in ve stop komutunu dene.
+- Conversation değiştir; Live Vision sonucunun yeni sohbet timeline’ına otomatik yazılmadığını, yalnız panelde kaldığını doğrula.
+- Vision disabled ve Ollama unavailable durumlarında normal chat/voice akışının çalışmaya devam ettiğini doğrula.
+- Görev Yöneticisi/Ollama ile aynı anda birden fazla vision inference olmadığını ve text/vision modellerinin 4 GB VRAM’de gereksiz birlikte resident kalmadığını gözle.
+- Uygulamayı gerçek exit ile kapat; kamera LED’i, screen scheduler, pending inference, TTS ve live worker kalmadığını doğrula.
+- `data`, `logs` ve conversation DB içinde PNG/JPEG signature, screenshot, Base64 veya video dosyası oluşmadığını kontrol et.
+
 ## Windows Wake Word, Hands-Free & Performance Smoke Test
 
 - Ayarlar temizken hands-free ve wake word seçeneklerinin kapalı olduğunu; uygulama açılışında mikrofonun dinlemediğini doğrula.

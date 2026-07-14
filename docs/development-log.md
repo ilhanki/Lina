@@ -2403,3 +2403,19 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Audio/TTS persistence yok; raw audio/transcription loglanmıyor. Metrics content-free metadata ile sınırlı.
 - Foundation commit’i `e1c6ffe`, runtime lifecycle commit’i `821c3c7` olarak `origin/main`’e pushlandı.
 - Dokümantasyon öncesi full suite `774 passed`; compile ve `git diff --check` başarılı.
+
+## 2026-07-14 - Live Vision & Camera Mode
+
+- Başlangıç kapısında temiz/senkron `main`, local/remote `v0.10.1-alpha`, `774 passed` ve başarılı compile doğrulandı.
+- `lina.vision.live` altında typed session/state/metrics, frame source, deterministic change detector, safe prompt policy ve bounded controller eklendi.
+- PySide6 Qt Multimedia kamera adaptörü ve mevcut ekran/region capture servislerini GUI thread’inde kullanan bridge eklendi; OpenCV veya yeni dependency eklenmedi.
+- Varsayılan 2 saniye capture, 5 saniye minimum analiz, sensitivity preset, tek aktif inference ve latest-frame-wins backpressure tamamlandı.
+- Stop/source switch/exit generation isolation, pending clear, provider cancel, camera release ve stale result suppression eklendi.
+- Kamera/ekran başlangıcı explicit confirmation’a; hands-free confirmation mevcut voice akışına bağlandı.
+- Source-aware Live Vision paneli, metinsel privacy indicator, last result, manual analyze, pause/resume/stop ve tray kontrolleri eklendi.
+- Settings schema v4 migration; default source, interval, sensitivity, voice, camera ve screen tercihleri eklendi.
+- Sonuçlar conversation switch sonrası yanlış chat’e yazılmıyor; yalnız application-level panelde gösteriliyor.
+- Raw frame/screenshot/Base64/temp file persistence ve content logging eklenmedi. Metrics yalnız teknik sayaç ve sürelerden oluşuyor.
+- Foundation `ad13a63`, runtime integration `625b9b1` ve tests `d94f4c7` commitleri origin/main’e pushlandı.
+- Dokümantasyon öncesi tam test paketi `809 passed`; compile ve diff check başarılı.
+- Gerçek Windows kamera, çoklu ekran, 4 GB VRAM, Ollama ve tray smoke testi tag kararından önce manuel yapılmalıdır. `v0.11.0-alpha` tag oluşturulmadı.
