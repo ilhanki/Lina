@@ -176,6 +176,18 @@ def test_voice_responses_disabled_skips_speak_even_when_mic_is_enabled():
     assert not provider.started.is_set()
 
 
+def test_live_vision_feedback_can_speak_when_chat_voice_responses_are_disabled():
+    provider = BlockingProvider()
+    controller = VoiceController(
+        AudioPlaybackService(provider),
+        settings=VoiceSettings(enabled=True, responses_enabled=False),
+    )
+    assert controller.speak_live_vision("Elinde bir su şişesi var.")
+    assert provider.started.wait(1)
+    assert provider.texts == ["Elinde bir su şişesi var."]
+    controller.shutdown()
+
+
 def test_tts_lifecycle_logging_is_privacy_safe(caplog):
     controller, provider = make_controller()
     with caplog.at_level("INFO", logger="lina.voice"):

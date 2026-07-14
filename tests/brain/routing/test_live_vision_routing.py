@@ -12,7 +12,9 @@ from lina.brain.routing.router import IntentRouter
     ("Ekranı takip et, hata çıkarsa söyle", IntentType.SCREEN_MONITOR),
     ("Bu bölgeyi izle", IntentType.REGION_MONITOR),
     ("Takibi duraklat", IntentType.LIVE_VISION_PAUSE),
+    ("Konuşmayı durdur", IntentType.LIVE_VISION_PAUSE),
     ("Tekrar devam et", IntentType.LIVE_VISION_RESUME),
+    ("Yorum yapmaya devam et", IntentType.LIVE_VISION_RESUME),
     ("Kamerayı kapat", IntentType.LIVE_VISION_STOP),
     ("Şu an neyi izliyorsun?", IntentType.LIVE_VISION_STATUS),
 ])

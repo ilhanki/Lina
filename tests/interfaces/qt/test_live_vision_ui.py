@@ -8,7 +8,7 @@ from lina.brain.routing.models import IntentRequest, IntentType
 import lina.interfaces.qt.main_window as main_window_module
 from lina.interfaces.qt.main_window import LinaMainWindow
 from lina.interfaces.qt.monitoring_overlay import MonitoringBorderOverlay
-from lina.vision.live.models import LiveVisionMetrics, LiveVisionSnapshot, LiveVisionSource, LiveVisionState
+from lina.vision.live.models import LiveVisionFrame, LiveVisionMetrics, LiveVisionSnapshot, LiveVisionSource, LiveVisionState
 
 
 class Conversation:
@@ -23,8 +23,9 @@ class Controller:
     def subscribe_preview_frame(self, listener): self.preview_listener = listener
     def subscribe_change_regions(self, listener): self.change_listener = listener
     def subscribe_session_stopped(self, listener): self.stopped_listener = listener
-    def start(self, source, session, **_kwargs):
+    def start(self, source, session, **kwargs):
         self.start_count += 1
+        self.start_kwargs = kwargs
         source.start()
         self.source = source
         self.snapshot = LiveVisionSnapshot(LiveVisionState.MONITORING, session.source, source.label, session.session_id)
@@ -100,6 +101,15 @@ def test_live_vision_pause_and_unavailable_states_are_textual(qtbot):
     assert not window._live_stop.isEnabled()
 
 
+def test_camera_question_without_active_camera_gets_clear_answer(qtbot):
+    controller = Controller()
+    window = LinaMainWindow(Conversation(), live_vision_controller=controller, thread_pool=ImmediatePool())
+    qtbot.addWidget(window)
+    window._composer.input.setPlainText("Ne görüyorsun?")
+    window.send_message()
+    assert window._last_response_text == "Kamera şu anda açık değil."
+
+
 def test_close_shuts_live_vision_down(qtbot):
     controller = Controller()
     window = LinaMainWindow(Conversation(), live_vision_controller=controller, thread_pool=ImmediatePool())
@@ -125,6 +135,28 @@ def test_camera_session_opens_one_preview_and_hidden_preview_keeps_indicator(qtb
     window._camera_preview.hide_preview()
     assert "Kamera" in window._live_indicator.text()
     assert window._live_show_preview.isEnabled()
+
+
+def test_camera_open_immediately_analyzes_and_current_frame_becomes_question_context(qtbot, monkeypatch):
+    monkeypatch.setattr(main_window_module, "QtCameraBackend", CameraBackend)
+
+    class QuestionController(Controller):
+        def capture_current_frame(self, _question=""):
+            return LiveVisionFrame(
+                b"ephemeral-png", 10, 10, datetime.now(timezone.utc),
+                LiveVisionSource.CAMERA, source_label="Test Camera",
+            )
+
+    controller = QuestionController()
+    window = LinaMainWindow(Conversation(), live_vision_controller=controller, thread_pool=ImmediatePool())
+    qtbot.addWidget(window)
+    result = window._execute_live_intent(IntentRequest(IntentType.CAMERA_OPEN, 1, "Kamerayı aç"))
+    assert result.success
+    assert controller.start_kwargs["analyze_immediately"] is True
+    context = window._capture_live_camera_context()
+    assert context is not None
+    assert context.source == main_window_module.LIVE_CAMERA_CONTEXT
+    assert context.display_name == "Test Camera"
 
 
 def test_stale_camera_image_is_ignored_and_current_image_is_rendered(qtbot):

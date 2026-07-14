@@ -85,3 +85,68 @@ def test_voice_feedback_suppresses_repeated_result():
     controller.analyze_now(); time.sleep(.1)
     assert spoken == ["Aynı değişiklik"]
     controller.shutdown()
+
+
+def test_camera_analysis_prompt_uses_previous_semantic_observation():
+    prompts = []
+    controller = LiveVisionController(lambda _frame, prompt: prompts.append(prompt) or "Elinde bir fare var.")
+    source = Source()
+    source.source = LiveVisionSource.CAMERA
+    controller.start(source, LiveVisionSession(LiveVisionSource.CAMERA, config=LiveVisionConfig(capture_interval_seconds=.25, minimum_analysis_interval_seconds=0)))
+    controller.analyze_now()
+    assert wait_until(lambda: len(prompts) == 1)
+    controller.analyze_now()
+    assert wait_until(lambda: len(prompts) == 2)
+    assert "Önceki gözlem: Elinde bir fare var." in prompts[1]
+    controller.shutdown()
+
+
+def test_active_camera_frame_can_be_captured_for_a_user_question():
+    source = Source()
+    source.source = LiveVisionSource.CAMERA
+    controller = LiveVisionController(lambda _frame, _prompt: "ok")
+    controller.start(source, LiveVisionSession(LiveVisionSource.CAMERA, config=LiveVisionConfig(capture_interval_seconds=.25)))
+    captured = controller.capture_current_frame()
+    assert captured is not None and captured.source is LiveVisionSource.CAMERA
+    controller.shutdown()
+
+
+def test_camera_context_keeps_only_latest_frame_and_releases_it_on_stop():
+    source = Source(); source.source = LiveVisionSource.CAMERA
+    controller = LiveVisionController(lambda _frame, _prompt: "ok")
+    camera_session = LiveVisionSession(LiveVisionSource.CAMERA, config=LiveVisionConfig(capture_interval_seconds=.25))
+    controller.start(source, camera_session)
+    first = controller.capture_current_frame("Ne görüyorsun?")
+    second = controller.capture_current_frame("Elimde ne var?")
+    context = controller.camera_context
+    assert first is not None and second is not None and first.data != second.data
+    assert context.latest_frame is second
+    assert context.last_user_question == "Elimde ne var?"
+    controller.stop()
+    assert controller.camera_context.latest_frame is None
+
+
+def test_similar_camera_commentary_is_suppressed_but_new_event_speaks():
+    results = iter(("Elinde bir su şişesi var.", "Elinde su şişesi var.", "Elini kaldırdın."))
+    spoken = []
+    source = Source(); source.source = LiveVisionSource.CAMERA
+    config = LiveVisionConfig(capture_interval_seconds=.25, minimum_analysis_interval_seconds=0, repeat_speech_cooldown_seconds=10)
+    controller = LiveVisionController(lambda _frame, _prompt: next(results), speaker=lambda text: spoken.append(text) or True)
+    controller.start(source, LiveVisionSession(LiveVisionSource.CAMERA, config=config))
+    for expected in (1, 2, 3):
+        controller.analyze_now()
+        assert wait_until(lambda: controller.snapshot.metrics.analysis_request_count >= expected)
+        assert wait_until(lambda: controller.snapshot.state is LiveVisionState.MONITORING)
+    assert spoken == ["Elinde bir su şişesi var.", "Elini kaldırdın."]
+    controller.shutdown()
+
+
+def test_camera_vision_failure_keeps_preview_session_monitoring():
+    source = Source(); source.source = LiveVisionSource.CAMERA
+    controller = LiveVisionController(lambda _frame, _prompt: (_ for _ in ()).throw(RuntimeError("private")))
+    controller.start(source, LiveVisionSession(LiveVisionSource.CAMERA, config=LiveVisionConfig(capture_interval_seconds=.25)))
+    assert controller.analyze_now()
+    assert wait_until(lambda: controller.snapshot.user_message == "Görüntüyü şu anda yorumlayamıyorum.")
+    assert controller.snapshot.state is LiveVisionState.MONITORING
+    assert source.stopped == 0
+    controller.shutdown()

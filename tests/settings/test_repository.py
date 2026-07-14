@@ -17,7 +17,7 @@ def test_repository_round_trips_utf8_settings(tmp_path) -> None:
     repository.save(settings)
 
     assert repository.load() == settings
-    assert json.loads(repository.file_path.read_text(encoding="utf-8"))["schema_version"] == 4
+    assert json.loads(repository.file_path.read_text(encoding="utf-8"))["schema_version"] == 5
 
 
 def test_malformed_settings_fall_back_without_deleting_file(tmp_path) -> None:
