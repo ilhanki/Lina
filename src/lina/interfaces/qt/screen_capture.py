@@ -46,6 +46,17 @@ class QtScreenCaptureService:
             screen.name(),
         )
 
+    def capture_screen(self, screen: QScreen) -> ScreenContext:
+        """Capture an explicitly selected screen without consulting cursor state."""
+        if screen is None:
+            raise ScreenCaptureError("No screen is available for capture.")
+        return self._build_context(
+            screen.grabWindow(0),
+            screen,
+            SCREEN_CAPTURE_FULL,
+            screen.name(),
+        )
+
     def capture_region(
         self,
         rectangle: QRect,

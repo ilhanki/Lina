@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QMetaObject, QThread, Qt
 from PySide6.QtMultimedia import QCamera, QMediaCaptureSession, QMediaDevices, QVideoSink
@@ -22,6 +23,9 @@ class QtCameraBackend:
         self._sink: QVideoSink | None = None
         self._image = None
         self._condition = threading.Condition()
+        self._preview_listeners: list[Callable[[object], None]] = []
+        self._error_listeners: list[Callable[[str], None]] = []
+        self._error_message: str | None = None
         self._device = self._select_device()
 
     @property
@@ -30,6 +34,22 @@ class QtCameraBackend:
 
     def is_available(self) -> bool:
         return self._device is not None
+
+    def subscribe_preview(self, listener: Callable[[object], None]) -> None:
+        if listener not in self._preview_listeners:
+            self._preview_listeners.append(listener)
+
+    def unsubscribe_preview(self, listener: Callable[[object], None]) -> None:
+        if listener in self._preview_listeners:
+            self._preview_listeners.remove(listener)
+
+    def subscribe_error(self, listener: Callable[[str], None]) -> None:
+        if listener not in self._error_listeners:
+            self._error_listeners.append(listener)
+
+    def clear_listeners(self) -> None:
+        self._preview_listeners.clear()
+        self._error_listeners.clear()
 
     def start(self) -> None:
         if self._camera is not None:
@@ -41,6 +61,7 @@ class QtCameraBackend:
         self._sink.videoFrameChanged.connect(self._receive_frame)
         self._session = QMediaCaptureSession()
         self._camera = QCamera(self._device)
+        self._camera.errorOccurred.connect(self._camera_error)
         self._session.setCamera(self._camera)
         self._session.setVideoSink(self._sink)
         self._camera.start()
@@ -49,6 +70,8 @@ class QtCameraBackend:
         deadline = time.monotonic() + self._frame_timeout
         with self._condition:
             while self._image is None:
+                if self._error_message is not None:
+                    raise LiveVisionError(self._error_message)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise LiveVisionError("Kameradan görüntü alınamadı.")
@@ -70,6 +93,7 @@ class QtCameraBackend:
         self._camera = None
         self._session = None
         self._sink = None
+        self._error_message = None
         if camera is not None:
             if camera.thread() is QThread.currentThread():
                 camera.stop()
@@ -93,6 +117,23 @@ class QtCameraBackend:
         with self._condition:
             self._image = image.copy()
             self._condition.notify_all()
+        for listener in tuple(self._preview_listeners):
+            try:
+                listener(image)
+            except Exception:
+                continue
+
+    def _camera_error(self, _error, _description: str = "") -> None:
+        message = "Kameraya erişilemiyor."
+        with self._condition:
+            self._image = None
+            self._error_message = message
+            self._condition.notify_all()
+        for listener in tuple(self._error_listeners):
+            try:
+                listener(message)
+            except Exception:
+                continue
 
     def _select_device(self):
         devices = QMediaDevices.videoInputs()

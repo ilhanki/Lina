@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QTimer, QThreadPool, Qt, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QKeySequence
+from PySide6.QtCore import QRect, QTimer, QThreadPool, Qt, Signal
+from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QImage, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -83,15 +83,18 @@ from lina.voice.hands_free import HandsFreeConversationService
 from lina.voice.models import VoiceSettings, VoiceState
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 from lina.interfaces.qt.camera_source import QtCameraBackend
+from lina.interfaces.qt.camera_preview import CameraPreviewWindow
 from lina.interfaces.qt.live_vision import QtCaptureInvoker
+from lina.interfaces.qt.monitoring_overlay import MonitoringBorderOverlay
 from lina.vision.live import (
-    CameraFrameSource, ChangeSensitivity, LiveVisionConfig, LiveVisionController,
-    LiveVisionError, LiveVisionSession, LiveVisionSnapshot, LiveVisionSource,
-    LiveVisionState, RegionFrameSource, ScreenFrameSource,
+    CameraFrameSource, ChangeRegionsEvent, ChangeSensitivity, LiveVisionConfig,
+    LiveVisionController, LiveVisionError, LiveVisionSession, LiveVisionSnapshot,
+    LiveVisionSource, LiveVisionState, OverlayGeometry, PreviewFrameEvent,
+    RegionFrameSource, ScreenFrameSource, SessionStoppedEvent,
 )
 
 
-APP_VERSION = "v0.11.0-alpha"
+APP_VERSION = "v0.11.1-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -106,6 +109,9 @@ class LinaMainWindow(QMainWindow):
     hands_free_command_received = Signal(str)
     hands_free_feedback_received = Signal(str)
     live_vision_snapshot_received = Signal(object)
+    live_preview_frame_received = Signal(object)
+    live_change_regions_received = Signal(object)
+    live_session_stopped_received = Signal(object)
 
     def __init__(
         self,
@@ -141,6 +147,10 @@ class LinaMainWindow(QMainWindow):
         self._live_vision_enabled = True
         self._pending_region_monitor_focus: str | None = None
         self._live_capture_invoker: QtCaptureInvoker | None = None
+        self._camera_preview: CameraPreviewWindow | None = None
+        self._camera_backend: QtCameraBackend | None = None
+        self._monitoring_overlay: MonitoringBorderOverlay | None = None
+        self._live_session_id: str | None = None
         self._speech_enabled = True
         self._voice_responses_enabled = False
         self._hands_free_enabled = False
@@ -204,8 +214,17 @@ class LinaMainWindow(QMainWindow):
         self.hands_free_command_received.connect(self._submit_hands_free_command)
         self.hands_free_feedback_received.connect(self._handle_hands_free_feedback)
         self.live_vision_snapshot_received.connect(self._apply_live_vision_snapshot)
+        self.live_preview_frame_received.connect(self._apply_live_preview_event)
+        self.live_change_regions_received.connect(self._apply_live_change_regions)
+        self.live_session_stopped_received.connect(self._handle_live_session_stopped)
         if self._live_vision_controller is not None:
             self._live_vision_controller.subscribe(self.live_vision_snapshot_received.emit)
+            if hasattr(self._live_vision_controller, "subscribe_preview_frame"):
+                self._live_vision_controller.subscribe_preview_frame(self.live_preview_frame_received.emit)
+            if hasattr(self._live_vision_controller, "subscribe_change_regions"):
+                self._live_vision_controller.subscribe_change_regions(self.live_change_regions_received.emit)
+            if hasattr(self._live_vision_controller, "subscribe_session_stopped"):
+                self._live_vision_controller.subscribe_session_stopped(self.live_session_stopped_received.emit)
         if self._hands_free_service is not None:
             self._hands_free_service.bind(
                 self.hands_free_command_received.emit,
@@ -351,10 +370,12 @@ class LinaMainWindow(QMainWindow):
         self._live_analyze = QPushButton("Şimdi Analiz Et", panel)
         self._live_pause = QPushButton("Duraklat", panel)
         self._live_stop = QPushButton("Durdur", panel)
+        self._live_show_preview = QPushButton("Preview’i Göster", panel)
         self._live_analyze.clicked.connect(self._live_analyze_now)
         self._live_pause.clicked.connect(self._toggle_live_pause)
         self._live_stop.clicked.connect(self._stop_live_vision)
-        for button in (self._live_analyze, self._live_pause, self._live_stop):
+        self._live_show_preview.clicked.connect(self._show_existing_camera_preview)
+        for button in (self._live_analyze, self._live_pause, self._live_stop, self._live_show_preview):
             button.setEnabled(False)
             layout.addWidget(button)
         parent_layout.addWidget(panel)
@@ -940,16 +961,22 @@ class LinaMainWindow(QMainWindow):
         try:
             if intent in {RoutingIntentType.CAMERA_OPEN, RoutingIntentType.CAMERA_ANALYZE, RoutingIntentType.CAMERA_MONITOR}:
                 settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
-                source = CameraFrameSource(QtCameraBackend(settings.camera_device_id if settings else None))
-                self._start_live_source(
+                backend = QtCameraBackend(settings.camera_device_id if settings else None)
+                source = CameraFrameSource(backend)
+                session_id = self._start_live_source(
                     source, focus,
                     analyze_immediately=intent is not RoutingIntentType.CAMERA_OPEN,
                     single_shot=intent is RoutingIntentType.CAMERA_ANALYZE,
                 )
+                self._camera_backend = backend
+                backend.subscribe_preview(lambda image, sid=session_id: self._apply_camera_image(image, sid))
+                backend.subscribe_error(lambda message, sid=session_id: self._handle_camera_preview_error(message, sid))
+                self._show_camera_preview(backend.device_name, session_id)
                 return ToolResult(True, "Kamera tek kare analiz için açıldı." if intent is RoutingIntentType.CAMERA_ANALYZE else "Kamera takibi aktif.")
-            invoker = QtCaptureInvoker(self._screen_capture_service.capture, self)
-            self._live_capture_invoker = invoker
-            self._start_live_source(ScreenFrameSource(invoker), focus, analyze_immediately=True)
+            screen = self._selected_live_screen()
+            if screen is None:
+                return ToolResult(False, "Ekran görüntüsü alınamadı.", error_code="unavailable")
+            self._start_screen_monitor(screen, focus)
             return ToolResult(True, "Ekran takibi aktif.")
         except LiveVisionError as error:
             return ToolResult(False, str(error), error_code="unavailable", retryable=True)
@@ -967,9 +994,162 @@ class LinaMainWindow(QMainWindow):
             speak_only_meaningful_changes=settings.speak_only_meaningful_changes,
         )
 
-    def _start_live_source(self, source, focus: str = "", *, analyze_immediately: bool = False, single_shot: bool = False) -> None:
+    def _selected_live_screen(self):
+        screens = QGuiApplication.screens()
+        settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
+        preferred = settings.default_screen_name if settings else None
+        if preferred:
+            selected = next((screen for screen in screens if screen.name() == preferred), None)
+            if selected is not None:
+                return selected
+        return QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
+
+    def _start_screen_monitor(self, screen, focus: str) -> str:
+        self._cleanup_live_visuals()
+        capture = (
+            lambda: self._screen_capture_service.capture_screen(screen)
+            if hasattr(self._screen_capture_service, "capture_screen")
+            else self._screen_capture_service.capture()
+        )
+        invoker = QtCaptureInvoker(capture, self)
+        source = ScreenFrameSource(invoker)
+        overlay = MonitoringBorderOverlay(screen.geometry, "Lina ekranı izliyor")
+        overlay.geometry_changed.connect(lambda geometry: self._publish_overlay_geometry(geometry, screen.name()))
+        overlay.closed_unexpectedly.connect(self._stop_live_vision)
+        self._live_capture_invoker = invoker
+        self._monitoring_overlay = overlay
+        overlay.start()
+        if not overlay.isVisible():
+            self._cleanup_live_visuals()
+            raise LiveVisionError("Ekran takip çerçevesi gösterilemedi.")
         session = LiveVisionSession(source.source, focus, self._live_config())
-        self._live_vision_controller.start(source, session, analyze_immediately=analyze_immediately, single_shot=single_shot)
+        try:
+            session_id = self._live_vision_controller.start(source, session, analyze_immediately=True)
+        except Exception:
+            self._cleanup_live_visuals()
+            raise
+        self._live_session_id = session_id
+        self._publish_overlay_geometry(screen.geometry(), screen.name())
+        return session_id
+
+    def _start_region_monitor(self, screen, local_rectangle: QRect, focus: str) -> str:
+        self._cleanup_live_visuals()
+
+        def monitored_geometry() -> QRect:
+            screen_geometry = screen.geometry()
+            global_rectangle = QRect(local_rectangle).translated(screen_geometry.topLeft())
+            return global_rectangle.intersected(screen_geometry)
+
+        def capture_selected_region():
+            current = monitored_geometry()
+            if current.size() != local_rectangle.size():
+                raise ScreenCaptureError("Selected screen geometry changed.")
+            return self._screen_capture_service.capture_region(current, screen)
+
+        invoker = QtCaptureInvoker(capture_selected_region, self)
+        source = RegionFrameSource(invoker.capture)
+        overlay = MonitoringBorderOverlay(monitored_geometry, "Lina bu bölgeyi izliyor")
+        overlay.geometry_changed.connect(lambda geometry: self._publish_overlay_geometry(geometry, screen.name()))
+        overlay.closed_unexpectedly.connect(self._stop_live_vision)
+        self._live_capture_invoker = invoker
+        self._monitoring_overlay = overlay
+        overlay.start()
+        if not overlay.isVisible():
+            self._cleanup_live_visuals()
+            raise LiveVisionError("Ekran takip çerçevesi gösterilemedi.")
+        session = LiveVisionSession(source.source, focus, self._live_config())
+        try:
+            session_id = self._live_vision_controller.start(source, session, analyze_immediately=True)
+        except Exception:
+            self._cleanup_live_visuals()
+            raise
+        self._live_session_id = session_id
+        self._publish_overlay_geometry(monitored_geometry(), screen.name())
+        return session_id
+
+    def _start_live_source(self, source, focus: str = "", *, analyze_immediately: bool = False, single_shot: bool = False) -> str:
+        self._cleanup_live_visuals()
+        session = LiveVisionSession(source.source, focus, self._live_config())
+        session_id = self._live_vision_controller.start(source, session, analyze_immediately=analyze_immediately, single_shot=single_shot)
+        self._live_session_id = session_id
+        return session_id
+
+    def _show_camera_preview(self, device_name: str, session_id: str) -> None:
+        if self._camera_preview is not None:
+            self._camera_preview.close_permanently()
+        preview = CameraPreviewWindow(device_name, session_id)
+        preview.analyze_requested.connect(self._live_analyze_now)
+        preview.pause_requested.connect(self._toggle_live_pause)
+        preview.stop_requested.connect(self._stop_live_vision)
+        preview.hidden.connect(lambda: self._live_show_preview.setEnabled(True))
+        self._camera_preview = preview
+        self._live_show_preview.setEnabled(False)
+        preview.show()
+
+    def _show_existing_camera_preview(self) -> None:
+        if self._camera_preview is not None:
+            self._camera_preview.show()
+            self._camera_preview.raise_()
+            self._camera_preview.activateWindow()
+            self._live_show_preview.setEnabled(False)
+
+    def _apply_camera_image(self, image: object, session_id: str) -> None:
+        if session_id != self._live_session_id or self._camera_preview is None or not isinstance(image, QImage):
+            return
+        if self._live_vision_controller is not None and self._live_vision_controller.snapshot.state is LiveVisionState.PAUSED:
+            return
+        self._camera_preview.set_frame(image, session_id)
+
+    def _apply_live_preview_event(self, event: object) -> None:
+        if not isinstance(event, PreviewFrameEvent) or event.session_id != self._live_session_id:
+            return
+        if self._camera_preview is not None and event.frame.source is LiveVisionSource.CAMERA:
+            image = QImage.fromData(event.frame.data)
+            if not image.isNull():
+                self._camera_preview.set_frame(image, event.session_id)
+
+    def _apply_live_change_regions(self, event: object) -> None:
+        if not isinstance(event, ChangeRegionsEvent) or event.session_id != self._live_session_id:
+            return
+        if self._camera_preview is not None:
+            self._camera_preview.set_change_regions(event.regions, event.session_id)
+
+    def _handle_camera_preview_error(self, message: str, session_id: str) -> None:
+        if session_id != self._live_session_id:
+            return
+        self._set_status(message)
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.stop()
+
+    def _publish_overlay_geometry(self, geometry: QRect, screen_name: str) -> None:
+        controller = self._live_vision_controller
+        if controller is None or not hasattr(controller, "update_overlay_geometry"):
+            return
+        controller.update_overlay_geometry(
+            OverlayGeometry(geometry.x(), geometry.y(), geometry.width(), geometry.height(), screen_name)
+        )
+
+    def _handle_live_session_stopped(self, event: object) -> None:
+        if isinstance(event, SessionStoppedEvent) and event.session_id == self._live_session_id:
+            self._cleanup_live_visuals()
+
+    def _cleanup_live_visuals(self) -> None:
+        backend = self._camera_backend
+        self._camera_backend = None
+        if backend is not None:
+            backend.clear_listeners()
+        preview = self._camera_preview
+        self._camera_preview = None
+        if preview is not None:
+            preview.close_permanently()
+        overlay = self._monitoring_overlay
+        self._monitoring_overlay = None
+        if overlay is not None:
+            overlay.close_permanently()
+        self._live_capture_invoker = None
+        self._live_session_id = None
+        if hasattr(self, "_live_show_preview"):
+            self._live_show_preview.setEnabled(False)
 
     def _live_analyze_now(self) -> None:
         if self._live_vision_controller is not None:
@@ -1006,7 +1186,14 @@ class LinaMainWindow(QMainWindow):
         self._live_pause.setEnabled(active and snapshot.state is not LiveVisionState.ANALYZING)
         self._live_pause.setText("Devam Et" if snapshot.state is LiveVisionState.PAUSED else "Duraklat")
         self._live_stop.setEnabled(active)
+        if self._camera_preview is not None and snapshot.session_id == self._live_session_id:
+            self._camera_preview.apply_state(snapshot.state)
+            self._live_show_preview.setEnabled(not self._camera_preview.isVisible())
+        if self._monitoring_overlay is not None and snapshot.session_id == self._live_session_id:
+            self._monitoring_overlay.set_paused(snapshot.state is LiveVisionState.PAUSED)
         self._update_live_tray_actions(snapshot.state, label)
+        if snapshot.state in {LiveVisionState.IDLE, LiveVisionState.DISABLED, LiveVisionState.UNAVAILABLE, LiveVisionState.ERROR}:
+            self._cleanup_live_visuals()
 
     @staticmethod
     def _live_source_label(source: LiveVisionSource | None) -> str:
@@ -1463,17 +1650,8 @@ class LinaMainWindow(QMainWindow):
         if self._pending_region_monitor_focus is not None:
             focus = self._pending_region_monitor_focus
             self._pending_region_monitor_focus = None
-            geometry = screen.geometry()
-
-            def capture_selected_region():
-                if screen.geometry() != geometry:
-                    raise ScreenCaptureError("Selected screen geometry changed.")
-                return self._screen_capture_service.capture_region(rectangle, screen)
-
             try:
-                invoker = QtCaptureInvoker(capture_selected_region, self)
-                self._live_capture_invoker = invoker
-                self._start_live_source(RegionFrameSource(invoker.capture), focus, analyze_immediately=True)
+                self._start_region_monitor(screen, QRect(rectangle), focus)
                 self._set_status("Bölge takibi aktif")
             except LiveVisionError as error:
                 self._set_status(str(error))
@@ -1482,7 +1660,8 @@ class LinaMainWindow(QMainWindow):
                 self._set_vision_controls_enabled(self._vision_enabled)
             return
         try:
-            context = self._screen_capture_service.capture_region(rectangle, screen)
+            global_rectangle = QRect(rectangle).translated(screen.geometry().topLeft())
+            context = self._screen_capture_service.capture_region(global_rectangle, screen)
             dialog = self._screen_preview_factory(context, self)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self._set_screen_context(context)
@@ -2172,6 +2351,7 @@ class LinaMainWindow(QMainWindow):
         self._clear_screen_context()
         if self._live_vision_controller is not None:
             self._live_vision_controller.shutdown()
+        self._cleanup_live_visuals()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None
