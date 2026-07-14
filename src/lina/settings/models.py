@@ -8,11 +8,13 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
 SUPPORTED_KEEP_ALIVE = frozenset({"0", "5m", "15m", "-1"})
+SUPPORTED_LIVE_VISION_SOURCES = frozenset({"camera", "screen", "region"})
+SUPPORTED_CHANGE_SENSITIVITY = frozenset({"low", "medium", "high"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,19 @@ class VisionUserSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class LiveVisionUserSettings:
+    enabled: bool = True
+    default_source: str = "screen"
+    capture_interval_seconds: float = 2.0
+    minimum_analysis_interval_seconds: float = 5.0
+    change_sensitivity: str = "medium"
+    voice_live_vision_enabled: bool = True
+    speak_only_meaningful_changes: bool = True
+    camera_device_id: str | None = None
+    default_screen_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SystemSettings:
     minimize_to_tray: bool = False
     close_behavior: str = "exit"
@@ -89,6 +104,7 @@ class UserSettings:
     models: ModelSettings = ModelSettings()
     speech: SpeechUserSettings = SpeechUserSettings()
     vision: VisionUserSettings = VisionUserSettings()
+    live_vision: LiveVisionUserSettings = LiveVisionUserSettings()
     system: SystemSettings = SystemSettings()
 
     def __post_init__(self) -> None:
@@ -117,6 +133,14 @@ class UserSettings:
             raise ValueError("Context budget must be between 1000 and 100000")
         if self.system.close_behavior not in SUPPORTED_CLOSE_BEHAVIORS:
             raise ValueError("Unsupported close behavior")
+        if self.live_vision.default_source not in SUPPORTED_LIVE_VISION_SOURCES:
+            raise ValueError("Unsupported live vision source")
+        if self.live_vision.change_sensitivity not in SUPPORTED_CHANGE_SENSITIVITY:
+            raise ValueError("Unsupported live vision sensitivity")
+        if not 0.5 <= self.live_vision.capture_interval_seconds <= 60:
+            raise ValueError("Live vision capture interval must be between 0.5 and 60")
+        if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
+            raise ValueError("Live vision analysis interval must be between 1 and 3600")
         _validate_model_name(self.models.text_model)
         _validate_model_name(self.models.vision_model)
 
@@ -167,6 +191,17 @@ class UserSettings:
                 "enabled": self.vision.enabled,
                 "consume_attachment_on_success": self.vision.consume_attachment_on_success,
             },
+            "live_vision": {
+                "enabled": self.live_vision.enabled,
+                "default_source": self.live_vision.default_source,
+                "capture_interval_seconds": self.live_vision.capture_interval_seconds,
+                "minimum_analysis_interval_seconds": self.live_vision.minimum_analysis_interval_seconds,
+                "change_sensitivity": self.live_vision.change_sensitivity,
+                "voice_live_vision_enabled": self.live_vision.voice_live_vision_enabled,
+                "speak_only_meaningful_changes": self.live_vision.speak_only_meaningful_changes,
+                "camera_device_id": self.live_vision.camera_device_id,
+                "default_screen_name": self.live_vision.default_screen_name,
+            },
             "system": {
                 "minimize_to_tray": self.system.minimize_to_tray,
                 "close_behavior": self.system.close_behavior,
@@ -183,7 +218,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -191,6 +226,7 @@ class UserSettings:
         models = _section(raw, "models")
         speech = _section(raw, "speech")
         vision = _section(raw, "vision")
+        live_vision = _section(raw, "live_vision")
         system = _section(raw, "system")
         return cls(
             appearance=AppearanceSettings(
@@ -242,6 +278,17 @@ class UserSettings:
             vision=VisionUserSettings(
                 enabled=_bool(vision, "enabled", defaults.vision.enabled),
                 consume_attachment_on_success=_bool(vision, "consume_attachment_on_success", defaults.vision.consume_attachment_on_success),
+            ),
+            live_vision=LiveVisionUserSettings(
+                enabled=_bool(live_vision, "enabled", defaults.live_vision.enabled),
+                default_source=_choice(live_vision, "default_source", defaults.live_vision.default_source, SUPPORTED_LIVE_VISION_SOURCES),
+                capture_interval_seconds=_bounded_float(live_vision, "capture_interval_seconds", defaults.live_vision.capture_interval_seconds, 0.5, 60),
+                minimum_analysis_interval_seconds=_bounded_float(live_vision, "minimum_analysis_interval_seconds", defaults.live_vision.minimum_analysis_interval_seconds, 1, 3600),
+                change_sensitivity=_choice(live_vision, "change_sensitivity", defaults.live_vision.change_sensitivity, SUPPORTED_CHANGE_SENSITIVITY),
+                voice_live_vision_enabled=_bool(live_vision, "voice_live_vision_enabled", defaults.live_vision.voice_live_vision_enabled),
+                speak_only_meaningful_changes=_bool(live_vision, "speak_only_meaningful_changes", defaults.live_vision.speak_only_meaningful_changes),
+                camera_device_id=_optional_string(live_vision, "camera_device_id"),
+                default_screen_name=_optional_string(live_vision, "default_screen_name"),
             ),
             system=SystemSettings(
                 minimize_to_tray=_bool(system, "minimize_to_tray", defaults.system.minimize_to_tray),

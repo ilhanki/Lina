@@ -12,6 +12,27 @@ class DeterministicIntentClassifier:
         normalized = " ".join(original.casefold().split())
         if not normalized:
             return self._request(IntentType.CHAT, original, 0.0)
+        if any(phrase in normalized for phrase in ("kamera nasıl çalışır", "kamera nasil calisir", "ekran takibi güvenli mi", "ekran takibi guvenli mi", "vision modeli nedir")):
+            return self._request(IntentType.CHAT, original, 0.99)
+        if any(phrase in normalized for phrase in ("şu an neyi izliyorsun", "su an neyi izliyorsun", "takip durumu", "canlı takip durumu", "canli takip durumu")):
+            return self._request(IntentType.LIVE_VISION_STATUS, original, 0.99)
+        if any(phrase in normalized for phrase in ("takibi duraklat", "izlemeyi duraklat", "canlı takibi duraklat", "canli takibi duraklat")):
+            return self._request(IntentType.LIVE_VISION_PAUSE, original, 0.99)
+        if any(phrase in normalized for phrase in ("takibe devam et", "tekrar devam et", "izlemeye devam et")):
+            return self._request(IntentType.LIVE_VISION_RESUME, original, 0.99)
+        if any(phrase in normalized for phrase in ("takibi durdur", "izlemeyi durdur", "kamerayı kapat", "kamerayi kapat", "canlı takibi kapat", "canli takibi kapat")):
+            return self._request(IntentType.LIVE_VISION_STOP, original, 0.99)
+        focus = original.split(",", 1)[1].strip() if "," in original else ""
+        if "kamera" in normalized and any(term in normalized for term in ("takip et", "izle", "canlı", "canli")):
+            return self._request(IntentType.CAMERA_MONITOR, original, 0.99, {"user_focus": focus}, True)
+        if "kamera" in normalized and any(term in normalized for term in ("bak", "analiz", "incele")):
+            return self._request(IntentType.CAMERA_ANALYZE, original, 0.99, {"user_focus": focus}, True)
+        if any(phrase in normalized for phrase in ("kamerayı aç", "kamerayi ac", "kamerayı ac", "kamerayi aç")):
+            return self._request(IntentType.CAMERA_OPEN, original, 0.99, {"user_focus": focus}, True)
+        if ("bölge" in normalized or "bolge" in normalized or "alan" in normalized) and any(term in normalized for term in ("takip et", "izle")):
+            return self._request(IntentType.REGION_MONITOR, original, 0.99, {"user_focus": focus}, True)
+        if "ekran" in normalized and any(term in normalized for term in ("takip et", "izle")):
+            return self._request(IntentType.SCREEN_MONITOR, original, 0.99, {"user_focus": focus}, True)
         if any(term in normalized for term in ("powershell", "cmd.exe", "shell çalıştır", "komut çalıştır", "dosyayı sil", "fareyi kontrol", "klavyeyi kontrol")):
             return self._request(IntentType.UNSAFE, original, 1.0)
         if any(term in normalized for term in ("e-posta gönder", "email gönder", "webhook", "uygulamayı aç", "tarayıcıyı kontrol")):

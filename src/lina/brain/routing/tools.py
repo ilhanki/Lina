@@ -66,4 +66,14 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
         registry.register(definition)
     for name, intent in (("vision.screen", IntentType.ANALYZE_SCREEN), ("vision.region", IntentType.ANALYZE_REGION), ("vision.image", IntentType.ANALYZE_IMAGE)):
         registry.register(ToolDefinition(name, intent, "Mevcut güvenli vision UI akışı", {}, False, lambda _r, _c: ToolResult(False, "Vision UI etkileşimi gerekiyor.", error_code="ui_required")))
+    for intent in (
+        IntentType.CAMERA_OPEN, IntentType.CAMERA_ANALYZE, IntentType.CAMERA_MONITOR,
+        IntentType.SCREEN_MONITOR, IntentType.REGION_MONITOR, IntentType.LIVE_VISION_PAUSE,
+        IntentType.LIVE_VISION_RESUME, IntentType.LIVE_VISION_STOP, IntentType.LIVE_VISION_STATUS,
+    ):
+        registry.register(ToolDefinition(
+            f"live_vision.{intent.value}", intent, "Güvenli live vision UI akışı", {},
+            intent in {IntentType.CAMERA_OPEN, IntentType.CAMERA_ANALYZE, IntentType.CAMERA_MONITOR, IntentType.SCREEN_MONITOR, IntentType.REGION_MONITOR},
+            lambda _request, _context: ToolResult(False, "Live Vision UI etkileşimi gerekiyor.", error_code="ui_required"),
+        ))
     return registry

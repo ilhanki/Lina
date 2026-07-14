@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QTimer, QThreadPool, Signal
+from PySide6.QtCore import QTimer, QThreadPool, Qt, Signal
 from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from lina.brain.model_provider import ModelResponse
-from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext
+from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
 from lina.interfaces.qt.formatting import (
@@ -82,9 +82,16 @@ from lina.voice.controller import VoiceController
 from lina.voice.hands_free import HandsFreeConversationService
 from lina.voice.models import VoiceSettings, VoiceState
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
+from lina.interfaces.qt.camera_source import QtCameraBackend
+from lina.interfaces.qt.live_vision import QtCaptureInvoker
+from lina.vision.live import (
+    CameraFrameSource, ChangeSensitivity, LiveVisionConfig, LiveVisionController,
+    LiveVisionError, LiveVisionSession, LiveVisionSnapshot, LiveVisionSource,
+    LiveVisionState, RegionFrameSource, ScreenFrameSource,
+)
 
 
-APP_VERSION = "v0.10.1-alpha"
+APP_VERSION = "v0.11.0-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -98,6 +105,7 @@ class LinaMainWindow(QMainWindow):
     speech_state_changed = Signal(object)
     hands_free_command_received = Signal(str)
     hands_free_feedback_received = Signal(str)
+    live_vision_snapshot_received = Signal(object)
 
     def __init__(
         self,
@@ -114,6 +122,7 @@ class LinaMainWindow(QMainWindow):
         inference_diagnostics_service: InferenceDiagnosticsService | None = None,
         model_lifecycle_service: ModelLifecycleService | None = None,
         hands_free_service: HandsFreeConversationService | None = None,
+        live_vision_controller: LiveVisionController | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -128,6 +137,10 @@ class LinaMainWindow(QMainWindow):
         self._inference_diagnostics_service = inference_diagnostics_service
         self._model_lifecycle_service = model_lifecycle_service
         self._hands_free_service = hands_free_service
+        self._live_vision_controller = live_vision_controller
+        self._live_vision_enabled = True
+        self._pending_region_monitor_focus: str | None = None
+        self._live_capture_invoker: QtCaptureInvoker | None = None
         self._speech_enabled = True
         self._voice_responses_enabled = False
         self._hands_free_enabled = False
@@ -190,6 +203,9 @@ class LinaMainWindow(QMainWindow):
         self.speech_state_changed.connect(self._apply_speech_state)
         self.hands_free_command_received.connect(self._submit_hands_free_command)
         self.hands_free_feedback_received.connect(self._handle_hands_free_feedback)
+        self.live_vision_snapshot_received.connect(self._apply_live_vision_snapshot)
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.subscribe(self.live_vision_snapshot_received.emit)
         if self._hands_free_service is not None:
             self._hands_free_service.bind(
                 self.hands_free_command_received.emit,
@@ -239,6 +255,7 @@ class LinaMainWindow(QMainWindow):
 
         self._build_header(panel_layout)
         self._build_chat_area(panel_layout)
+        self._build_live_vision_panel(panel_layout)
         self._build_footer(panel_layout)
         self.setCentralWidget(central)
 
@@ -317,6 +334,30 @@ class LinaMainWindow(QMainWindow):
         self._scroll.verticalScrollBar().valueChanged.connect(self._update_auto_scroll_state)
         self._scroll.verticalScrollBar().rangeChanged.connect(self._handle_scroll_range_changed)
         parent_layout.addWidget(self._scroll, 1)
+
+    def _build_live_vision_panel(self, parent_layout: QVBoxLayout) -> None:
+        panel = QWidget(self)
+        panel.setObjectName("liveVisionPanel")
+        layout = QHBoxLayout(panel)
+        layout.setContentsMargins(10, 6, 10, 6)
+        self._live_indicator = QLabel("◉ Live Vision · Kapalı", panel)
+        self._live_indicator.setObjectName("statusChip")
+        self._live_indicator.setAccessibleName("Live Vision gizlilik göstergesi")
+        layout.addWidget(self._live_indicator)
+        self._live_result = QLabel("Kamera veya ekran takibi etkin değil.", panel)
+        self._live_result.setObjectName("mutedLabel")
+        self._live_result.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(self._live_result, 1)
+        self._live_analyze = QPushButton("Şimdi Analiz Et", panel)
+        self._live_pause = QPushButton("Duraklat", panel)
+        self._live_stop = QPushButton("Durdur", panel)
+        self._live_analyze.clicked.connect(self._live_analyze_now)
+        self._live_pause.clicked.connect(self._toggle_live_pause)
+        self._live_stop.clicked.connect(self._stop_live_vision)
+        for button in (self._live_analyze, self._live_pause, self._live_stop):
+            button.setEnabled(False)
+            layout.addWidget(button)
+        parent_layout.addWidget(panel)
 
     def _build_footer(self, parent_layout: QVBoxLayout) -> None:
         self._composer = ComposerWidget(
@@ -429,6 +470,21 @@ class LinaMainWindow(QMainWindow):
             self._tray_hands_free_action.triggered.connect(self._toggle_hands_free_from_tray)
             self._tray_pause_action = menu.addAction("Dinlemeyi Duraklat")
             self._tray_pause_action.triggered.connect(self._toggle_hands_free_pause)
+        if self._live_vision_controller is not None:
+            menu.addSeparator()
+            self._tray_live_status_action = menu.addAction("Live Vision Durumu: Kapalı")
+            self._tray_live_status_action.setEnabled(False)
+            self._tray_live_analyze_action = menu.addAction("Şimdi Analiz Et")
+            self._tray_live_analyze_action.triggered.connect(self._live_analyze_now)
+            self._tray_live_pause_action = menu.addAction("Takibi Duraklat")
+            self._tray_live_pause_action.triggered.connect(self._toggle_live_pause)
+            self._tray_live_stop_action = menu.addAction("Takibi Durdur")
+            self._tray_live_stop_action.triggered.connect(self._stop_live_vision)
+            self._tray_camera_action = menu.addAction("Kamerayı Aç")
+            self._tray_camera_action.triggered.connect(lambda: self._confirm_tray_live_start(LiveVisionSource.CAMERA))
+            self._tray_screen_action = menu.addAction("Ekranı Takip Et")
+            self._tray_screen_action.triggered.connect(lambda: self._confirm_tray_live_start(LiveVisionSource.SCREEN))
+            self._update_live_tray_actions(LiveVisionState.IDLE)
         menu.addSeparator()
         exit_action = menu.addAction("Çıkış")
         exit_action.triggered.connect(self._exit_from_tray)
@@ -596,6 +652,7 @@ class LinaMainWindow(QMainWindow):
             else:
                 self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
+        self._live_vision_enabled = settings.live_vision.enabled and settings.vision.enabled
         if hasattr(self, "_hands_free_toggle"):
             self._hands_free_toggle.setText("Hands-free Açık" if settings.speech.hands_free_enabled else "Hands-free Kapalı")
             self._hands_free_pause.setEnabled(settings.speech.hands_free_enabled)
@@ -603,6 +660,8 @@ class LinaMainWindow(QMainWindow):
         self._set_vision_controls_enabled(self._vision_enabled)
         if not self._vision_enabled and self._screen_context is not None:
             self._clear_screen_context()
+        if not self._live_vision_enabled and self._live_vision_controller is not None:
+            self._live_vision_controller.stop()
         self._refresh_speech_status()
         self._set_status("Ayarlar uygulandı")
 
@@ -718,6 +777,20 @@ class LinaMainWindow(QMainWindow):
         self._execute_routed_tool(request, user_text, created_at, confirmed=True)
 
     def _execute_routed_tool(self, request: IntentRequest, user_text: str, created_at: datetime, confirmed: bool, card: ToolActivityCard | None = None) -> None:
+        live_intents = {
+            RoutingIntentType.CAMERA_OPEN, RoutingIntentType.CAMERA_ANALYZE,
+            RoutingIntentType.CAMERA_MONITOR, RoutingIntentType.SCREEN_MONITOR,
+            RoutingIntentType.REGION_MONITOR, RoutingIntentType.LIVE_VISION_PAUSE,
+            RoutingIntentType.LIVE_VISION_RESUME, RoutingIntentType.LIVE_VISION_STOP,
+            RoutingIntentType.LIVE_VISION_STATUS,
+        }
+        if request.intent in live_intents:
+            activity = card or self._add_tool_card(self._tool_title(request), "Live Vision hazırlanıyor.")
+            activity.set_status(ToolStatus.RUNNING)
+            result = self._execute_live_intent(request)
+            activity.set_status(ToolStatus.SUCCESS if result.success else ToolStatus.UNAVAILABLE, result.user_message, result.retryable)
+            self._finish_routed_intent(user_text, result.user_message, created_at)
+            return
         activity = card or self._add_tool_card(self._tool_title(request), "İşlem hazırlanıyor.")
         activity.set_status(ToolStatus.RUNNING)
         result = self._intent_router.execute(
@@ -819,6 +892,15 @@ class LinaMainWindow(QMainWindow):
             RoutingIntentType.READ_FILE: "Dosyayı oku",
             RoutingIntentType.MEMORY_STORE: "Hafızaya kaydet",
             RoutingIntentType.MEMORY_RECALL: "Hafızada ara",
+            RoutingIntentType.CAMERA_OPEN: "Kamerayı aç",
+            RoutingIntentType.CAMERA_ANALYZE: "Kamerayı analiz et",
+            RoutingIntentType.CAMERA_MONITOR: "Kamerayı takip et",
+            RoutingIntentType.SCREEN_MONITOR: "Ekranı takip et",
+            RoutingIntentType.REGION_MONITOR: "Bölgeyi takip et",
+            RoutingIntentType.LIVE_VISION_PAUSE: "Takibi duraklat",
+            RoutingIntentType.LIVE_VISION_RESUME: "Takibe devam et",
+            RoutingIntentType.LIVE_VISION_STOP: "Takibi durdur",
+            RoutingIntentType.LIVE_VISION_STATUS: "Live Vision durumu",
         }.get(request.intent, "Araç işlemi")
 
     @staticmethod
@@ -830,6 +912,123 @@ class LinaMainWindow(QMainWindow):
         if request.intent is RoutingIntentType.MEMORY_STORE:
             return f"“{request.extracted_arguments.get('content', '')}”"
         return ""
+
+    def _execute_live_intent(self, request: IntentRequest) -> ToolResult:
+        controller = self._live_vision_controller
+        if controller is None or not self._live_vision_enabled:
+            return ToolResult(False, "Live Vision şu anda kapalı.", error_code="unavailable")
+        intent = request.intent
+        if intent is RoutingIntentType.LIVE_VISION_PAUSE:
+            success = controller.pause()
+            return ToolResult(success, "Canlı takip duraklatıldı." if success else "Duraklatılacak aktif takip yok.")
+        if intent is RoutingIntentType.LIVE_VISION_RESUME:
+            success = controller.resume()
+            return ToolResult(success, "Canlı takip devam ediyor." if success else "Devam ettirilecek takip yok.")
+        if intent is RoutingIntentType.LIVE_VISION_STOP:
+            success = controller.stop()
+            return ToolResult(success, "Canlı takip durduruldu." if success else "Durdurulacak aktif takip yok.")
+        if intent is RoutingIntentType.LIVE_VISION_STATUS:
+            snapshot = controller.snapshot
+            if snapshot.state is LiveVisionState.IDLE:
+                return ToolResult(True, "Şu anda aktif bir takip yok.")
+            return ToolResult(True, f"{self._live_source_label(snapshot.source)} takip ediliyor; durum: {snapshot.state.value}.")
+        focus = str(request.extracted_arguments.get("user_focus", ""))
+        if intent is RoutingIntentType.REGION_MONITOR:
+            self._pending_region_monitor_focus = focus
+            self.handle_region_capture()
+            return ToolResult(True, "Takip etmek istediğin ekran bölgesini seç.")
+        try:
+            if intent in {RoutingIntentType.CAMERA_OPEN, RoutingIntentType.CAMERA_ANALYZE, RoutingIntentType.CAMERA_MONITOR}:
+                settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
+                source = CameraFrameSource(QtCameraBackend(settings.camera_device_id if settings else None))
+                self._start_live_source(
+                    source, focus,
+                    analyze_immediately=intent is not RoutingIntentType.CAMERA_OPEN,
+                    single_shot=intent is RoutingIntentType.CAMERA_ANALYZE,
+                )
+                return ToolResult(True, "Kamera tek kare analiz için açıldı." if intent is RoutingIntentType.CAMERA_ANALYZE else "Kamera takibi aktif.")
+            invoker = QtCaptureInvoker(self._screen_capture_service.capture, self)
+            self._live_capture_invoker = invoker
+            self._start_live_source(ScreenFrameSource(invoker), focus, analyze_immediately=True)
+            return ToolResult(True, "Ekran takibi aktif.")
+        except LiveVisionError as error:
+            return ToolResult(False, str(error), error_code="unavailable", retryable=True)
+
+    def _live_config(self) -> LiveVisionConfig:
+        settings = self._user_settings_service.current.live_vision if self._user_settings_service else None
+        if settings is None:
+            return LiveVisionConfig()
+        return LiveVisionConfig(
+            capture_interval_seconds=settings.capture_interval_seconds,
+            minimum_analysis_interval_seconds=settings.minimum_analysis_interval_seconds,
+            sensitivity=ChangeSensitivity(settings.change_sensitivity),
+            voice_feedback_enabled=settings.voice_live_vision_enabled,
+            speak_only_meaningful_changes=settings.speak_only_meaningful_changes,
+        )
+
+    def _start_live_source(self, source, focus: str = "", *, analyze_immediately: bool = False, single_shot: bool = False) -> None:
+        session = LiveVisionSession(source.source, focus, self._live_config())
+        self._live_vision_controller.start(source, session, analyze_immediately=analyze_immediately, single_shot=single_shot)
+
+    def _live_analyze_now(self) -> None:
+        if self._live_vision_controller is not None:
+            self._start_worker(FunctionWorker(self._live_vision_controller.analyze_now))
+
+    def _toggle_live_pause(self) -> None:
+        if self._live_vision_controller is None:
+            return
+        if self._live_vision_controller.snapshot.state is LiveVisionState.PAUSED:
+            self._live_vision_controller.resume()
+        else:
+            self._live_vision_controller.pause()
+
+    def _stop_live_vision(self) -> None:
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.stop()
+
+    def _apply_live_vision_snapshot(self, snapshot: object) -> None:
+        if not isinstance(snapshot, LiveVisionSnapshot):
+            return
+        active = snapshot.state not in {LiveVisionState.IDLE, LiveVisionState.DISABLED, LiveVisionState.UNAVAILABLE}
+        label = self._live_source_label(snapshot.source)
+        state_labels = {
+            LiveVisionState.STARTING: "Başlatılıyor", LiveVisionState.MONITORING: "Takip ediliyor",
+            LiveVisionState.CHANGE_DETECTED: "Değişiklik algılandı", LiveVisionState.ANALYZING: "Analiz ediliyor",
+            LiveVisionState.PAUSED: "Duraklatıldı", LiveVisionState.ERROR: "Hata",
+            LiveVisionState.UNAVAILABLE: "Kullanılamıyor", LiveVisionState.IDLE: "Kapalı",
+            LiveVisionState.STOPPING: "Durduruluyor", LiveVisionState.SPEAKING: "Seslendiriliyor",
+            LiveVisionState.DISABLED: "Kapalı",
+        }
+        self._live_indicator.setText(f"◉ {label} · {state_labels.get(snapshot.state, snapshot.state.value)}" if active else "◉ Live Vision · Kapalı")
+        self._live_result.setText(snapshot.last_result or snapshot.user_message or "Kamera veya ekran takibi etkin değil.")
+        self._live_analyze.setEnabled(active and snapshot.state is not LiveVisionState.ANALYZING)
+        self._live_pause.setEnabled(active and snapshot.state is not LiveVisionState.ANALYZING)
+        self._live_pause.setText("Devam Et" if snapshot.state is LiveVisionState.PAUSED else "Duraklat")
+        self._live_stop.setEnabled(active)
+        self._update_live_tray_actions(snapshot.state, label)
+
+    @staticmethod
+    def _live_source_label(source: LiveVisionSource | None) -> str:
+        return {LiveVisionSource.CAMERA: "Kamera", LiveVisionSource.SCREEN: "Ekran", LiveVisionSource.REGION: "Bölge"}.get(source, "Live Vision")
+
+    def _update_live_tray_actions(self, state: LiveVisionState, label: str = "Live Vision") -> None:
+        if not hasattr(self, "_tray_live_status_action"):
+            return
+        active = state not in {LiveVisionState.IDLE, LiveVisionState.DISABLED, LiveVisionState.UNAVAILABLE}
+        self._tray_live_status_action.setText(f"Live Vision Durumu: {label if active else 'Kapalı'}")
+        self._tray_live_analyze_action.setEnabled(active)
+        self._tray_live_pause_action.setEnabled(active)
+        self._tray_live_pause_action.setText("Takibe Devam Et" if state is LiveVisionState.PAUSED else "Takibi Duraklat")
+        self._tray_live_stop_action.setEnabled(active)
+        if self._tray_icon is not None:
+            self._tray_icon.setToolTip(f"Lina — {label} takibi aktif" if active else "Lina")
+
+    def _confirm_tray_live_start(self, source: LiveVisionSource) -> None:
+        message = "Lina kamera görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz veya cloud'a gönderilmez." if source is LiveVisionSource.CAMERA else "Lina ekran görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz."
+        if QMessageBox.question(self, "Live Vision Gizlilik Onayı", message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            return
+        intent = RoutingIntentType.CAMERA_MONITOR if source is LiveVisionSource.CAMERA else RoutingIntentType.SCREEN_MONITOR
+        self._execute_live_intent(IntentRequest(intent, 1.0, message, {"user_focus": ""}, True))
 
     def _run_vision_intent(self, intent: RoutingIntentType) -> str:
         if not self._vision_enabled:
@@ -1260,6 +1459,27 @@ class LinaMainWindow(QMainWindow):
         if overlay is not None:
             overlay.close()
             overlay.deleteLater()
+        if self._pending_region_monitor_focus is not None:
+            focus = self._pending_region_monitor_focus
+            self._pending_region_monitor_focus = None
+            geometry = screen.geometry()
+
+            def capture_selected_region():
+                if screen.geometry() != geometry:
+                    raise ScreenCaptureError("Selected screen geometry changed.")
+                return self._screen_capture_service.capture_region(rectangle, screen)
+
+            try:
+                invoker = QtCaptureInvoker(capture_selected_region, self)
+                self._live_capture_invoker = invoker
+                self._start_live_source(RegionFrameSource(invoker.capture), focus, analyze_immediately=True)
+                self._set_status("Bölge takibi aktif")
+            except LiveVisionError as error:
+                self._set_status(str(error))
+            finally:
+                self._is_screen_capture_busy = False
+                self._set_vision_controls_enabled(self._vision_enabled)
+            return
         try:
             context = self._screen_capture_service.capture_region(rectangle, screen)
             dialog = self._screen_preview_factory(context, self)
@@ -1278,6 +1498,7 @@ class LinaMainWindow(QMainWindow):
     def _cancel_region_capture(self) -> None:
         overlay = self._region_overlay
         self._region_overlay = None
+        self._pending_region_monitor_focus = None
         if overlay is not None:
             overlay.close()
             overlay.deleteLater()
@@ -1948,6 +2169,8 @@ class LinaMainWindow(QMainWindow):
                     event.ignore()
                     return
         self._clear_screen_context()
+        if self._live_vision_controller is not None:
+            self._live_vision_controller.shutdown()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
         self._active_confirmation_cancel = None

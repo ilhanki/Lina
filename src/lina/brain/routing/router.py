@@ -126,6 +126,10 @@ class IntentRouter:
 
     @staticmethod
     def confirmation_message(request: IntentRequest) -> str:
+        if request.intent in {IntentType.CAMERA_OPEN, IntentType.CAMERA_ANALYZE, IntentType.CAMERA_MONITOR}:
+            return "Kamerayı açıp görüntüyü yalnızca yerel olarak analiz etmemi onaylıyor musun? Görüntüler kalıcı olarak saklanmaz."
+        if request.intent in {IntentType.SCREEN_MONITOR, IntentType.REGION_MONITOR}:
+            return "Ekran görüntüsünü yalnızca yerel olarak takip etmemi onaylıyor musun? Görüntüler kalıcı olarak saklanmaz."
         if request.intent is IntentType.CREATE_REMINDER:
             due = request.extracted_arguments.get("due_at")
             title = request.extracted_arguments.get("title", "")

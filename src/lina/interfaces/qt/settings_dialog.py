@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -27,6 +28,8 @@ from lina.settings.models import UserSettings
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.speech.audio_devices import AudioInputDeviceService
+from lina.interfaces.qt.camera_source import camera_devices
+from PySide6.QtGui import QGuiApplication
 
 
 class SettingsDialog(QDialog):
@@ -251,6 +254,39 @@ class SettingsDialog(QDialog):
         self._vision_consume = QCheckBox("Başarılı analizden sonra attachment'ı kaldır", page)
         form.addRow(self._vision_enabled)
         form.addRow(self._vision_consume)
+        self._live_vision_enabled = QCheckBox("Live Vision etkin", page)
+        self._live_default_source = QComboBox(page)
+        self._live_default_source.addItem("Kamera", "camera")
+        self._live_default_source.addItem("Ekran", "screen")
+        self._live_default_source.addItem("Bölge", "region")
+        self._live_capture_interval = QDoubleSpinBox(page)
+        self._live_capture_interval.setRange(0.5, 60.0)
+        self._live_capture_interval.setSingleStep(0.5)
+        self._live_analysis_interval = QDoubleSpinBox(page)
+        self._live_analysis_interval.setRange(1.0, 3600.0)
+        self._live_change_sensitivity = QComboBox(page)
+        self._live_change_sensitivity.addItem("Düşük", "low")
+        self._live_change_sensitivity.addItem("Orta", "medium")
+        self._live_change_sensitivity.addItem("Yüksek", "high")
+        self._live_voice = QCheckBox("Live Vision sonuçlarını seslendir", page)
+        self._live_meaningful_only = QCheckBox("Yalnız önemli değişikliklerde konuş", page)
+        self._live_camera_device = QComboBox(page)
+        self._live_camera_device.addItem("Varsayılan kamera", None)
+        for device_id, name in camera_devices():
+            self._live_camera_device.addItem(name, device_id)
+        self._live_screen = QComboBox(page)
+        self._live_screen.addItem("Aktif ekran", None)
+        for screen in QGuiApplication.screens():
+            self._live_screen.addItem(screen.name(), screen.name())
+        form.addRow(self._live_vision_enabled)
+        form.addRow("Varsayılan kaynak", self._live_default_source)
+        form.addRow("Yakalama aralığı (sn)", self._live_capture_interval)
+        form.addRow("Minimum analiz aralığı (sn)", self._live_analysis_interval)
+        form.addRow("Değişim hassasiyeti", self._live_change_sensitivity)
+        form.addRow(self._live_voice)
+        form.addRow(self._live_meaningful_only)
+        form.addRow("Kamera", self._live_camera_device)
+        form.addRow("Ekran", self._live_screen)
         return page
 
     def _system_page(self) -> QWidget:
@@ -330,6 +366,15 @@ class SettingsDialog(QDialog):
         _select_data(self._microphone_device, settings.speech.microphone_device_id)
         self._vision_enabled.setChecked(settings.vision.enabled)
         self._vision_consume.setChecked(settings.vision.consume_attachment_on_success)
+        self._live_vision_enabled.setChecked(settings.live_vision.enabled)
+        _select_data(self._live_default_source, settings.live_vision.default_source)
+        self._live_capture_interval.setValue(settings.live_vision.capture_interval_seconds)
+        self._live_analysis_interval.setValue(settings.live_vision.minimum_analysis_interval_seconds)
+        _select_data(self._live_change_sensitivity, settings.live_vision.change_sensitivity)
+        self._live_voice.setChecked(settings.live_vision.voice_live_vision_enabled)
+        self._live_meaningful_only.setChecked(settings.live_vision.speak_only_meaningful_changes)
+        _select_data(self._live_camera_device, settings.live_vision.camera_device_id)
+        _select_data(self._live_screen, settings.live_vision.default_screen_name)
         self._minimize_to_tray.setChecked(settings.system.minimize_to_tray)
         _select_data(self._close_behavior, settings.system.close_behavior)
         self._start_minimized.setChecked(settings.system.start_minimized)
@@ -388,6 +433,18 @@ class SettingsDialog(QDialog):
                 self._draft.vision,
                 enabled=self._vision_enabled.isChecked(),
                 consume_attachment_on_success=self._vision_consume.isChecked(),
+            ),
+            live_vision=replace(
+                self._draft.live_vision,
+                enabled=self._live_vision_enabled.isChecked(),
+                default_source=str(self._live_default_source.currentData()),
+                capture_interval_seconds=self._live_capture_interval.value(),
+                minimum_analysis_interval_seconds=self._live_analysis_interval.value(),
+                change_sensitivity=str(self._live_change_sensitivity.currentData()),
+                voice_live_vision_enabled=self._live_voice.isChecked(),
+                speak_only_meaningful_changes=self._live_meaningful_only.isChecked(),
+                camera_device_id=self._live_camera_device.currentData(),
+                default_screen_name=self._live_screen.currentData(),
             ),
             system=replace(
                 self._draft.system,

@@ -5,6 +5,7 @@ from pathlib import Path
 import threading
 
 from lina.brain.brain import Brain
+from lina.brain.conversation_context import ConversationContext
 from lina.brain.context_manager import ContextManager
 from lina.brain.prompt_builder import PromptBuilder
 from lina.brain.prompts import VISION_SYSTEM_PROMPT
@@ -47,6 +48,8 @@ from lina.settings.repository import UserSettingsRepository, default_user_settin
 from lina.settings.service import UserSettingsService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
 from lina.tools.registry import ToolRegistry
+from lina.vision.live import LiveVisionController
+from lina.vision.models import ImageAttachment
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,7 @@ class ApplicationServices:
     inference_diagnostics_service: InferenceDiagnosticsService | None = None
     model_lifecycle_service: ModelLifecycleService | None = None
     hands_free_service: HandsFreeConversationService | None = None
+    live_vision_controller: LiveVisionController | None = None
 
 
 def create_application_services(
@@ -206,6 +210,30 @@ def create_application_services(
         ),
     )
     hands_free_service = HandsFreeConversationService(voice_controller, speech_service)
+    def analyze_live_frame(frame, prompt: str) -> str:
+        model_lifecycle_service.prepare_vision()
+        try:
+            attachment = ImageAttachment(
+                mime_type="image/png",
+                data=frame.data,
+                width=frame.width,
+                height=frame.height,
+                captured_at=frame.captured_at,
+                source=f"live_{frame.source.value}",
+                display_name=frame.source_label or frame.source.value,
+            )
+            response = vision_brain.respond_with_image(
+                ConversationContext(prompt, ()), attachment
+            )
+            return response.text
+        finally:
+            model_lifecycle_service.finish_vision()
+
+    live_vision_controller = LiveVisionController(
+        analyze_live_frame,
+        speaker=voice_controller.speak,
+        cancel_analysis=model_lifecycle_service.cancel_active,
+    )
     inference_diagnostics_service = InferenceDiagnosticsService(provider)
     if user_preferences.models.warm_up_enabled:
         threading.Thread(
@@ -234,6 +262,7 @@ def create_application_services(
         inference_diagnostics_service=inference_diagnostics_service,
         model_lifecycle_service=model_lifecycle_service,
         hands_free_service=hands_free_service,
+        live_vision_controller=live_vision_controller,
     )
 
 
