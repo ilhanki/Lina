@@ -84,7 +84,7 @@ from lina.voice.models import VoiceSettings, VoiceState
 from lina.inference.service import InferenceDiagnosticsService, ModelLifecycleService
 
 
-APP_VERSION = "v0.10.0-alpha"
+APP_VERSION = "v0.10.1-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -130,6 +130,7 @@ class LinaMainWindow(QMainWindow):
         self._hands_free_service = hands_free_service
         self._speech_enabled = True
         self._voice_responses_enabled = False
+        self._hands_free_enabled = False
         self._transcription_mode = "insert"
         self._vision_enabled = True
         self._user_settings_service = user_settings_service
@@ -565,6 +566,10 @@ class LinaMainWindow(QMainWindow):
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
         self._voice_responses_enabled = settings.speech.voice_responses_enabled
+        hands_free_was_enabled = self._hands_free_enabled
+        self._hands_free_enabled = settings.speech.hands_free_enabled
+        if hands_free_was_enabled and not self._hands_free_enabled and self._hands_free_service is not None:
+            self._hands_free_service.cancel_active()
         self._wake_indicator_enabled = settings.speech.wake_word_indicator_enabled
         self._transcription_mode = settings.speech.transcription_mode
         if self._speech_service is not None and hasattr(self._speech_service, "set_microphone_device"):
@@ -1558,7 +1563,7 @@ class LinaMainWindow(QMainWindow):
         }
         label = labels.get(state, "Ses · hazır")
         if state is VoiceState.WAKE_LISTENING and not getattr(self, "_wake_indicator_enabled", True):
-            label = "Ses · hazır"
+            label = "🎙 Mikrofon aktif"
         self._voice_status.setText(label)
         if hasattr(self, "_hands_free_pause") and self._voice_controller is not None:
             self._hands_free_pause.setText("Dinlemeye Devam Et" if self._voice_controller.hands_free_paused else "Dinlemeyi Duraklat")

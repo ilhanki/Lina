@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.10.0--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.10.1--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
@@ -99,6 +99,10 @@ Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya
 - Final normal chat ve kısa tool sonuçları için ortak TTS akışı.
 - Barge-in ve “Sesi Durdur” ile aktif playback’i kesme.
 - Kod blokları, uzun URL’ler, ham JSON, stack trace ve Base64 için konuşma normalizasyonu.
+- Açık privacy onayıyla etkinleşen “Hey Lina” hands-free conversation.
+- Enerji kapılı VAD; yalnız geçerli konuşma segmentlerinde local STT.
+- Sesli confirmation cevapları, wake cooldown ve wake-phrase zorunlu barge-in.
+- Mikrofon listeleme, yenileme, test ve kayıp cihazda varsayılan input fallback’i.
 
 ### Vision ve ekran bağlamı
 
@@ -237,8 +241,24 @@ python scripts/tts_smoke.py
 
 Başarılı çalışmada terminalde `tts_synthesis_started`, `playback_started` ve `playback_completed` zinciri görünür.
 
-> [!NOTE]
-> Wake-word contract ve ayar altyapısı hazırdır ancak production detector bulunmadığı için wake word seçeneği devre dışıdır. Lina always-on microphone kullanmaz.
+### Wake word ve hands-free conversation
+
+Hands-free varsayılan kapalıdır. Kullanıcı **Ayarlar → Konuşma → Hands-free conversation** seçeneğini açtığında Lina mikrofonun yerel dinleneceğini, sesin saklanmayacağını ve cloud’a gönderilmeyeceğini açıkça bildirir. Onaydan sonra akış şöyledir:
+
+```text
+Hey Lina → Dinliyorum → VAD komutu tamamlar → Local STT → Otomatik gönder
+→ Normal chat/tool routing → Final TTS → Cooldown → Hey Lina bekleniyor
+```
+
+- Kabul edilen varsayılan wake varyasyonları: `hey lina`, `he lina`, `hey, lina`.
+- Eşleme conservative’dir; fuzzy veya tek kelimelik eşleşme yapılmaz.
+- Mikrofon akışı full STT ile sürekli çözülmez. Bounded VAD yalnız yeterli konuşma segmenti tamamlandığında faster-whisper çağırır.
+- Yalnız sessizlikte “Bir şey duyamadım”, boş transcription’da “Seni anlayamadım”, düşük confidence sonucunda “Tekrar söyler misin?” geri bildirimi verilir.
+- Reminder ve Memory confirmation soruları seslendirilir; `evet`, `onayla`, `tamam`, `oluştur`, `kaydet` ile onay, `hayır`, `iptal`, `vazgeç`, `boşver`, `gerek yok` ile iptal edilebilir.
+- TTS sırasında otomatik barge-in için wake phrase zorunludur. Kısa gürültü playback’i kesmez; başarılı wake eski playback generation’ını stale yapar.
+- Playback sonrasında 1–3 saniyelik cooldown uygulanır ve sonra wake listening yeniden başlar.
+- Header ve tray üzerinden dinleme duraklatılabilir, sürdürülebilir veya tamamen kapatılabilir.
+- Mode kapatıldığında ve gerçek exit sırasında detector, recorder, STT ve TTS akışları durdurulur.
 
 ## Görsel analiz
 
@@ -400,7 +420,7 @@ python -m pytest tests/voice -q
 Son yerel doğrulama sonucu:
 
 ```text
-720 passed
+774 passed
 ```
 
 Testler dış sistemleri mümkün olduğunca fake provider ve geçici repository’lerle izole eder. Gerçek mikrofon, Windows voice, audio device, Ollama modeli, VRAM davranışı ve GUI görsel kalitesi için manuel smoke test gerekir. Ayrıntılı kontrol listesi: [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md).
@@ -422,7 +442,7 @@ Katkı ayrıntıları için [contributing.md](contributing.md) dosyasına bakın
 - Yalnız Windows masaüstü birincil hedef ve gerçek TTS platformudur.
 - Model yanıt kalitesi seçilen yerel modele bağlıdır.
 - Speech doğruluğu mikrofona, gürültüye, modele ve işlemciye bağlıdır.
-- Wake-word için production detector yoktur.
+- Wake detection yerel faster-whisper model kalitesine, mikrofona ve ortam gürültüsüne bağlıdır; özel keyword engine veya acoustic echo cancellation içermez.
 - Vision tek aktif attachment ve açık kullanıcı eylemiyle çalışır; canlı kamera veya sürekli ekran analizi yoktur.
 - Files capability genel dosya yöneticisi değildir; yalnız sabit proje dokümanlarını okuyabilir.
 - Hatırlatıcı bildirimi için uygulamanın açık veya tray’de olması gerekir.
@@ -440,13 +460,15 @@ Tamamlanan ana hat:
 - `v0.8.x` — Conversation persistence, timeline, search ve management.
 - `v0.9.x` — Settings, system tray, notifications ve güvenli tool routing.
 - `v0.10.0-alpha` — Voice interaction ve inference performance foundation.
+- `v0.10.1-alpha` — Wake word ve hands-free conversation.
 
-Planlanan sonraki alanlar wake-word/hands-free araştırması, daha gelişmiş live vision, kontrollü agent yetenekleri ve Codex entegrasyonudur. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan sonraki alanlar `v0.11.0-alpha` Live Vision & Camera Mode, `v0.12.0-alpha` Agent Mode Foundation ve `v0.13.0-alpha` Codex Bridge’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
 
 ## Dokümantasyon
 
 - [Mimari](docs/architecture.md)
 - [v0.10.0-alpha sürüm notları](docs/release-notes-v0.10.0-alpha.md)
+- [v0.10.1-alpha sürüm notları](docs/release-notes-v0.10.1-alpha.md)
 - [Speech Architecture v1](docs/speech-architecture-v1.md)
 - [Brain Specification v1](docs/brain-specification-v1.md)
 - [Conversation Flow v1](docs/conversation-flow-v1.md)

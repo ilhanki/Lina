@@ -2,13 +2,45 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Wake Word & Hands-Free Conversation (v0.10.1-alpha)
+
+Hands-free lifecycle `lina.voice` içinde framework-neutral tutulur. `WakeWordDetector` protokolü `start`, `stop`, `is_available`, `is_running`, `set_phrase` ve `shutdown` sözleşmelerini tanımlar. Runtime implementasyonu yeni bir keyword modeli indirmez: `SoundDeviceWakeAudioSource` düşük maliyetli peak-energy VAD ile bounded PCM segmentleri üretir, `STTWakeWordDetector` yalnız geçerli segmentlerde mevcut local faster-whisper provider’ını çağırır. Sessizlik ve minimum sürenin altındaki gürültü full STT’ye gitmez.
+
+Wake phrase Unicode NFKC, casing, whitespace ve punctuation açısından normalize edilir. Varsayılan phrase için yalnız `hey lina`, `he lina` ve punctuation varyasyonu kabul edilir; fuzzy eşleşme yoktur. Detector veya input device kullanılamıyorsa UI özelliği unavailable gösterir ve normal chat etkilenmez.
+
+Typed hands-free state akışı:
+
+```text
+idle
+→ wake_listening
+→ wake_detected
+→ command_listening
+→ transcribing
+→ thinking
+→ speaking
+→ cooldown
+→ wake_listening
+```
+
+`VoiceStateMachine` invalid transition’ı exception ile GUI’ye taşımak yerine reddeder. `HandsFreeConversationService` wake callback’inden sonra ayrı bounded command session başlatır; wake phrase audio’su komut kaydına dahil edilmez. Transcription başarıyla tamamlanırsa aynı GUI send path’i kullanılır, dolayısıyla normal intent routing, reminder/memory confirmation, conversation isolation ve stale request korumaları değişmez.
+
+VAD ayarları internal’dır: noise threshold, yaklaşık 1 saniye trailing silence, 250 ms minimum konuşma, 5 saniye no-speech timeout ve bounded maximum recording. PCM yalnız bellekte tutulur; kabul edilmeyen buffer temizlenir. Audio, transcription text’i ve raw exception loglanmaz. Metrics yalnız wake count, false-wake cancel count, command/transcription duration ve end-to-end latency metadata’sı taşır.
+
+Kalıcı işlem confirmation’ında soru normal final-response TTS yoluyla okunur. Hands-free açık ve voice confirmation etkinse playback sonrası cooldown’ın ardından doğrudan kısa command capture başlar. Onay/iptal kelimeleri exact allowlist ile sınırlıdır; ambiguous cevap işlemi çalıştırmaz. Confirmation 25 saniyede güvenli biçimde iptal edilir.
+
+Barge-in politikası hands-free sırasında wake phrase zorunlu olacak şekilde sabittir. TTS devam ederken enerji kapılı detector çalışabilir, ancak yalnız exact wake phrase playback’i keser; kısa gürültü kesmez. Stop generation kimliğini artırdığı için eski playback callback’i stale olur. Playback bittiğinde detector durdurulur, 1.5 saniye cooldown uygulanır ve sonra wake listening yeniden başlar. Özel acoustic echo cancellation bulunmadığından keyword accuracy mikrofon/oda akustiğine bağlıdır.
+
+Input devices `AudioInputDeviceService` ile listelenir. Seçili cihaz kaybolursa privacy-safe log üretilir ve varsayılan input’a fallback yapılır. Refresh ve test işlemleri Qt worker üzerinde çalışır. Gerçek exit sırası hands-free cancel/join, recorder stop, wake detector shutdown, TTS stop, inference cancel, scheduler stop ve tray cleanup’tır. Tray’e kapanma gerçek exit değildir; kullanıcı tercihi açıksa wake listening sürdürülebilir.
+
+Hands-free ve wake-word varsayılan kapalıdır. İlk etkinleştirmede açık privacy confirmation gerekir. Cloud speech/wake servisi, audio persistence, custom voice, camera, shell veya automation yetkisi eklenmez.
+
 ## Voice Interaction & Inference Performance Foundation (v0.10.0-alpha)
 
 `lina.voice` GUI’den bağımsız typed katmandır. `VoiceController` idle, listening, transcribing, thinking, speaking, interrupted, error ve disabled durumlarını yönetir. `AudioPlaybackService` generation kimliğiyle tek aktif playback sağlar; stop eski callback’i geçersiz kılar. Mic speaking sırasında başlatılırsa barge-in önce playback’i keser, sonra listening’e geçer.
 
 `QtWindowsTTSProvider` mevcut PySide6 içindeki Windows WinRT motorunu yeni paket veya shell çalıştırmadan kullanır ve Türkçe WinRT sesini önceliklendirir. Motor GUI thread’inde kalıcı bir bridge tarafından gerçek `Speaking → Ready` yaşam döngüsü tamamlanana kadar tutulur; bu nedenle worker tamamlanması playback tamamlanması gibi yorumlanmaz. PySide6 WinRT binding’i sentezlenen byte stream’i dışarı açmadığından ses Qt tarafından doğrudan varsayılan output device’a verilir ve geçici ya da kalıcı audio dosyası oluşturulmaz. SAPI/System.Speech voice listesi WinRT listesine karıştırılmaz; yalnız SAPI tarafında bulunan sesler UI’da gösterilmez. Opsiyonel COM tabanlı `WindowsSapiTTSProvider` ayrı abstraction olarak korunur ancak runtime WinRT provider’a voice enjekte etmez. WinRT motoru bulunmazsa provider unavailable olur; timeline’daki yazılı cevap normal çalışır. TTS öncesi kod blokları, uzun URL, JSON/trace/Base64 benzeri içerik çıkarılır ve yalnız ses kopyası sınırlandırılır. Chat/Ollama olmadan gerçek Windows hattı `python scripts/tts_smoke.py` ile doğrulanabilir.
 
-Wake-word için yalnız `WakeWordDetector` protokolü ve unavailable default bulunur. Detector olmadan ayar disable edilir; always-on microphone veya sahte detection yoktur.
+v0.10.0’da yalnız foundation olarak bulunan `WakeWordDetector`, v0.10.1’de enerji kapılı local STT implementasyonuna bağlanmıştır. Detector olmadan ayar disable edilir; sahte detection veya cloud fallback yoktur.
 
 `InferenceMetrics` yalnız provider/model ve süre/sayaç metadata’sı taşır. Ollama stream satırlarının alınma zamanı first-token ölçümünü, final Ollama metadata’sı prompt/eval token ve nanosecond duration değerlerini sağlar. Eksik metadata tahmin edilmez. `InferenceDiagnosticsService` sabit history’siz benchmark prompt’u; `ModelLifecycleService` warm-up, cancel ve text/vision best-effort unload koordinasyonunu sağlar.
 

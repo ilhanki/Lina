@@ -2387,3 +2387,19 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - System theme light/dark fallback'i ve runtime açık dialog repolish akışı doğrulandı.
 - %85, %100 ve %135 font scale; Tool card ve Notification Center selector'larıyla test edildi.
 - Dark theme temel token'ları korunarak tam regresyon paketi `670 passed` tamamlandı. Yeni dependency eklenmedi.
+
+## 2026-07-14 - Wake Word & Hands-Free Conversation
+
+- Başlangıç kapısında working tree ve `origin/main` senkron, local/remote `v0.10.0-alpha` tag’i mevcut, `720 passed` ve compile başarılı olarak doğrulandı.
+- Existing sounddevice/faster-whisper hattını kullanan enerji kapılı local `STTWakeWordDetector` eklendi; yeni dependency, cloud speech veya model download eklenmedi.
+- Wake phrase normalization `hey lina`, `he lina` ve punctuation/casing varyasyonlarıyla conservative tutuldu; fuzzy false-positive eşleme eklenmedi.
+- Bounded PCM VAD; silence-only, short noise, speech end, minimum speech, maximum duration ve no-input davranışlarını ayırıyor.
+- Typed hands-free state machine ve wake → command → transcription → thinking → speaking → cooldown → wake lifecycle tamamlandı.
+- Hands-free command transcription normal GUI send ve intent routing yoluna bağlandı; wake audio yeni command session’a taşınmıyor.
+- Voice confirmation yes/no allowlist’i, ambiguous re-prompt, 25 saniyelik timeout ve conversation cleanup eklendi.
+- Barge-in politikası TTS sırasında exact wake phrase gerektirecek şekilde sabitlendi; stale playback generation koruması korundu.
+- Settings schema v3 migration, hands-free privacy confirmation, wake/confirmation/return tercihleri ve microphone device seçimi eklendi.
+- Header/tray durumları, pause/resume, hands-free toggle, input device refresh/test ve missing-device default fallback tamamlandı.
+- Audio/TTS persistence yok; raw audio/transcription loglanmıyor. Metrics content-free metadata ile sınırlı.
+- Foundation commit’i `e1c6ffe`, runtime lifecycle commit’i `821c3c7` olarak `origin/main`’e pushlandı.
+- Dokümantasyon öncesi full suite `774 passed`; compile ve `git diff --check` başarılı.

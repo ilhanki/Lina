@@ -34,7 +34,16 @@ class SettingsDialog(QDialog):
 
     settings_applied = Signal(object)
 
-    def __init__(self, settings_service: UserSettingsService, model_diagnostics=None, vision_diagnostics=None, voice_controller=None, inference_diagnostics=None, privacy_confirmation=None, parent=None) -> None:
+    def __init__(
+        self,
+        settings_service: UserSettingsService,
+        model_diagnostics=None,
+        vision_diagnostics=None,
+        voice_controller=None,
+        inference_diagnostics=None,
+        privacy_confirmation=None,
+        parent=None,
+    ) -> None:
         super().__init__(parent)
         self._settings_service = settings_service
         self._model_diagnostics = model_diagnostics
@@ -331,12 +340,65 @@ class SettingsDialog(QDialog):
 
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
-            appearance=replace(self._draft.appearance, theme=str(self._theme.currentData()), font_scale=self._font_scale.value() / 100, compact_mode=self._compact_mode.isChecked(), reduce_motion=self._reduce_motion.isChecked()),
-            general=replace(self._draft.general, language=str(self._language.currentData()), open_last_conversation=self._open_last.isChecked(), confirm_before_delete=self._confirm_delete.isChecked(), welcome_enabled=self._welcome.isChecked(), intent_routing_enabled=self._intent_routing.isChecked()),
-            models=replace(self._draft.models, text_model=self._text_model.text().strip(), vision_model=self._validated_vision_model(), keep_alive=str(self._keep_alive.currentData()), max_output_tokens=self._max_output_tokens.value(), context_budget=self._context_budget.value(), warm_up_enabled=self._warm_up.isChecked()),
-            speech=replace(self._draft.speech, enabled=self._speech_enabled.isChecked(), language=str(self._speech_language.currentData()), auto_insert_transcription=self._transcription_mode.currentData() == "insert", voice_responses_enabled=self._voice_responses.isChecked(), system_voice=self._system_voice.currentData(), speech_rate=self._speech_rate.value() / 100, volume=self._volume.value() / 100, transcription_mode=str(self._transcription_mode.currentData()), barge_in_enabled=self._barge_in.isChecked(), hands_free_enabled=self._hands_free.isChecked(), wake_word_enabled=(self._wake_word.isChecked() or self._hands_free.isChecked()) and self._wake_word.isEnabled(), wake_phrase=self._wake_phrase.text().strip() or "Hey Lina", wake_word_indicator_enabled=self._wake_indicator.isChecked(), return_to_wake_listening=self._return_to_wake.isChecked(), voice_confirmation_enabled=self._voice_confirmation.isChecked(), microphone_device_id=self._microphone_device.currentData()),
-            vision=replace(self._draft.vision, enabled=self._vision_enabled.isChecked(), consume_attachment_on_success=self._vision_consume.isChecked()),
-            system=replace(self._draft.system, minimize_to_tray=self._minimize_to_tray.isChecked(), close_behavior=str(self._close_behavior.currentData()), start_minimized=self._start_minimized.isChecked(), notifications_enabled=self._notifications.isChecked(), reminders_enabled=self._reminders_enabled.isChecked(), desktop_notifications_enabled=self._desktop_notifications.isChecked(), show_missed_reminders=self._show_missed.isChecked()),
+            appearance=replace(
+                self._draft.appearance,
+                theme=str(self._theme.currentData()),
+                font_scale=self._font_scale.value() / 100,
+                compact_mode=self._compact_mode.isChecked(),
+                reduce_motion=self._reduce_motion.isChecked(),
+            ),
+            general=replace(
+                self._draft.general,
+                language=str(self._language.currentData()),
+                open_last_conversation=self._open_last.isChecked(),
+                confirm_before_delete=self._confirm_delete.isChecked(),
+                welcome_enabled=self._welcome.isChecked(),
+                intent_routing_enabled=self._intent_routing.isChecked(),
+            ),
+            models=replace(
+                self._draft.models,
+                text_model=self._text_model.text().strip(),
+                vision_model=self._validated_vision_model(),
+                keep_alive=str(self._keep_alive.currentData()),
+                max_output_tokens=self._max_output_tokens.value(),
+                context_budget=self._context_budget.value(),
+                warm_up_enabled=self._warm_up.isChecked(),
+            ),
+            speech=replace(
+                self._draft.speech,
+                enabled=self._speech_enabled.isChecked(),
+                language=str(self._speech_language.currentData()),
+                auto_insert_transcription=self._transcription_mode.currentData() == "insert",
+                voice_responses_enabled=self._voice_responses.isChecked(),
+                system_voice=self._system_voice.currentData(),
+                speech_rate=self._speech_rate.value() / 100,
+                volume=self._volume.value() / 100,
+                transcription_mode=str(self._transcription_mode.currentData()),
+                barge_in_enabled=self._barge_in.isChecked(),
+                hands_free_enabled=self._hands_free.isChecked(),
+                wake_word_enabled=(self._wake_word.isChecked() or self._hands_free.isChecked())
+                and self._wake_word.isEnabled(),
+                wake_phrase=self._wake_phrase.text().strip() or "Hey Lina",
+                wake_word_indicator_enabled=self._wake_indicator.isChecked(),
+                return_to_wake_listening=self._return_to_wake.isChecked(),
+                voice_confirmation_enabled=self._voice_confirmation.isChecked(),
+                microphone_device_id=self._microphone_device.currentData(),
+            ),
+            vision=replace(
+                self._draft.vision,
+                enabled=self._vision_enabled.isChecked(),
+                consume_attachment_on_success=self._vision_consume.isChecked(),
+            ),
+            system=replace(
+                self._draft.system,
+                minimize_to_tray=self._minimize_to_tray.isChecked(),
+                close_behavior=str(self._close_behavior.currentData()),
+                start_minimized=self._start_minimized.isChecked(),
+                notifications_enabled=self._notifications.isChecked(),
+                reminders_enabled=self._reminders_enabled.isChecked(),
+                desktop_notifications_enabled=self._desktop_notifications.isChecked(),
+                show_missed_reminders=self._show_missed.isChecked(),
+            ),
         )
 
     def _validated_vision_model(self) -> str:

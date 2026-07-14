@@ -2,7 +2,25 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
-## Windows Voice & Performance Smoke Test
+## Windows Wake Word, Hands-Free & Performance Smoke Test
+
+- Ayarlar temizken hands-free ve wake word seçeneklerinin kapalı olduğunu; uygulama açılışında mikrofonun dinlemediğini doğrula.
+- Hands-free’i aç; privacy metninde yerel listening, no persistence ve no cloud sınırlarını gör. `Vazgeç` ile mikrofonun kapalı kaldığını doğrula.
+- `Etkinleştir` sonrasında header’da metinsel `Hey Lina bekleniyor` ve mic göstergesini gör.
+- “Hey Lina” de; `Dinliyorum` → `Yazıya çeviriyorum` → `Düşünüyorum` → `Konuşuyorum` → cooldown → `Hey Lina bekleniyor` akışını doğrula.
+- `he lina` ve `hey, lina` varyasyonlarını dene; “şey Lina”, yalnız “Lina” ve ortam konuşmasının false wake üretmediğini gözle.
+- Wake sonrasında normal komut söyle; sessizlikle kaydın otomatik bittiğini ve metnin composer’da beklemeden gönderildiğini doğrula.
+- Yalnız sessizlikte `Bir şey duyamadım.`, anlaşılmayan seste `Seni anlayamadım.` geri bildirimini doğrula.
+- Reminder veya Memory store başlat; confirmation sorusunun seslendirildiğini, `evet/onayla/tamam` ile çalıştığını, `hayır/iptal/vazgeç` ile iptal olduğunu doğrula.
+- Confirmation’a belirsiz cevap ver; kalıcı işlemin çalışmadığını ve `Onaylıyor musun, iptal mi ediyorsun?` sorusunu duy.
+- Confirmation’a cevap verme; yaklaşık 25 saniyede işlemin güvenli iptal edildiğini doğrula.
+- Lina konuşurken kısa gürültü yap; playback’in kesilmediğini doğrula. Ardından “Hey Lina” diyerek wake-phrase barge-in ile sesi kes ve yeni komut ver.
+- Playback bitince yaklaşık 1–3 saniye cooldown olduğunu ve Lina’nın kendi TTS’sinin wake üretmediğini doğrula.
+- Header ve tray’den dinlemeyi duraklat/sürdür; hands-free kapatıldığında mikrofonun hemen bırakıldığını doğrula.
+- Pencereyi tray’e kapat; ayar açıksa wake listening’in sürdüğünü ve tray tooltip’in durumu gösterdiğini doğrula.
+- Seçili mikrofonu ayır; `Seçili mikrofon kullanılamıyor. Varsayılan mikrofon kullanılıyor.` fallback’ini doğrula.
+- Ayarlar’dan mikrofon listesini yenile ve `Mikrofonu Test Et` sonucunu doğrula; UI bloklanmamalı.
+- Uygulamayı gerçek exit ile kapat; wake, recorder, STT, TTS ve scheduler worker’larının kalmadığını doğrula.
 
 - Sesli yanıt kapalıyken normal chat ve tool cevaplarının yazılı kaldığını doğrula.
 - Sistem Türkçe sesi varsa seç, “Merhaba İlhan” yanıtını rate/volume değiştirerek dinle.
@@ -10,7 +28,7 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 - Push-to-talk `insert` modunda transcription’ın composer’a geldiğini, `send` modunda otomatik gönderildiğini doğrula.
 - Lina konuşurken mic’e bas; sesin kesilip listening durumuna geçtiğini doğrula.
 - Header ve tray “Sesi Durdur” ile yalnız playback’in durduğunu, mesajın silinmediğini doğrula.
-- Wake word seçeneğinin detector yokken disabled ve varsayılan kapalı olduğunu doğrula.
+- Input device veya local STT yoksa wake seçeneklerinin unavailable kaldığını ve normal text chat’in çalıştığını doğrula.
 - Performans Testi sırasında UI’ın responsive kaldığını; first token, token/sn, total ve mevcut token/load alanlarının gösterildiğini doğrula.
 - Keep-alive seçeneklerini, warm-up kapalı varsayılanını ve restart persistence’ı doğrula.
 - Ardışık normal chat → vision → normal chat ile iki modelin gereksiz birlikte resident kalmadığını Ollama/VRAM üzerinden gözle.

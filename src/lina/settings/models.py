@@ -222,7 +222,14 @@ class UserSettings:
                 system_voice=_optional_string(speech, "system_voice"),
                 speech_rate=_bounded_float(speech, "speech_rate", defaults.speech.speech_rate, 0.5, 2.0),
                 volume=_bounded_float(speech, "volume", defaults.speech.volume, 0.0, 1.0),
-                transcription_mode=_choice(speech, "transcription_mode", "send" if speech.get("auto_insert_transcription") is False else defaults.speech.transcription_mode, SUPPORTED_TRANSCRIPTION_MODES),
+                transcription_mode=_choice(
+                    speech,
+                    "transcription_mode",
+                    "send"
+                    if speech.get("auto_insert_transcription") is False
+                    else defaults.speech.transcription_mode,
+                    SUPPORTED_TRANSCRIPTION_MODES,
+                ),
                 barge_in_enabled=_bool(speech, "barge_in_enabled", defaults.speech.barge_in_enabled),
                 hands_free_enabled=_bool(speech, "hands_free_enabled", defaults.speech.hands_free_enabled),
                 wake_word_enabled=_bool(speech, "wake_word_enabled", defaults.speech.wake_word_enabled),
