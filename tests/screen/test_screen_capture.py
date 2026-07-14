@@ -79,6 +79,21 @@ def test_capture_falls_back_to_primary_screen(qtbot) -> None:
     assert context.height == 80
 
 
+def test_capture_screen_uses_explicit_non_primary_monitor(qtbot) -> None:
+    pixmap = QPixmap(640, 360)
+    pixmap.fill()
+    secondary = FakeScreen(pixmap, "Display 2")
+    service = QtScreenCaptureService(
+        screen_at=lambda _position: None,
+        primary_screen=lambda: None,
+        cursor_position=lambda: QPoint(),
+    )
+    context = service.capture_screen(secondary)
+    assert context.source_screen_name == "Display 2"
+    assert context.width == 640 and context.height == 360
+    assert secondary.capture_count == 1
+
+
 def test_capture_raises_when_no_screen_is_available() -> None:
     service = QtScreenCaptureService(
         screen_at=lambda position: None,

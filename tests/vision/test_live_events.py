@@ -3,6 +3,7 @@ import time
 
 from lina.vision.live.controller import LiveVisionController
 from lina.vision.live.models import LiveVisionConfig, LiveVisionFrame, LiveVisionSession, LiveVisionSource, OverlayGeometry
+from lina.vision.live.models import LiveVisionError, LiveVisionState
 
 
 class Source:
@@ -48,3 +49,18 @@ def test_controller_emits_preview_change_geometry_state_and_stopped_events():
 def test_overlay_geometry_rejected_without_screen_session():
     controller = LiveVisionController(lambda _frame, _prompt: "ok")
     assert not controller.update_overlay_geometry(OverlayGeometry(0, 0, 10, 10))
+
+
+def test_capture_failure_releases_source_and_emits_stopped():
+    class FailingSource(Source):
+        def capture(self): raise LiveVisionError("Ekran görüntüsü alınamadı.")
+
+    controller = LiveVisionController(lambda _frame, _prompt: "ok")
+    stopped = []
+    controller.subscribe_session_stopped(stopped.append)
+    source = FailingSource()
+    session = LiveVisionSession(LiveVisionSource.SCREEN, config=LiveVisionConfig(capture_interval_seconds=.25))
+    controller.start(source, session)
+    assert wait_until(lambda: controller.snapshot.state is LiveVisionState.IDLE)
+    assert source.stopped
+    assert stopped and stopped[0].session_id == session.session_id
