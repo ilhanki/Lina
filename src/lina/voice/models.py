@@ -9,10 +9,14 @@ from enum import Enum
 class VoiceState(str, Enum):
     IDLE = "idle"
     LISTENING = "listening"
+    WAKE_LISTENING = "wake_listening"
+    WAKE_DETECTED = "wake_detected"
+    COMMAND_LISTENING = "command_listening"
     TRANSCRIBING = "transcribing"
     THINKING = "thinking"
     SPEAKING = "speaking"
     INTERRUPTED = "interrupted"
+    COOLDOWN = "cooldown"
     ERROR = "error"
     DISABLED = "disabled"
 
