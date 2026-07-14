@@ -9,13 +9,14 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.10.1-alpha`: Wake Word & Hands-Free Conversation tamamlandı.
 - `v0.11.0-alpha`: Live Vision & Camera Mode tamamlandı.
 - `v0.11.1-alpha`: Live Preview & Monitoring Overlays tamamlandı.
-- `v0.11.2-alpha`: Live Vision Reliability & Object Detection Feasibility.
+- `v0.11.2-alpha`: Realtime Camera Conversation tamamlandı.
+- `v0.11.3-alpha`: Semantic Object Detection.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.11.1-alpha Live Preview & Monitoring Overlays
+## Mevcut Durum: v0.11.2-alpha Realtime Camera Conversation
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
@@ -23,9 +24,11 @@ v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutula
 
 `v0.11.0-alpha` Live Vision & Camera Mode tamamlandı.
 
-`v0.11.1-alpha` Live Preview & Monitoring Overlays kod, test ve dokümantasyon tarafında tamamlandı. Kamera preview’ü yalnız bellekte QImage taşır; monitoring border zorunludur ve input almaz. Yeni dependency veya semantic detector eklenmedi. Sonraki hedefler:
+`v0.11.1-alpha` Live Preview & Monitoring Overlays tamamlandı.
 
-- `v0.11.2-alpha`: Live Vision Reliability & Object Detection Feasibility.
+`v0.11.2-alpha` Realtime Camera Conversation kod, test ve dokümantasyon tarafında tamamlandı. Aynalı preview, kısa semantik kamera yorumu, benzer yorum cooldown’ı ve güncel kareyle yerel sesli soru-cevap eklendi. Yeni dependency, frame history veya semantic bounding box eklenmedi. Sonraki hedefler:
+
+- `v0.11.3-alpha`: Semantic Object Detection.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
@@ -555,5 +558,5 @@ Sonraki hedefler:
 - `v0.9.2-alpha`: Assistant Tools & Intent Routing Foundation tamamlandı.
 - `v0.9.3-alpha`: Tool UX, Reliability ve v0.9.x Stabilization tamamlandı.
 - `v0.9.4-alpha`: Light Theme Polish & Visual Consistency tamamlandı.
-- v0.9.x, v0.10.x, `v0.11.0-alpha` ve `v0.11.1-alpha` tamamlandı; sonraki aktif hedef `v0.11.2-alpha` Live Vision Reliability & Object Detection Feasibility.
+- v0.9.x, v0.10.x, `v0.11.0-alpha`, `v0.11.1-alpha` ve `v0.11.2-alpha` tamamlandı; sonraki aktif hedef `v0.11.3-alpha` Semantic Object Detection.
 - Stability ve packaging foundation, voice/live vision/agent temellerinden sonra yeniden değerlendirilecek.

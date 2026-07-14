@@ -2,6 +2,17 @@
 
 Bu dosya önemli geliştirme kararlarını ve milestone ilerlemesini kısa notlar halinde takip etmek için kullanılır.
 
+## 2026-07-14 - Realtime Camera Conversation
+
+- Kamera preview’ü ayarlanabilir yatay ayna ve doğru yansıtılmış change-box koordinatlarıyla güncellendi; inference frame’i orijinal yönde kaldı.
+- Tek kamera session’ında son geçerli kare, son semantik/sesli özet, analiz zamanı ve son kullanıcı sorusu tutuldu; stop’ta frame referansı bırakıldı.
+- Yaklaşık 3 saniyelik minimum kamera analizi, tek inference, tek pending latest-frame-wins ve 10 saniyelik benzer yorum cooldown’ı eklendi.
+- “Ne görüyorsun?”, “Elimde ne var?” ve “Bu ne renk?” soruları güncel ephemeral kareyle yerel vision akışına bağlandı.
+- Live Vision TTS, semantik seslendirme tercihine bağlandı; hands-free barge-in, stale playback ve echo korumaları mevcut tek playback hattını kullanmaya devam etti.
+- Camera vision hatası preview’ü kapatmadan güvenli metinle monitoring’e döner; STT/TTS hataları yazılı ve görsel akışı korur.
+- Settings schema v5 migration eski değerleri koruyarak konuşmalı kamera, otomatik yorum, mirror, seslendirme, cooldown ve analiz aralığı tercihlerini ekledi.
+- YOLO, ONNX Runtime, OpenCV, yüz/kimlik/duygu çıkarımı, cloud speech/vision, video kaydı ve frame persistence eklenmedi.
+
 ## 2026-07-13 - Voice Interaction & Inference Performance Foundation
 
 - Framework-neutral voice state machine, single-playback service, barge-in ve shutdown cleanup eklendi.

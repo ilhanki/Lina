@@ -2,6 +2,19 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## Windows Realtime Camera Conversation Smoke Test
+
+- Ayarlar → Vision’da Realtime camera conversation, Automatic camera commentary, Mirror camera preview ve Speak semantic changes varsayılan açık; cooldown `10 sn`, kamera analiz aralığı `3 sn` olmalı.
+- `Kamerayı aç` onayından sonra preview’ün aynalı, inference sonucunun yön açısından doğal ve sol/sağ change box’ların aynalı görüntüyle hizalı olduğunu doğrula; mirror ayarını kapatıp tekrar dene.
+- Preview’de `Konuşmalı Kamera`, `Otomatik Yorum`, `Sessize Al`, `Şimdi Bak` ve `Kamerayı Kapat` kontrollerini dene.
+- El kaldır, fare/şişe göster, nesneyi kaldır ve kadraja yeni nesne sok; yalnız anlamlı değişikliklerde kısa Türkçe yorum duyulmalı, küçük hareketlerde konuşmamalı.
+- Aynı nesneyi sabit tut; aynı/benzer cümle 10 saniye içinde tekrarlanmamalı. Farklı yeni olay cooldown beklemeden söylenebilmeli.
+- Hands-free ile `Ne görüyorsun?`, `Elimde ne var?`, `Bu ne renk?`, `Bunu tarif et.` ve `Şu an ne yapıyorum?` sorularını dene; cevap o anki kareye dayanmalı ve seslendirilmelidir.
+- Lina konuşurken `Hey Lina` ile barge-in yap; playback kesilmeli, yeni kamera sorusu yanıtlanmalı ve eski playback callback’i yeni durumu bozmamalı.
+- Vision modelini durdur; `Görüntüyü şu anda yorumlayamıyorum.` görünürken preview ve kamera handle’ı açık kalmalı. STT/TTS’yi ayrı ayrı kullanılamaz yap; monitoring sürmeli.
+- Kamerayı kapatıp `Ne görüyorsun?` de; `Kamera şu anda açık değil.` yanıtını doğrula.
+- Stop, source switch ve gerçek exit sonrasında kamera LED’i sönmeli; `data`, conversation DB, logs ve temp altında frame, PNG/JPEG, Base64, video veya audio artefact oluşmamalı.
+
 ## Windows Live Preview & Monitoring Overlay Smoke Test
 
 - Kamera monitoring’i onayla; `Lina Kamera` penceresinin gerçek canlı görüntü, cihaz adı ve `Kamera aktif` metnini gösterdiğini doğrula.

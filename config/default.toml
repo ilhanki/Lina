@@ -47,6 +47,14 @@ request_timeout = 120.0
 max_image_bytes = 8388608
 consume_attachment_on_success = true
 
+[live_vision]
+realtime_camera_conversation_enabled = true
+automatic_camera_commentary_enabled = true
+mirror_camera_preview = true
+speak_semantic_changes = true
+commentary_cooldown_seconds = 10
+camera_analysis_interval_seconds = 3
+
 [conversations]
 enabled = true
 database_path = "data/conversations.sqlite3"

@@ -2,6 +2,18 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Realtime Camera Conversation (v0.11.2-alpha)
+
+Kamera preview’ü varsayılan yatay aynalıdır; bu dönüşüm yalnız `CameraPreviewCanvas` üzerinde uygulanır. Vision inference orijinal frame yönünü korur ve normalized değişiklik kutularının x koordinatı preview aynalıysa `1 - x - width` olarak çizilir. Screen ve region kaynakları bu dönüşüme girmez.
+
+`LiveVisionController` tek kamera session’ında yalnız son geçerli frame referansını, son semantik özeti, son seslendirmeyi, analiz zamanını ve son kullanıcı sorusunu taşır. Frame history, video, Base64 archive, disk image ve conversation DB image kaydı yoktur; yeni kare eskisinin yerini alır ve stop/shutdown referansı temizler. Kamera açıkken normal chat veya hands-free sorusu yeni ephemeral capture ile mevcut image-attachment inference yoluna girer, cevap aynı session’ın TTS hattından okunur.
+
+Change detector her capture’da ucuz luminance farkını çalıştırır; vision her karede çalışmaz. Kamera varsayılan minimum analiz aralığı 3 saniyedir, tek aktif inference ve en fazla bir pending latest frame korunur. Model yavaşsa UI `Kamerayı izliyorum`, `Görüntüyü analiz ediyorum`, `Seni dinliyorum` veya `Cevap veriyorum` durumunu gösterir; sahte gerçek zaman vaadi verilmez. GTX 1650/4 GB VRAM gecikmesi model ve sahneye bağlıdır.
+
+Semantik prompt yalnız açık görülen yeni eylem veya nesneyi tek kısa Türkçe cümleyle ister, önceki özeti tekrar bağlamı olarak verir ve kimlik, yüz, duygu, sağlık, etnik köken veya biyometrik çıkarımı yasaklar. Normalize metin benzerliği aynı/çok yakın özeti varsayılan 10 saniyelik cooldown içinde bastırır; farklı yeni olay beklemeden konuşabilir. Beyaz change box’lar hâlâ yalnız piksel değişikliği bölgeleridir, semantik nesne kutuları değildir.
+
+Live Vision seslendirmesi kullanıcıdaki `Speak semantic changes` tercihine bağlıdır ve normal chat voice-response anahtarından ayrıdır. Hands-free açıkken mevcut wake phrase, barge-in, playback generation ve stale callback korumaları kullanılır; Lina’nın kendi TTS’si doğrudan yeni komut sayılmaz. Vision analizi hata verirse kamera preview’ü açık kalır ve monitoring devam eder; kullanıcı sorusu yeni capture ile arka plan yorumundan öncelikli ayrı conversation isteği oluşturur.
+
 ## Live Preview & Monitoring Overlays (v0.11.1-alpha)
 
 Kamera preview hattı inference scheduling’den ayrıdır. `QVideoSink.videoFrameChanged`, `QVideoFrame.toImage()` ile en yeni QImage’ı doğrudan `CameraPreviewWindow` içindeki canvas’a taşır. Preview kareleri JPEG/Base64 olarak yeniden encode edilmez, diske veya conversation DB’ye yazılmaz ve queue oluşturulmaz. Vision analizi v0.11.0’daki 2 saniyelik capture, 5 saniyelik minimum analysis ve latest-frame-wins politikasını aynen kullanır.
@@ -14,7 +26,7 @@ Full-screen ve region monitoring, `MonitoringBorderOverlay` olmadan başlamaz. O
 
 Preview penceresini kapatmak yalnız preview’ü gizler; ana panel ve tray kamera monitoring göstergesini korur. Panelde `Preview’i Göster` ile aynı singleton pencere yeniden açılır. Mandatory screen border beklenmedik biçimde kapanırsa monitoring de durur. Stop, source switch, permission/device error, Vision disable ve gerçek application exit; preview image/box referanslarını, QTimer’ları, border window’u, QVideoSink listener’larını, pending frame’i ve camera handle’ını temizler.
 
-Gerçek semantic object detection bu sürümde yoktur. ONNX/YOLO, model boyutu, yeni dependency, GTX 1650 latency/VRAM maliyeti ve privacy etkisi `v0.11.2-alpha` feasibility çalışmasında ayrıca değerlendirilmelidir.
+Gerçek semantic object detection bu sürümde yoktur. ONNX/YOLO, model boyutu, yeni dependency, GTX 1650 latency/VRAM maliyeti ve privacy etkisi `v0.11.3-alpha` çalışmasında ayrıca değerlendirilmelidir.
 
 ## Live Vision & Camera Mode (v0.11.0-alpha)
 
