@@ -2,6 +2,20 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Live Preview & Monitoring Overlays (v0.11.1-alpha)
+
+Kamera preview hattı inference scheduling’den ayrıdır. `QVideoSink.videoFrameChanged`, `QVideoFrame.toImage()` ile en yeni QImage’ı doğrudan `CameraPreviewWindow` içindeki canvas’a taşır. Preview kareleri JPEG/Base64 olarak yeniden encode edilmez, diske veya conversation DB’ye yazılmaz ve queue oluşturulmaz. Vision analizi v0.11.0’daki 2 saniyelik capture, 5 saniyelik minimum analysis ve latest-frame-wins politikasını aynen kullanır.
+
+Framework-neutral controller dört typed event hattı sağlar: `PreviewFrameEvent`, `ChangeRegionsEvent`, `OverlayGeometryEvent` ve `SessionStoppedEvent`. Tüm eventler session ve generation kimliği taşır. Qt katmanı yalnız aktif session ID ile eşleşen frame ve region’ları uygular; source switch veya stop sonrasında geç gelen preview callback’leri yok sayılır.
+
+`FrameChangeDetector`, 16×16 luminance signature’daki eşik üstü blokları dört yönlü komşulukla birleştirir. Tek blokluk noise elenir, en büyük beş bölge normalized koordinatlarla UI’ya gider ve 2,5 saniye içinde yenilenmezse silinir. Kamera canvas’ındaki `Değişiklik` kutuları semantik object detection değildir: yalnız hareket, yeni beliren, kaybolan veya görsel olarak değişen bölgeleri gösterir. Telefon/insan/bardak gibi nesne sınıfı iddiası yapılmaz.
+
+Full-screen ve region monitoring, `MonitoringBorderOverlay` olmadan başlamaz. Overlay frameless, always-on-top, `Qt.Tool`, `WindowTransparentForInput`, translucent ve mouse-transparent’tır; keyboard focus veya taskbar entry almaz. Beyaz 3 px border ve metinsel privacy etiketi yalnız renge bağlı olmayan aktif monitoring göstergesi sağlar. Pause’da opacity düşer ve border kesikli olur; resume’da normale döner. QTimer ekran geometry’sini takip eder ve DPI/monitor değişiminde çerçeveyi günceller. Region koordinatı seçilen ekranın güncel global origin’ine göre yeniden hesaplanır; artık sığmayan region güvenli capture hatasıyla session’ı kapatır.
+
+Preview penceresini kapatmak yalnız preview’ü gizler; ana panel ve tray kamera monitoring göstergesini korur. Panelde `Preview’i Göster` ile aynı singleton pencere yeniden açılır. Mandatory screen border beklenmedik biçimde kapanırsa monitoring de durur. Stop, source switch, permission/device error, Vision disable ve gerçek application exit; preview image/box referanslarını, QTimer’ları, border window’u, QVideoSink listener’larını, pending frame’i ve camera handle’ını temizler.
+
+Gerçek semantic object detection bu sürümde yoktur. ONNX/YOLO, model boyutu, yeni dependency, GTX 1650 latency/VRAM maliyeti ve privacy etkisi `v0.11.2-alpha` feasibility çalışmasında ayrıca değerlendirilmelidir.
+
 ## Live Vision & Camera Mode (v0.11.0-alpha)
 
 Live Vision çekirdeği `lina.vision.live` altında Qt’den bağımsızdır. `LiveVisionController`, typed `LiveVisionSession` ve `LiveVisionSnapshot` modelleriyle start/stop, pause/resume, manuel analiz, süre sınırı, metrics ve stale-result generation kontrolünü yönetir. `FrameSource` protokolünün kamera, ekran ve bölge implementasyonları yalnız tek ephemeral encoded frame döndürür; raw dict UI’ya taşınmaz.

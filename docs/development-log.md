@@ -2419,3 +2419,19 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Foundation `ad13a63`, runtime integration `625b9b1` ve tests `d94f4c7` commitleri origin/main’e pushlandı.
 - Dokümantasyon öncesi tam test paketi `809 passed`; compile ve diff check başarılı.
 - Gerçek Windows kamera, çoklu ekran, 4 GB VRAM, Ollama ve tray smoke testi tag kararından önce manuel yapılmalıdır. `v0.11.0-alpha` tag oluşturulmadı.
+
+## 2026-07-14 - Live Preview & Monitoring Overlays
+
+- Başlangıçta temiz/senkron main, `809 passed`, compile ve `QCamera/QVideoSink` import doğrulandı.
+- QVideoSink’ten QImage’a doğrudan, disk/Base64 kullanmayan ve inference’dan bağımsız kamera preview hattı eklendi.
+- `Lina Kamera` singleton window; cihaz/status/privacy metni, analyze, pause/resume, stop, hide/show ve stale-session guard tamamlandı.
+- 16×16 grid block-difference, komşu merge, tiny-noise filtresi, maksimum beş normalized region ve box timeout eklendi.
+- Değişiklik kutularının semantic object detection olmadığı UI ve dokümantasyonda açıklandı.
+- Full-screen ve region için click-through, focus almayan, taskbar dışı zorunlu privacy border eklendi.
+- Explicit screen capture, secondary monitor geometry, region global-coordinate düzeltmesi ve periyodik geometry refresh tamamlandı.
+- Pause opacity/dashed state, unexpected border close → stop ve stop/source/error/disable/exit visual cleanup eklendi.
+- Controller preview/change/geometry/stopped typed eventleri session/generation kimliğiyle genişletildi.
+- Preview timer’ın deleted widget’a callback yapma regresyonu child QTimer lifecycle ile düzeltildi.
+- Feature commitleri `22c61ca`, `5799ebe`; test commit’i `c4c0bf3` olarak yerelde oluşturuldu.
+- Dokümantasyon öncesi tam paket `833 passed`; yeni dependency, OpenCV, YOLO, frame persistence veya semantic detection yok.
+- `origin/main` push güvenlik katmanı tarafından ek açık kullanıcı onayı beklediği için henüz yapılmadı.

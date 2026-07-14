@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.11.0--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.11.1--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
@@ -19,6 +19,8 @@
 Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıcıları ve güvenli yerel araçları tek bir PySide6 masaüstü deneyiminde birleştirir. Metin ve görsel modeller [Ollama](https://ollama.com/) üzerinden yerel çalışır; mikrofon kaydı, konuşma sentezi, sohbet geçmişi ve kullanıcı tercihleri açık sınırlar içinde cihazda tutulur.
 
 `v0.11.0-alpha` ile açık kullanıcı onayına bağlı kamera, tam ekran ve seçili bölge Live Vision takibi eklenmiştir. Yakalama bellekte yapılır; yalnız anlamlı değişiklikler yerel vision modeline gider ve ham frame, screenshot veya Base64 kalıcı olarak saklanmaz.
+
+`v0.11.1-alpha` kamera monitoring sırasında diske yazmayan canlı QImage preview’ü, görüntü değişikliği bölgelerini gösteren geçici kutuları ve ekran/bölge çevresinde zorunlu click-through privacy çerçevesini ekler. Kutular semantik nesne tespiti değildir.
 
 > [!IMPORTANT]
 > Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
@@ -64,6 +66,8 @@ Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya
 - İsteğe bağlı arka plan warm-up.
 - Düşük VRAM sistemler için text/vision model unload koordinasyonu.
 - Live Vision için tek aktif inference, en fazla bir pending frame ve latest-frame-wins geri basınç politikası.
+- QVideoSink üzerinden inference’dan bağımsız kamera preview’ü; preview kareleri JPEG/Base64 olarak encode edilmez.
+- En fazla beş grid tabanlı değişiklik kutusu ve mouse/keyboard input almayan ekran/bölge monitoring çerçevesi.
 - En yeni tamamlanmış konuşma çiftlerini koruyan deterministik context trimming.
 
 ### Kalıcı sohbet deneyimi
@@ -447,6 +451,7 @@ Katkı ayrıntıları için [contributing.md](contributing.md) dosyasına bakın
 - Speech doğruluğu mikrofona, gürültüye, modele ve işlemciye bağlıdır.
 - Wake detection yerel faster-whisper model kalitesine, mikrofona ve ortam gürültüsüne bağlıdır; özel keyword engine veya acoustic echo cancellation içermez.
 - Live Vision açık onayla ve bounded periyodik snapshot analiziyle çalışır; gerçek zamanlı video anlayışı, video kaydı, yüz tanıma veya cloud vision içermez.
+- Kamera preview kutuları yalnız hareket/yeni-beliren/kaybolan görüntü bölgelerini gösterir; telefon, insan veya bardak gibi nesne kimliği iddia etmez.
 - Files capability genel dosya yöneticisi değildir; yalnız sabit proje dokümanlarını okuyabilir.
 - Hatırlatıcı bildirimi için uygulamanın açık veya tray’de olması gerekir.
 - Autostart/Windows registry entegrasyonu uygulanmamıştır.
@@ -465,8 +470,9 @@ Tamamlanan ana hat:
 - `v0.10.0-alpha` — Voice interaction ve inference performance foundation.
 - `v0.10.1-alpha` — Wake word ve hands-free conversation.
 - `v0.11.0-alpha` — Live Vision & Camera Mode.
+- `v0.11.1-alpha` — Live Preview & Monitoring Overlays.
 
-Planlanan sonraki alanlar `v0.11.1-alpha` Live Vision Reliability & Object Tracking, `v0.12.0-alpha` Agent Mode Foundation ve `v0.13.0-alpha` Codex Bridge’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan sonraki alanlar `v0.11.2-alpha` Live Vision Reliability & Object Detection Feasibility, `v0.12.0-alpha` Agent Mode Foundation ve `v0.13.0-alpha` Codex Bridge’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
 
 ## Dokümantasyon
 
@@ -474,6 +480,7 @@ Planlanan sonraki alanlar `v0.11.1-alpha` Live Vision Reliability & Object Track
 - [v0.10.0-alpha sürüm notları](docs/release-notes-v0.10.0-alpha.md)
 - [v0.10.1-alpha sürüm notları](docs/release-notes-v0.10.1-alpha.md)
 - [v0.11.0-alpha sürüm notları](docs/release-notes-v0.11.0-alpha.md)
+- [v0.11.1-alpha sürüm notları](docs/release-notes-v0.11.1-alpha.md)
 - [Speech Architecture v1](docs/speech-architecture-v1.md)
 - [Brain Specification v1](docs/brain-specification-v1.md)
 - [Conversation Flow v1](docs/conversation-flow-v1.md)

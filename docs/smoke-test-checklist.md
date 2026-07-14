@@ -2,6 +2,24 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## Windows Live Preview & Monitoring Overlay Smoke Test
+
+- Kamera monitoring’i onayla; `Lina Kamera` penceresinin gerçek canlı görüntü, cihaz adı ve `Kamera aktif` metnini gösterdiğini doğrula.
+- Preview’ü yeniden boyutlandır; 16:9/4:3 görüntünün aspect ratio korunarak letterbox edildiğini doğrula.
+- Preview’den Şimdi Analiz Et, Duraklat/Devam Et ve Takibi Durdur kontrollerini dene.
+- Preview’i gizle; kamera session’ının sürdüğünü, ana panel ve tray’de `Kamera takibi aktif` göstergesinin kaldığını doğrula. Panelden aynı preview’ü yeniden göster.
+- Kamera önünde belirgin hareket oluştur; beyaz `Değişiklik` kutularının doğru bölgeye ölçeklendiğini ve yaklaşık 2,5 saniye yenilenmezse silindiğini gözle.
+- Sabit görüntü ve küçük sensör noise’ında kutu oluşmadığını; birden fazla bölgede en fazla beş kutu gösterildiğini doğrula.
+- Kutuların nesne adı vermediğini ve yalnız `Değişiklik` etiketi taşıdığını doğrula.
+- Full-screen monitoring başlat; doğru monitor kenarında beyaz border ve `Lina ekranı izliyor` etiketi görünmeli, mouse/keyboard etkileşimi engellenmemeli.
+- Secondary monitor seç; capture ve border’ın aynı monitörde olduğunu doğrula.
+- Region monitoring başlat; border yalnız seçilen alanı çevrelemeli ve `Lina bu bölgeyi izliyor` demeli.
+- Windows display scale, resolution veya monitor origin değiştir; border geometry’nin güncellendiğini ya da geçersiz region session’ının güvenle durduğunu doğrula.
+- Pause’da border’ın soluk/kesikli, resume’da normal olduğunu doğrula.
+- Border’ı işletim sistemi üzerinden kapatmayı dene; gizli screen monitoring kalmamalı.
+- Camera disconnect/permission failure, source switch, Vision disable, stop ve gerçek exit sonrasında preview, border, camera LED ve orphan window kalmadığını doğrula.
+- `data`, conversation DB ve logs altında preview frame, PNG/JPEG, Base64 veya temp video oluşmadığını kontrol et.
+
 ## Windows Live Vision & Camera Smoke Test
 
 - Ayarlar → Vision içinde Live Vision default değerlerinin açık, capture `2 sn`, minimum analiz `5 sn`, süre `5 dakika`, sensitivity `Orta` olduğunu doğrula; 1/5/15 dakika ve kullanıcı durdurana kadar seçenekleriyle restart persistence’ı kontrol et.

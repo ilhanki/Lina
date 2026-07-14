@@ -8,21 +8,24 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.10.0-alpha`: Voice Interaction & Inference Performance Foundation tamamlandı.
 - `v0.10.1-alpha`: Wake Word & Hands-Free Conversation tamamlandı.
 - `v0.11.0-alpha`: Live Vision & Camera Mode tamamlandı.
-- `v0.11.1-alpha`: Live Vision Reliability & Object Tracking.
+- `v0.11.1-alpha`: Live Preview & Monitoring Overlays tamamlandı.
+- `v0.11.2-alpha`: Live Vision Reliability & Object Detection Feasibility.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
-v0.11.0-alpha; opt-in kamera/ekran/bölge snapshot takibi, deterministic change detection, bounded analysis scheduling, latest-frame-wins, sesli sonuç, privacy indicator ve tray kontrollerini tamamladı. Video kaydı, frame persistence, cloud vision, yüz tanıma, autonomous agent ve Codex bridge eklenmedi.
+v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.11.0-alpha Live Vision & Camera Mode
+## Mevcut Durum: v0.11.1-alpha Live Preview & Monitoring Overlays
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
 `v0.10.1-alpha` Wake Word & Hands-Free Conversation tamamlandı ve tag’lendi.
 
-`v0.11.0-alpha` Live Vision & Camera Mode kod, test ve dokümantasyon tarafında tamamlandı. Kamera ve ekran takibi açık onay ister; raw frame yalnız bellek içinde yaşar. Yeni ağır dependency veya cloud provider eklenmedi. Sonraki hedefler:
+`v0.11.0-alpha` Live Vision & Camera Mode tamamlandı.
 
-- `v0.11.1-alpha`: Live Vision Reliability & Object Tracking.
+`v0.11.1-alpha` Live Preview & Monitoring Overlays kod, test ve dokümantasyon tarafında tamamlandı. Kamera preview’ü yalnız bellekte QImage taşır; monitoring border zorunludur ve input almaz. Yeni dependency veya semantic detector eklenmedi. Sonraki hedefler:
+
+- `v0.11.2-alpha`: Live Vision Reliability & Object Detection Feasibility.
 - `v0.12.0-alpha`: Agent Mode Foundation.
 - `v0.13.0-alpha`: Codex Bridge.
 
@@ -552,5 +555,5 @@ Sonraki hedefler:
 - `v0.9.2-alpha`: Assistant Tools & Intent Routing Foundation tamamlandı.
 - `v0.9.3-alpha`: Tool UX, Reliability ve v0.9.x Stabilization tamamlandı.
 - `v0.9.4-alpha`: Light Theme Polish & Visual Consistency tamamlandı.
-- v0.9.x, v0.10.x ve `v0.11.0-alpha` tamamlandı; sonraki aktif hedef `v0.11.1-alpha` Live Vision Reliability & Object Tracking.
+- v0.9.x, v0.10.x, `v0.11.0-alpha` ve `v0.11.1-alpha` tamamlandı; sonraki aktif hedef `v0.11.2-alpha` Live Vision Reliability & Object Detection Feasibility.
 - Stability ve packaging foundation, voice/live vision/agent temellerinden sonra yeniden değerlendirilecek.
