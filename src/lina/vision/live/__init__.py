@@ -4,6 +4,8 @@ from lina.vision.live.change_detector import FrameChangeDetector
 from lina.vision.live.controller import LiveVisionController
 from lina.vision.live.frame_source import CameraFrameSource, FrameSource, RegionFrameSource, ScreenFrameSource
 from lina.vision.live.models import (
+    ChangeRegion,
+    ChangeRegionsEvent,
     ChangeSensitivity,
     LiveVisionConfig,
     LiveVisionError,
@@ -13,11 +15,16 @@ from lina.vision.live.models import (
     LiveVisionSnapshot,
     LiveVisionSource,
     LiveVisionState,
+    OverlayGeometry,
+    OverlayGeometryEvent,
+    PreviewFrameEvent,
+    SessionStoppedEvent,
 )
 
 __all__ = [
-    "CameraFrameSource", "ChangeSensitivity", "FrameChangeDetector", "FrameSource",
+    "CameraFrameSource", "ChangeRegion", "ChangeRegionsEvent", "ChangeSensitivity", "FrameChangeDetector", "FrameSource",
     "LiveVisionConfig", "LiveVisionController", "LiveVisionError", "LiveVisionFrame",
     "LiveVisionMetrics", "LiveVisionSession", "LiveVisionSnapshot", "LiveVisionSource",
-    "LiveVisionState", "RegionFrameSource", "ScreenFrameSource",
+    "LiveVisionState", "OverlayGeometry", "OverlayGeometryEvent", "PreviewFrameEvent",
+    "RegionFrameSource", "ScreenFrameSource", "SessionStoppedEvent",
 ]

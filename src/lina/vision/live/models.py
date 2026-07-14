@@ -40,6 +40,64 @@ class LiveVisionError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class ChangeRegion:
+    """A normalized image-change rectangle; it is not an object detection."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+    score: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not all(0.0 <= value <= 1.0 for value in (self.x, self.y, self.width, self.height, self.score)):
+            raise ValueError("Change region values must be normalized")
+        if self.width <= 0 or self.height <= 0 or self.x + self.width > 1.000001 or self.y + self.height > 1.000001:
+            raise ValueError("Change region must fit within the frame")
+
+
+@dataclass(frozen=True, slots=True)
+class PreviewFrameEvent:
+    session_id: str
+    generation_id: int
+    frame: "LiveVisionFrame"
+
+
+@dataclass(frozen=True, slots=True)
+class ChangeRegionsEvent:
+    session_id: str
+    generation_id: int
+    regions: tuple[ChangeRegion, ...]
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OverlayGeometry:
+    x: int
+    y: int
+    width: int
+    height: int
+    screen_name: str = ""
+
+    def __post_init__(self) -> None:
+        if self.width <= 0 or self.height <= 0:
+            raise ValueError("Overlay geometry must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class OverlayGeometryEvent:
+    session_id: str
+    generation_id: int
+    geometry: OverlayGeometry
+
+
+@dataclass(frozen=True, slots=True)
+class SessionStoppedEvent:
+    session_id: str
+    generation_id: int
+
+
+@dataclass(frozen=True, slots=True)
 class LiveVisionConfig:
     capture_interval_seconds: float = 2.0
     minimum_analysis_interval_seconds: float = 5.0

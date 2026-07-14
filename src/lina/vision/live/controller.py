@@ -11,7 +11,11 @@ import time
 
 from lina.vision.live.change_detector import FrameChangeDetector
 from lina.vision.live.frame_source import FrameSource
-from lina.vision.live.models import LiveVisionError, LiveVisionFrame, LiveVisionMetrics, LiveVisionSession, LiveVisionSnapshot, LiveVisionState
+from lina.vision.live.models import (
+    ChangeRegionsEvent, LiveVisionError, LiveVisionFrame, LiveVisionMetrics,
+    LiveVisionSession, LiveVisionSnapshot, LiveVisionSource, LiveVisionState,
+    OverlayGeometry, OverlayGeometryEvent, PreviewFrameEvent, SessionStoppedEvent,
+)
 from lina.vision.live.policy import build_analysis_prompt, speech_summary
 
 
@@ -36,6 +40,10 @@ class LiveVisionController:
         self._detector = FrameChangeDetector()
         self._snapshot = LiveVisionSnapshot(LiveVisionState.IDLE)
         self._listeners: list[Listener] = []
+        self._preview_listeners: list[Callable[[PreviewFrameEvent], None]] = []
+        self._change_region_listeners: list[Callable[[ChangeRegionsEvent], None]] = []
+        self._overlay_geometry_listeners: list[Callable[[OverlayGeometryEvent], None]] = []
+        self._stopped_listeners: list[Callable[[SessionStoppedEvent], None]] = []
         self._capture_thread: threading.Thread | None = None
         self._analysis_thread: threading.Thread | None = None
         self._pending: LiveVisionFrame | None = None
@@ -55,6 +63,34 @@ class LiveVisionController:
     def subscribe(self, listener: Listener) -> None:
         if listener not in self._listeners:
             self._listeners.append(listener)
+
+    def subscribe_preview_frame(self, listener: Callable[[PreviewFrameEvent], None]) -> None:
+        if listener not in self._preview_listeners:
+            self._preview_listeners.append(listener)
+
+    def subscribe_change_regions(self, listener: Callable[[ChangeRegionsEvent], None]) -> None:
+        if listener not in self._change_region_listeners:
+            self._change_region_listeners.append(listener)
+
+    def subscribe_overlay_geometry(self, listener: Callable[[OverlayGeometryEvent], None]) -> None:
+        if listener not in self._overlay_geometry_listeners:
+            self._overlay_geometry_listeners.append(listener)
+
+    def subscribe_session_stopped(self, listener: Callable[[SessionStoppedEvent], None]) -> None:
+        if listener not in self._stopped_listeners:
+            self._stopped_listeners.append(listener)
+
+    def update_overlay_geometry(self, geometry: OverlayGeometry) -> bool:
+        with self._lock:
+            session = self._session
+            generation = self._generation
+        if session is None or session.source not in {LiveVisionSource.SCREEN, LiveVisionSource.REGION}:
+            return False
+        self._notify(
+            self._overlay_geometry_listeners,
+            OverlayGeometryEvent(session.session_id, generation, geometry),
+        )
+        return True
 
     def start(self, source: FrameSource, session: LiveVisionSession, *, analyze_immediately: bool = False, single_shot: bool = False) -> str:
         self.stop()
@@ -101,8 +137,12 @@ class LiveVisionController:
             frame = source.capture()
         except LiveVisionError as error:
             self._set_state(LiveVisionState.ERROR, str(error))
+            self.stop()
             return False
         self._record_capture()
+        with self._lock:
+            generation = self._generation
+        self._emit_preview(frame, generation, session.session_id)
         self._queue(frame, force=True)
         return True
 
@@ -125,6 +165,8 @@ class LiveVisionController:
             active = self._source is not None or self._session is not None
             if not active:
                 return False
+            stopped_session_id = self._session.session_id if self._session is not None else ""
+            stopped_generation = self._generation
             self._generation += 1
             self._snapshot = replace(self._snapshot, state=LiveVisionState.STOPPING, user_message="Canlı takip durduruldu.")
             self._stop_event.set(); self._pending = None; self._wake.set()
@@ -146,11 +188,21 @@ class LiveVisionController:
                 last_analysis_at=previous.last_analysis_at, last_result=previous.last_result,
                 user_message="Canlı takip durduruldu.", metrics=previous.metrics,
             )
-        self._emit(); return True
+        self._emit()
+        if stopped_session_id:
+            self._notify(
+                self._stopped_listeners,
+                SessionStoppedEvent(stopped_session_id, stopped_generation),
+            )
+        return True
 
     def shutdown(self) -> None:
         self.stop()
         self._listeners.clear()
+        self._preview_listeners.clear()
+        self._change_region_listeners.clear()
+        self._overlay_geometry_listeners.clear()
+        self._stopped_listeners.clear()
 
     def _capture_loop(self, generation: int, analyze_immediately: bool) -> None:
         first = True
@@ -166,14 +218,18 @@ class LiveVisionController:
             try:
                 frame = source.capture()
                 self._record_capture()
+                self._emit_preview(frame, generation, session.session_id)
                 changed = self._detector.observe(frame)
+                self._emit_change_regions(generation, session.session_id)
                 if first and analyze_immediately:
                     self._queue(frame, force=True)
                 elif changed:
                     self._record_change(); self._queue(frame)
                 first = False
             except LiveVisionError as error:
-                self._set_state(LiveVisionState.ERROR, str(error)); return
+                self._set_state(LiveVisionState.ERROR, str(error))
+                self.stop()
+                return
             if self._stop_event.wait(session.config.capture_interval_seconds):
                 return
 
@@ -215,7 +271,10 @@ class LiveVisionController:
                 result = self._analyzer(frame, build_analysis_prompt(session.source, session.user_focus))
             except Exception:
                 with self._lock: self._analysis_active = False
-                if self._is_current(generation): self._set_state(LiveVisionState.ERROR, "Vision modeli şu anda kullanılamıyor.")
+                if self._is_current(generation):
+                    self._set_state(LiveVisionState.ERROR, "Vision modeli şu anda kullanılamıyor.")
+                    self.stop()
+                    return
                 continue
             duration = round((self._clock() - started) * 1000)
             with self._lock:
@@ -264,6 +323,27 @@ class LiveVisionController:
 
     def _emit(self) -> None:
         snapshot = self.snapshot
-        for listener in tuple(self._listeners):
-            try: listener(snapshot)
+        self._notify(self._listeners, snapshot)
+
+    def _emit_preview(self, frame: LiveVisionFrame, generation: int, session_id: str) -> None:
+        self._notify(
+            self._preview_listeners,
+            PreviewFrameEvent(session_id, generation, frame),
+        )
+
+    def _emit_change_regions(self, generation: int, session_id: str) -> None:
+        self._notify(
+            self._change_region_listeners,
+            ChangeRegionsEvent(
+                session_id,
+                generation,
+                self._detector.last_regions,
+                datetime.now(timezone.utc),
+            ),
+        )
+
+    @staticmethod
+    def _notify(listeners: list[Callable], event: object) -> None:
+        for listener in tuple(listeners):
+            try: listener(event)
             except Exception: continue
