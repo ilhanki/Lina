@@ -21,10 +21,13 @@ def _services(tmp_path):
 
 def test_registry_contains_only_supported_safe_tools(tmp_path) -> None:
     registry = build_safe_tool_registry(*_services(tmp_path))
-    assert registry.names() == (
+    assert set(registry.names()) == {
         "files.read", "memory.recall", "memory.store", "reminder.create", "reminder.list",
         "vision.image", "vision.region", "vision.screen",
-    )
+        "live_vision.camera_open", "live_vision.camera_analyze", "live_vision.camera_monitor",
+        "live_vision.screen_monitor", "live_vision.region_monitor", "live_vision.live_vision_pause",
+        "live_vision.live_vision_resume", "live_vision.live_vision_stop", "live_vision.live_vision_status",
+    }
     assert not any(term in " ".join(registry.names()) for term in ("shell", "write", "delete", "network"))
     assert registry.availability_reason(IntentType.READ_FILE) is None
     assert build_safe_tool_registry().availability_reason(IntentType.READ_FILE) == "Dosya okuma şu anda kullanılamıyor."

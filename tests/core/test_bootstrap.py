@@ -62,6 +62,7 @@ max_context_characters = 500
         assert services.conversation_service._context_manager._memory_context_max_items == 4
         assert services.conversation_service._context_manager._memory_context_max_characters == 500
         assert services.user_settings_service is not None
+        assert services.live_vision_controller is not None
         assert (tmp_path / "user-settings.json").exists() is False
     finally:
         services.conversation_service._memory_service.close()
