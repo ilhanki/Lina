@@ -71,14 +71,14 @@ class FakeVisionDiagnosticsService:
         )
 
 
-def _image_attachment() -> ImageAttachment:
+def _image_attachment(source: str = "screen_capture") -> ImageAttachment:
     return ImageAttachment(
         mime_type="image/png",
         data=PNG_SIGNATURE + b"temporary-image",
         width=1920,
         height=1080,
         captured_at=datetime(2026, 7, 11, 23, 55),
-        source="screen_capture",
+        source=source,
         display_name="Display 1",
     )
 
@@ -1073,6 +1073,27 @@ def test_conversation_input_with_image_uses_vision_brain() -> None:
     assert attachment.data not in repr(service._history).encode("utf-8")
 
 
+def test_live_camera_question_uses_short_prompt_without_conversation_history() -> None:
+    from lina.brain.intent import IntentType
+
+    vision_brain = FakeBrain()
+    service = ConversationService(
+        brain=FakeBrain(), vision_brain=vision_brain,
+        vision_diagnostics_service=FakeVisionDiagnosticsService(),
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+    service._history.append(ConversationTurn("old private question", "old private answer"))
+    service.handle_input(ConversationInput(
+        text="Bu ne renk?",
+        image_attachment=_image_attachment("live_camera"),
+    ))
+    assert vision_brain.messages == [
+        "Bu görüntüye bakarak şu soruyu kısa Türkçe yanıtla: Bu ne renk?"
+    ]
+    assert vision_brain.histories == [[]]
+
+
 def test_text_only_input_preserves_existing_text_brain_flow() -> None:
     from lina.brain.intent import IntentType
 
@@ -1182,3 +1203,18 @@ def test_unavailable_vision_never_falls_back_to_text_brain() -> None:
 
     assert text_brain.messages == []
     assert service._history == []
+
+
+def test_non_vision_model_has_actionable_user_message() -> None:
+    from lina.brain.intent import IntentType
+
+    service = ConversationService(
+        brain=FakeBrain(), vision_brain=FakeBrain(),
+        vision_diagnostics_service=FakeVisionDiagnosticsService(VisionStatus.VISION_NOT_SUPPORTED),
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+    with pytest.raises(VisionRequestError, match="Seçili model görüntü analizi desteklemiyor"):
+        service.handle_input(ConversationInput(
+            text="Ne görüyorsun?", image_attachment=_image_attachment("live_camera")
+        ))

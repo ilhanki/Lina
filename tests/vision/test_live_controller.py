@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import threading
 import time
 
+from lina.brain.model_provider import EmptyModelResponseError
 from lina.vision.live.controller import LiveVisionController
 from lina.vision.live.models import LiveVisionConfig, LiveVisionFrame, LiveVisionSession, LiveVisionSource, LiveVisionState
 
@@ -87,7 +88,7 @@ def test_voice_feedback_suppresses_repeated_result():
     controller.shutdown()
 
 
-def test_camera_analysis_prompt_uses_previous_semantic_observation():
+def test_camera_analysis_prompt_stays_short_without_previous_semantic_observation():
     prompts = []
     controller = LiveVisionController(lambda _frame, prompt: prompts.append(prompt) or "Elinde bir fare var.")
     source = Source()
@@ -97,7 +98,8 @@ def test_camera_analysis_prompt_uses_previous_semantic_observation():
     assert wait_until(lambda: len(prompts) == 1)
     controller.analyze_now()
     assert wait_until(lambda: len(prompts) == 2)
-    assert "Önceki gözlem: Elinde bir fare var." in prompts[1]
+    assert "Önceki gözlem" not in prompts[1]
+    assert len(prompts[1]) <= 240
     controller.shutdown()
 
 
@@ -148,5 +150,19 @@ def test_camera_vision_failure_keeps_preview_session_monitoring():
     assert controller.analyze_now()
     assert wait_until(lambda: controller.snapshot.user_message == "Görüntüyü şu anda yorumlayamıyorum.")
     assert controller.snapshot.state is LiveVisionState.MONITORING
+    assert source.stopped == 0
+    controller.shutdown()
+
+
+def test_empty_automatic_commentary_is_silently_skipped_and_counted():
+    source = Source(); source.source = LiveVisionSource.CAMERA
+    controller = LiveVisionController(
+        lambda _frame, _prompt: (_ for _ in ()).throw(EmptyModelResponseError("empty"))
+    )
+    controller.start(source, LiveVisionSession(LiveVisionSource.CAMERA, config=LiveVisionConfig(capture_interval_seconds=.25)))
+    assert controller.analyze_now()
+    assert wait_until(lambda: controller.snapshot.metrics.empty_response_count == 1)
+    assert controller.snapshot.state is LiveVisionState.MONITORING
+    assert controller.snapshot.user_message == ""
     assert source.stopped == 0
     controller.shutdown()

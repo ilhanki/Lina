@@ -42,6 +42,17 @@ def test_streaming_response_collects_text_and_exact_ollama_metrics():
     assert provider.last_metrics.first_token_ms is not None
 
 
+def test_streaming_ignores_empty_first_chunk_until_valid_final_content():
+    chunks = [
+        {"message": {"content": ""}, "done": False},
+        {"message": {"content": "Kısa cevap."}, "done": True},
+    ]
+    response = StreamingResponse([(json.dumps(item) + "\n").encode() for item in chunks])
+    provider = OllamaProvider("http://localhost:11434", "model", opener=lambda *_args, **_kwargs: response, stream=True)
+    assert provider.generate(ModelRequest((ModelMessage("user", "test"),))).text == "Kısa cevap."
+    assert provider.last_response_diagnostics.stream_chunk_count == 2
+
+
 def test_missing_ollama_metadata_stays_missing():
     response = StreamingResponse([b'{"message":{"content":"ok"},"done":true}\n'])
     provider = OllamaProvider("http://localhost:11434", "model", opener=lambda *_args, **_kwargs: response, stream=True)

@@ -7,8 +7,8 @@ from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
-from lina.brain.model_provider import ModelProviderError, ModelResponse
-from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation
+from lina.brain.model_provider import EmptyModelResponseError, ModelProviderError, ModelResponse
+from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation, _friendly_vision_error_message
 from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
@@ -25,6 +25,12 @@ from lina.voice.models import VoiceState
 from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.theme import theme_palette
+
+
+def test_direct_camera_question_empty_response_has_friendly_retry_message() -> None:
+    assert _friendly_vision_error_message(EmptyModelResponseError("private")) == (
+        "Görüntüyü şu anda yorumlayamadım. Birkaç saniye sonra tekrar deneyelim."
+    )
 
 
 class ImmediateThreadPool:

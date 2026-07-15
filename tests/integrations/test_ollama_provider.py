@@ -7,7 +7,7 @@ from urllib.request import Request
 
 import pytest
 
-from lina.brain.model_provider import ModelMessage, ModelRequest, ModelResponse
+from lina.brain.model_provider import EmptyModelResponseError, ModelMessage, ModelRequest, ModelResponse
 from lina.integrations.ollama_provider import OllamaProvider, OllamaProviderError
 from lina.vision.models import ImageAttachment, PNG_SIGNATURE
 
@@ -216,7 +216,7 @@ def test_ollama_provider_rejects_missing_message_object() -> None:
         opener=FakeOllamaHttpClient(b'{"done": true}'),
     )
 
-    with pytest.raises(OllamaProviderError, match="missing message content"):
+    with pytest.raises(EmptyModelResponseError):
         provider.generate(_model_request())
 
 
@@ -227,7 +227,7 @@ def test_ollama_provider_rejects_missing_message_text() -> None:
         opener=FakeOllamaHttpClient(b'{"message": {"role": "assistant"}}'),
     )
 
-    with pytest.raises(OllamaProviderError, match="missing text content"):
+    with pytest.raises(EmptyModelResponseError):
         provider.generate(_model_request())
 
 
@@ -240,7 +240,7 @@ def test_ollama_provider_rejects_empty_message_text() -> None:
         ),
     )
 
-    with pytest.raises(OllamaProviderError, match="empty text content"):
+    with pytest.raises(EmptyModelResponseError):
         provider.generate(_model_request())
 
 
