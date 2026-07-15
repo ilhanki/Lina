@@ -2,6 +2,16 @@
 
 Bu dosya önemli geliştirme kararlarını ve milestone ilerlemesini kısa notlar halinde takip etmek için kullanılır.
 
+## 2026-07-15 - Empty Vision Response Reliability Fix
+
+- Ollama vision yanıtları dict/attribute `message.content`, legacy `response` ve stream chunk biçimlerinden typed olarak normalize edildi.
+- Whitespace, `None`, yalnız noktalama, thinking-only, anlamsız literal ve malformed sonuçlar güvenli empty response olarak sınıflandırıldı.
+- Vision provider basit görüntü isteklerinde non-stream çalışacak biçimde ayrıldı; ilk boş sonuç aynı frame ile tek deterministic retry alır.
+- Otomatik kamera yorumu ikinci boş sonucu sessizce atlayıp metric artırır; doğrudan kamera sorusu kullanıcı dostu fallback verir.
+- Live camera soru prompt’u geçmişsiz ve 240 karakterle sınırlı kısa vision sorusuna indirildi; safety system prompt’ta kalır.
+- Capability ve PNG/image payload kontrolleri korundu; unsupported model mesajı eyleme dönük hale getirildi.
+- Diagnostics yalnız format/süre/sayaç metadata’sı taşır; prompt, soru, raw response, image veya Base64 loglanmaz.
+
 ## 2026-07-14 - Realtime Camera Conversation
 
 - Kamera preview’ü ayarlanabilir yatay ayna ve doğru yansıtılmış change-box koordinatlarıyla güncellendi; inference frame’i orijinal yönde kaldı.

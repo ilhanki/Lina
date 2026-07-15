@@ -4,6 +4,12 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
 ## Windows Realtime Camera Conversation Smoke Test
 
+- Vision provider’ı ilk istekte boş, ikinci istekte geçerli cevap döndürecek şekilde test et; yalnız iki HTTP isteği ve geçerli kısa yorum görülmeli.
+- İki isteği de whitespace/thinking-only döndür; otomatik yorum hata balonu oluşturmadan izlemeli ve sonraki değişiklikleri analiz edebilmeli.
+- Aynı çift-boş senaryoda `Ne görüyorsun?` sorusunun “Görüntüyü şu anda yorumlayamadım. Birkaç saniye sonra tekrar deneyelim.” cevabını verdiğini doğrula.
+- Retry sürerken kamerayı kapat; aktif response kapanmalı, üçüncü istek/stale sonuç/tekrarlanan hata oluşmamalı.
+- Privacy loglarını incele; yalnız format, content length, chunk/retry sayacı, model ve süre olmalı; prompt, kullanıcı sorusu, raw response, image bytes veya Base64 olmamalı.
+
 - Ayarlar → Vision’da Realtime camera conversation, Automatic camera commentary, Mirror camera preview ve Speak semantic changes varsayılan açık; cooldown `10 sn`, kamera analiz aralığı `3 sn` olmalı.
 - `Kamerayı aç` onayından sonra preview’ün aynalı, inference sonucunun yön açısından doğal ve sol/sağ change box’ların aynalı görüntüyle hizalı olduğunu doğrula; mirror ayarını kapatıp tekrar dene.
 - Preview’de `Konuşmalı Kamera`, `Otomatik Yorum`, `Sessize Al`, `Şimdi Bak` ve `Kamerayı Kapat` kontrollerini dene.

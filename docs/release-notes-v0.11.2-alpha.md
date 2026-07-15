@@ -1,5 +1,13 @@
 # Lina v0.11.2-alpha — Realtime Camera Conversation
 
+## Empty vision response reliability
+
+- Ollama’nın `message.content`, object attribute, legacy `response` ve stream chunk response biçimleri normalize edilir.
+- İlk boş kamera cevabı aynı frame ile kısa deterministic prompt kullanılarak yalnız bir kez non-stream retry alır.
+- İkinci boş cevap otomatik yorumda sessizce atlanır; doğrudan soruda kullanıcı dostu fallback gösterilir. Kamera session kapanmaz.
+- `None`, whitespace, yalnız noktalama, thinking-only ve anlamsız literal cevaplar geçersiz sayılır; uzun kamera cevapları kısa hale getirilir.
+- Diagnostics privacy-safe metadata ile sınırlıdır; raw response, prompt, kullanıcı sorusu, image ve Base64 loglanmaz.
+
 ## Öne çıkanlar
 
 - Kamera preview’ü varsayılan olarak aynalıdır; vision inference orijinal yönü korur ve change box koordinatları aynalı görünüme çevrilir.

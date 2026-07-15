@@ -4,6 +4,12 @@ Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hı
 
 ## Realtime Camera Conversation (v0.11.2-alpha)
 
+Empty vision response reliability provider sınırında çözülür. Ollama adapter’ı `message.content`, attribute tabanlı `message.content`, legacy `response` alanı ve tüm stream chunk’larını typed bir normalize sonucuna dönüştürür. `None`, whitespace, yalnız noktalama, thinking-only ve `null`/`none` gibi anlamsız literal sonuçlar boş kabul edilir; raw provider modeli UI’ya taşınmaz.
+
+Vision provider kamera ve tek-görsel isteklerinde `stream=false` kullanır. İlk normalize sonuç boşsa aynı doğrulanmış ephemeral frame yalnız bir kez, kısa sabit prompt, `temperature=0` ve `stream=false` ile yeniden istenir. İkinci sonuç da boşsa otomatik yorum hata balonu üretmeden `empty_response_count` metriğini artırır ve izlemeyi sürdürür; doğrudan kullanıcı sorusu “Görüntüyü şu anda yorumlayamadım. Birkaç saniye sonra tekrar deneyelim.” mesajına döner. Stop/cancel aktif non-stream response handle’ını kapatır; retry backlog veya stale sonuç oluşturmaz.
+
+Response diagnostics yalnız format türü, content alanı varlığı, content uzunluğu, chunk sayısı, retry kullanımı, model adı, süre ve boş cevap sayısını loglar. Prompt, kullanıcı sorusu, frame bytes, Base64, raw response ve görüntü içeriği loglanmaz.
+
 Kamera preview’ü varsayılan yatay aynalıdır; bu dönüşüm yalnız `CameraPreviewCanvas` üzerinde uygulanır. Vision inference orijinal frame yönünü korur ve normalized değişiklik kutularının x koordinatı preview aynalıysa `1 - x - width` olarak çizilir. Screen ve region kaynakları bu dönüşüme girmez.
 
 `LiveVisionController` tek kamera session’ında yalnız son geçerli frame referansını, son semantik özeti, son seslendirmeyi, analiz zamanını ve son kullanıcı sorusunu taşır. Frame history, video, Base64 archive, disk image ve conversation DB image kaydı yoktur; yeni kare eskisinin yerini alır ve stop/shutdown referansı temizler. Kamera açıkken normal chat veya hands-free sorusu yeni ephemeral capture ile mevcut image-attachment inference yoluna girer, cevap aynı session’ın TTS hattından okunur.
