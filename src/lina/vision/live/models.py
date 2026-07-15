@@ -182,6 +182,7 @@ class LiveVisionMetrics:
     last_analysis_latency_ms: int | None = None
     session_duration_seconds: float = 0.0
     source: LiveVisionSource | None = None
+    empty_response_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)

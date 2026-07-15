@@ -29,6 +29,7 @@ from lina.services.git_context_service import GitContextService
 from lina.services.model_diagnostics_service import (
     ModelDiagnosticsService,
     VisionDiagnosticsService,
+    VisionStatus,
 )
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionService
@@ -105,7 +106,7 @@ def create_application_services(
         max_image_bytes=settings.vision.max_image_bytes,
         keep_alive="0",
         max_output_tokens=user_preferences.models.max_output_tokens,
-        stream=True,
+        stream=False,
     )
     vision_brain = Brain(
         model_provider=vision_provider,
@@ -211,6 +212,13 @@ def create_application_services(
     )
     hands_free_service = HandsFreeConversationService(voice_controller, speech_service)
     def analyze_live_frame(frame, prompt: str) -> str:
+        vision_status = vision_diagnostics_service.check_status()
+        if vision_status.status is not VisionStatus.READY:
+            if vision_status.status is VisionStatus.VISION_NOT_SUPPORTED:
+                raise VisionRequestError(
+                    "Seçili model görüntü analizi desteklemiyor. Ayarlardan bir vision modeli seç."
+                )
+            raise VisionRequestError("Vision modeli kullanılamıyor.")
         model_lifecycle_service.prepare_vision()
         try:
             attachment = ImageAttachment(

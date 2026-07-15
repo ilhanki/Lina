@@ -2,7 +2,10 @@
 
 import base64
 from collections.abc import Callable
+from dataclasses import dataclass
 import json
+import logging
+import re
 import threading
 import time
 from typing import Any
@@ -10,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from lina.brain.model_provider import (
+    EmptyModelResponseError,
     ModelProvider,
     ModelProviderError,
     ModelRequest,
@@ -20,6 +24,29 @@ from lina.inference.models import InferenceMetrics, nanoseconds_to_ms
 
 class OllamaProviderError(ModelProviderError):
     """Raised when the Ollama provider cannot generate a response."""
+
+
+@dataclass(frozen=True, slots=True)
+class OllamaResponseDiagnostics:
+    format_type: str
+    content_field_found: bool
+    content_length: int
+    stream_chunk_count: int
+    retry_used: bool
+    model: str
+    request_duration_ms: int
+    empty_response_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedOllamaResponse:
+    text: str
+    format_type: str
+    content_field_found: bool
+    chunk_count: int
+
+
+_logger = logging.getLogger("lina.ollama")
 
 
 class OllamaProvider(ModelProvider):
@@ -52,10 +79,16 @@ class OllamaProvider(ModelProvider):
         self._cancelled = threading.Event()
         self._response_lock = threading.Lock()
         self._active_response: Any | None = None
+        self._last_response_diagnostics: OllamaResponseDiagnostics | None = None
+        self._empty_response_count = 0
 
     @property
     def last_metrics(self) -> InferenceMetrics | None:
         return self._last_metrics
+
+    @property
+    def last_response_diagnostics(self) -> OllamaResponseDiagnostics | None:
+        return self._last_response_diagnostics
 
     def generate(self, request: ModelRequest) -> ModelResponse:
         self._cancelled.clear()
@@ -107,17 +140,19 @@ class OllamaProvider(ModelProvider):
                 cancelled=self._cancelled.is_set(), error_category=_error_category(error),
             )
             raise
+        normalized = normalize_ollama_response(chunks, camera=request.image_attachment is not None)
+        retry_used = False
+        if not normalized.text:
+            self._empty_response_count += 1
+            if request.image_attachment is not None and not self._cancelled.is_set():
+                retry_used = True
+                retry_payload = _empty_vision_retry_payload(payload)
+                chunks = self._post_stream("/api/chat", retry_payload, started, stream=False)
+                normalized = normalize_ollama_response(chunks, camera=True)
+                if not normalized.text:
+                    self._empty_response_count += 1
+
         response_data = chunks[-1]
-        response_text = "".join(_chunk_text(chunk) for chunk in chunks).strip()
-        response_message = response_data.get("message")
-        if not response_text and not isinstance(response_message, dict):
-            raise OllamaProviderError("Ollama response is missing message content")
-        if not response_text and isinstance(response_message, dict):
-            response_text = response_message.get("content")
-        if not isinstance(response_text, str):
-            raise OllamaProviderError("Ollama response is missing text content")
-        if not response_text.strip():
-            raise OllamaProviderError("Ollama response contains empty text content")
 
         first_content = next((chunk for chunk in chunks if _chunk_text(chunk)), None)
         first_token_ms = (
@@ -127,7 +162,30 @@ class OllamaProvider(ModelProvider):
         self._last_metrics = _build_metrics(
             model, started, first_token_ms, response_data, self._cancelled.is_set()
         )
-        return ModelResponse(text=response_text.strip())
+        self._last_response_diagnostics = OllamaResponseDiagnostics(
+            format_type=normalized.format_type,
+            content_field_found=normalized.content_field_found,
+            content_length=len(normalized.text),
+            stream_chunk_count=normalized.chunk_count,
+            retry_used=retry_used,
+            model=model,
+            request_duration_ms=round((time.perf_counter() - started) * 1000),
+            empty_response_count=self._empty_response_count,
+        )
+        _logger.info(
+            "ollama_response format_type=%s content_field_found=%s content_length=%d stream_chunk_count=%d retry_used=%s model=%s request_duration_ms=%d empty_response_count=%d",
+            self._last_response_diagnostics.format_type,
+            self._last_response_diagnostics.content_field_found,
+            self._last_response_diagnostics.content_length,
+            self._last_response_diagnostics.stream_chunk_count,
+            self._last_response_diagnostics.retry_used,
+            self._last_response_diagnostics.model,
+            self._last_response_diagnostics.request_duration_ms,
+            self._last_response_diagnostics.empty_response_count,
+        )
+        if not normalized.text:
+            raise EmptyModelResponseError("Ollama vision response remained empty after retry")
+        return ModelResponse(text=normalized.text)
 
     def set_model(self, model: str) -> None:
         """Use a different locally configured model for future requests."""
@@ -169,9 +227,14 @@ class OllamaProvider(ModelProvider):
         path: str,
         payload: dict[str, Any],
         started: float,
+        stream: bool | None = None,
     ) -> list[dict[str, Any]]:
-        if not self._stream:
+        stream_enabled = self._stream if stream is None else stream
+        payload["stream"] = stream_enabled
+        if not stream_enabled:
             response = self._post_json(path, payload)
+            if self._cancelled.is_set():
+                raise OllamaProviderError("Ollama request cancelled")
             response["_received_at"] = time.perf_counter()
             return [response]
         http_request = self._request(path, payload)
@@ -262,15 +325,16 @@ class OllamaProvider(ModelProvider):
 
         try:
             with self._opener(http_request, timeout=self._timeout) as response:
+                with self._response_lock:
+                    self._active_response = response
                 raw_response = response.read()
-        except HTTPError as error:
-            raise OllamaProviderError(f"Ollama HTTP error: {error.code}") from error
-        except TimeoutError as error:
-            raise OllamaProviderError("Ollama request timed out") from error
-        except URLError as error:
-            raise OllamaProviderError(f"Ollama network error: {error.reason}") from error
-        except OSError as error:
-            raise OllamaProviderError("Ollama request failed") from error
+        except Exception as error:
+            if self._cancelled.is_set():
+                raise OllamaProviderError("Ollama request cancelled") from error
+            self._raise_transport_error(error)
+        finally:
+            with self._response_lock:
+                self._active_response = None
 
         try:
             decoded_response = json.loads(raw_response.decode("utf-8"))
@@ -283,9 +347,71 @@ class OllamaProvider(ModelProvider):
         return decoded_response
 
 
-def _chunk_text(chunk: dict[str, Any]) -> str:
-    message = chunk.get("message")
-    return str(message.get("content", "")) if isinstance(message, dict) else ""
+def _chunk_text(chunk: Any) -> str:
+    content, _format_type, _found = _extract_content(chunk)
+    return content if isinstance(content, str) else ""
+
+
+def normalize_ollama_response(chunks: list[Any], *, camera: bool = False) -> NormalizedOllamaResponse:
+    parts: list[str] = []
+    formats: list[str] = []
+    content_found = False
+    for chunk in chunks:
+        content, format_type, found = _extract_content(chunk)
+        content_found = content_found or found
+        if found:
+            formats.append(format_type)
+        if isinstance(content, str):
+            parts.append(content)
+    text = _normalize_response_text("".join(parts), camera=camera)
+    format_type = formats[0] if formats and len(set(formats)) == 1 else "mixed" if formats else "unknown"
+    return NormalizedOllamaResponse(text, format_type, content_found, len(chunks))
+
+
+def _extract_content(response: Any) -> tuple[Any, str, bool]:
+    if isinstance(response, dict):
+        message = response.get("message")
+        if isinstance(message, dict) and "content" in message:
+            return message.get("content"), "message.content", True
+        if message is not None and hasattr(message, "content"):
+            return getattr(message, "content"), "message.content.attribute", True
+        if "response" in response:
+            return response.get("response"), "response", True
+        return None, "unknown", False
+    message = getattr(response, "message", None)
+    if message is not None and hasattr(message, "content"):
+        return getattr(message, "content"), "message.content.attribute", True
+    if hasattr(response, "response"):
+        return getattr(response, "response"), "response.attribute", True
+    return None, "unknown", False
+
+
+def _normalize_response_text(value: Any, *, camera: bool) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    fenced = re.fullmatch(r"```(?:\w+)?\s*(.*?)\s*```", text, flags=re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+    text = re.sub(r"^(?:lina|yanıt|cevap)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+    if text.casefold() in {"null", "none", "boş", "bos", "n/a"}:
+        return ""
+    if not any(character.isalnum() for character in text):
+        return ""
+    if camera and len(text) > 240:
+        first_sentence = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0]
+        text = first_sentence if len(first_sentence) <= 240 else text[:239].rstrip() + "…"
+    return text
+
+
+def _empty_vision_retry_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    messages = [dict(message) for message in payload.get("messages", ())]
+    user_message = next((message for message in reversed(messages) if message.get("role") == "user"), None)
+    if user_message is not None:
+        user_message["content"] = "Bu görüntüde ne görüyorsun? Tek kısa Türkçe cümle yaz."
+    options = dict(payload.get("options", {}))
+    options["temperature"] = 0.0
+    return {**payload, "messages": messages, "options": options, "stream": False}
 
 
 def _build_metrics(model: str, started: float, first_token_ms: float | None, metadata: dict[str, Any], cancelled: bool) -> InferenceMetrics:

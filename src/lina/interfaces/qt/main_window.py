@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
 )
 
-from lina.brain.model_provider import ModelResponse
+from lina.brain.model_provider import EmptyModelResponseError, ModelResponse
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
@@ -1320,6 +1320,8 @@ class LinaMainWindow(QMainWindow):
             if self._vision_status.status is VisionStatus.DISABLED:
                 return "Vision şu anda kapalı. Ayarlar’dan açabilirsin."
             if self._vision_status.status in {VisionStatus.MODEL_NOT_AVAILABLE, VisionStatus.VISION_NOT_SUPPORTED, VisionStatus.INVALID_RESPONSE}:
+                if self._vision_status.status is VisionStatus.VISION_NOT_SUPPORTED:
+                    return "Seçili model görüntü analizi desteklemiyor. Ayarlardan bir vision modeli seç."
                 return "Seçili Vision modeli görsel analiz için uygun değil."
             if self._vision_status.status in {VisionStatus.OLLAMA_UNREACHABLE, VisionStatus.TIMEOUT}:
                 return "Ollama’ya ulaşılamadığı için görsel analiz yapılamıyor."
@@ -2519,6 +2521,8 @@ def _friendly_vision_error_message(error: Exception) -> str:
     message = str(error).casefold()
     if isinstance(error, VisionRequestError):
         return str(error)
+    if isinstance(error, EmptyModelResponseError):
+        return "Görüntüyü şu anda yorumlayamadım. Birkaç saniye sonra tekrar deneyelim."
     if "size limit" in message:
         return "Ekran görüntüsü analiz için fazla büyük."
     if "empty text content" in message:

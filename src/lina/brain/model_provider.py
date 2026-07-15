@@ -38,6 +38,10 @@ class ModelProviderError(Exception):
     """Raised when a model provider cannot generate a response."""
 
 
+class EmptyModelResponseError(ModelProviderError):
+    """Raised after one bounded retry still produced no usable final content."""
+
+
 class ModelProvider(Protocol):
     """Contract implemented by model providers."""
 

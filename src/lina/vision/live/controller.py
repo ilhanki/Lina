@@ -10,6 +10,8 @@ import logging
 import threading
 import time
 
+from lina.brain.model_provider import EmptyModelResponseError
+
 from lina.vision.live.change_detector import FrameChangeDetector
 from lina.vision.live.frame_source import FrameSource
 from lina.vision.live.models import (
@@ -335,9 +337,15 @@ class LiveVisionController:
                 with self._lock:
                     previous_result = self._snapshot.last_result
                 result = self._analyzer(frame, build_analysis_prompt(session.source, session.user_focus, previous_result))
-            except Exception:
+            except Exception as error:
                 with self._lock: self._analysis_active = False
                 if self._is_current(generation):
+                    if isinstance(error, EmptyModelResponseError) and session.source is LiveVisionSource.CAMERA:
+                        with self._lock:
+                            self._last_analysis_clock = self._clock()
+                        self._increment_metric("empty_response_count")
+                        self._set_state(LiveVisionState.MONITORING)
+                        continue
                     if session.source is LiveVisionSource.CAMERA:
                         with self._lock:
                             self._last_analysis_clock = self._clock()

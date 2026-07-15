@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from lina.brain.brain import Brain
+from lina.brain.conversation_context import ConversationContext
 from lina.brain.context_manager import ContextManager
 from lina.brain.intent import Intent, IntentType
 from lina.brain.intent_analyzer import IntentAnalyzer
@@ -25,6 +26,7 @@ from lina.services.model_diagnostics_service import VisionDiagnosticsService, Vi
 from lina.services.project_context_service import ProjectContextService
 from lina.services.tool_execution_service import ToolExecutionError, ToolExecutionService
 from lina.vision.models import VisionRequestError
+from lina.vision.live.policy import build_camera_question_prompt
 from lina.inference.service import ModelLifecycleService
 
 
@@ -158,8 +160,13 @@ class ConversationService:
                 if self._vision_brain is None:
                     raise VisionRequestError("Vision servisi yapılandırılmamış.")
                 try:
+                    vision_context = (
+                        ConversationContext(build_camera_question_prompt(user_message), ())
+                        if conversation_input.image_attachment.source == "live_camera"
+                        else context
+                    )
                     response = self._vision_brain.respond_with_image(
-                        context,
+                        vision_context,
                         conversation_input.image_attachment,
                     )
                     attachment_consumed = self._consume_vision_attachment_on_success
@@ -191,6 +198,10 @@ class ConversationService:
             raise VisionRequestError("Vision diagnostics yapılandırılmamış.")
         result = self._vision_diagnostics_service.check_status()
         if result.status is not VisionStatus.READY:
+            if result.status is VisionStatus.VISION_NOT_SUPPORTED:
+                raise VisionRequestError(
+                    "Seçili model görüntü analizi desteklemiyor. Ayarlardan bir vision modeli seç."
+                )
             raise VisionRequestError(result.message)
 
     def _handle_memory_intent(
