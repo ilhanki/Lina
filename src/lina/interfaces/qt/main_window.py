@@ -354,7 +354,7 @@ class LinaMainWindow(QMainWindow):
         self._session_date_label.hide()
         layout.addLayout(titles, 1)
 
-        self._status_button = QPushButton("Lina Durumu · Hazır", header)
+        self._status_button = QPushButton("Hazır", header)
         self._status_button.setObjectName("unifiedStatusButton")
         self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
         self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
@@ -393,13 +393,14 @@ class LinaMainWindow(QMainWindow):
                 self._notification_button.setAccessibleName("Bildirimler")
                 self._notification_button.setIcon(standard_icon(self, "notifications"))
                 self._notification_button.clicked.connect(self.open_notifications)
+                self._notification_button.hide()
                 layout.addWidget(self._notification_button)
-        self._inspector_button = QPushButton("Ayrıntılar", header)
+        self._inspector_button = QPushButton("Araçlar", header)
         self._inspector_button.setObjectName("iconButton")
-        self._inspector_button.setToolTip("Sağ ayrıntılar panelini aç veya kapat")
-        self._inspector_button.setAccessibleName("Ayrıntılar paneli")
+        self._inspector_button.setToolTip("Araçlar ve uygulama seçenekleri")
+        self._inspector_button.setAccessibleName("Araçlar menüsü")
         self._inspector_button.setIcon(standard_icon(self, "details"))
-        self._inspector_button.clicked.connect(self._toggle_inspector)
+        self._inspector_button.clicked.connect(self._show_tools_menu)
         layout.addWidget(self._inspector_button)
         parent_layout.addWidget(header)
 
@@ -477,7 +478,7 @@ class LinaMainWindow(QMainWindow):
         composer_layout.setContentsMargins(0, 0, 0, 0)
         composer_layout.addStretch(1)
         self._composer.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
-        composer_layout.addWidget(self._composer, 1)
+        composer_layout.addWidget(self._composer, 8)
         composer_layout.addStretch(1)
         parent_layout.addWidget(composer_row)
 
@@ -499,7 +500,7 @@ class LinaMainWindow(QMainWindow):
         self._composer.stop_requested.connect(self.cancel_active_response)
         self._composer.history_requested.connect(self._navigate_input_history)
         self._composer.attachment_requested.connect(self.handle_image_upload)
-        self._screen_menu = QMenu(self)
+        self._screen_menu = self._composer.screen_menu
         self._screen_menu.setAccessibleName("Ekran yakalama seçenekleri")
         full_screen_action = self._screen_menu.addAction("Tüm Ekranı Yakala")
         full_screen_action.setToolTip("Tüm ekranı yakala")
@@ -507,7 +508,6 @@ class LinaMainWindow(QMainWindow):
         region_action = self._screen_menu.addAction("Alan Seçerek Yakala")
         region_action.setToolTip("Ekranda alan seçerek yakala")
         region_action.triggered.connect(self.handle_region_capture)
-        self._composer.screen_button.setMenu(self._screen_menu)
         self._composer.screen_context_remove_requested.connect(
             self.remove_screen_context
         )
@@ -577,13 +577,8 @@ class LinaMainWindow(QMainWindow):
         self._set_inspector_button_state(opened=False)
 
     def _set_inspector_button_state(self, *, opened: bool) -> None:
-        if self._compact_chrome:
-            self._inspector_button.setText("")
-        else:
-            self._inspector_button.setText("Ayrıntıları Kapat" if opened else "Ayrıntılar")
-        self._inspector_button.setToolTip(
-            "Sağ ayrıntılar panelini kapat" if opened else "Sağ ayrıntılar panelini aç"
-        )
+        self._inspector_button.setText("" if self._compact_chrome else "Araçlar")
+        self._inspector_button.setToolTip("Araçlar ve uygulama seçenekleri")
 
     def _show_system_inspector(self) -> None:
         details = "\n".join((self._model_status.text(), self._speech_status.text(), self._voice_status.text()))
@@ -592,7 +587,10 @@ class LinaMainWindow(QMainWindow):
 
     def _show_agent_inspector(self) -> None:
         session = self._agent_controller.session if self._agent_controller else None
-        summary = "Aktif Agent görevi yok."
+        summary = (
+            "Aktif Agent görevi yok. Sohbette ‘bunu planla’, ‘adım adım çöz’ "
+            "veya ‘Agent modunda ilerle’ diyerek başlayabilirsin."
+        )
         if session is not None:
             summary = self._agent_controller.result_summary()
             if session.plan is not None:
@@ -618,6 +616,39 @@ class LinaMainWindow(QMainWindow):
         selected = menu.exec(self._status_button.mapToGlobal(self._status_button.rect().bottomLeft()))
         if selected is details:
             self._show_system_inspector()
+
+    def _show_tools_menu(self) -> None:
+        self._tools_menu = self._build_tools_menu()
+        self._tools_menu.exec(
+            self._inspector_button.mapToGlobal(self._inspector_button.rect().bottomLeft())
+        )
+
+    def _build_tools_menu(self) -> QMenu:
+        menu = QMenu(self)
+        palette_action = menu.addAction("Komut paleti")
+        palette_action.triggered.connect(self._show_command_palette)
+        agent_action = menu.addAction("Agent ile çalış")
+        agent_action.setEnabled(self._agent_controller is not None)
+        agent_action.triggered.connect(self._show_agent_inspector)
+        conversations = menu.addMenu("Sohbet görünümü")
+        for label, view in (("Sohbetler", "chats"), ("Sabitlenenler", "pinned"), ("Arşiv", "archive")):
+            action = conversations.addAction(label)
+            action.triggered.connect(lambda _checked=False, target=view: self._set_conversation_view(target))
+        if self._notification_service is not None:
+            notification_action = menu.addAction("Bildirimler")
+            notification_action.triggered.connect(self.open_notifications)
+        menu.addSeparator()
+        details_action = menu.addAction("Sistem ayrıntıları")
+        details_action.triggered.connect(self._show_system_inspector)
+        if self._user_settings_service is not None:
+            settings_action = menu.addAction("Ayarlar")
+            settings_action.triggered.connect(self.open_settings)
+        return menu
+
+    def _set_conversation_view(self, view: str) -> None:
+        index = self._sidebar.filter_combo.findData(view)
+        if index >= 0:
+            self._sidebar.filter_combo.setCurrentIndex(index)
 
     def open_settings(self) -> None:
         """Open one settings dialog instance and focus it when already open."""
@@ -709,6 +740,7 @@ class LinaMainWindow(QMainWindow):
         if hasattr(self, "_notification_button") and self._notification_service is not None:
             count = self._notification_service.unread_count()
             self._notification_button.setText(str(count) if count else "")
+            self._notification_button.setVisible(count > 0)
             self._notification_button.setToolTip(
                 f"Bildirim merkezini aç ({count} okunmamış)" if count else "Bildirim merkezini aç"
             )
@@ -920,7 +952,7 @@ class LinaMainWindow(QMainWindow):
                 pass
 
     def _set_vision_controls_enabled(self, enabled: bool) -> None:
-        self._composer.screen_button.setEnabled(enabled and not self._is_screen_capture_busy)
+        self._composer.set_screen_enabled(enabled and not self._is_screen_capture_busy)
 
     def send_message(self) -> None:
         """Send the current composer text through the conversation service."""
@@ -2086,7 +2118,7 @@ class LinaMainWindow(QMainWindow):
         if self._is_screen_capture_busy:
             return
         self._is_screen_capture_busy = True
-        self._composer.screen_button.setEnabled(False)
+        self._composer.set_screen_enabled(False)
         self._set_status("Ekran yakalanıyor...")
         try:
             context = self._screen_capture_service.capture()
@@ -2134,7 +2166,7 @@ class LinaMainWindow(QMainWindow):
             self._set_status("Ekran bulunamadı.")
             return
         self._is_screen_capture_busy = True
-        self._composer.screen_button.setEnabled(False)
+        self._composer.set_screen_enabled(False)
         self._set_status("Analiz edilecek alanı seç...")
         overlay = RegionCaptureOverlay(screen.geometry())
         self._region_overlay = overlay
@@ -2265,7 +2297,7 @@ class LinaMainWindow(QMainWindow):
         if self._voice_controller is not None:
             self._voice_controller.begin_listening()
         self._composer.set_mic_state("listening")
-        self._composer.mic_button.setEnabled(True)
+        self._composer.set_mic_enabled(True)
         self._set_status("Dinliyorum...")
         worker = FunctionWorker(self._speech_service.transcribe_once)
         worker.signals.result.connect(self._handle_transcription_result)
@@ -2532,7 +2564,7 @@ class LinaMainWindow(QMainWindow):
         ):
             self._voice_controller.finish_interaction()
         self._composer.set_mic_state("idle")
-        self._composer.mic_button.setEnabled(
+        self._composer.set_mic_enabled(
             self._speech_enabled
             and self._speech_service is not None
             and self._speech_service.is_stt_available()
@@ -2702,14 +2734,14 @@ class LinaMainWindow(QMainWindow):
         if self._unified_status.publish(text, generation=generation, priority=priority):
             self._status_label.setText(text)
             if hasattr(self, "_status_button"):
-                self._status_button.setText("" if self._compact_chrome else f"Lina Durumu · {text}")
+                self._status_button.setText("" if self._compact_chrome else text)
                 self._status_button.setToolTip(
                     f"Lina Durumu: {text}. Model, mikrofon, ses, Agent ve Vision ayrıntılarını göster"
                 )
 
     def _update_responsive_chrome(self, compact: bool) -> None:
         self._compact_chrome = compact
-        self._status_button.setText("" if compact else f"Lina Durumu · {self._status_label.text()}")
+        self._status_button.setText("" if compact else self._status_label.text())
         self._set_inspector_button_state(opened=self._inspector.isVisible())
         if hasattr(self, "_notification_button"):
             self._refresh_notification_badge()
@@ -2774,10 +2806,10 @@ class LinaMainWindow(QMainWindow):
             return
         if self._speech_enabled and self._speech_service.is_stt_available():
             self._speech_status.setText("Mic · hazır")
-            self._composer.mic_button.setEnabled(True)
+            self._composer.set_mic_enabled(True)
         else:
             self._speech_status.setText("Mic · kapalı")
-            self._composer.mic_button.setEnabled(False)
+            self._composer.set_mic_enabled(False)
 
     def _start_worker(self, worker: FunctionWorker) -> None:
         self._workers.add(worker)

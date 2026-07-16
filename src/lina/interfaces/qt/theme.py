@@ -98,6 +98,10 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QLineEdit#settingsSearch {{ min-height: 38px; border-radius: 10px; padding: 0 12px; }}
         QLabel#settingsPageTitle {{ font-size: 16pt; font-weight: 650; color: {text_primary}; }}
         QLabel#settingsDescription {{ color: {text_muted}; padding: 5px 0; }}
+        QLabel#settingsSectionTitle {{ font-size: 11pt; font-weight: 650; color: {text_primary}; padding-top: 10px; }}
+        QScrollArea#settingsPageScroll, QScrollArea#settingsPageScroll > QWidget > QWidget {{
+            background: {panel_bg}; border: none;
+        }}
         QProgressBar#agentProgress {{
             background: {elevated_bg}; border: none; border-radius: 3px; min-height: 6px; max-height: 6px;
         }}
@@ -132,7 +136,12 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {panel_bg}; border-left: 1px solid {soft_border};
         }}
         QDialog#commandPalette {{ background: {panel_bg}; }}
-        QPushButton#unifiedStatusButton, QPushButton#modeChip {{
+        QPushButton#unifiedStatusButton {{
+            background: transparent; color: {text_muted}; border: 1px solid transparent;
+            border-radius: 8px; min-height: 30px; padding: 0 7px;
+        }}
+        QPushButton#unifiedStatusButton:hover {{ background: {elevated_bg}; color: {text_primary}; }}
+        QPushButton#modeChip {{
             background: {elevated_bg}; color: {text_secondary}; border: 1px solid {soft_border};
             border-radius: 15px; min-height: 30px; padding: 0 10px;
         }}
@@ -168,19 +177,19 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: transparent;
             color: {text_secondary};
             border: 1px solid transparent;
-            border-radius: 9px;
+            border-radius: 8px;
             text-align: left;
             padding: 7px 12px;
             font-size: 10pt;
         }}
         QPushButton#sessionButton:hover {{
             background: {elevated_bg};
-            border-color: {border};
+            border-color: transparent;
         }}
         QPushButton#sessionButton:checked {{
             background: {elevated_bg};
             color: {text_primary};
-            border-color: {accent};
+            border-color: transparent;
             font-weight: 600;
         }}
         QLineEdit#conversationSearchInput {{
@@ -309,8 +318,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#accentButton:hover {{ background: {accent_hover}; }}
         QPushButton#composerActionButton {{
-            min-height: 46px;
-            max-height: 46px;
+            min-height: 38px;
+            max-height: 38px;
             padding: 0 13px;
         }}
         QPushButton#copyButton {{

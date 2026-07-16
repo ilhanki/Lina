@@ -7,6 +7,7 @@ from PySide6.QtGui import QFont, QIcon, QKeyEvent, QPixmap, QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QMenu,
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
@@ -152,7 +153,7 @@ class ComposerWidget(QWidget):
             tooltip="Konuşmayı metne çevir",
             accessible_name="Mikrofon",
         )
-        action_layout.addWidget(self.mic_button)
+        self.mic_button.hide()
 
         self.screen_button = QPushButton("Ekran", self)
         self.screen_button.setIcon(standard_icon(self, "screen"))
@@ -161,7 +162,7 @@ class ComposerWidget(QWidget):
             tooltip="Tam ekran veya seçili alan görüntüsü ekle",
             accessible_name="Ekran görüntüsü yakala",
         )
-        action_layout.addWidget(self.screen_button)
+        self.screen_button.hide()
 
         self.agent_button = QPushButton("Agent", self)
         self.agent_button.setIcon(standard_icon(self, "agent"))
@@ -170,7 +171,24 @@ class ComposerWidget(QWidget):
             tooltip="Agent çalışma modunu aç veya kapat",
             accessible_name="Agent modu",
         )
-        action_layout.addWidget(self.agent_button)
+        self.agent_button.hide()
+
+        self.tools_button = QPushButton("Araçlar", self)
+        self.tools_button.setIcon(standard_icon(self, "details"))
+        self._configure_action_button(
+            self.tools_button,
+            tooltip="Mikrofon, ekran ve Agent araçlarını aç",
+            accessible_name="Araçlar menüsü",
+        )
+        self.tools_menu = QMenu(self.tools_button)
+        self.tools_menu.setAccessibleName("Mesaj araçları")
+        self.mic_action = self.tools_menu.addAction("Mikrofon")
+        self.mic_action.triggered.connect(self.mic_button.click)
+        self.screen_menu = self.tools_menu.addMenu("Ekran görüntüsü")
+        self.agent_action = self.tools_menu.addAction("Agent modu")
+        self.agent_action.triggered.connect(self.agent_button.click)
+        self.tools_button.setMenu(self.tools_menu)
+        action_layout.addWidget(self.tools_button)
         self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)
         self.input_hint.setObjectName("composerHint")
         action_layout.addStretch(1)
@@ -280,9 +298,7 @@ class ComposerWidget(QWidget):
         self.input_hint.setVisible(not compact)
         labels = (
             (self.attachment_button, "+", "Ekle"),
-            (self.mic_button, "Mic", "Mikrofon"),
-            (self.screen_button, "Ekran", "Ekran"),
-            (self.agent_button, "Agent", "Agent"),
+            (self.tools_button, "", "Araçlar"),
         )
         for button, short, full in labels:
             button.setText(short if compact else full)
@@ -294,7 +310,18 @@ class ComposerWidget(QWidget):
             "listening": "Durdur",
             "transcribing": "Çevriliyor…",
         }
-        self.mic_button.setText(labels.get(state, labels["idle"]))
+        label = labels.get(state, labels["idle"])
+        self.mic_button.setText(label)
+        self.mic_action.setText(label)
+        self.tools_button.setText(label if state != "idle" else ("" if self._compact else "Araçlar"))
+
+    def set_mic_enabled(self, enabled: bool) -> None:
+        self.mic_button.setEnabled(enabled)
+        self.mic_action.setEnabled(enabled)
+
+    def set_screen_enabled(self, enabled: bool) -> None:
+        self.screen_button.setEnabled(enabled)
+        self.screen_menu.menuAction().setEnabled(enabled)
 
     def _configure_action_button(
         self,

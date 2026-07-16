@@ -109,6 +109,7 @@ class SidebarWidget(QWidget):
 
         self.subtitle_label = QLabel("Yerel çalışma alanı", self)
         self.subtitle_label.setObjectName("mutedLabel")
+        self.subtitle_label.hide()
         layout.addWidget(self.subtitle_label)
         self.version_label = QLabel(version, self)
         self.version_label.setObjectName("mutedLabel")
@@ -168,6 +169,7 @@ class SidebarWidget(QWidget):
         self.local_status.setWordWrap(True)
         status_layout.addWidget(self.local_status)
         layout.addWidget(self.status_panel)
+        self.status_panel.hide()
 
         self._collapsed_spacer = QSpacerItem(
             0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum
@@ -195,6 +197,7 @@ class SidebarWidget(QWidget):
         self.notification_button.setIcon(standard_icon(self, "notifications"))
         self.settings_button.setIcon(standard_icon(self, "settings"))
         layout.addWidget(self.shortcuts)
+        self.shortcuts.hide()
 
         self.new_chat_button.clicked.connect(self.new_chat_requested)
 
@@ -209,6 +212,7 @@ class SidebarWidget(QWidget):
         self.filter_combo.addItem("Sohbetler", "chats")
         self.filter_combo.addItem("Sabitlenenler", "pinned")
         self.filter_combo.addItem("Arşiv", "archive")
+        self.filter_combo.hide()
         layout.insertWidget(4, self.filter_combo)
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
@@ -246,11 +250,12 @@ class SidebarWidget(QWidget):
         )
         self.layout().invalidate()
         self.setFixedWidth(self.COLLAPSED_WIDTH if collapsed else self.WIDTH)
-        for widget in (
-            self.title_label, self.subtitle_label, self.search_input, self.filter_combo,
-            self.session_panel, self.status_panel,
-        ):
+        for widget in (self.title_label, self.search_input, self.session_panel):
             widget.setVisible(not collapsed)
+        self.subtitle_label.hide()
+        self.filter_combo.hide()
+        self.status_panel.hide()
+        self.shortcuts.hide()
         self.logo_label.setVisible(not collapsed)
         self.new_chat_button.setText("" if collapsed else "Yeni Sohbet")
         self.new_chat_button.setToolTip("Yeni sohbet")
@@ -299,8 +304,8 @@ class SidebarWidget(QWidget):
             button = QPushButton(session.title, self.session_list)
             button.setObjectName("sessionButton")
             button.setToolTip(session.title)
-            button.setMinimumHeight(64)
-            button.setMaximumHeight(64)
+            button.setMinimumHeight(56)
+            button.setMaximumHeight(56)
             button.setSizePolicy(
                 QSizePolicy.Policy.Expanding,
                 QSizePolicy.Policy.Fixed,
@@ -343,8 +348,8 @@ class SidebarWidget(QWidget):
         for result in results:
             button = QPushButton(self.session_list)
             button.setObjectName("conversationSearchResult")
-            button.setMinimumHeight(76)
-            button.setMaximumHeight(76)
+            button.setMinimumHeight(68)
+            button.setMaximumHeight(68)
             button.setToolTip(result.title)
             button.setText(
                 f"{result.title}\n{result.snippet}\n"

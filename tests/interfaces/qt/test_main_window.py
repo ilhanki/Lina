@@ -467,6 +467,13 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert window._scroll.objectName() == "chatTimelineScroll"
     assert window._scroll.viewport().objectName() == "chatTimelineViewport"
     assert window._message_container.objectName() == "chatTimeline"
+    assert window._status_button.text() == "Hazır"
+    assert window._inspector_button.text() == "Araçlar"
+    assert window._inspector.isHidden()
+    tools = window._build_tools_menu()
+    assert [action.text() for action in tools.actions() if not action.isSeparator()] == [
+        "Komut paleti", "Agent ile çalış", "Sohbet görünümü", "Sistem ayrıntıları"
+    ]
 
 
 def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:

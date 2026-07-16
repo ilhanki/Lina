@@ -158,6 +158,7 @@ def test_main_window_create_refreshes_open_center_without_badge_increment(qtbot,
     assert "Yeni reminder" in window._notification_dialog._items.item(0).text()
     assert window._notification_button.text() == ""
     assert not window._notification_button.icon().isNull()
+    assert window._notification_button.isHidden()
     window._force_exit = True
     window.close()
 

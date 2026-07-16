@@ -165,9 +165,17 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.attachment_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.mic_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.screen_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+    assert composer.tools_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.input.parent() is composer
     assert composer.input_hint.text().startswith("Enter gönderir")
+    assert composer.mic_button.isHidden()
+    assert composer.screen_button.isHidden()
+    assert composer.agent_button.isHidden()
+    assert not composer.tools_button.isHidden()
+    assert [action.text() for action in composer.tools_menu.actions()] == [
+        "Mikrofon", "Ekran görüntüsü", "Agent modu"
+    ]
 
 
 def test_composer_compact_mode_and_agent_action(qtbot) -> None:
@@ -178,6 +186,19 @@ def test_composer_compact_mode_and_agent_action(qtbot) -> None:
     assert composer.attachment_button.text() == "+"
     with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
         composer.agent_button.click()
+
+
+def test_composer_tools_menu_preserves_context_actions(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    with qtbot.waitSignal(composer.mic_requested, timeout=1000):
+        composer.mic_action.trigger()
+    with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
+        composer.agent_action.trigger()
+    composer.set_mic_enabled(False)
+    composer.set_screen_enabled(False)
+    assert not composer.mic_action.isEnabled()
+    assert not composer.screen_menu.menuAction().isEnabled()
 
 
 def test_assistant_message_progressive_actions(qtbot) -> None:
@@ -345,6 +366,10 @@ def test_sidebar_has_collapsible_product_navigation_without_font_controls(qtbot,
     assert sidebar.session_scroll.objectName() == "sidebarConversationScroll"
     assert sidebar.session_scroll.viewport().objectName() == "sidebarConversationViewport"
     assert sidebar.session_list.objectName() == "sidebarConversationList"
+    assert sidebar.subtitle_label.isHidden()
+    assert sidebar.filter_combo.isHidden()
+    assert sidebar.status_panel.isHidden()
+    assert sidebar.shortcuts.isHidden()
 
     with qtbot.waitSignal(sidebar.collapsed_changed, timeout=1000) as signal:
         sidebar.collapse_button.click()
@@ -373,7 +398,7 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
     assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
-    assert all(button.minimumHeight() == 64 for button in session_buttons)
+    assert all(button.minimumHeight() == 56 for button in session_buttons)
     assert "·" in session_buttons[0].text()
 
 
