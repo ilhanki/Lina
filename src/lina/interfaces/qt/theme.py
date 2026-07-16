@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtGui import QFontDatabase, QGuiApplication
+from PySide6.QtGui import QFontDatabase
+from lina.ui.design import resolve_palette
 
 
 APP_BG = "#0e1117"
@@ -359,33 +360,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
 
 def theme_palette(theme: str, system_lightness: int | None = None) -> dict[str, str]:
     """Return semantic colors for dark, light, or the current system palette."""
-    if theme == "system":
-        if system_lightness is None:
-            application = QGuiApplication.instance()
-            system_lightness = application.palette().window().color().lightness() if application is not None else 0
-        theme = "light" if system_lightness > 160 else "dark"
-    if theme == "light":
-        return {
-            "app_bg": "#f3f5f8", "sidebar_bg": "#e7ebf0", "panel_bg": "#ffffff",
-            "elevated_bg": "#edf1f5", "composer_bg": "#ffffff", "assistant_bubble": "#ffffff",
-            "user_bubble": "#2858c7", "text_primary": "#17202b", "text_secondary": "#344457",
-            "text_muted": "#59697a", "border": "#b9c4cf", "soft_border": "#c9d1da",
-            "accent": "#2858c7", "accent_hover": "#1f49ad", "disabled": "#748191",
-            "pressed": "#dce4ee", "selected": "#dce7fa", "focus": "#174ea6",
-            "user_border": "#1f49ad", "user_text": "#ffffff", "success": "#176b3a",
-            "warning": "#7a4b00", "error": "#a8202a", "info": "#2858c7",
-        }
-    return {
-        "app_bg": APP_BG, "sidebar_bg": SIDEBAR_BG, "panel_bg": PANEL_BG,
-        "elevated_bg": ELEVATED_BG, "composer_bg": COMPOSER_BG,
-        "assistant_bubble": ASSISTANT_BUBBLE, "user_bubble": USER_BUBBLE,
-        "text_primary": TEXT_PRIMARY, "text_secondary": TEXT_SECONDARY,
-        "text_muted": TEXT_MUTED, "border": BORDER, "soft_border": SOFT_BORDER,
-        "accent": ACCENT, "accent_hover": ACCENT_HOVER, "disabled": DISABLED,
-        "pressed": "#303846", "selected": "#252d3a", "focus": ACCENT_HOVER,
-        "user_border": "#3b6bed", "user_text": "#ffffff", "success": SUCCESS,
-        "warning": WARNING, "error": ERROR, "info": ACCENT,
-    }
+    return resolve_palette(theme, system_lightness).as_legacy_dict()
 
 
 _palette_for_theme = theme_palette

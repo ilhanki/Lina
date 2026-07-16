@@ -1,0 +1,29 @@
+import pytest
+
+from lina.ui.design import contrast_ratio, design_tokens, resolve_palette
+
+
+def test_design_scales_and_layout_metrics_are_centralized():
+    tokens = design_tokens("dark")
+    assert tuple(vars(tokens.spacing).values()) if hasattr(tokens.spacing, "__dict__") else tokens.spacing.max == 64
+    assert tokens.spacing.xxs == 2 and tokens.spacing.max == 64
+    assert tokens.radius.pill == 999
+    assert tokens.layout.navigation_expanded == 264
+    assert tokens.layout.navigation_collapsed == 64
+    assert 760 <= tokens.layout.chat_readable <= 920
+
+
+def test_light_dark_and_system_palettes_have_critical_contrast():
+    for theme in ("dark", "light"):
+        palette = resolve_palette(theme)
+        assert contrast_ratio(palette.text_primary, palette.canvas) >= 7
+        assert contrast_ratio(palette.user_text, palette.user_surface) >= 4.5
+    assert resolve_palette("system", 220) == resolve_palette("light")
+    assert resolve_palette("system", 20) == resolve_palette("dark")
+
+
+def test_invalid_theme_and_color_are_rejected():
+    with pytest.raises(ValueError):
+        resolve_palette("neon")
+    with pytest.raises(ValueError):
+        contrast_ratio("red", "#ffffff")

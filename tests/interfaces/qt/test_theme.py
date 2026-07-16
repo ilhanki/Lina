@@ -27,8 +27,8 @@ def test_dark_palette_regression_and_system_resolution() -> None:
     dark = theme_palette("dark")
     assert theme_palette("system", system_lightness=40) == dark
     assert theme_palette("system", system_lightness=220) == theme_palette("light")
-    assert dark["app_bg"] == "#0e1117"
-    assert dark["user_bubble"] == "#2f5fd7"
+    assert dark["app_bg"] == "#111318"
+    assert dark["user_bubble"] == "#315cc8"
 
 
 def test_stylesheet_uses_theme_specific_component_states() -> None:
