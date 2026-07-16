@@ -21,6 +21,8 @@ def test_voice_and_performance_controls_are_present(qtbot, tmp_path):
     assert dialog._benchmark_button.text() == "Performans Testi"
     assert not dialog._benchmark_button.isEnabled()
     assert not dialog._hands_free.isEnabled()
+    assert dialog._calibrate_microphone.text() == "Mikrofonu Kalibre Et"
+    assert dialog._wake_test.text() == "Hey Lina’yı Test Et"
 
 
 def test_dialog_collects_send_mode_and_bounds(qtbot, tmp_path):
@@ -37,6 +39,7 @@ def test_dialog_collects_send_mode_and_bounds(qtbot, tmp_path):
     assert not collected.speech.auto_insert_transcription
     assert collected.speech.speech_rate == 1.5
     assert collected.speech.volume == 0.3
+    assert collected.speech.input_sensitivity == "balanced"
 
 
 def test_benchmark_button_cancels_active_test(qtbot, tmp_path):

@@ -51,6 +51,7 @@ from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, Sideba
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.worker import FunctionWorker
+from lina.interfaces.status import StatusPriority, UnifiedStatusController
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
 from lina.services.conversation_models import ConversationInput, ConversationResult
@@ -198,6 +199,7 @@ class LinaMainWindow(QMainWindow):
         self._input_history_index = 0
         self._is_waiting = False
         self._active_request_id = 0
+        self._unified_status = UnifiedStatusController()
         self._cancelled_request_ids: set[int] = set()
         self._is_speech_busy = False
         self._is_screen_capture_busy = False
@@ -430,6 +432,7 @@ class LinaMainWindow(QMainWindow):
 
         self._status_label = QLabel("Hazır", footer)
         self._status_label.setObjectName("mutedLabel")
+        self._status_label.setAccessibleName("Lina Durumu")
         layout.addWidget(self._status_label, 1)
         parent_layout.addWidget(footer)
 
@@ -492,6 +495,7 @@ class LinaMainWindow(QMainWindow):
                 model_diagnostics=self._diagnostics_service,
                 vision_diagnostics=self._vision_diagnostics_service,
                 voice_controller=self._voice_controller,
+                speech_service=self._speech_service,
                 inference_diagnostics=self._inference_diagnostics_service,
                 parent=self,
             )
@@ -695,6 +699,10 @@ class LinaMainWindow(QMainWindow):
         self._transcription_mode = settings.speech.transcription_mode
         if self._speech_service is not None and hasattr(self._speech_service, "set_microphone_device"):
             self._speech_service.set_microphone_device(settings.speech.microphone_device_id)
+            self._speech_service.configure_microphone(
+                settings.speech.input_sensitivity,
+                settings.speech.calibrated_noise_threshold,
+            )
         if self._voice_controller is not None:
             self._voice_controller.configure(
                 VoiceSettings(
@@ -910,6 +918,11 @@ class LinaMainWindow(QMainWindow):
                 if session.status is AgentSessionStatus.COMPLETED:
                     message = controller.result_summary()
             self._update_agent_ui()
+            active = controller.active_session or controller.session
+            if active is not None:
+                approval = active.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL}
+                completion = active.status in {AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED, AgentSessionStatus.FAILED}
+                self._speak_agent_event(active.session_id, active.status.value, message, approval=approval, completion=completion)
             self._finish_routed_intent(user_text, message, created_at)
         except AgentError as error:
             self._update_agent_ui()
@@ -931,6 +944,10 @@ class LinaMainWindow(QMainWindow):
             session = self._agent_controller.active_session
             self._agent_controller.approve_plan(session.session_id, session.generation_id)
             self._agent_controller.run(self._routing_session_key)
+            current = self._agent_controller.session
+            if current is not None:
+                text = self._agent_controller.result_summary()
+                self._speak_agent_event(current.session_id, current.status.value, text, approval=current.status is AgentSessionStatus.AWAITING_STEP_APPROVAL, completion=current.terminal)
         except AgentError as error:
             self._set_status(str(error))
         self._update_agent_ui()
@@ -941,6 +958,9 @@ class LinaMainWindow(QMainWindow):
         try:
             session = self._agent_controller.active_session
             self._agent_controller.approve_step(session.session_id, decision, session.generation_id)
+            current = self._agent_controller.session
+            if current is not None:
+                self._speak_agent_event(current.session_id, current.status.value, self._agent_controller.result_summary(), approval=current.status is AgentSessionStatus.AWAITING_STEP_APPROVAL, completion=current.terminal)
         except AgentError as error:
             self._set_status(str(error))
         self._update_agent_ui()
@@ -949,6 +969,8 @@ class LinaMainWindow(QMainWindow):
         if self._agent_controller and self._agent_controller.active_session:
             try:
                 self._agent_controller.pause(self._agent_controller.active_session.session_id)
+                session = self._agent_controller.session
+                self._speak_agent_event(session.session_id, "paused", "Agent görevi duraklatıldı.")
             except AgentError as error:
                 self._set_status(str(error))
         self._update_agent_ui()
@@ -957,16 +979,36 @@ class LinaMainWindow(QMainWindow):
         if self._agent_controller and self._agent_controller.active_session:
             try:
                 self._agent_controller.resume(self._agent_controller.active_session.session_id)
+                session = self._agent_controller.session
+                self._speak_agent_event(session.session_id, "resumed", "Agent görevi devam ediyor.")
             except AgentError as error:
                 self._set_status(str(error))
         self._update_agent_ui()
 
     def _cancel_agent(self) -> None:
         if self._agent_controller and self._agent_controller.active_session:
-            self._agent_controller.cancel(self._agent_controller.active_session.session_id)
+            session_id = self._agent_controller.active_session.session_id
+            self._agent_controller.cancel(session_id)
+            self._speak_agent_event(session_id, "cancelled", "Agent görevi iptal edildi.")
         if self._voice_controller is not None:
             self.stop_voice()
         self._update_agent_ui()
+
+    def _speak_agent_event(self, session_id: str, event_id: str, text: str, *, approval: bool = False, completion: bool = False) -> None:
+        if self._voice_controller is None or self._user_settings_service is None:
+            return
+        settings = self._user_settings_service.current.agent
+        allowed = (
+            (approval and settings.speak_agent_approvals)
+            or (completion and settings.speak_agent_completion)
+            or (not approval and not completion and settings.speak_important_agent_events)
+        )
+        if not allowed:
+            return
+        try:
+            self._voice_controller.speak_agent(text, session_id=session_id, event_id=f"{session_id}:{event_id}", approval=approval)
+        except Exception:
+            return
 
     def _toggle_agent_pause(self) -> None:
         session = self._agent_controller.active_session if self._agent_controller else None
@@ -2466,8 +2508,9 @@ class LinaMainWindow(QMainWindow):
         self._is_waiting = waiting
         self._composer.set_waiting(waiting)
 
-    def _set_status(self, text: str) -> None:
-        self._status_label.setText(text)
+    def _set_status(self, text: str, *, generation: int | None = None, priority: StatusPriority = StatusPriority.ACTIVE) -> None:
+        if self._unified_status.publish(text, generation=generation, priority=priority):
+            self._status_label.setText(text)
 
     def _run_initial_diagnostics(self) -> None:
         if self._diagnostics_service is None:

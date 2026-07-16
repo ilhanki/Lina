@@ -43,6 +43,7 @@ class SettingsDialog(QDialog):
         model_diagnostics=None,
         vision_diagnostics=None,
         voice_controller=None,
+        speech_service=None,
         inference_diagnostics=None,
         privacy_confirmation=None,
         parent=None,
@@ -52,6 +53,7 @@ class SettingsDialog(QDialog):
         self._model_diagnostics = model_diagnostics
         self._vision_diagnostics = vision_diagnostics
         self._voice_controller = voice_controller
+        self._speech_service = speech_service
         self._inference_diagnostics = inference_diagnostics
         self._privacy_confirmation = privacy_confirmation or self._show_hands_free_privacy_confirmation
         self._benchmark_worker = None
@@ -213,6 +215,12 @@ class SettingsDialog(QDialog):
         self._microphone_device.addItem("Varsayılan mikrofon", None)
         self._refresh_microphones = QPushButton("Mikrofonları Yenile", page)
         self._test_microphone = QPushButton("Mikrofonu Test Et", page)
+        self._calibrate_microphone = QPushButton("Mikrofonu Kalibre Et", page)
+        self._wake_test = QPushButton("Hey Lina’yı Test Et", page)
+        self._input_sensitivity = QComboBox(page)
+        self._input_sensitivity.addItem("Hassas", "sensitive")
+        self._input_sensitivity.addItem("Dengeli", "balanced")
+        self._input_sensitivity.addItem("Gürültülü ortam", "noisy")
         self._microphone_status = QLabel("", page)
         wake_available = bool(self._voice_controller and self._voice_controller.wake_word_available)
         self._hands_free.setEnabled(wake_available)
@@ -235,16 +243,21 @@ class SettingsDialog(QDialog):
         form.addRow(self._return_to_wake)
         form.addRow(self._voice_confirmation)
         form.addRow("Mikrofon", self._microphone_device)
+        form.addRow("Giriş hassasiyeti", self._input_sensitivity)
         microphone_actions = QWidget(page)
         microphone_layout = QHBoxLayout(microphone_actions)
         microphone_layout.setContentsMargins(0, 0, 0, 0)
         microphone_layout.addWidget(self._refresh_microphones)
         microphone_layout.addWidget(self._test_microphone)
+        microphone_layout.addWidget(self._calibrate_microphone)
         form.addRow(microphone_actions)
         form.addRow(self._microphone_status)
+        form.addRow(self._wake_test)
         self._hands_free.clicked.connect(self._confirm_hands_free_enable)
         self._refresh_microphones.clicked.connect(self._refresh_audio_input_devices)
         self._test_microphone.clicked.connect(self._test_selected_microphone)
+        self._calibrate_microphone.clicked.connect(self._calibrate_selected_microphone)
+        self._wake_test.clicked.connect(self._test_wake_phrase)
         self._refresh_audio_input_devices()
         return page
 
@@ -349,6 +362,9 @@ class SettingsDialog(QDialog):
         self._agent_confirm_persistent.setEnabled(False)
         self._agent_confirm_persistent.setToolTip("Bu güvenlik ayarı kapatılamaz.")
         self._agent_speak_progress = QCheckBox("Agent ilerlemesini seslendir", page)
+        self._agent_speak_important = QCheckBox("Yalnız önemli Agent durumlarını seslendir", page)
+        self._agent_speak_completion = QCheckBox("Agent tamamlanınca konuş", page)
+        self._agent_speak_approvals = QCheckBox("Agent onay sorularını seslendir", page)
         self._agent_notify_completion = QCheckBox("Görev tamamlanınca bildirim göster", page)
         form.addRow(self._agent_enabled)
         form.addRow("Maksimum adım", self._agent_max_steps)
@@ -357,6 +373,9 @@ class SettingsDialog(QDialog):
         form.addRow(self._agent_show_plan)
         form.addRow(self._agent_confirm_persistent)
         form.addRow(self._agent_speak_progress)
+        form.addRow(self._agent_speak_important)
+        form.addRow(self._agent_speak_completion)
+        form.addRow(self._agent_speak_approvals)
         form.addRow(self._agent_notify_completion)
         note = QLabel("Agent Mode varsayılan olarak kapalıdır; shell, browser, dosya yazma ve gizli cihaz erişimi yasaktır.", page)
         note.setWordWrap(True)
@@ -416,6 +435,7 @@ class SettingsDialog(QDialog):
         self._return_to_wake.setChecked(settings.speech.return_to_wake_listening)
         self._voice_confirmation.setChecked(settings.speech.voice_confirmation_enabled)
         _select_data(self._microphone_device, settings.speech.microphone_device_id)
+        _select_data(self._input_sensitivity, settings.speech.input_sensitivity)
         self._vision_enabled.setChecked(settings.vision.enabled)
         self._vision_consume.setChecked(settings.vision.consume_attachment_on_success)
         self._live_vision_enabled.setChecked(settings.live_vision.enabled)
@@ -448,6 +468,9 @@ class SettingsDialog(QDialog):
         self._agent_show_plan.setChecked(settings.agent.always_show_plan)
         self._agent_confirm_persistent.setChecked(True)
         self._agent_speak_progress.setChecked(settings.agent.speak_agent_progress)
+        self._agent_speak_important.setChecked(settings.agent.speak_important_agent_events)
+        self._agent_speak_completion.setChecked(settings.agent.speak_agent_completion)
+        self._agent_speak_approvals.setChecked(settings.agent.speak_agent_approvals)
         self._agent_notify_completion.setChecked(settings.agent.notify_agent_completion)
 
     def _collect_settings(self) -> UserSettings:
@@ -495,6 +518,7 @@ class SettingsDialog(QDialog):
                 return_to_wake_listening=self._return_to_wake.isChecked(),
                 voice_confirmation_enabled=self._voice_confirmation.isChecked(),
                 microphone_device_id=self._microphone_device.currentData(),
+                input_sensitivity=str(self._input_sensitivity.currentData()),
             ),
             vision=replace(
                 self._draft.vision,
@@ -539,6 +563,9 @@ class SettingsDialog(QDialog):
                 always_show_plan=self._agent_show_plan.isChecked(),
                 always_confirm_persistent_steps=True,
                 speak_agent_progress=self._agent_speak_progress.isChecked(),
+                speak_important_agent_events=self._agent_speak_important.isChecked(),
+                speak_agent_completion=self._agent_speak_completion.isChecked(),
+                speak_agent_approvals=self._agent_speak_approvals.isChecked(),
                 notify_agent_completion=self._agent_notify_completion.isChecked(),
             ),
         )
@@ -625,11 +652,55 @@ class SettingsDialog(QDialog):
         worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
         QThreadPool.globalInstance().start(worker)
 
+    def _calibrate_selected_microphone(self) -> None:
+        if self._audio_worker is not None or self._speech_service is None:
+            self._microphone_status.setText("Mikrofon kalibrasyonu kullanılamıyor.")
+            return
+        QMessageBox.information(
+            self,
+            "Mikrofon Kalibrasyonu",
+            "İlk iki saniye sessiz kal. Ardından ‘Merhaba Lina, beni duyuyor musun?’ de.",
+        )
+        self._calibrate_microphone.setEnabled(False)
+        self._speech_service.set_microphone_device(self._microphone_device.currentData())
+        worker = FunctionWorker(self._speech_service.calibrate_microphone)
+        self._audio_worker = worker
+        worker.signals.result.connect(self._show_calibration_result)
+        worker.signals.error.connect(lambda _error: self._microphone_status.setText("Kalibrasyon tamamlanamadı."))
+        worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
+        QThreadPool.globalInstance().start(worker)
+
+    def _show_calibration_result(self, result: object) -> None:
+        message = str(getattr(result, "message", "Kalibrasyon tamamlandı."))
+        self._microphone_status.setText(message)
+        answer = QMessageBox.question(self, "Mikrofon Kalibrasyonu", f"{message}\nÖnerilen ayar uygulansın mı?")
+        if answer == QMessageBox.StandardButton.Yes:
+            _select_data(self._input_sensitivity, getattr(result, "suggested_preset", "balanced"))
+            self._draft = replace(
+                self._draft,
+                speech=replace(self._draft.speech, calibrated_noise_threshold=getattr(result, "suggested_threshold", None)),
+            )
+
+    def _test_wake_phrase(self) -> None:
+        if self._audio_worker is not None or self._voice_controller is None or not self._voice_controller.wake_word_available:
+            self._microphone_status.setText("Hey Lina algılama şu anda kullanılamıyor.")
+            return
+        self._wake_test.setEnabled(False)
+        self._microphone_status.setText("15 saniye boyunca ‘Hey Lina’ demeyi dene…")
+        worker = FunctionWorker(self._voice_controller.run_wake_test, 15.0)
+        self._audio_worker = worker
+        worker.signals.result.connect(lambda count: self._microphone_status.setText(f"Hey Lina {count} kez algılandı."))
+        worker.signals.error.connect(lambda _error: self._microphone_status.setText("Hey Lina testi tamamlanamadı."))
+        worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
+        QThreadPool.globalInstance().start(worker)
+
     def _finish_audio_worker(self, worker: object) -> None:
         if self._audio_worker is worker:
             self._audio_worker = None
             self._refresh_microphones.setEnabled(True)
             self._test_microphone.setEnabled(True)
+            self._calibrate_microphone.setEnabled(True)
+            self._wake_test.setEnabled(True)
 
     def _refresh_model_list(self) -> None:
         if self._model_diagnostics is None or self._refresh_worker is not None:
