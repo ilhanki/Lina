@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QMessageBox,
     QPushButton,
+    QProgressBar,
     QSlider,
     QSpinBox,
     QStackedWidget,
@@ -222,6 +223,11 @@ class SettingsDialog(QDialog):
         self._input_sensitivity.addItem("Dengeli", "balanced")
         self._input_sensitivity.addItem("Gürültülü ortam", "noisy")
         self._microphone_status = QLabel("", page)
+        self._wake_test_level = QProgressBar(page)
+        self._wake_test_level.setRange(0, 10)
+        self._wake_test_level.setValue(0)
+        self._wake_test_level.setFormat("Wake algılama · %v")
+        self._wake_test_level.setAccessibleName("Hey Lina test göstergesi")
         wake_available = bool(self._voice_controller and self._voice_controller.wake_word_available)
         self._hands_free.setEnabled(wake_available)
         self._wake_word.setEnabled(wake_available)
@@ -253,6 +259,7 @@ class SettingsDialog(QDialog):
         form.addRow(microphone_actions)
         form.addRow(self._microphone_status)
         form.addRow(self._wake_test)
+        form.addRow(self._wake_test_level)
         self._hands_free.clicked.connect(self._confirm_hands_free_enable)
         self._refresh_microphones.clicked.connect(self._refresh_audio_input_devices)
         self._test_microphone.clicked.connect(self._test_selected_microphone)
@@ -686,13 +693,32 @@ class SettingsDialog(QDialog):
             self._microphone_status.setText("Hey Lina algılama şu anda kullanılamıyor.")
             return
         self._wake_test.setEnabled(False)
+        self._wake_test_level.setRange(0, 0)
         self._microphone_status.setText("15 saniye boyunca ‘Hey Lina’ demeyi dene…")
         worker = FunctionWorker(self._voice_controller.run_wake_test, 15.0)
         self._audio_worker = worker
-        worker.signals.result.connect(lambda count: self._microphone_status.setText(f"Hey Lina {count} kez algılandı."))
+        worker.signals.result.connect(self._show_wake_test_result)
         worker.signals.error.connect(lambda _error: self._microphone_status.setText("Hey Lina testi tamamlanamadı."))
         worker.signals.finished.connect(lambda: self._finish_audio_worker(worker))
         QThreadPool.globalInstance().start(worker)
+
+    def _show_wake_test_result(self, count: object) -> None:
+        detections = int(count) if isinstance(count, int) else 0
+        self._wake_test_level.setRange(0, 10)
+        self._wake_test_level.setValue(min(10, detections))
+        self._microphone_status.setText(f"Hey Lina {detections} kez algılandı.")
+        box = QMessageBox(self)
+        box.setWindowTitle("Hey Lina Testi")
+        box.setText(f"Hey Lina {detections} kez algılandı. Son algılama doğru muydu?")
+        correct = box.addButton("Doğru algıladı", QMessageBox.ButtonRole.AcceptRole)
+        incorrect = box.addButton("Yanlış algıladı", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Kapat", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        if box.clickedButton() is correct:
+            self._microphone_status.setText("Wake algılama geri bildirimi yerel olarak uygulandı.")
+        elif box.clickedButton() is incorrect:
+            self._input_sensitivity.setCurrentIndex(self._input_sensitivity.findData("noisy"))
+            self._microphone_status.setText("Yanlış tetiklenmeyi azaltmak için gürültülü ortam ayarı önerildi.")
 
     def _finish_audio_worker(self, worker: object) -> None:
         if self._audio_worker is worker:
@@ -701,6 +727,8 @@ class SettingsDialog(QDialog):
             self._test_microphone.setEnabled(True)
             self._calibrate_microphone.setEnabled(True)
             self._wake_test.setEnabled(True)
+            if self._wake_test_level.maximum() == 0:
+                self._wake_test_level.setRange(0, 10)
 
     def _refresh_model_list(self) -> None:
         if self._model_diagnostics is None or self._refresh_worker is not None:

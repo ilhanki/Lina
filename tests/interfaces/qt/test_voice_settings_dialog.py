@@ -23,6 +23,7 @@ def test_voice_and_performance_controls_are_present(qtbot, tmp_path):
     assert not dialog._hands_free.isEnabled()
     assert dialog._calibrate_microphone.text() == "Mikrofonu Kalibre Et"
     assert dialog._wake_test.text() == "Hey Lina’yı Test Et"
+    assert dialog._wake_test_level.accessibleName() == "Hey Lina test göstergesi"
 
 
 def test_dialog_collects_send_mode_and_bounds(qtbot, tmp_path):
