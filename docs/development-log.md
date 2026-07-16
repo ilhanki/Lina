@@ -2471,3 +2471,15 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Manual realtime camera validation deferred.
 - Yeni dependency eklenmedi. Foundation commit’i `410c854`, entegrasyon commit’i `246a74d`.
 - Dokümantasyon öncesi tam paket 917 passed; compile başarılı.
+
+## 2026-07-16 - Tag Öncesi Interaction Quality & Voice Stabilization
+
+- Kısa katmanlı system prompt, dengeli normal-chat generation seçenekleri ve düşük sıcaklıklı tek repair zinciri eklendi.
+- Türkçe dil karışması, tekrar, persona bozulması, anlamsız token ve eksik cevaplar ortak quality gate ile kabul öncesi denetleniyor.
+- Context duplicate/internal/raw-plan temizliği ve cumulative stream chunk bastırması eklendi.
+- STT için in-memory DC düzeltme, bounded gain, clipping koruması ve transcription duplicate/low-quality sinyali eklendi.
+- VAD pre-roll/adaptive noise floor; wake phrase normalization, false-positive listesi ve cooldown ile güçlendirildi.
+- TTS request metadata, stale callback koruması, generation deduplication ve deterministic spoken-text temizliği eklendi.
+- Agent approval/completion/important event ses tercihleri; mikrofon kalibrasyonu, wake test aracı ve stale-safe birleşik durum modeli eklendi.
+- Settings schema v7 eski şemaları koruyarak migration yapar. Yeni dependency, cloud speech, raw audio persistence veya kamera kodu değişikliği yoktur.
+- Başlangıçta 918, finalde 931 test geçti; compileall ve PySide6 import doğrulandı.

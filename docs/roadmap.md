@@ -11,6 +11,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.11.1-alpha`: Live Preview & Monitoring Overlays tamamlandı.
 - `v0.11.2-alpha`: Realtime Camera Conversation tamamlandı.
 - `v0.12.0-alpha`: Agent Mode Foundation tamamlandı.
+- `v0.12.0-alpha` tag öncesi Interaction Quality & Voice Stabilization tamamlandı; Windows gerçek mikrofon/TTS ve realtime kamera doğrulaması manuel smoke testtedir.
 - `v0.12.1-alpha`: Agent Reliability & Task Templates.
 - `v0.13.0-alpha`: Codex Bridge.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.

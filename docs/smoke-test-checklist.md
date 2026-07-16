@@ -2,6 +2,19 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## v0.12.0-alpha Interaction Quality & Voice Stabilization
+
+- `Yapay zekâ ajanı nedir?` sorusunda 2–4 cümlelik doğrudan Türkçe cevap, bağlamsız selamlama/dil karışması/persona karışması/tekrar olmamalı.
+- `Nasılsın Lina?` kısa ve doğal yanıt vermeli; ansiklopedi paragrafına dönüşmemeli.
+- Mikrofondan `Bugün saat yedide spor yapmayı hatırlat.` söyle; ilk/son kelime korunmalı ve duplicate mesaj oluşmamalı.
+- Ayarlar > Konuşma’da kalibrasyonu çalıştır: iki saniye sessiz kal, istenen cümleyi söyle, sonucu onayla veya vazgeç; audio dosyası oluşmamalı.
+- Wake testinde `Hey Lina`/`He Lina` algılanmalı; `Lira`, `Leyla`, `Hey millet` tetiklememeli ve test normal chat/Agent komutu başlatmamalı.
+- Agent read-only özet görevinde plan/onay ve final durumunun ayarlara göre bir kez seslendirildiğini doğrula.
+- Lina konuşurken barge-in yap; eski ses durmalı, wake listening geri dönmeli ve stale callback yeni sesi bozmamalı.
+- Agent, Voice ve Vision birlikte açıkken ana durum metni aktif işi göstermeli; durum yalnız renkle anlatılmamalı.
+- Gerçek WinRT voice, farklı mikrofonlar, sessiz/gürültülü oda, dar pencere, %85/%135 font, light/dark/system tema ve tray eşleşmesini Windows’ta manuel doğrula.
+- Manual realtime camera validation deferred; kamera sistemi bu sprintte değiştirilmedi.
+
 ## Windows Agent Mode Foundation Smoke Test
 
 - Temiz ayar profiliyle aç; Agent Mode kapalı, maksimum adım 8, maksimum replan 1, auto-start kapalı, plan göster açık ve persistent approval kilitli/açık olmalı.

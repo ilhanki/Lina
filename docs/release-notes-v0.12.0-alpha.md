@@ -38,3 +38,21 @@ Başlangıçta 870 test geçti. Sprint sonunda 918 test, compileall ve PySide6 i
 - Manual realtime camera validation deferred. Kamera altyapısı bu sprintte değiştirilmemiştir.
 
 Bu sprint `v0.12.0-alpha` tag’i oluşturmaz.
+
+## Tag Öncesi Interaction Quality & Voice Stabilization
+
+- Normal chat, vision ve model sonuçları ortak Türkçe dil/repetition/malformed kalite kapısından geçer; reddedilen taslak persist edilmez.
+- Repair en fazla bir kez, düşük sıcaklıkta ve full history/system prompt olmadan çalışır; ikinci başarısızlık güvenli fallback’tir.
+- Context duplicate/internal/tool/raw Agent plan verisini filtreler; stream parser duplicate/cumulative chunk’ları bastırır.
+- Mikrofon PCM’i yalnız bellekte DC offset, bounded gain ve clipping korumasından geçer. VAD pre-roll ve adaptive noise floor kullanır.
+- STT metni Unicode/noise marker/whitespace açısından normalize edilir; düşük kaliteli ve kısa aralıklı duplicate transcription işaretlenir.
+- Kalibrasyon ham sesi saklamadan ortam/konuşma enerjisini ölçer ve kullanıcı onayıyla hassasiyet önerir. Wake test normal komut çalıştırmaz.
+- Wake phrase normalization, cooldown ve `lira`/`leyla`/`hey millet` false-positive koruması eklendi.
+- TTS source/session/generation/priority metadata’sı ve duplicate/stale playback koruması eklendi; Markdown, URL, kod ve emoji konuşma kopyasından temizlenir.
+- Agent plan/onay/tamamlanma/hata gibi önemli olayları ayrı tercihlerle seslendirebilir.
+- Settings schema v7 ve stale callback korumalı `Lina Durumu` temeli eklendi.
+- Tam prompt, full model response, transcription metni, repair içeriği ve raw audio teknik loglara veya persistence’a yazılmaz.
+
+Gerçek Windows mikrofon, gürültülü oda, WinRT sesleri, tray ve realtime kamera davranışı manuel smoke test gerektirir. Kamera sistemi bu geçişte değiştirilmemiştir. Yeni dependency ve tag yoktur.
+
+Stabilizasyon başlangıcında 918 test geçti; finalde 931 test, `compileall` ve PySide6 import kapıları başarılıdır.

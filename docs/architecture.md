@@ -4,6 +4,14 @@ Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hı
 
 ## Agent Mode Foundation (v0.12.0-alpha)
 
+### Tag öncesi interaction quality ve voice stabilization
+
+`lina.quality` GUI’den bağımsız ortak kabul kapısıdır. Unicode normalize edilmiş model cevabında dil karışması, belirgin bozuk token/persona, ilgisiz giriş, yarım cevap ve cümle/paragraf/n-gram tekrarını deterministic ölçer. Geçersiz taslak history veya kalıcı mesaj olmaz; yalnız kullanıcı sorusu ve bounded taslakla, düşük sıcaklıkta tek repair yapılır. İkinci başarısızlık güvenli kısa fallback üretir. Context builder exact duplicate, tool/internal içerik, Base64 ve ham Agent planını çıkarır; stream parser cumulative ve duplicate chunk’ları bastırır.
+
+Mikrofon hattı bellekte DC-offset düzeltme, bounded gain, clipping koruması, pre-roll ve adaptive noise floor uygular. STT çıktısı Unicode/whitespace/noise-marker açısından normalize edilir ve iki saniyelik duplicate pencereyle korunur. Kalibrasyon ilk iki saniyeyi ortam, kalan bölümü konuşma olarak yalnız bellekte ölçer; ham audio yazılmaz. Wake detector phrase normalization ve cooldown kullanır; ayarlardaki test modu normal command listener’larını çalıştırmaz.
+
+Her TTS isteği source, session/generation, priority ve cancellable metadata’sı taşır. Aynı source+generation+metin ikinci kez okunmaz; stop eski playback callback’ini stale yapar. Agent approval ve completion sesleri normal chat voice tercihinden bağımsız açılabilir. `UnifiedStatusController` generation kontrolüyle eski callback’in yeni durumu geri çevirmesini önler.
+
 Agent katmanı `lina.agent` altında framework bağımsızdır. `AgentController` tek aktif session kuralını, lifecycle geçişlerini, plan ve step onaylarını, pause/resume/cancel, bounded retry/replan, completion ve shutdown cleanup’ı koordine eder. `AgentSession`, `AgentPlan`, `AgentStep`, status/risk/verification enum’ları ve metrics typed modellerdir; raw planner dict’i veya tool payload’ı GUI’ye taşınmaz.
 
 `AgentPlanner`, yalnızca sanitized `CapabilitySnapshot` ve bounded `AgentContext` görür. Snapshot araç adı, kısa açıklama, argüman türleri, sonuç türü, availability, risk ve approval bilgisinden oluşur; callback, servis nesnesi, secret, environment, dosya içeriği veya tam log içermez. Serbest planner çıktısı schema parse edilir; ilk hata sonrası yalnızca bir repair denenir. Duplicate tool+arguments, geçersiz dependency, cycle ve 12 üstü step güvenli plan hatasıdır.
