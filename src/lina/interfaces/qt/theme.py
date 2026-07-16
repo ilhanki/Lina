@@ -91,10 +91,17 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {app_bg};
         }}
         QDialog#notificationCenter, QDialog#reminderDialog {{ background: {app_bg}; }}
-        QStackedWidget#settingsPages {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 9px; }}
-        QListWidget#settingsNavigation {{ background: {sidebar_bg}; border: 1px solid {border}; }}
+        QStackedWidget#settingsPages {{ background: {panel_bg}; border: none; border-radius: 12px; }}
+        QListWidget#settingsNavigation {{ background: transparent; border: none; }}
         QListWidget#settingsNavigation::item {{ margin: 2px; padding: 9px; }}
         QListWidget#settingsNavigation::item:selected {{ background: {selected}; color: {text_primary}; border-left: 3px solid {accent}; }}
+        QLineEdit#settingsSearch {{ min-height: 38px; border-radius: 10px; padding: 0 12px; }}
+        QLabel#settingsPageTitle {{ font-size: 16pt; font-weight: 650; color: {text_primary}; }}
+        QLabel#settingsDescription {{ color: {text_muted}; padding: 5px 0; }}
+        QProgressBar#agentProgress {{
+            background: {elevated_bg}; border: none; border-radius: 3px; min-height: 6px; max-height: 6px;
+        }}
+        QProgressBar#agentProgress::chunk {{ background: {accent}; border-radius: 3px; }}
         QComboBox#notificationFilter {{ background: {panel_bg}; font-weight: 600; }}
         QListWidget#notificationItems {{ background: {panel_bg}; }}
         QPushButton#notificationButton {{ min-width: 42px; border-color: {accent}; }}

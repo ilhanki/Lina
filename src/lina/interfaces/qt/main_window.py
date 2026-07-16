@@ -215,6 +215,7 @@ class LinaMainWindow(QMainWindow):
         self._scroll_retry_count = 0
         self._is_programmatic_scroll = False
         self._message_font_size = MESSAGE_FONT_DEFAULT
+        self._interface_density = "comfortable"
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
         self._welcome_state: WelcomeStateWidget | None = None
@@ -419,11 +420,13 @@ class LinaMainWindow(QMainWindow):
         self._live_pause = QPushButton("Duraklat", panel)
         self._live_stop = QPushButton("Durdur", panel)
         self._live_show_preview = QPushButton("Preview’i Göster", panel)
+        self._live_details = QPushButton("Ayrıntılar", panel)
         self._live_analyze.clicked.connect(self._live_analyze_now)
         self._live_pause.clicked.connect(self._toggle_live_pause)
         self._live_stop.clicked.connect(self._stop_live_vision)
         self._live_show_preview.clicked.connect(self._show_existing_camera_preview)
-        for button in (self._live_analyze, self._live_pause, self._live_stop, self._live_show_preview):
+        self._live_details.clicked.connect(self._show_vision_inspector)
+        for button in (self._live_analyze, self._live_pause, self._live_stop, self._live_show_preview, self._live_details):
             button.setEnabled(False)
             layout.addWidget(button)
         panel.hide()
@@ -439,6 +442,7 @@ class LinaMainWindow(QMainWindow):
         self._agent_panel.pause_requested.connect(self._pause_agent)
         self._agent_panel.resume_requested.connect(self._resume_agent)
         self._agent_panel.cancel_requested.connect(self._cancel_agent)
+        self._agent_panel.details_requested.connect(self._show_agent_inspector)
         self._agent_panel.render(self._agent_controller.session if self._agent_controller else None, enabled=self._agent_enabled)
         self._agent_panel.setVisible(bool(self._agent_controller and self._agent_controller.session))
         parent_layout.addWidget(self._agent_panel)
@@ -567,6 +571,14 @@ class LinaMainWindow(QMainWindow):
             if session.plan is not None:
                 summary = f"{session.plan.summary}\n\n{summary}"
         self._inspector.show_details("Agent Görevi", summary)
+        self._inspector_button.setText("Ayrıntıları Kapat")
+
+    def _show_vision_inspector(self) -> None:
+        snapshot = self._live_vision_controller.snapshot if self._live_vision_controller else None
+        summary = "Aktif Vision oturumu yok."
+        if snapshot is not None:
+            summary = f"Kaynak: {snapshot.source.value}\nDurum: {snapshot.state.value}\n{snapshot.last_result or snapshot.user_message}"
+        self._inspector.show_details("Vision Oturumu", summary)
         self._inspector_button.setText("Ayrıntıları Kapat")
 
     def _show_status_menu(self) -> None:
@@ -785,6 +797,8 @@ class LinaMainWindow(QMainWindow):
         elif not settings.general.welcome_enabled:
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
+        self._interface_density = settings.appearance.density
+        self._sidebar.set_collapsed(settings.appearance.density == "compact" or self.width() < design_tokens("dark").layout.compact_breakpoint)
         self._voice_responses_enabled = settings.speech.voice_responses_enabled
         hands_free_was_enabled = self._hands_free_enabled
         self._hands_free_enabled = settings.speech.hands_free_enabled
@@ -1123,7 +1137,7 @@ class LinaMainWindow(QMainWindow):
             return
         session = self._agent_controller.session if self._agent_controller else None
         self._agent_panel.render(session, enabled=self._agent_enabled)
-        self._agent_panel.setVisible(session is not None and not session.terminal)
+        self._agent_panel.setVisible(session is not None)
         active = bool(self._agent_controller and self._agent_controller.active_session)
         if hasattr(self, "_tray_agent_pause_action"):
             self._tray_agent_show_action.setEnabled(active)
@@ -2713,7 +2727,7 @@ class LinaMainWindow(QMainWindow):
     def resizeEvent(self, event: Any) -> None:
         super().resizeEvent(event)
         if hasattr(self, "_sidebar"):
-            compact = self.width() < design_tokens("dark").layout.compact_breakpoint
+            compact = self._interface_density == "compact" or self.width() < design_tokens("dark").layout.compact_breakpoint
             self._sidebar.set_collapsed(compact)
             self._composer.set_compact(compact)
             if compact and hasattr(self, "_inspector"):

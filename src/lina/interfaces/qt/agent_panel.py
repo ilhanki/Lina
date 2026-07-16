@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from lina.agent.models import AgentSession, AgentSessionStatus, AgentStepStatus
 
@@ -30,6 +30,7 @@ class AgentPanel(QWidget):
     pause_requested = Signal()
     resume_requested = Signal()
     cancel_requested = Signal()
+    details_requested = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -46,13 +47,17 @@ class AgentPanel(QWidget):
         header.addWidget(self.mode_label)
         header.addWidget(self.progress_label, 1)
         self.details_button = QPushButton("Ayrıntıları Göster", self)
-        self.details_button.setCheckable(True)
-        self.details_button.toggled.connect(self._toggle_details)
+        self.details_button.clicked.connect(self.details_requested)
         header.addWidget(self.details_button)
         root.addLayout(header)
         self.summary_label = QLabel("", self)
         self.summary_label.setWordWrap(True)
         root.addWidget(self.summary_label)
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setObjectName("agentProgress")
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setAccessibleName("Agent görev ilerlemesi")
+        root.addWidget(self.progress_bar)
         self.steps_label = QLabel("", self)
         self.steps_label.setWordWrap(True)
         self.steps_label.setTextInteractionFlags(self.steps_label.textInteractionFlags())
@@ -75,21 +80,21 @@ class AgentPanel(QWidget):
         layout.addWidget(button)
         return button
 
-    def _toggle_details(self, shown: bool) -> None:
-        self.steps_label.setVisible(shown)
-        self.details_button.setText("Ayrıntıları Gizle" if shown else "Ayrıntıları Göster")
-
     def render(self, session: AgentSession | None, *, enabled: bool) -> None:
         self.mode_label.setText(f"Agent Mode · {'Açık' if enabled else 'Kapalı'}")
         if session is None:
             self.progress_label.setText("Aktif görev yok")
             self.summary_label.setText("Agent Mode yalnızca açıkça istendiğinde plan hazırlar.")
             self.steps_label.setText("")
+            self.progress_bar.setRange(0, 1)
+            self.progress_bar.setValue(0)
             self._set_actions()
             return
         plan = session.plan
         total = len(plan.steps) if plan else 0
         current = min(session.current_step_index + (0 if session.terminal else 1), total)
+        self.progress_bar.setRange(0, max(1, total))
+        self.progress_bar.setValue(current)
         self.progress_label.setText(f"{session.status.value} · {current}/{total}")
         self.summary_label.setText(plan.summary if plan else "Plan hazırlanıyor…")
         if plan:
@@ -111,3 +116,17 @@ class AgentPanel(QWidget):
             AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
             AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED, AgentSessionStatus.BLOCKED,
         })
+        visibility = {
+            self.start_button: status is AgentSessionStatus.AWAITING_PLAN_APPROVAL,
+            self.approve_button: waiting,
+            self.skip_button: waiting,
+            self.modify_button: status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL},
+            self.pause_button: status in {AgentSessionStatus.READY, AgentSessionStatus.RUNNING, AgentSessionStatus.AWAITING_STEP_APPROVAL},
+            self.resume_button: status is AgentSessionStatus.PAUSED,
+            self.cancel_button: status is not None and not (status in {
+                AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
+                AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED, AgentSessionStatus.BLOCKED,
+            }),
+        }
+        for button, visible in visibility.items():
+            button.setVisible(visible)
