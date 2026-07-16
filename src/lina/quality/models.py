@@ -23,3 +23,5 @@ class ResponseRepairResult:
     repaired: bool
     rejected: bool
     quality: ResponseQualityResult
+    stale: bool = False
+    cancelled: bool = False

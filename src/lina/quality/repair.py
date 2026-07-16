@@ -20,11 +20,13 @@ class ResponseRepairService:
         self.repair_count = 0
         self.rejection_count = 0
 
-    def accept(self, user_text: str, draft: str) -> ResponseRepairResult:
+    def accept(self, user_text: str, draft: str, *, request_is_current: Callable[[], bool] | None = None) -> ResponseRepairResult:
         expected_language = "tr" if _looks_turkish(user_text) else "unknown"
         first = self.validator.validate(draft, user_text=user_text, expected_language=expected_language)
         if first.is_valid:
             return ResponseRepairResult(first.normalized_text, False, False, first)
+        if request_is_current is not None and not request_is_current():
+            return ResponseRepairResult("", False, True, first, stale=True, cancelled=True)
         if self._repair is None:
             self.rejection_count += 1
             return ResponseRepairResult(SAFE_FALLBACK, False, True, first)
@@ -34,6 +36,8 @@ class ResponseRepairService:
         except Exception:
             repaired_text = ""
         second = self.validator.validate(repaired_text, user_text=user_text, expected_language=expected_language)
+        if request_is_current is not None and not request_is_current():
+            return ResponseRepairResult("", True, True, second, stale=True, cancelled=True)
         if second.is_valid:
             _logger.info("response_quality repaired=true language=%s", second.detected_language)
             return ResponseRepairResult(second.normalized_text, True, False, second)

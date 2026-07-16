@@ -17,6 +17,8 @@ def test_valid_turkish_and_allowed_technical_terms(text):
     "Assistant: kullanıcı: Ben Sen Lina'sın.",
     "...!!!",
     "",
+    "Sen nasılsın, ben Sen Lina'sın. Yapay zekâ agent hakkında trí tuệ nhân tạo ve thingsi söyler. Aynı fikir. Aynı fikir.",
+    "Bu responseu düzenleyip fileı chatte kullanabilirsin.",
 ])
 def test_obvious_corruption_is_rejected(text):
     assert not ResponseQualityValidator().validate(text, user_text="Yapay zekâ ajanı nedir?").is_valid
@@ -40,3 +42,25 @@ def test_failed_repair_uses_safe_fallback_without_loop():
     assert calls == [True]
     assert service.repair_count == 1
     assert service.rejection_count == 1
+
+
+def test_foreign_phrase_and_suffix_leakage_are_privacy_safe_metrics():
+    result = ResponseQualityValidator().validate(
+        "Yapay zekâ için trí tuệ nhân tạo açıklaması ve responseu burada.",
+        user_text="Yapay zekâ ajanı nedir?",
+    )
+    assert not result.is_valid
+    assert result.metrics["foreign_phrase_detected"] is True
+    assert all("trí" not in str(value) for value in result.metrics.values())
+
+
+def test_cancelled_or_stale_repair_is_never_presented():
+    states = iter((True, False))
+    service = ResponseRepairService(lambda _question, _draft: "Düzgün ve doğal Türkçe cevap.")
+    result = service.accept(
+        "Bu nedir?",
+        "thingsi imagesi",
+        request_is_current=lambda: next(states),
+    )
+    assert result.stale and result.cancelled
+    assert result.text == ""

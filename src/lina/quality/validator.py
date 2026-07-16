@@ -19,10 +19,16 @@ _COMMON_ENGLISH = frozenset({
     "about", "things", "images", "today", "hello", "user", "assistant", "because",
     "with", "this", "that", "what", "your", "have", "from", "into", "some", "edit",
 })
+_COMMON_FOREIGN = frozenset({
+    "và", "của", "một", "không", "trong", "được", "những", "tôi", "bạn",
+    "bonjour", "merci", "avec", "pour", "dans", "und", "nicht", "aber",
+    "hola", "gracias", "para", "pero",
+})
 _ROLE_PREFIX = re.compile(r"^\s*(?:assistant|asistan|lina|system|sistem|user|kullanıcı)\s*:\s*", re.I)
 _BAD_PERSONA = re.compile(r"\b(?:ben\s+sen\s+lina(?:'sın|sın)?|sen\s+lina'sın\s+ben|kullanıcı\s*:|assistant\s*:)", re.I)
-_MALFORMED = re.compile(r"\b(?:imagesi|thingsi|editurma|algoritmiler|progressu|today'de|aboutu|tentang)\b", re.I)
-_GREETING = re.compile(r"^(?:selam|merhaba|nasılsın|iyi günler)[!,.\s]+", re.I)
+_MALFORMED = re.compile(r"\b(?:imagesi|thingsi|editurma|algoritmiler|progressu|today'de|aboutu|tentang|responseu|taskı|fileı|chatte)\b", re.I)
+_GREETING = re.compile(r"^(?:(?:sen\s+)?nasılsın|selam|merhaba|iyi günler)[!,.\s]+", re.I)
+_FOREIGN_PHRASE = re.compile(r"\b(?:xin chào|trí tuệ nhân tạo|cảm ơn|je suis|por favor|guten tag)\b", re.I)
 
 
 class ResponseQualityValidator:
@@ -38,11 +44,12 @@ class ResponseQualityValidator:
         repetition = _repetition_score(sentences, words)
         mixing = _language_mixing_score(words) if expected_language == "tr" else 0.0
         malformed_hits = len(_MALFORMED.findall(normalized))
+        foreign_phrase = bool(_FOREIGN_PHRASE.search(normalized))
         persona = bool(_BAD_PERSONA.search(normalized))
         irrelevant_greeting = bool(user_text.strip().endswith("?") and _GREETING.search(normalized) and not _GREETING.search(user_text.strip()))
         punctuation_only = not any(character.isalnum() for character in normalized)
         incomplete = bool(normalized and len(words) > 5 and normalized.endswith(("…", "...", ",", ";", ":", "-")))
-        malformed = min(1.0, malformed_hits * 0.45 + persona * 0.7 + irrelevant_greeting * 0.35 + incomplete * 0.35)
+        malformed = min(1.0, malformed_hits * 0.45 + persona * 0.7 + irrelevant_greeting * 0.35 + incomplete * 0.35 + foreign_phrase * 0.7)
         reasons = []
         if not normalized or punctuation_only:
             reasons.append("empty_or_punctuation")
@@ -50,6 +57,8 @@ class ResponseQualityValidator:
             reasons.append("repetition")
         if mixing >= 0.28:
             reasons.append("language_mixing")
+        if foreign_phrase:
+            reasons.append("foreign_phrase")
         if malformed >= 0.45:
             reasons.append("malformed")
         detected = "tr" if expected_language == "tr" and mixing < 0.5 else "mixed" if expected_language == "tr" and mixing else expected_language
@@ -66,6 +75,7 @@ class ResponseQualityValidator:
                 "character_count": len(normalized), "sentence_count": len(sentences),
                 "repetition_detected": repetition >= 0.42,
                 "language_category": detected, "malformed_detected": malformed >= 0.45,
+                "foreign_phrase_detected": foreign_phrase,
             },
         )
 
@@ -96,9 +106,9 @@ def _repetition_score(sentences: list[str], words: list[str]) -> float:
 def _language_mixing_score(words: list[str]) -> float:
     if not words:
         return 0.0
-    foreign = sum(word in _COMMON_ENGLISH or _looks_mixed(word) for word in words if word not in _ALLOWED_TECHNICAL)
+    foreign = sum(word in _COMMON_ENGLISH or word in _COMMON_FOREIGN or _looks_mixed(word) for word in words if word not in _ALLOWED_TECHNICAL)
     return foreign / max(1, len(words))
 
 
 def _looks_mixed(word: str) -> bool:
-    return bool(re.search(r"(?:images|things|about|today|progress)(?:ı|i|u|ü|lar|ler|da|de|dan|den)?$", word))
+    return bool(re.search(r"(?:images?|things?|about|today|progress|response|task|file|chat)(?:'?(?:ı|i|u|ü|lar|ler|da|de|dan|den))?$", word))
