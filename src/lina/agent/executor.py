@@ -53,7 +53,7 @@ class AgentExecutor:
                 self._active.discard(step.step_id)
 
     @staticmethod
-    def _validate_arguments(arguments: dict, schema: dict[str, type]) -> str | None:
+    def _validate_arguments(arguments: dict, schema: dict[str, type | tuple[type, ...]]) -> str | None:
         unknown = set(arguments) - set(schema)
         if unknown:
             return "Araç adımı izin verilmeyen argüman içeriyor."

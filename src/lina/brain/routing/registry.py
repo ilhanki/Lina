@@ -11,7 +11,7 @@ class ToolDefinition:
     name: str
     intent: IntentType
     description: str
-    input_schema: dict[str, type]
+    input_schema: dict[str, type | tuple[type, ...]]
     requires_confirmation: bool
     execute: Callable[[IntentRequest, RequestContext], ToolResult]
     available: Callable[[], bool] = lambda: True

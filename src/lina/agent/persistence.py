@@ -41,7 +41,7 @@ class AgentSessionRepository:
             "schema_version": 1,
             "session_id": session.session_id,
             "conversation_id": session.conversation_id,
-            "request_summary": session.user_request[:160],
+            "request_summary": f"Agent request ({len(session.user_request)} characters)",
             "status": session.status.value,
             "current_step_index": session.current_step_index,
             "created_at": session.created_at.isoformat(),

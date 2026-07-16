@@ -13,7 +13,8 @@ def test_repository_saves_only_safe_metadata_and_marks_restart_interrupted(tmp_p
     text = path.read_text(encoding="utf-8")
     assert "must-not-persist" not in text
     assert "typed_arguments" not in text
-    assert "private request with secret" in text  # bounded request summary is intentional metadata
+    assert "private request with secret" not in text
+    assert "Agent request (27 characters)" in text
     loaded = repository.load_all()
     assert loaded[0]["status"] == "interrupted"
     assert loaded[0]["plan"]["steps"][0]["tool_name"] == "reminder.list"

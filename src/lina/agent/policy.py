@@ -80,7 +80,7 @@ class AgentPolicy:
             result.append(CapabilitySnapshot(
                 name=definition.name,
                 description=str(definition.description)[:240],
-                allowed_arguments=tuple(sorted((name, kind.__name__) for name, kind in definition.input_schema.items())),
+                allowed_arguments=tuple(sorted((name, _type_name(kind)) for name, kind in definition.input_schema.items())),
                 result_type="ToolResult",
                 risk_level=risk,
                 approval_required=risk in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE},
@@ -88,3 +88,9 @@ class AgentPolicy:
                 read_only=risk is RiskLevel.READ_ONLY,
             ))
         return tuple(result)
+
+
+def _type_name(kind: type | tuple[type, ...]) -> str:
+    if isinstance(kind, tuple):
+        return " | ".join(item.__name__ for item in kind)
+    return kind.__name__

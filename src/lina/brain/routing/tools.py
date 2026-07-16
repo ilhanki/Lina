@@ -6,6 +6,7 @@ from lina.brain.routing.models import IntentType, ToolResult
 from lina.brain.routing.registry import SafeToolRegistry, ToolDefinition
 from lina.files.models import FileAccessError
 from lina.memory.models import MemoryType
+from lina.notifications.models import ReminderRecurrence
 
 
 def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToolRegistry:
@@ -56,7 +57,7 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
         return ToolResult(True, "Hafızamdaki ilgili kayıtlar:\n" + "\n".join(f"- {item.content}" for item in records), records)
 
     definitions = (
-        ToolDefinition("reminder.create", IntentType.CREATE_REMINDER, "Yerel hatırlatıcı oluştur", {"title": str, "due_at": datetime}, True, create_reminder, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
+        ToolDefinition("reminder.create", IntentType.CREATE_REMINDER, "Yerel hatırlatıcı oluştur", {"title": str, "due_at": datetime, "recurrence": (ReminderRecurrence, str)}, True, create_reminder, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
         ToolDefinition("reminder.list", IntentType.LIST_REMINDERS, "Yaklaşan hatırlatıcıları listele", {}, False, list_reminders, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
         ToolDefinition("files.read", IntentType.READ_FILE, "Allowlist içindeki dosyayı oku", {"target": str}, False, read_file, lambda: files is not None, "Dosya okuma şu anda kullanılamıyor."),
         ToolDefinition("memory.store", IntentType.MEMORY_STORE, "Açık kullanıcı isteğini hafızaya kaydet", {"content": str}, True, store_memory, lambda: memory is not None, "Memory şu anda kullanılamıyor."),

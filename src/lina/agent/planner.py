@@ -10,6 +10,7 @@ from lina.agent.context import AgentContext
 from lina.agent.errors import AgentPlanError, AgentPolicyError
 from lina.agent.models import AgentPlan, AgentStep, RiskLevel, VerificationRule
 from lina.agent.policy import AgentPolicy
+from lina.brain.routing.validation import parse_reminder_arguments
 
 
 class AgentPlanner:
@@ -55,7 +56,10 @@ class AgentPlanner:
             if any(term in text for term in ("liste", "göster", "kontrol")):
                 candidates.append(("Hatırlatıcıları listele", "reminder.list", {}))
             else:
-                raise AgentPlanError("Hatırlatıcı ayrıntıları net olmadığı için güvenli plan oluşturamadım.")
+                arguments, missing = parse_reminder_arguments(context.user_request)
+                if missing:
+                    raise AgentPlanError("Hatırlatıcı ayrıntıları net olmadığı için güvenli plan oluşturamadım.")
+                candidates.append(("Hatırlatıcı oluştur", "reminder.create", arguments))
         elif "hafıza" in text or "hafiza" in text or "hatırlıyor" in text:
             candidates.append(("Hafızada ara", "memory.recall", {"query": context.user_request[:240]}))
         elif "dosya" in text and "oku" in text:

@@ -108,6 +108,17 @@ def test_planner_rejects_prohibited_request():
         AgentPlanner(AgentPolicy()).plan(AgentContext("PowerShell çalıştır", capabilities=(capability(),)))
 
 
+def test_deterministic_planner_builds_persistent_reminder_with_typed_arguments():
+    result = AgentPlanner(AgentPolicy()).plan(AgentContext(
+        "Agent modunda yarın saat 18:00 spor yapmayı hatırlat",
+        capabilities=(capability("reminder.create", RiskLevel.PERSISTENT),),
+    ))
+    item = result.steps[0]
+    assert item.tool_name == "reminder.create"
+    assert item.approval_required
+    assert isinstance(item.typed_arguments["due_at"], datetime)
+
+
 def test_executor_validates_schema_and_normalizes_exception():
     registry = SafeToolRegistry()
     registry.register(ToolDefinition("memory.recall", IntentType.MEMORY_RECALL, "test", {"query": str}, False, lambda _r, _c: (_ for _ in ()).throw(RuntimeError("secret"))))
