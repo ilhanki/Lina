@@ -30,6 +30,13 @@ class SafeToolRegistry:
     def get(self, intent: IntentType) -> ToolDefinition | None:
         return self._by_intent.get(intent)
 
+    def get_by_name(self, name: str) -> ToolDefinition | None:
+        return next((item for item in self._by_intent.values() if item.name == name), None)
+
+    def definitions(self) -> tuple[ToolDefinition, ...]:
+        """Return immutable definitions for a sanitized capability snapshot."""
+        return tuple(self._by_intent.values())
+
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(item.name for item in self._by_intent.values()))
 
