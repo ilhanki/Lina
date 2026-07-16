@@ -6,8 +6,8 @@ def test_default_system_prompt_has_layered_identity_language_safety_and_context(
     assert "Lina" in DEFAULT_SYSTEM_PROMPT
     assert "İlhan" in DEFAULT_SYSTEM_PROMPT
     assert "Konuşma Stili:" in DEFAULT_SYSTEM_PROMPT
-    assert "Doğal Türkçe kullan" in DEFAULT_SYSTEM_PROMPT
-    assert "yalnızca gerekli teknik terimlerde İngilizce" in DEFAULT_SYSTEM_PROMPT
+    assert "doğal, akıcı Türkçe kullan" in DEFAULT_SYSTEM_PROMPT
+    assert "yalnızca gerekli teknik terimlerde İngilizceye başvur" in DEFAULT_SYSTEM_PROMPT
     assert "Güvenlik:" in DEFAULT_SYSTEM_PROMPT
     assert "bunu kesin bilmiyorum" in DEFAULT_SYSTEM_PROMPT
     assert "Aktif bağlam:" in DEFAULT_SYSTEM_PROMPT
@@ -22,8 +22,10 @@ def test_default_prompt_is_concise_and_prevents_role_history_leakage():
 
 
 def test_default_prompt_allows_technical_terms_without_mixed_daily_language():
-    assert "Commit, branch, repository, provider, prompt, CLI, GUI, tool" in DEFAULT_SYSTEM_PROMPT
+    assert "Commit, branch, repository, provider, prompt, CLI, GUI ve tool" in DEFAULT_SYSTEM_PROMPT
     assert "yabancı kelime kırpıntısı kullanma" in DEFAULT_SYSTEM_PROMPT
+    assert "genel giriş ekleme" in DEFAULT_SYSTEM_PROMPT
+    assert "kalıp kapanış kullanma" in DEFAULT_SYSTEM_PROMPT
 
 
 def test_default_prompt_requires_grounded_honest_capabilities():

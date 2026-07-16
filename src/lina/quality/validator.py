@@ -26,9 +26,18 @@ _COMMON_FOREIGN = frozenset({
 })
 _ROLE_PREFIX = re.compile(r"^\s*(?:assistant|asistan|lina|system|sistem|user|kullanıcı)\s*:\s*", re.I)
 _BAD_PERSONA = re.compile(r"\b(?:ben\s+sen\s+lina(?:'sın|sın)?|sen\s+lina'sın\s+ben|kullanıcı\s*:|assistant\s*:)", re.I)
-_MALFORMED = re.compile(r"\b(?:imagesi|thingsi|editurma|algoritmiler|progressu|today'de|aboutu|tentang|responseu|taskı|fileı|chatte)\b", re.I)
+_MALFORMED = re.compile(
+    r"\b(?:imagesi|thingsi|editurma|algoritmiler|progressu|today'de|aboutu|tentang|"
+    r"responseu|taskı|fileı|chatte|memoryyi|toolu|providerı|contexti|promptu|streami|tokeni)\b",
+    re.I,
+)
 _GREETING = re.compile(r"^(?:(?:sen\s+)?nasılsın|selam|merhaba|iyi günler)[!,.\s]+", re.I)
 _FOREIGN_PHRASE = re.compile(r"\b(?:xin chào|trí tuệ nhân tạo|cảm ơn|je suis|por favor|guten tag)\b", re.I)
+_GENERIC_HELP = re.compile(
+    r"\b(?:nasıl yardımcı olabilirim|yardımcı olmaktan memnuniyet duyarım|ne yapmak istersin|ne yapalım)\b",
+    re.I,
+)
+_GENERIC_CLOSING = re.compile(r"\b(?:umarım yardımcı olmuştur|başka bir sorun olursa sorabilirsin)\b", re.I)
 
 
 class ResponseQualityValidator:
@@ -45,8 +54,16 @@ class ResponseQualityValidator:
         mixing = _language_mixing_score(words) if expected_language == "tr" else 0.0
         malformed_hits = len(_MALFORMED.findall(normalized))
         foreign_phrase = bool(_FOREIGN_PHRASE.search(normalized))
+        foreign_word_count = sum(word in _COMMON_FOREIGN for word in words)
+        english_leak_count = sum(word in _COMMON_ENGLISH for word in words if word not in _ALLOWED_TECHNICAL)
+        foreign_word_leak = expected_language == "tr" and (foreign_word_count > 0 or english_leak_count >= 2)
         persona = bool(_BAD_PERSONA.search(normalized))
-        irrelevant_greeting = bool(user_text.strip().endswith("?") and _GREETING.search(normalized) and not _GREETING.search(user_text.strip()))
+        substantive_user = _is_substantive_user(user_text)
+        irrelevant_greeting = bool(substantive_user and _GREETING.search(normalized) and not _GREETING.search(user_text.strip()))
+        generic_boilerplate = bool(
+            substantive_user
+            and (_GENERIC_HELP.search(normalized) or (len(sentences) >= 4 and _GENERIC_CLOSING.search(normalized)))
+        )
         punctuation_only = not any(character.isalnum() for character in normalized)
         incomplete = bool(normalized and len(words) > 5 and normalized.endswith(("…", "...", ",", ";", ":", "-")))
         malformed = min(1.0, malformed_hits * 0.45 + persona * 0.7 + irrelevant_greeting * 0.35 + incomplete * 0.35 + foreign_phrase * 0.7)
@@ -59,6 +76,10 @@ class ResponseQualityValidator:
             reasons.append("language_mixing")
         if foreign_phrase:
             reasons.append("foreign_phrase")
+        if foreign_word_leak:
+            reasons.append("foreign_word_leak")
+        if irrelevant_greeting or generic_boilerplate:
+            reasons.append("generic_boilerplate")
         if malformed >= 0.45:
             reasons.append("malformed")
         detected = "tr" if expected_language == "tr" and mixing < 0.5 else "mixed" if expected_language == "tr" and mixing else expected_language
@@ -76,6 +97,8 @@ class ResponseQualityValidator:
                 "repetition_detected": repetition >= 0.42,
                 "language_category": detected, "malformed_detected": malformed >= 0.45,
                 "foreign_phrase_detected": foreign_phrase,
+                "foreign_word_leak_detected": foreign_word_leak,
+                "generic_boilerplate_detected": irrelevant_greeting or generic_boilerplate,
             },
         )
 
@@ -112,3 +135,10 @@ def _language_mixing_score(words: list[str]) -> float:
 
 def _looks_mixed(word: str) -> bool:
     return bool(re.search(r"(?:images?|things?|about|today|progress|response|task|file|chat)(?:'?(?:ı|i|u|ü|lar|ler|da|de|dan|den))?$", word))
+
+
+def _is_substantive_user(text: str) -> bool:
+    normalized = " ".join(text.casefold().split())
+    if not normalized or _GREETING.fullmatch(f"{normalized} "):
+        return False
+    return normalized.endswith("?") or len(re.findall(r"[^\W\d_]+", normalized, re.UNICODE)) >= 3

@@ -62,6 +62,7 @@ class Brain:
                 role="system",
                 content=("Aşağıdaki cevabı anlamını koruyarak doğal ve düzgün Türkçeyle yeniden yaz. "
                          "Tekrarları, anlamsız ifadeleri ve gereksiz İngilizce kelimeleri kaldır. "
+                         "Doğrudan soruya gir; genel selamlama, yardım teklifi veya kalıp kapanış ekleme. "
                          "Yeni bilgi ekleme; reasoning veya rol etiketi yazma."),
             ),
             ModelMessage(role="user", content=f"Soru: {user_question}\n\nCevap: {draft}"),

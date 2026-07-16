@@ -54,6 +54,30 @@ def test_foreign_phrase_and_suffix_leakage_are_privacy_safe_metrics():
     assert all("trí" not in str(value) for value in result.metrics.values())
 
 
+@pytest.mark.parametrize("text", [
+    "Merhaba! Nasıl yardımcı olabilirim? Yapay zekâ ajanı plan hazırlayan bir sistemdir.",
+    "Bu açıklama user için some things anlatıyor.",
+    "Yapay zekâ ajanı plan yapar và izinli araçları kullanır.",
+    "Memoryyi toolu kullanarak contexti günceller.",
+])
+def test_generic_boilerplate_and_orphan_foreign_words_are_rejected(text):
+    result = ResponseQualityValidator().validate(text, user_text="Yapay zekâ ajanı nedir?")
+    assert not result.is_valid
+    assert result.rejection_reason in {
+        "language_mixing", "foreign_word_leak", "generic_boilerplate", "malformed"
+    }
+
+
+def test_casual_turkish_and_explicit_english_remain_valid():
+    validator = ResponseQualityValidator()
+    assert validator.validate("İyiyim, teşekkür ederim.", user_text="Nasılsın Lina?").is_valid
+    assert validator.validate(
+        "This response explains what the system does.",
+        user_text="What does this system do?",
+        expected_language="unknown",
+    ).is_valid
+
+
 def test_cancelled_or_stale_repair_is_never_presented():
     states = iter((True, False))
     service = ResponseRepairService(lambda _question, _draft: "Düzgün ve doğal Türkçe cevap.")
