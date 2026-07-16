@@ -11,6 +11,7 @@ from lina.brain.prompt_builder import PromptBuilder
 from lina.brain.prompts import VISION_SYSTEM_PROMPT
 from lina.brain.routing.router import IntentRouter
 from lina.brain.routing.tools import build_safe_tool_registry
+from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentSessionRepository, AgentVerifier
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -71,6 +72,7 @@ class ApplicationServices:
     model_lifecycle_service: ModelLifecycleService | None = None
     hands_free_service: HandsFreeConversationService | None = None
     live_vision_controller: LiveVisionController | None = None
+    agent_controller: AgentController | None = None
 
 
 def create_application_services(
@@ -251,9 +253,23 @@ def create_application_services(
             daemon=True,
         ).start()
     notification_service = NotificationService(NotificationRepository(project_root / "data" / "notifications.sqlite3"))
+    safe_tool_registry = build_safe_tool_registry(notification_service, file_access_service, memory_service)
     intent_router = IntentRouter(
-        build_safe_tool_registry(notification_service, file_access_service, memory_service),
+        safe_tool_registry,
         enabled_provider=lambda: user_settings_service.current.general.intent_routing_enabled,
+    )
+    agent_policy = AgentPolicy(
+        max_steps=user_preferences.agent.max_agent_steps,
+        max_replans=user_preferences.agent.max_agent_replans,
+    )
+    agent_controller = AgentController(
+        AgentPlanner(agent_policy),
+        AgentExecutor(safe_tool_registry),
+        AgentVerifier(),
+        agent_policy,
+        AgentSessionRepository(project_root / "data" / "agent-sessions.json"),
+        auto_start_read_only_plans=user_preferences.agent.auto_start_read_only_plans,
+        always_show_plan=user_preferences.agent.always_show_plan,
     )
 
     return ApplicationServices(
@@ -271,6 +287,7 @@ def create_application_services(
         model_lifecycle_service=model_lifecycle_service,
         hands_free_service=hands_free_service,
         live_vision_controller=live_vision_controller,
+        agent_controller=agent_controller,
     )
 
 

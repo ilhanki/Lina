@@ -10,7 +10,11 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     dialog = SettingsDialog(service)
     qtbot.addWidget(dialog)
 
-    assert dialog._navigation.count() == 7
+    assert dialog._navigation.count() == 8
+    assert dialog._agent_max_steps.minimum() == 3
+    assert dialog._agent_max_steps.maximum() == 12
+    assert dialog._agent_confirm_persistent.isChecked()
+    assert not dialog._agent_confirm_persistent.isEnabled()
     dialog._font_scale.setValue(120)
     dialog._apply()
 

@@ -12,6 +12,27 @@ class DeterministicIntentClassifier:
         normalized = " ".join(original.casefold().split())
         if not normalized:
             return self._request(IntentType.CHAT, original, 0.0)
+        agent_discussion = (
+            "yapay zekâ ajanı nedir", "yapay zeka ajani nedir", "agent mode güvenli mi",
+            "agent mode guvenli mi", "bir plan nasıl hazırlanır", "bir plan nasil hazirlanir",
+        )
+        if any(phrase in normalized for phrase in agent_discussion):
+            return self._request(IntentType.CHAT, original, 0.99)
+        if any(phrase in normalized for phrase in ("agent görevini iptal et", "agent gorevini iptal et", "görevi iptal et", "gorevi iptal et")):
+            return self._request(IntentType.AGENT_CANCEL, original, 1.0)
+        if any(phrase in normalized for phrase in ("görevi duraklat", "gorevi duraklat", "agentı duraklat", "agenti duraklat")):
+            return self._request(IntentType.AGENT_PAUSE, original, 1.0)
+        if any(phrase in normalized for phrase in ("agent görevine devam et", "agent gorevine devam et", "göreve devam et", "goreve devam et")):
+            return self._request(IntentType.AGENT_RESUME, original, 1.0)
+        if any(phrase in normalized for phrase in ("şu anda hangi adımdasın", "su anda hangi adimdasin", "agent durumu", "durum ne")):
+            return self._request(IntentType.AGENT_STATUS, original, 0.99)
+        if any(phrase in normalized for phrase in ("agent planını düzenle", "agent planini duzenle", "planı değiştir", "plani degistir")):
+            return self._request(IntentType.AGENT_MODIFY_PLAN, original, 0.99)
+        if any(phrase in normalized for phrase in ("önce plan çıkar", "once plan cikar", "agent planı hazırla", "agent plani hazirla")):
+            return self._request(IntentType.AGENT_PLAN, original, 0.99, {"request": original})
+        explicit_agent = any(phrase in normalized for phrase in ("agent modunda", "agent mode ile", "bunu adım adım yap", "bunu adim adim yap"))
+        if explicit_agent:
+            return self._request(IntentType.AGENT_EXECUTE, original, 0.99, {"request": original})
         if any(phrase in normalized for phrase in ("kamera nasıl çalışır", "kamera nasil calisir", "ekran takibi güvenli mi", "ekran takibi guvenli mi", "vision modeli nedir")):
             return self._request(IntentType.CHAT, original, 0.99)
         if any(phrase in normalized for phrase in ("şu an neyi izliyorsun", "su an neyi izliyorsun", "takip durumu", "canlı takip durumu", "canli takip durumu")):

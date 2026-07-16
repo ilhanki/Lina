@@ -75,7 +75,7 @@ class SettingsDialog(QDialog):
         self._navigation.setObjectName("settingsNavigation")
         self._navigation.setFixedWidth(150)
         self._navigation.addItems(
-            ["Genel", "Görünüm", "Modeller", "Konuşma", "Vision", "Sistem", "Hakkında"]
+            ["Genel", "Görünüm", "Modeller", "Konuşma", "Vision", "Agent", "Sistem", "Hakkında"]
         )
         content.addWidget(self._navigation)
         self._pages = QStackedWidget(self)
@@ -85,6 +85,7 @@ class SettingsDialog(QDialog):
         self._pages.addWidget(self._models_page())
         self._pages.addWidget(self._speech_page())
         self._pages.addWidget(self._vision_page())
+        self._pages.addWidget(self._agent_page())
         self._pages.addWidget(self._system_page())
         self._pages.addWidget(self._about_page())
         self._navigation.currentRowChanged.connect(self._pages.setCurrentIndex)
@@ -333,6 +334,35 @@ class SettingsDialog(QDialog):
         form.addRow(self._show_missed)
         return page
 
+    def _agent_page(self) -> QWidget:
+        page = QWidget(self)
+        form = QFormLayout(page)
+        self._agent_enabled = QCheckBox("Agent Mode etkin", page)
+        self._agent_max_steps = QSpinBox(page)
+        self._agent_max_steps.setRange(3, 12)
+        self._agent_max_replans = QSpinBox(page)
+        self._agent_max_replans.setRange(0, 1)
+        self._agent_auto_read_only = QCheckBox("Basit salt-okunur görevleri otomatik başlat", page)
+        self._agent_show_plan = QCheckBox("Her planı başlamadan önce göster", page)
+        self._agent_confirm_persistent = QCheckBox("Kalıcı adımlarda her zaman onay iste", page)
+        self._agent_confirm_persistent.setChecked(True)
+        self._agent_confirm_persistent.setEnabled(False)
+        self._agent_confirm_persistent.setToolTip("Bu güvenlik ayarı kapatılamaz.")
+        self._agent_speak_progress = QCheckBox("Agent ilerlemesini seslendir", page)
+        self._agent_notify_completion = QCheckBox("Görev tamamlanınca bildirim göster", page)
+        form.addRow(self._agent_enabled)
+        form.addRow("Maksimum adım", self._agent_max_steps)
+        form.addRow("Maksimum yeniden planlama", self._agent_max_replans)
+        form.addRow(self._agent_auto_read_only)
+        form.addRow(self._agent_show_plan)
+        form.addRow(self._agent_confirm_persistent)
+        form.addRow(self._agent_speak_progress)
+        form.addRow(self._agent_notify_completion)
+        note = QLabel("Agent Mode varsayılan olarak kapalıdır; shell, browser, dosya yazma ve gizli cihaz erişimi yasaktır.", page)
+        note.setWordWrap(True)
+        form.addRow(note)
+        return page
+
     def _about_page(self) -> QWidget:
         page = QWidget(self)
         layout = QVBoxLayout(page)
@@ -411,6 +441,14 @@ class SettingsDialog(QDialog):
         self._reminders_enabled.setChecked(settings.system.reminders_enabled)
         self._desktop_notifications.setChecked(settings.system.desktop_notifications_enabled)
         self._show_missed.setChecked(settings.system.show_missed_reminders)
+        self._agent_enabled.setChecked(settings.agent.agent_mode_enabled)
+        self._agent_max_steps.setValue(settings.agent.max_agent_steps)
+        self._agent_max_replans.setValue(settings.agent.max_agent_replans)
+        self._agent_auto_read_only.setChecked(settings.agent.auto_start_read_only_plans)
+        self._agent_show_plan.setChecked(settings.agent.always_show_plan)
+        self._agent_confirm_persistent.setChecked(True)
+        self._agent_speak_progress.setChecked(settings.agent.speak_agent_progress)
+        self._agent_notify_completion.setChecked(settings.agent.notify_agent_completion)
 
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
@@ -491,6 +529,17 @@ class SettingsDialog(QDialog):
                 reminders_enabled=self._reminders_enabled.isChecked(),
                 desktop_notifications_enabled=self._desktop_notifications.isChecked(),
                 show_missed_reminders=self._show_missed.isChecked(),
+            ),
+            agent=replace(
+                self._draft.agent,
+                agent_mode_enabled=self._agent_enabled.isChecked(),
+                max_agent_steps=self._agent_max_steps.value(),
+                max_agent_replans=self._agent_max_replans.value(),
+                auto_start_read_only_plans=self._agent_auto_read_only.isChecked(),
+                always_show_plan=self._agent_show_plan.isChecked(),
+                always_confirm_persistent_steps=True,
+                speak_agent_progress=self._agent_speak_progress.isChecked(),
+                notify_agent_completion=self._agent_notify_completion.isChecked(),
             ),
         )
 

@@ -29,6 +29,13 @@ class IntentType(str, Enum):
     UNSUPPORTED = "unsupported"
     UNSAFE = "unsafe"
     CANCEL = "cancel"
+    AGENT_EXECUTE = "agent_execute"
+    AGENT_PLAN = "agent_plan"
+    AGENT_PAUSE = "agent_pause"
+    AGENT_RESUME = "agent_resume"
+    AGENT_CANCEL = "agent_cancel"
+    AGENT_STATUS = "agent_status"
+    AGENT_MODIFY_PLAN = "agent_modify_plan"
 
 
 class ToolStatus(str, Enum):

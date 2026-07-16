@@ -13,6 +13,7 @@ from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import NotificationService
 from lina.services.conversation_models import ConversationResult
 from lina.services.model_diagnostics_service import VisionDiagnosticsResult, VisionStatus
+from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentVerifier
 
 
 class _Conversation:
@@ -132,4 +133,26 @@ def test_vision_availability_reason_prevents_capture(qtbot, tmp_path, monkeypatc
     assert not card.retry_button.isHidden()
     qtbot.mouseClick(card.retry_button, Qt.MouseButton.LeftButton)
     assert "Kullanılamıyor" in card._status.text()
+    window._force_exit = True; window.close()
+
+
+def test_agent_plan_is_visible_approved_and_executed_once(qtbot, tmp_path) -> None:
+    (tmp_path / "README.md").write_text("safe", encoding="utf-8")
+    reminders = NotificationService(NotificationRepository(tmp_path / "notifications.sqlite3"))
+    memory = MemoryService(MemoryRepository(tmp_path / "memory.sqlite3"))
+    files = FileAccessService(tmp_path, allowed_paths=("README.md",), aliases={"readme": "README.md"})
+    registry = build_safe_tool_registry(reminders, files, memory)
+    router = IntentRouter(registry)
+    policy = AgentPolicy()
+    controller = AgentController(AgentPlanner(policy), AgentExecutor(registry), AgentVerifier(), policy)
+    window = LinaMainWindow(_Conversation(), notification_service=reminders, intent_router=router, agent_controller=controller, thread_pool=_ImmediatePool())
+    qtbot.addWidget(window)
+
+    _send(window, "Agent modunda hatırlatıcılarımı kontrol et")
+    assert controller.session.status.value == "awaiting_plan_approval"
+    assert window._agent_panel.isVisibleTo(window)
+    assert window._agent_panel.start_button.isEnabled()
+    qtbot.mouseClick(window._agent_panel.start_button, Qt.MouseButton.LeftButton)
+    assert controller.session.status.value == "completed"
+    assert controller.session.metrics.executed_step_count == 1
     window._force_exit = True; window.close()

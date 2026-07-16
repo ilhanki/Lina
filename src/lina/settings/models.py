@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -102,6 +102,18 @@ class SystemSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentUserSettings:
+    agent_mode_enabled: bool = False
+    max_agent_steps: int = 8
+    max_agent_replans: int = 1
+    auto_start_read_only_plans: bool = False
+    always_show_plan: bool = True
+    always_confirm_persistent_steps: bool = True
+    speak_agent_progress: bool = False
+    notify_agent_completion: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class UserSettings:
     """Validated, serializable user preferences."""
 
@@ -113,6 +125,7 @@ class UserSettings:
     vision: VisionUserSettings = VisionUserSettings()
     live_vision: LiveVisionUserSettings = LiveVisionUserSettings()
     system: SystemSettings = SystemSettings()
+    agent: AgentUserSettings = AgentUserSettings()
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -144,6 +157,12 @@ class UserSettings:
             raise ValueError("Unsupported live vision source")
         if self.live_vision.change_sensitivity not in SUPPORTED_CHANGE_SENSITIVITY:
             raise ValueError("Unsupported live vision sensitivity")
+        if not 3 <= self.agent.max_agent_steps <= 12:
+            raise ValueError("Agent maximum steps must be between 3 and 12")
+        if not 0 <= self.agent.max_agent_replans <= 1:
+            raise ValueError("Agent maximum replans must be between 0 and 1")
+        if not self.agent.always_confirm_persistent_steps:
+            raise ValueError("Persistent Agent approval cannot be disabled")
         if not 0.5 <= self.live_vision.capture_interval_seconds <= 60:
             raise ValueError("Live vision capture interval must be between 0.5 and 60")
         if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
@@ -231,6 +250,16 @@ class UserSettings:
                 "desktop_notifications_enabled": self.system.desktop_notifications_enabled,
                 "show_missed_reminders": self.system.show_missed_reminders,
             },
+            "agent": {
+                "agent_mode_enabled": self.agent.agent_mode_enabled,
+                "max_agent_steps": self.agent.max_agent_steps,
+                "max_agent_replans": self.agent.max_agent_replans,
+                "auto_start_read_only_plans": self.agent.auto_start_read_only_plans,
+                "always_show_plan": self.agent.always_show_plan,
+                "always_confirm_persistent_steps": True,
+                "speak_agent_progress": self.agent.speak_agent_progress,
+                "notify_agent_completion": self.agent.notify_agent_completion,
+            },
         }
 
     @classmethod
@@ -238,7 +267,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -248,6 +277,7 @@ class UserSettings:
         vision = _section(raw, "vision")
         live_vision = _section(raw, "live_vision")
         system = _section(raw, "system")
+        agent = _section(raw, "agent")
         return cls(
             appearance=AppearanceSettings(
                 theme=_choice(appearance, "theme", defaults.appearance.theme, SUPPORTED_THEMES),
@@ -325,6 +355,16 @@ class UserSettings:
                 reminders_enabled=_bool(system, "reminders_enabled", defaults.system.reminders_enabled),
                 desktop_notifications_enabled=_bool(system, "desktop_notifications_enabled", defaults.system.desktop_notifications_enabled),
                 show_missed_reminders=_bool(system, "show_missed_reminders", defaults.system.show_missed_reminders),
+            ),
+            agent=AgentUserSettings(
+                agent_mode_enabled=_bool(agent, "agent_mode_enabled", defaults.agent.agent_mode_enabled),
+                max_agent_steps=_bounded_int(agent, "max_agent_steps", defaults.agent.max_agent_steps, 3, 12),
+                max_agent_replans=_bounded_int(agent, "max_agent_replans", defaults.agent.max_agent_replans, 0, 1),
+                auto_start_read_only_plans=_bool(agent, "auto_start_read_only_plans", defaults.agent.auto_start_read_only_plans),
+                always_show_plan=_bool(agent, "always_show_plan", defaults.agent.always_show_plan),
+                always_confirm_persistent_steps=True,
+                speak_agent_progress=_bool(agent, "speak_agent_progress", defaults.agent.speak_agent_progress),
+                notify_agent_completion=_bool(agent, "notify_agent_completion", defaults.agent.notify_agent_completion),
             ),
         )
 

@@ -51,6 +51,7 @@ def run_qt_application(
         model_lifecycle_service=services.model_lifecycle_service,
         hands_free_service=services.hands_free_service,
         live_vision_controller=services.live_vision_controller,
+        agent_controller=services.agent_controller,
     )
     window.show()
     if (

@@ -1,6 +1,7 @@
 """Persistent user preference models and services."""
 
 from lina.settings.models import (
+    AgentUserSettings,
     AppearanceSettings,
     GeneralSettings,
     ModelSettings,
@@ -13,6 +14,7 @@ from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 
 __all__ = [
+    "AgentUserSettings",
     "AppearanceSettings",
     "GeneralSettings",
     "ModelSettings",

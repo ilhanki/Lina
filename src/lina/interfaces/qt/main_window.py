@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
 )
 
 from lina.brain.model_provider import EmptyModelResponseError, ModelResponse
+from lina.agent import AgentController, AgentSessionStatus, ApprovalDecision, parse_approval
+from lina.agent.errors import AgentError
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
@@ -47,6 +49,7 @@ from lina.interfaces.qt.region_capture_overlay import RegionCaptureOverlay
 from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, build_stylesheet, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
+from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
@@ -94,7 +97,7 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.11.2-alpha"
+APP_VERSION = "v0.12.0-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -138,6 +141,7 @@ class LinaMainWindow(QMainWindow):
         model_lifecycle_service: ModelLifecycleService | None = None,
         hands_free_service: HandsFreeConversationService | None = None,
         live_vision_controller: LiveVisionController | None = None,
+        agent_controller: AgentController | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -153,6 +157,11 @@ class LinaMainWindow(QMainWindow):
         self._model_lifecycle_service = model_lifecycle_service
         self._hands_free_service = hands_free_service
         self._live_vision_controller = live_vision_controller
+        self._agent_controller = agent_controller
+        self._agent_enabled = bool(
+            user_settings_service and user_settings_service.current.agent.agent_mode_enabled
+        )
+        self._agent_notified_sessions: set[str] = set()
         self._live_vision_enabled = True
         self._pending_region_monitor_focus: str | None = None
         self._live_capture_invoker: QtCaptureInvoker | None = None
@@ -283,6 +292,7 @@ class LinaMainWindow(QMainWindow):
 
         self._build_header(panel_layout)
         self._build_chat_area(panel_layout)
+        self._build_agent_panel(panel_layout)
         self._build_live_vision_panel(panel_layout)
         self._build_footer(panel_layout)
         self.setCentralWidget(central)
@@ -388,6 +398,20 @@ class LinaMainWindow(QMainWindow):
             button.setEnabled(False)
             layout.addWidget(button)
         parent_layout.addWidget(panel)
+
+    def _build_agent_panel(self, parent_layout: QVBoxLayout) -> None:
+        self._agent_panel = AgentPanel(self)
+        self._agent_panel.mode_toggle_requested.connect(self._toggle_agent_mode)
+        self._agent_panel.start_requested.connect(self._start_agent_plan)
+        self._agent_panel.approve_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.APPROVE))
+        self._agent_panel.skip_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.SKIP))
+        self._agent_panel.modify_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.MODIFY))
+        self._agent_panel.pause_requested.connect(self._pause_agent)
+        self._agent_panel.resume_requested.connect(self._resume_agent)
+        self._agent_panel.cancel_requested.connect(self._cancel_agent)
+        self._agent_panel.render(self._agent_controller.session if self._agent_controller else None, enabled=self._agent_enabled)
+        self._agent_panel.setVisible(self._agent_controller is not None)
+        parent_layout.addWidget(self._agent_panel)
 
     def _build_footer(self, parent_layout: QVBoxLayout) -> None:
         self._composer = ComposerWidget(
@@ -515,6 +539,17 @@ class LinaMainWindow(QMainWindow):
             self._tray_screen_action = menu.addAction("Ekranı Takip Et")
             self._tray_screen_action.triggered.connect(lambda: self._confirm_tray_live_start(LiveVisionSource.SCREEN))
             self._update_live_tray_actions(LiveVisionState.IDLE)
+        if self._agent_controller is not None:
+            menu.addSeparator()
+            self._tray_agent_mode_action = menu.addAction("Agent Modu Aç/Kapat")
+            self._tray_agent_mode_action.triggered.connect(self._toggle_agent_mode)
+            self._tray_agent_show_action = menu.addAction("Aktif Görevi Göster")
+            self._tray_agent_show_action.triggered.connect(self._show_agent_from_tray)
+            self._tray_agent_pause_action = menu.addAction("Agent Görevini Duraklat")
+            self._tray_agent_pause_action.triggered.connect(self._toggle_agent_pause)
+            self._tray_agent_cancel_action = menu.addAction("Agent Görevini İptal Et")
+            self._tray_agent_cancel_action.triggered.connect(self._cancel_agent)
+            self._update_agent_ui()
         menu.addSeparator()
         exit_action = menu.addAction("Çıkış")
         exit_action.triggered.connect(self._exit_from_tray)
@@ -682,6 +717,13 @@ class LinaMainWindow(QMainWindow):
             else:
                 self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
+        self._agent_enabled = settings.agent.agent_mode_enabled
+        if self._agent_controller is not None:
+            self._agent_controller.auto_start_read_only_plans = settings.agent.auto_start_read_only_plans
+            self._agent_controller.always_show_plan = settings.agent.always_show_plan
+            self._agent_controller.policy.max_steps = settings.agent.max_agent_steps
+            self._agent_controller.policy.max_replans = settings.agent.max_agent_replans
+        self._update_agent_ui()
         self._live_vision_enabled = settings.live_vision.enabled and settings.vision.enabled
         if self._camera_preview is not None:
             self._camera_preview.canvas.set_mirror_enabled(settings.live_vision.mirror_camera_preview)
@@ -745,6 +787,17 @@ class LinaMainWindow(QMainWindow):
                 self._voice_controller.request_confirmation_listening()
                 self.speak_assistant_response(prompt)
                 return
+        if self._agent_controller is not None and self._agent_controller.active_session is not None:
+            agent_session = self._agent_controller.active_session
+            decision = parse_approval(message)
+            if agent_session.status is AgentSessionStatus.AWAITING_PLAN_APPROVAL and decision is ApprovalDecision.APPROVE:
+                self._start_agent_plan()
+                self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
+                return
+            if agent_session.status is AgentSessionStatus.AWAITING_STEP_APPROVAL and decision is not ApprovalDecision.AMBIGUOUS:
+                self._decide_agent_step(decision)
+                self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
+                return
         if _is_camera_question(message) and not self._camera_is_active():
             self._finish_routed_intent(
                 message,
@@ -793,6 +846,14 @@ class LinaMainWindow(QMainWindow):
         self._start_worker(worker)
 
     def _handle_routed_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
+        if request.intent in {
+            RoutingIntentType.AGENT_EXECUTE, RoutingIntentType.AGENT_PLAN,
+            RoutingIntentType.AGENT_PAUSE, RoutingIntentType.AGENT_RESUME,
+            RoutingIntentType.AGENT_CANCEL, RoutingIntentType.AGENT_STATUS,
+            RoutingIntentType.AGENT_MODIFY_PLAN,
+        }:
+            self._handle_agent_intent(request, user_text, created_at)
+            return
         clarification = self._intent_router.clarification_message(request)
         if clarification:
             self._finish_routed_intent(user_text, clarification, created_at)
@@ -820,6 +881,132 @@ class LinaMainWindow(QMainWindow):
             self._show_confirmation_card(request, user_text, created_at)
             return
         self._execute_routed_tool(request, user_text, created_at, confirmed=True)
+
+    def _handle_agent_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
+        controller = self._agent_controller
+        if controller is None:
+            self._finish_routed_intent(user_text, "Agent Mode şu anda kullanılamıyor.", created_at)
+            return
+        try:
+            if request.intent is RoutingIntentType.AGENT_STATUS:
+                progress = controller.status()
+                message = "Aktif Agent görevi yok." if progress is None else f"Agent durumu: {progress.status.value}; ilerleme {progress.current}/{progress.total}. {progress.summary}"
+            elif request.intent is RoutingIntentType.AGENT_PAUSE:
+                session = controller.active_session
+                message = "Aktif Agent görevi yok." if session is None else (controller.pause(session.session_id) and "Agent görevi duraklatıldı.")
+            elif request.intent is RoutingIntentType.AGENT_RESUME:
+                session = controller.active_session
+                message = "Aktif Agent görevi yok." if session is None else (controller.resume(session.session_id) and controller.result_summary())
+            elif request.intent is RoutingIntentType.AGENT_CANCEL:
+                session = controller.active_session
+                message = "Aktif Agent görevi yok." if session is None else (controller.cancel(session.session_id) and "Agent görevi iptal edildi. Tamamlanan kalıcı işlemler geri alınmadı.")
+            elif request.intent is RoutingIntentType.AGENT_MODIFY_PLAN:
+                message = "Plan düzenleme isteği kaydedildi; mevcut plan çalıştırılmadı. Yeni isteğini Agent modunda açıkça yaz."
+            else:
+                session = controller.create_session(user_text, self._routing_session_key, self._active_request_id)
+                plan = controller.plan()
+                self._agent_enabled = True
+                message = f"{len(plan.steps)} adımlı plan hazır. İnceleyip Planı Başlat seçeneğiyle onayla."
+                if session.status is AgentSessionStatus.COMPLETED:
+                    message = controller.result_summary()
+            self._update_agent_ui()
+            self._finish_routed_intent(user_text, message, created_at)
+        except AgentError as error:
+            self._update_agent_ui()
+            self._finish_routed_intent(user_text, str(error), created_at)
+
+    def _toggle_agent_mode(self) -> None:
+        self._agent_enabled = not self._agent_enabled
+        if not self._agent_enabled and self._agent_controller and self._agent_controller.active_session:
+            self._agent_controller.cancel(self._agent_controller.active_session.session_id)
+        if self._user_settings_service is not None:
+            current = self._user_settings_service.current
+            self._user_settings_service.update(replace(current, agent=replace(current.agent, agent_mode_enabled=self._agent_enabled)))
+        self._update_agent_ui()
+
+    def _start_agent_plan(self) -> None:
+        if not self._agent_controller or not self._agent_controller.active_session:
+            return
+        try:
+            session = self._agent_controller.active_session
+            self._agent_controller.approve_plan(session.session_id, session.generation_id)
+            self._agent_controller.run(self._routing_session_key)
+        except AgentError as error:
+            self._set_status(str(error))
+        self._update_agent_ui()
+
+    def _decide_agent_step(self, decision: ApprovalDecision) -> None:
+        if not self._agent_controller or not self._agent_controller.active_session:
+            return
+        try:
+            session = self._agent_controller.active_session
+            self._agent_controller.approve_step(session.session_id, decision, session.generation_id)
+        except AgentError as error:
+            self._set_status(str(error))
+        self._update_agent_ui()
+
+    def _pause_agent(self) -> None:
+        if self._agent_controller and self._agent_controller.active_session:
+            try:
+                self._agent_controller.pause(self._agent_controller.active_session.session_id)
+            except AgentError as error:
+                self._set_status(str(error))
+        self._update_agent_ui()
+
+    def _resume_agent(self) -> None:
+        if self._agent_controller and self._agent_controller.active_session:
+            try:
+                self._agent_controller.resume(self._agent_controller.active_session.session_id)
+            except AgentError as error:
+                self._set_status(str(error))
+        self._update_agent_ui()
+
+    def _cancel_agent(self) -> None:
+        if self._agent_controller and self._agent_controller.active_session:
+            self._agent_controller.cancel(self._agent_controller.active_session.session_id)
+        if self._voice_controller is not None:
+            self.stop_voice()
+        self._update_agent_ui()
+
+    def _toggle_agent_pause(self) -> None:
+        session = self._agent_controller.active_session if self._agent_controller else None
+        if session is None:
+            return
+        if session.status is AgentSessionStatus.PAUSED:
+            self._resume_agent()
+        else:
+            self._pause_agent()
+
+    def _show_agent_from_tray(self) -> None:
+        self._show_from_tray()
+        self._agent_panel.setFocus()
+
+    def _update_agent_ui(self) -> None:
+        if not hasattr(self, "_agent_panel"):
+            return
+        session = self._agent_controller.session if self._agent_controller else None
+        self._agent_panel.render(session, enabled=self._agent_enabled)
+        active = bool(self._agent_controller and self._agent_controller.active_session)
+        if hasattr(self, "_tray_agent_pause_action"):
+            self._tray_agent_show_action.setEnabled(active)
+            self._tray_agent_pause_action.setEnabled(active)
+            self._tray_agent_cancel_action.setEnabled(active)
+            paused = bool(active and self._agent_controller.active_session.status is AgentSessionStatus.PAUSED)
+            self._tray_agent_pause_action.setText("Agent Görevine Devam Et" if paused else "Agent Görevini Duraklat")
+        if self._tray_icon is not None and active:
+            progress = self._agent_controller.status()
+            if progress.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL}:
+                self._tray_icon.setToolTip("Lina — Agent onay bekliyor")
+            elif progress.status is AgentSessionStatus.PAUSED:
+                self._tray_icon.setToolTip("Lina — Agent duraklatıldı")
+            else:
+                self._tray_icon.setToolTip(f"Lina — Agent görevi çalışıyor: {progress.current}/{progress.total}")
+        if self._tray_icon is not None and session and session.terminal and session.session_id not in self._agent_notified_sessions:
+            settings = self._user_settings_service.current.agent if self._user_settings_service else None
+            if settings is None or settings.notify_agent_completion:
+                title = "Agent görevi tamamlandı" if session.status in {AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED} else "Agent görevi sona erdi"
+                self._tray_icon.showMessage(title, self._agent_controller.result_summary())
+            self._agent_notified_sessions.add(session.session_id)
 
     def _execute_routed_tool(self, request: IntentRequest, user_text: str, created_at: datetime, confirmed: bool, card: ToolActivityCard | None = None) -> None:
         live_intents = {
@@ -2466,6 +2653,8 @@ class LinaMainWindow(QMainWindow):
         self._clear_screen_context()
         if self._live_vision_controller is not None:
             self._live_vision_controller.shutdown()
+        if self._agent_controller is not None:
+            self._agent_controller.shutdown()
         self._cleanup_live_visuals()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
