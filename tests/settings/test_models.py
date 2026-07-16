@@ -25,6 +25,7 @@ def test_user_settings_round_trip_contains_only_known_preferences() -> None:
     assert "messages" not in serialized
     assert "image_bytes" not in serialized
     assert "base64" not in serialized
+    assert payload["system"]["window_width"] == 1240
 
 
 def test_invalid_values_fall_back_to_safe_defaults() -> None:

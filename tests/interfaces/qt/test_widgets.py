@@ -212,6 +212,18 @@ def test_welcome_state_has_non_persistent_prompt_suggestions(qtbot, tmp_path) ->
     assert "ajan" in signal.args[0]
 
 
+def test_welcome_suggestions_stack_without_horizontal_overflow(qtbot, tmp_path) -> None:
+    welcome = WelcomeStateWidget(tmp_path / "missing.png")
+    qtbot.addWidget(welcome)
+    welcome.resize(600, 500)
+    welcome.show()
+    qtbot.wait(10)
+
+    positions = [welcome._suggestions.getItemPosition(index) for index in range(3)]
+    assert [position[0] for position in positions] == [0, 1, 2]
+    assert all(position[1] == 0 for position in positions)
+
+
 def test_composer_screen_context_chip_can_be_shown_and_removed(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)

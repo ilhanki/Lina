@@ -1,3 +1,5 @@
+from PySide6.QtCore import Qt
+
 from lina.interfaces.qt.settings_dialog import SettingsDialog
 from lina.settings.models import UserSettings
 from lina.settings.repository import UserSettingsRepository
@@ -64,6 +66,7 @@ def test_settings_dialog_supports_theme_and_font_scale_options(qtbot, tmp_path) 
     dialog.setStyleSheet(build_stylesheet("Segoe UI", "light", 1.35))
     assert dialog._navigation.objectName() == "settingsNavigation"
     assert dialog._pages.objectName() == "settingsPages"
+    assert dialog._navigation.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
     assert "QListWidget#settingsNavigation::item:selected" in dialog.styleSheet()
 
 

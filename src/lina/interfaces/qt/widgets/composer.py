@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from lina.interfaces.qt.theme import SPACE_SM
+from lina.ui.design import standard_icon
 
 
 COMPOSER_INPUT_MIN_HEIGHT = 54
@@ -140,10 +141,12 @@ class ComposerWidget(QWidget):
         layout.addWidget(action_row)
 
         self.attachment_button = QPushButton("Ekle", self)
+        self.attachment_button.setIcon(standard_icon(self, "add"))
         self._configure_action_button(self.attachment_button, tooltip="Görsel veya dosya ekle", accessible_name="Ekle")
         action_layout.addWidget(self.attachment_button)
 
         self.mic_button = QPushButton("Mikrofon", self)
+        self.mic_button.setIcon(standard_icon(self, "microphone"))
         self._configure_action_button(
             self.mic_button,
             tooltip="Konuşmayı metne çevir",
@@ -152,6 +155,7 @@ class ComposerWidget(QWidget):
         action_layout.addWidget(self.mic_button)
 
         self.screen_button = QPushButton("Ekran", self)
+        self.screen_button.setIcon(standard_icon(self, "screen"))
         self._configure_action_button(
             self.screen_button,
             tooltip="Tam ekran veya seçili alan görüntüsü ekle",
@@ -160,6 +164,7 @@ class ComposerWidget(QWidget):
         action_layout.addWidget(self.screen_button)
 
         self.agent_button = QPushButton("Agent", self)
+        self.agent_button.setIcon(standard_icon(self, "agent"))
         self._configure_action_button(
             self.agent_button,
             tooltip="Agent çalışma modunu aç veya kapat",
@@ -172,6 +177,7 @@ class ComposerWidget(QWidget):
         action_layout.addWidget(self.input_hint)
 
         self.send_button = QPushButton("Gönder", self)
+        self.send_button.setIcon(standard_icon(self, "send"))
         self._configure_action_button(
             self.send_button,
             tooltip="Mesajı gönder",

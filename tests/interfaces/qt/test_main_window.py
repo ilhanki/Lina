@@ -8,7 +8,7 @@ from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from lina.brain.model_provider import EmptyModelResponseError, ModelProviderError, ModelResponse
-from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation, _friendly_vision_error_message
+from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation, _friendly_vision_error_message, clamp_window_geometry
 from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
@@ -31,6 +31,12 @@ def test_direct_camera_question_empty_response_has_friendly_retry_message() -> N
     assert _friendly_vision_error_message(EmptyModelResponseError("private")) == (
         "Görüntüyü şu anda yorumlayamadım. Birkaç saniye sonra tekrar deneyelim."
     )
+
+
+def test_saved_window_geometry_is_clamped_to_visible_screen() -> None:
+    available = (QRect(0, 0, 1920, 1080),)
+    assert clamp_window_geometry(QRect(5000, 4000, 2400, 1400), available) == QRect(0, 0, 1920, 1080)
+    assert clamp_window_geometry(QRect(100, 120, 1000, 700), available) == QRect(100, 120, 1000, 700)
 
 
 class ImmediateThreadPool:

@@ -3,7 +3,7 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
-from PySide6.QtWidgets import QComboBox, QDialog, QHBoxLayout, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QComboBox, QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout
 
 from lina.interfaces.qt.reminder_dialog import ReminderDialog
 from lina.notifications.models import Reminder, ReminderStatus
@@ -18,6 +18,13 @@ class NotificationCenterDialog(QDialog):
         self.setWindowTitle("Bildirimler")
         self.setMinimumSize(560, 520)
         layout = QVBoxLayout(self)
+        title = QLabel("Bildirim Merkezi", self)
+        title.setObjectName("settingsPageTitle")
+        layout.addWidget(title)
+        description = QLabel("Yaklaşan, geçmiş ve tamamlanan yerel hatırlatıcılarını yönet.", self)
+        description.setObjectName("settingsDescription")
+        description.setWordWrap(True)
+        layout.addWidget(description)
         self._filter = QComboBox(self)
         self._filter.setObjectName("notificationFilter")
         self._filter.addItems(["Yaklaşanlar", "Geçmiş", "Tamamlananlar"])
@@ -27,8 +34,9 @@ class NotificationCenterDialog(QDialog):
         self._items.setObjectName("notificationItems")
         layout.addWidget(self._items, 1)
         actions = QHBoxLayout()
-        for text, handler in (("Yeni", self.create_reminder), ("Düzenle", self.edit_selected), ("Tamamla", self.complete_selected), ("Sil", self.delete_selected)):
+        for text, handler in (("Yeni Hatırlatıcı", self.create_reminder), ("Düzenle", self.edit_selected), ("Tamamla", self.complete_selected), ("Sil", self.delete_selected)):
             button = QPushButton(text, self); button.clicked.connect(handler); actions.addWidget(button)
+            if text == "Yeni Hatırlatıcı": button.setObjectName("accentButton")
         self._snooze = QComboBox(self)
         self._snooze.addItems(["10 dakika ertele", "1 saat ertele", "Yarın aynı saat"])
         actions.addWidget(self._snooze)
@@ -95,7 +103,11 @@ class NotificationCenterDialog(QDialog):
 
     def delete_selected(self) -> None:
         reminder = self._selected()
-        if reminder and QMessageBox.question(self, "Hatırlatıcıyı Sil", "Bu hatırlatıcı silinsin mi?") == QMessageBox.StandardButton.Yes:
+        if reminder and QMessageBox.question(
+            self, "Hatırlatıcıyı Sil", "Bu hatırlatıcı silinsin mi?",
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Yes,
+            QMessageBox.StandardButton.Cancel,
+        ) == QMessageBox.StandardButton.Yes:
             self._service.delete(reminder); self.refresh()
 
     def snooze_selected(self) -> None:

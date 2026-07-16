@@ -1,6 +1,8 @@
 import pytest
 
 from lina.ui.design import contrast_ratio, design_tokens, resolve_palette
+from lina.ui.design import standard_icon
+from PySide6.QtWidgets import QWidget
 
 
 def test_design_scales_and_layout_metrics_are_centralized():
@@ -27,3 +29,11 @@ def test_invalid_theme_and_color_are_rejected():
         resolve_palette("neon")
     with pytest.raises(ValueError):
         contrast_ratio("red", "#ffffff")
+
+
+def test_standard_icons_are_theme_aware_and_unknown_names_fail(qtbot):
+    widget = QWidget()
+    qtbot.addWidget(widget)
+    assert not standard_icon(widget, "settings").isNull()
+    with pytest.raises(ValueError):
+        standard_icon(widget, "brand-copy")

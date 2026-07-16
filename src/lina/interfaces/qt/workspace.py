@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QPushButton, QVBoxLayout, QWidget,
 )
+from lina.ui.design import standard_icon
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class DetailsInspector(QWidget):
         self.close_button.setObjectName("iconButton")
         self.close_button.setToolTip("Ayrıntılar panelini kapat")
         self.close_button.setAccessibleName("Ayrıntıları kapat")
+        self.close_button.setIcon(standard_icon(self, "close"))
         header.addWidget(self.close_button)
         layout.addLayout(header)
         self.summary = QLabel("Aktif görev veya oturum ayrıntıları burada görünür.", self)

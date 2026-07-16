@@ -147,6 +147,7 @@ def test_agent_plan_is_visible_approved_and_executed_once(qtbot, tmp_path) -> No
     controller = AgentController(AgentPlanner(policy), AgentExecutor(registry), AgentVerifier(), policy)
     window = LinaMainWindow(_Conversation(), notification_service=reminders, intent_router=router, agent_controller=controller, thread_pool=_ImmediatePool())
     qtbot.addWidget(window)
+    window.show()
 
     _send(window, "Agent modunda hatırlatıcılarımı kontrol et")
     assert controller.session.status.value == "awaiting_plan_approval"

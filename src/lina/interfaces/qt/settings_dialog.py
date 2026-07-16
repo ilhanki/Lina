@@ -82,6 +82,7 @@ class SettingsDialog(QDialog):
         self._navigation = QListWidget(self)
         self._navigation.setObjectName("settingsNavigation")
         self._navigation.setFixedWidth(190)
+        self._navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._navigation.addItems(
             ["Genel", "Görünüm", "Modeller", "Ses ve Mikrofon", "Hands-Free", "Vision", "Agent", "Bildirimler", "Gizlilik", "Gelişmiş", "Hakkında"]
         )

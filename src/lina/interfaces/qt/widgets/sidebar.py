@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
 from lina.conversations.models import ConversationSession
 from lina.conversations.models import ConversationSearchResult
 from lina.interfaces.qt.formatting import format_conversation_datetime
+from lina.ui.design import standard_icon
 
 
 class ConversationSearchInput(QLineEdit):
@@ -74,6 +76,7 @@ class SidebarWidget(QWidget):
 
         self._collapsed = False
         brand_row = QWidget(self)
+        brand_row.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         brand_layout = QHBoxLayout(brand_row)
         brand_layout.setContentsMargins(0, 0, 0, 0)
         brand_layout.setSpacing(8)
@@ -114,6 +117,7 @@ class SidebarWidget(QWidget):
         self.new_chat_button = QPushButton("Yeni Sohbet", self)
         self.new_chat_button.setObjectName("accentButton")
         self.new_chat_button.setAccessibleName("Yeni sohbet")
+        self.new_chat_button.setIcon(standard_icon(self, "add"))
         layout.addWidget(self.new_chat_button)
 
         self.session_panel = QWidget(self)
@@ -165,7 +169,13 @@ class SidebarWidget(QWidget):
         status_layout.addWidget(self.local_status)
         layout.addWidget(self.status_panel)
 
+        self._collapsed_spacer = QSpacerItem(
+            0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum
+        )
+        layout.addItem(self._collapsed_spacer)
+
         self.shortcuts = QWidget(self)
+        self.shortcuts.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         shortcut_layout = QVBoxLayout(self.shortcuts)
         shortcut_layout.setContentsMargins(0, 0, 0, 0)
         shortcut_layout.setSpacing(4)
@@ -181,6 +191,9 @@ class SidebarWidget(QWidget):
             button.setToolTip(name)
             button.setAccessibleName(name)
             shortcut_layout.addWidget(button)
+        self.agent_tasks_button.setIcon(standard_icon(self, "agent"))
+        self.notification_button.setIcon(standard_icon(self, "notifications"))
+        self.settings_button.setIcon(standard_icon(self, "settings"))
         layout.addWidget(self.shortcuts)
 
         self.new_chat_button.clicked.connect(self.new_chat_requested)
@@ -225,6 +238,13 @@ class SidebarWidget(QWidget):
         if self._collapsed == collapsed:
             return
         self._collapsed = collapsed
+        self._collapsed_spacer.changeSize(
+            0,
+            1 if collapsed else 0,
+            QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Expanding if collapsed else QSizePolicy.Policy.Minimum,
+        )
+        self.layout().invalidate()
         self.setFixedWidth(self.COLLAPSED_WIDTH if collapsed else self.WIDTH)
         for widget in (
             self.title_label, self.subtitle_label, self.search_input, self.filter_combo,
@@ -232,14 +252,13 @@ class SidebarWidget(QWidget):
         ):
             widget.setVisible(not collapsed)
         self.logo_label.setVisible(not collapsed)
-        self.new_chat_button.setText("+" if collapsed else "Yeni Sohbet")
+        self.new_chat_button.setText("" if collapsed else "Yeni Sohbet")
         self.new_chat_button.setToolTip("Yeni sohbet")
         self.collapse_button.setText("›" if collapsed else "‹")
         self.collapse_button.setToolTip("Sol navigasyonu genişlet" if collapsed else "Sol navigasyonu daralt")
         self.collapse_button.setAccessibleName(self.collapse_button.toolTip())
-        compact_labels = ((self.agent_tasks_button, "A"), (self.notification_button, "B"), (self.settings_button, "⚙"))
-        for button, compact in compact_labels:
-            button.setText(compact if collapsed else button.toolTip())
+        for button in (self.agent_tasks_button, self.notification_button, self.settings_button):
+            button.setText("" if collapsed else button.toolTip())
         self.collapsed_changed.emit(collapsed)
 
     def set_session_title(self, title: str) -> None:

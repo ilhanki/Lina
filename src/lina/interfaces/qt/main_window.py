@@ -52,7 +52,7 @@ from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
-from lina.ui.design import design_tokens
+from lina.ui.design import design_tokens, standard_icon
 from lina.interfaces.status import StatusPriority, UnifiedStatusController
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
@@ -114,6 +114,18 @@ def _is_camera_question(text: str) -> bool:
         "ne görüyorsun", "ne goruyorsun", "elimde ne var", "bu ne renk",
         "bunu tarif et", "şu an ne yapıyorum", "su an ne yapiyorum",
     ))
+
+
+def clamp_window_geometry(saved: QRect, available: tuple[QRect, ...]) -> QRect:
+    """Clamp a saved window to a visible screen without assuming positive coordinates."""
+    if not available:
+        return saved
+    target = next((screen for screen in available if screen.intersects(saved)), available[0])
+    width = min(max(720, saved.width()), target.width())
+    height = min(max(560, saved.height()), target.height())
+    x = max(target.left(), min(saved.x(), target.right() - width + 1))
+    y = max(target.top(), min(saved.y(), target.bottom() - height + 1))
+    return QRect(x, y, width, height)
 
 
 class LinaMainWindow(QMainWindow):
@@ -189,6 +201,7 @@ class LinaMainWindow(QMainWindow):
         self._active_confirmation_card: ToolActivityCard | None = None
         self._tray_icon: QSystemTrayIcon | None = None
         self._force_exit = False
+        self._window_state_restored = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
         self._image_loader = image_loader or QtImageLoader()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
@@ -216,6 +229,7 @@ class LinaMainWindow(QMainWindow):
         self._is_programmatic_scroll = False
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._interface_density = "comfortable"
+        self._compact_chrome = False
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
         self._welcome_state: WelcomeStateWidget | None = None
@@ -344,6 +358,7 @@ class LinaMainWindow(QMainWindow):
         self._status_button.setObjectName("unifiedStatusButton")
         self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
         self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
+        self._status_button.setIcon(standard_icon(self, "details"))
         self._status_button.clicked.connect(self._show_status_menu)
         layout.addWidget(self._status_button)
 
@@ -376,12 +391,14 @@ class LinaMainWindow(QMainWindow):
                 self._notification_button.setObjectName("notificationButton")
                 self._notification_button.setToolTip("Bildirim merkezini aç")
                 self._notification_button.setAccessibleName("Bildirimler")
+                self._notification_button.setIcon(standard_icon(self, "notifications"))
                 self._notification_button.clicked.connect(self.open_notifications)
                 layout.addWidget(self._notification_button)
         self._inspector_button = QPushButton("Ayrıntılar", header)
         self._inspector_button.setObjectName("iconButton")
         self._inspector_button.setToolTip("Sağ ayrıntılar panelini aç veya kapat")
         self._inspector_button.setAccessibleName("Ayrıntılar paneli")
+        self._inspector_button.setIcon(standard_icon(self, "details"))
         self._inspector_button.clicked.connect(self._toggle_inspector)
         layout.addWidget(self._inspector_button)
         parent_layout.addWidget(header)
@@ -391,6 +408,7 @@ class LinaMainWindow(QMainWindow):
         self._scroll.setObjectName("chatTimelineScroll")
         self._scroll.viewport().setObjectName("chatTimelineViewport")
         self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._message_container = QWidget(self._scroll)
         self._message_container.setObjectName("chatTimeline")
         self._message_layout = QVBoxLayout(self._message_container)
@@ -556,12 +574,21 @@ class LinaMainWindow(QMainWindow):
 
     def _close_inspector(self) -> None:
         self._inspector.hide()
-        self._inspector_button.setText("Ayrıntılar")
+        self._set_inspector_button_state(opened=False)
+
+    def _set_inspector_button_state(self, *, opened: bool) -> None:
+        if self._compact_chrome:
+            self._inspector_button.setText("")
+        else:
+            self._inspector_button.setText("Ayrıntıları Kapat" if opened else "Ayrıntılar")
+        self._inspector_button.setToolTip(
+            "Sağ ayrıntılar panelini kapat" if opened else "Sağ ayrıntılar panelini aç"
+        )
 
     def _show_system_inspector(self) -> None:
         details = "\n".join((self._model_status.text(), self._speech_status.text(), self._voice_status.text()))
         self._inspector.show_details("Lina Durumu", details)
-        self._inspector_button.setText("Ayrıntıları Kapat")
+        self._set_inspector_button_state(opened=True)
 
     def _show_agent_inspector(self) -> None:
         session = self._agent_controller.session if self._agent_controller else None
@@ -571,7 +598,7 @@ class LinaMainWindow(QMainWindow):
             if session.plan is not None:
                 summary = f"{session.plan.summary}\n\n{summary}"
         self._inspector.show_details("Agent Görevi", summary)
-        self._inspector_button.setText("Ayrıntıları Kapat")
+        self._set_inspector_button_state(opened=True)
 
     def _show_vision_inspector(self) -> None:
         snapshot = self._live_vision_controller.snapshot if self._live_vision_controller else None
@@ -579,7 +606,7 @@ class LinaMainWindow(QMainWindow):
         if snapshot is not None:
             summary = f"Kaynak: {snapshot.source.value}\nDurum: {snapshot.state.value}\n{snapshot.last_result or snapshot.user_message}"
         self._inspector.show_details("Vision Oturumu", summary)
-        self._inspector_button.setText("Ayrıntıları Kapat")
+        self._set_inspector_button_state(opened=True)
 
     def _show_status_menu(self) -> None:
         menu = QMenu(self)
@@ -681,7 +708,10 @@ class LinaMainWindow(QMainWindow):
     def _refresh_notification_badge(self) -> None:
         if hasattr(self, "_notification_button") and self._notification_service is not None:
             count = self._notification_service.unread_count()
-            self._notification_button.setText(f"🔔 {count}" if count else "🔔")
+            self._notification_button.setText(str(count) if count else "")
+            self._notification_button.setToolTip(
+                f"Bildirim merkezini aç ({count} okunmamış)" if count else "Bildirim merkezini aç"
+            )
 
     def open_notifications(self) -> None:
         if self._notification_service is None:
@@ -778,6 +808,9 @@ class LinaMainWindow(QMainWindow):
             if self._active_confirmation_card is not None:
                 self._active_confirmation_card.hide()
                 self._active_confirmation_card = None
+        if not self._window_state_restored:
+            self._restore_window_state(settings)
+            self._window_state_restored = True
         application = QApplication.instance()
         if application is not None:
             application.setFont(QFont(self._font_family, round(11 * settings.appearance.font_scale)))
@@ -857,6 +890,34 @@ class LinaMainWindow(QMainWindow):
             self._live_vision_controller.stop()
         self._refresh_speech_status()
         self._set_status("Ayarlar uygulandı")
+
+    def _restore_window_state(self, settings: UserSettings) -> None:
+        system = settings.system
+        screens = tuple(screen.availableGeometry() for screen in QGuiApplication.screens())
+        primary = screens[0] if screens else QRect(0, 0, 1240, 780)
+        x = system.window_x if system.window_x is not None else primary.center().x() - system.window_width // 2
+        y = system.window_y if system.window_y is not None else primary.center().y() - system.window_height // 2
+        geometry = clamp_window_geometry(QRect(x, y, system.window_width, system.window_height), screens)
+        self.setGeometry(geometry)
+        if system.window_maximized:
+            self.showMaximized()
+
+    def _persist_window_state(self) -> None:
+        if self._user_settings_service is None:
+            return
+        current = self._user_settings_service.current
+        geometry = self.normalGeometry() if self.isMaximized() else self.geometry()
+        system = replace(
+            current.system,
+            window_x=geometry.x(), window_y=geometry.y(),
+            window_width=max(720, geometry.width()), window_height=max(560, geometry.height()),
+            window_maximized=self.isMaximized(),
+        )
+        if system != current.system:
+            try:
+                self._user_settings_service.update(replace(current, system=system))
+            except OSError:
+                pass
 
     def _set_vision_controls_enabled(self, enabled: bool) -> None:
         self._composer.screen_button.setEnabled(enabled and not self._is_screen_capture_busy)
@@ -2641,7 +2702,17 @@ class LinaMainWindow(QMainWindow):
         if self._unified_status.publish(text, generation=generation, priority=priority):
             self._status_label.setText(text)
             if hasattr(self, "_status_button"):
-                self._status_button.setText(f"Lina Durumu · {text}")
+                self._status_button.setText("" if self._compact_chrome else f"Lina Durumu · {text}")
+                self._status_button.setToolTip(
+                    f"Lina Durumu: {text}. Model, mikrofon, ses, Agent ve Vision ayrıntılarını göster"
+                )
+
+    def _update_responsive_chrome(self, compact: bool) -> None:
+        self._compact_chrome = compact
+        self._status_button.setText("" if compact else f"Lina Durumu · {self._status_label.text()}")
+        self._set_inspector_button_state(opened=self._inspector.isVisible())
+        if hasattr(self, "_notification_button"):
+            self._refresh_notification_badge()
 
     def _run_initial_diagnostics(self) -> None:
         if self._diagnostics_service is None:
@@ -2730,6 +2801,7 @@ class LinaMainWindow(QMainWindow):
             compact = self._interface_density == "compact" or self.width() < design_tokens("dark").layout.compact_breakpoint
             self._sidebar.set_collapsed(compact)
             self._composer.set_compact(compact)
+            self._update_responsive_chrome(compact)
             if compact and hasattr(self, "_inspector"):
                 self._close_inspector()
         self._update_message_widths()
@@ -2811,6 +2883,7 @@ class LinaMainWindow(QMainWindow):
                 self.setWindowIcon(icon)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._persist_window_state()
         if not self._force_exit and self._user_settings_service is not None:
             behavior = self._user_settings_service.current.system.close_behavior
             if behavior == "tray" and self._tray_icon is not None:

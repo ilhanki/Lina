@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from lina.interfaces.qt.formatting import build_welcome_message
 
@@ -63,8 +63,10 @@ class WelcomeStateWidget(QWidget):
             "Bir şey sorabilir, ekran görüntüsü gösterebilir veya dosyalar hakkında konuşabilirsin."
         )
         layout.addWidget(self.subtitle_label)
-        suggestions = QHBoxLayout()
-        suggestions.setSpacing(8)
+        self._suggestions = QGridLayout()
+        self._suggestions.setSpacing(8)
+        self._suggestion_buttons: list[QPushButton] = []
+        self._suggestions_compact: bool | None = None
         for text in (
             "Bugün neye odaklanmalıyım?",
             "Yapay zekâ ajanını açıkla",
@@ -74,10 +76,26 @@ class WelcomeStateWidget(QWidget):
             button.setObjectName("suggestionButton")
             button.setAccessibleName(f"Öneri: {text}")
             button.clicked.connect(lambda _checked=False, prompt=text: self.prompt_selected.emit(prompt))
-            suggestions.addWidget(button)
-        layout.addLayout(suggestions)
+            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self._suggestion_buttons.append(button)
+        layout.addLayout(self._suggestions)
+        # Start with the narrow-safe layout so the widget never imposes a wide
+        # minimum size on its containing scroll area before its first resize.
+        self._layout_suggestions(compact=True)
         layout.addStretch(3)
         self.refresh(conversation_id)
+
+    def _layout_suggestions(self, *, compact: bool) -> None:
+        if self._suggestions_compact is compact:
+            return
+        self._suggestions_compact = compact
+        columns = 1 if compact else len(self._suggestion_buttons)
+        for index, button in enumerate(self._suggestion_buttons):
+            self._suggestions.addWidget(button, index // columns, index % columns)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._layout_suggestions(compact=self.width() < 1100)
 
     def refresh(self, conversation_id: int | None = None) -> None:
         """Refresh deterministic time-aware greeting text."""

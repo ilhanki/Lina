@@ -104,6 +104,11 @@ class SystemSettings:
     reminders_enabled: bool = True
     desktop_notifications_enabled: bool = True
     show_missed_reminders: bool = True
+    window_x: int | None = None
+    window_y: int | None = None
+    window_width: int = 1240
+    window_height: int = 780
+    window_maximized: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +172,8 @@ class UserSettings:
             raise ValueError("Context budget must be between 1000 and 100000")
         if self.system.close_behavior not in SUPPORTED_CLOSE_BEHAVIORS:
             raise ValueError("Unsupported close behavior")
+        if not 720 <= self.system.window_width <= 7680 or not 560 <= self.system.window_height <= 4320:
+            raise ValueError("Saved window size is outside safe bounds")
         if self.live_vision.default_source not in SUPPORTED_LIVE_VISION_SOURCES:
             raise ValueError("Unsupported live vision source")
         if self.live_vision.change_sensitivity not in SUPPORTED_CHANGE_SENSITIVITY:
@@ -266,6 +273,11 @@ class UserSettings:
                 "reminders_enabled": self.system.reminders_enabled,
                 "desktop_notifications_enabled": self.system.desktop_notifications_enabled,
                 "show_missed_reminders": self.system.show_missed_reminders,
+                "window_x": self.system.window_x,
+                "window_y": self.system.window_y,
+                "window_width": self.system.window_width,
+                "window_height": self.system.window_height,
+                "window_maximized": self.system.window_maximized,
             },
             "agent": {
                 "agent_mode_enabled": self.agent.agent_mode_enabled,
@@ -378,6 +390,11 @@ class UserSettings:
                 reminders_enabled=_bool(system, "reminders_enabled", defaults.system.reminders_enabled),
                 desktop_notifications_enabled=_bool(system, "desktop_notifications_enabled", defaults.system.desktop_notifications_enabled),
                 show_missed_reminders=_bool(system, "show_missed_reminders", defaults.system.show_missed_reminders),
+                window_x=_optional_signed_int(system, "window_x", -10000, 10000),
+                window_y=_optional_signed_int(system, "window_y", -10000, 10000),
+                window_width=_bounded_int(system, "window_width", defaults.system.window_width, 720, 7680),
+                window_height=_bounded_int(system, "window_height", defaults.system.window_height, 560, 4320),
+                window_maximized=_bool(system, "window_maximized", defaults.system.window_maximized),
             ),
             agent=AgentUserSettings(
                 agent_mode_enabled=_bool(agent, "agent_mode_enabled", defaults.agent.agent_mode_enabled),
@@ -445,6 +462,11 @@ def _optional_string(section: dict[str, Any], key: str) -> str | None:
 def _optional_int(section: dict[str, Any], key: str) -> int | None:
     value = section.get(key)
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _optional_signed_int(section: dict[str, Any], key: str, minimum: int, maximum: int) -> int | None:
+    value = section.get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) and minimum <= value <= maximum else None
 
 
 def _safe_string(section: dict[str, Any], key: str, default: str, maximum: int) -> str:
