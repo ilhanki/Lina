@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -16,6 +16,7 @@ SUPPORTED_KEEP_ALIVE = frozenset({"0", "5m", "15m", "-1"})
 SUPPORTED_LIVE_VISION_SOURCES = frozenset({"camera", "screen", "region"})
 SUPPORTED_CHANGE_SENSITIVITY = frozenset({"low", "medium", "high"})
 SUPPORTED_MICROPHONE_SENSITIVITY = frozenset({"sensitive", "balanced", "noisy"})
+SUPPORTED_DENSITIES = frozenset({"comfortable", "compact"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +25,7 @@ class AppearanceSettings:
     font_scale: float = 1.0
     compact_mode: bool = False
     reduce_motion: bool = False
+    density: str = "comfortable"
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +142,8 @@ class UserSettings:
             raise ValueError("Unsupported appearance theme")
         if not 0.85 <= self.appearance.font_scale <= 1.35:
             raise ValueError("Appearance font scale must be between 0.85 and 1.35")
+        if self.appearance.density not in SUPPORTED_DENSITIES:
+            raise ValueError("Unsupported interface density")
         if self.general.language != "tr":
             raise ValueError("Only Turkish user settings are supported")
         if self.speech.language != "tr":
@@ -195,6 +199,7 @@ class UserSettings:
                 "font_scale": self.appearance.font_scale,
                 "compact_mode": self.appearance.compact_mode,
                 "reduce_motion": self.appearance.reduce_motion,
+                "density": self.appearance.density,
             },
             "general": {
                 "language": self.general.language,
@@ -282,7 +287,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -299,6 +304,7 @@ class UserSettings:
                 font_scale=_bounded_float(appearance, "font_scale", defaults.appearance.font_scale, 0.85, 1.35),
                 compact_mode=_bool(appearance, "compact_mode", defaults.appearance.compact_mode),
                 reduce_motion=_bool(appearance, "reduce_motion", defaults.appearance.reduce_motion),
+                density=_choice(appearance, "density", defaults.appearance.density, SUPPORTED_DENSITIES),
             ),
             general=GeneralSettings(
                 language=_choice(general, "language", "tr", {"tr"}),

@@ -12,6 +12,7 @@ def test_default_user_settings_are_turkish_and_local_first() -> None:
     assert settings.speech.auto_insert_transcription is True
     assert settings.system.close_behavior == "exit"
     assert settings.general.intent_routing_enabled is True
+    assert settings.appearance.density == "comfortable"
 
 
 def test_user_settings_round_trip_contains_only_known_preferences() -> None:
@@ -30,7 +31,7 @@ def test_invalid_values_fall_back_to_safe_defaults() -> None:
     settings = UserSettings.from_dict(
         {
             "schema_version": 1,
-            "appearance": {"theme": "neon", "font_scale": 10},
+            "appearance": {"theme": "neon", "font_scale": 10, "density": "microscopic"},
             "models": {"text_model": "bad\nmodel"},
             "system": {"close_behavior": "shell"},
         }
@@ -38,6 +39,7 @@ def test_invalid_values_fall_back_to_safe_defaults() -> None:
 
     assert settings.appearance.theme == "dark"
     assert settings.appearance.font_scale == 1.0
+    assert settings.appearance.density == "comfortable"
     assert settings.models.text_model == "llama3.2:3b"
     assert settings.system.close_behavior == "exit"
 

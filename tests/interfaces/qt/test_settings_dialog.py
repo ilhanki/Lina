@@ -10,7 +10,9 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     dialog = SettingsDialog(service)
     qtbot.addWidget(dialog)
 
-    assert dialog._navigation.count() == 8
+    assert dialog._navigation.count() == 11
+    assert dialog._navigation.item(3).text() == "Ses ve Mikrofon"
+    assert dialog._navigation.item(8).text() == "Gizlilik"
     assert dialog._agent_max_steps.minimum() == 3
     assert dialog._agent_max_steps.maximum() == 12
     assert dialog._agent_confirm_persistent.isChecked()
@@ -63,3 +65,15 @@ def test_settings_dialog_supports_theme_and_font_scale_options(qtbot, tmp_path) 
     assert dialog._navigation.objectName() == "settingsNavigation"
     assert dialog._pages.objectName() == "settingsPages"
     assert "QListWidget#settingsNavigation::item:selected" in dialog.styleSheet()
+
+
+def test_settings_search_and_density_are_persistent(qtbot, tmp_path) -> None:
+    service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    dialog = SettingsDialog(service)
+    qtbot.addWidget(dialog)
+    dialog._settings_search.setText("kalibrasyon")
+    visible = [dialog._navigation.item(index).text() for index in range(dialog._navigation.count()) if not dialog._navigation.item(index).isHidden()]
+    assert visible == ["Ses ve Mikrofon"]
+    dialog._density.setCurrentIndex(dialog._density.findData("compact"))
+    dialog._apply()
+    assert service.current.appearance.density == "compact"

@@ -70,28 +70,39 @@ class SettingsDialog(QDialog):
 
     def _build_ui(self) -> None:
         self.setWindowTitle("Ayarlar")
-        self.setMinimumSize(720, 520)
-        self.resize(820, 620)
+        self.setMinimumSize(680, 540)
+        self.resize(900, 680)
         root = QVBoxLayout(self)
+        self._settings_search = QLineEdit(self)
+        self._settings_search.setObjectName("settingsSearch")
+        self._settings_search.setPlaceholderText("Ayarlarda ara…")
+        self._settings_search.setAccessibleName("Ayarlarda ara")
+        root.addWidget(self._settings_search)
         content = QHBoxLayout()
         self._navigation = QListWidget(self)
         self._navigation.setObjectName("settingsNavigation")
-        self._navigation.setFixedWidth(150)
+        self._navigation.setFixedWidth(190)
         self._navigation.addItems(
-            ["Genel", "Görünüm", "Modeller", "Konuşma", "Vision", "Agent", "Sistem", "Hakkında"]
+            ["Genel", "Görünüm", "Modeller", "Ses ve Mikrofon", "Hands-Free", "Vision", "Agent", "Bildirimler", "Gizlilik", "Gelişmiş", "Hakkında"]
         )
         content.addWidget(self._navigation)
         self._pages = QStackedWidget(self)
         self._pages.setObjectName("settingsPages")
-        self._pages.addWidget(self._general_page())
-        self._pages.addWidget(self._appearance_page())
-        self._pages.addWidget(self._models_page())
-        self._pages.addWidget(self._speech_page())
-        self._pages.addWidget(self._vision_page())
-        self._pages.addWidget(self._agent_page())
-        self._pages.addWidget(self._system_page())
-        self._pages.addWidget(self._about_page())
+        general = self._general_page()
+        appearance = self._appearance_page()
+        models = self._models_page()
+        speech = self._speech_page()
+        hands_free = self._hands_free_page()
+        vision = self._vision_page()
+        agent = self._agent_page()
+        advanced = self._system_page()
+        notifications = self._notifications_page()
+        privacy = self._privacy_page()
+        about = self._about_page()
+        for page in (general, appearance, models, speech, hands_free, vision, agent, notifications, privacy, advanced, about):
+            self._pages.addWidget(page)
         self._navigation.currentRowChanged.connect(self._pages.setCurrentIndex)
+        self._settings_search.textChanged.connect(self._filter_settings_navigation)
         content.addWidget(self._pages, 1)
         root.addLayout(content, 1)
 
@@ -112,6 +123,25 @@ class SettingsDialog(QDialog):
         self._cancel_button.clicked.connect(self.reject)
         self._apply_button.clicked.connect(self._apply)
         self._save_button.clicked.connect(self._save)
+
+    def _filter_settings_navigation(self, query: str) -> None:
+        needle = " ".join(query.casefold().split())
+        keywords = (
+            "dil sohbet", "tema görünüm font yoğunluk hareket", "model ollama performans",
+            "ses mikrofon stt tts kalibrasyon", "hands free wake hey lina", "vision kamera ekran",
+            "agent plan onay görev", "bildirim hatırlatıcı", "gizlilik yerel veri audio",
+            "tray başlangıç kapanış gelişmiş", "hakkında diagnostics sürüm",
+        )
+        first_visible = -1
+        for index in range(self._navigation.count()):
+            item = self._navigation.item(index)
+            match = not needle or needle in f"{item.text()} {keywords[index]}".casefold()
+            item.setHidden(not match)
+            if match and first_visible < 0:
+                first_visible = index
+        current = self._navigation.currentItem()
+        if first_visible >= 0 and (current is None or current.isHidden()):
+            self._navigation.setCurrentRow(first_visible)
 
     def _general_page(self) -> QWidget:
         page = QWidget(self)
@@ -141,10 +171,14 @@ class SettingsDialog(QDialog):
         self._font_scale.setSingleStep(5)
         self._compact_mode = QCheckBox("Kompakt sohbet listesi", page)
         self._reduce_motion = QCheckBox("Animasyonları azalt", page)
+        self._density = QComboBox(page)
+        self._density.addItem("Rahat", "comfortable")
+        self._density.addItem("Kompakt", "compact")
         form.addRow("Tema", self._theme)
         form.addRow("Yazı ölçeği", self._font_scale)
         form.addRow(self._compact_mode)
         form.addRow(self._reduce_motion)
+        form.addRow("Arayüz yoğunluğu", self._density)
         return page
 
     def _models_page(self) -> QWidget:
@@ -266,6 +300,33 @@ class SettingsDialog(QDialog):
         self._calibrate_microphone.clicked.connect(self._calibrate_selected_microphone)
         self._wake_test.clicked.connect(self._test_wake_phrase)
         self._refresh_audio_input_devices()
+        for control in (
+            self._hands_free, self._wake_word, self._wake_phrase, self._wake_indicator,
+            self._return_to_wake, self._voice_confirmation, self._wake_test, self._wake_test_level,
+        ):
+            form.takeRow(control)
+        return page
+
+    def _hands_free_page(self) -> QWidget:
+        page = QWidget(self)
+        form = QFormLayout(page)
+        note = QLabel("‘Hey Lina’ algılama yalnız cihazında çalışır; ham ses saklanmaz.", page)
+        note.setWordWrap(True)
+        note.setObjectName("settingsDescription")
+        form.addRow(note)
+        for control in (
+            self._hands_free, self._wake_word, self._wake_phrase, self._wake_indicator,
+            self._return_to_wake, self._voice_confirmation, self._wake_test, self._wake_test_level,
+        ):
+            control.setParent(page)
+        form.addRow(self._hands_free)
+        form.addRow(self._wake_word)
+        form.addRow("Wake ifadesi", self._wake_phrase)
+        form.addRow(self._wake_indicator)
+        form.addRow(self._return_to_wake)
+        form.addRow(self._voice_confirmation)
+        form.addRow(self._wake_test)
+        form.addRow(self._wake_test_level)
         return page
 
     def _vision_page(self) -> QWidget:
@@ -352,6 +413,39 @@ class SettingsDialog(QDialog):
         form.addRow(self._reminders_enabled)
         form.addRow(self._desktop_notifications)
         form.addRow(self._show_missed)
+        for control in (self._notifications, self._reminders_enabled, self._desktop_notifications, self._show_missed):
+            form.takeRow(control)
+        return page
+
+    def _notifications_page(self) -> QWidget:
+        page = QWidget(self)
+        form = QFormLayout(page)
+        for control in (self._notifications, self._reminders_enabled, self._desktop_notifications, self._show_missed):
+            control.setParent(page)
+            form.addRow(control)
+        note = QLabel("Bildirim içerikleri yerel hatırlatıcı veritabanından gelir.", page)
+        note.setWordWrap(True)
+        note.setObjectName("settingsDescription")
+        form.addRow(note)
+        return page
+
+    def _privacy_page(self) -> QWidget:
+        page = QWidget(self)
+        layout = QVBoxLayout(page)
+        title = QLabel("Gizlilik ve yerel çalışma", page)
+        title.setObjectName("settingsPageTitle")
+        layout.addWidget(title)
+        for text in (
+            "Sohbet, ayar ve hatırlatıcı verileri bu cihazda tutulur.",
+            "Ham mikrofon, kalibrasyon ve wake test sesleri kaydedilmez.",
+            "Tam prompt, model cevabı ve transcription içeriği teknik loglara yazılmaz.",
+            "Kamera ve ekran yalnız açık kullanıcı eylemiyle başlatılır.",
+        ):
+            label = QLabel(text, page)
+            label.setWordWrap(True)
+            label.setObjectName("settingsDescription")
+            layout.addWidget(label)
+        layout.addStretch(1)
         return page
 
     def _agent_page(self) -> QWidget:
@@ -421,6 +515,7 @@ class SettingsDialog(QDialog):
         self._font_scale.setValue(round(settings.appearance.font_scale * 100))
         self._compact_mode.setChecked(settings.appearance.compact_mode)
         self._reduce_motion.setChecked(settings.appearance.reduce_motion)
+        _select_data(self._density, settings.appearance.density)
         self._text_model.setText(settings.models.text_model)
         self._vision_model.setText(settings.models.vision_model)
         _select_data(self._keep_alive, settings.models.keep_alive)
@@ -488,6 +583,7 @@ class SettingsDialog(QDialog):
                 font_scale=self._font_scale.value() / 100,
                 compact_mode=self._compact_mode.isChecked(),
                 reduce_motion=self._reduce_motion.isChecked(),
+                density=str(self._density.currentData()),
             ),
             general=replace(
                 self._draft.general,
