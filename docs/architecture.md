@@ -2,6 +2,24 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Agent Mode Foundation (v0.12.0-alpha)
+
+Agent katmanı `lina.agent` altında framework bağımsızdır. `AgentController` tek aktif session kuralını, lifecycle geçişlerini, plan ve step onaylarını, pause/resume/cancel, bounded retry/replan, completion ve shutdown cleanup’ı koordine eder. `AgentSession`, `AgentPlan`, `AgentStep`, status/risk/verification enum’ları ve metrics typed modellerdir; raw planner dict’i veya tool payload’ı GUI’ye taşınmaz.
+
+`AgentPlanner`, yalnızca sanitized `CapabilitySnapshot` ve bounded `AgentContext` görür. Snapshot araç adı, kısa açıklama, argüman türleri, sonuç türü, availability, risk ve approval bilgisinden oluşur; callback, servis nesnesi, secret, environment, dosya içeriği veya tam log içermez. Serbest planner çıktısı schema parse edilir; ilk hata sonrası yalnızca bir repair denenir. Duplicate tool+arguments, geçersiz dependency, cycle ve 12 üstü step güvenli plan hatasıdır.
+
+`AgentPolicy`, registry’den bağımsız ikinci allowlist katmanıdır. Read-only araçlar görünür plan onayından sonra yürüyebilir. Persistent ve sensitive adımlar her defasında bağlama özel step approval ister; bu ayar kapatılamaz. Shell/CMD/PowerShell, process/code execution, browser, email/message, git, mouse/keyboard, dosya yazma/silme/taşıma ve gizli cihaz başlatma prohibited’dır. Bilinmeyen araç varsayılan olarak prohibited kabul edilir.
+
+`AgentExecutor`, aracı yalnızca `SafeToolRegistry.get_by_name` üzerinden bulur; unknown argümanı reddeder, required alan ve Python türlerini doğrular, timeout/cancel uygular, raw exception’ı sabit hata koduna normalize eder ve aynı step’in duplicate execution’ını engeller. `AgentVerifier`, typed success+data, object ID, beklenen alan veya deterministic non-empty kuralları kullanır. Modelin başarı cümlesi tek başına kanıt değildir; uncertain persistent sonuç otomatik tekrarlanmaz.
+
+Read-only/idempotent adım en fazla bir otomatik retry alır. Replan varsayılan ve hard maksimum 1’dir; yalnız failed step kimliği, typed hata kodu, tamamlanan kısa özetler ve capability snapshot kullanılır. Tamamlanan adımlar korunur; aynı persistent signature yeni planda yinelenemez. Yeni persistent risk planı yeniden kullanıcı onayına döndürür.
+
+Session persistence yalnız metadata, bounded request özeti, plan/step başlığı, tool adı, risk, status, kısa sonuç, timestamp ve privacy-safe sayaçları JSON olarak saklar. Typed arguments, raw tool data, prompt/reasoning, exception, dosya/görüntü/ses/Base64 saklanmaz. Uygulama yeniden açıldığında running/planning/approval durumları `interrupted` olur ve otomatik devam etmez.
+
+Qt `AgentPanel`, plan özeti, ilerleme, metin+ikon durumları, risk ve kontrollere typed session üzerinden bağlanır. Tray aktif görev yokken pause/cancel eylemlerini kapatır. Explicit agent intent’leri normal sohbet açıklamalarından ayrılır; hands-free komutları aynı GUI dispatch yolunu kullanır ve TTS playback agent komutu sayılmaz. Shutdown cancellation token’ı işaretler, generation’ı geçersiz kılar ve worker pool’u temizler.
+
+Bilinen sınır: ilk sürüm deterministic planner’ı yalnız açıkça eşlenebilen mevcut araçlarla çalışır; genel amaçlı masaüstü otomasyonu, shell, browser, dosya değişikliği, gizli background devam ve Codex Bridge yoktur. Manual realtime camera validation deferred; kamera altyapısı bu sprintte değiştirilmemiştir.
+
 ## Realtime Camera Conversation (v0.11.2-alpha)
 
 Empty vision response reliability provider sınırında çözülür. Ollama adapter’ı `message.content`, attribute tabanlı `message.content`, legacy `response` alanı ve tüm stream chunk’larını typed bir normalize sonucuna dönüştürür. `None`, whitespace, yalnız noktalama, thinking-only ve `null`/`none` gibi anlamsız literal sonuçlar boş kabul edilir; raw provider modeli UI’ya taşınmaz.

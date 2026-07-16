@@ -10,13 +10,14 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.11.0-alpha`: Live Vision & Camera Mode tamamlandı.
 - `v0.11.1-alpha`: Live Preview & Monitoring Overlays tamamlandı.
 - `v0.11.2-alpha`: Realtime Camera Conversation tamamlandı.
-- `v0.11.3-alpha`: Semantic Object Detection.
-- `v0.12.0-alpha`: Agent Mode Foundation.
+- `v0.12.0-alpha`: Agent Mode Foundation tamamlandı.
+- `v0.12.1-alpha`: Agent Reliability & Task Templates.
 - `v0.13.0-alpha`: Codex Bridge.
+- `v0.14.0-alpha`: Safe Desktop Capabilities.
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.11.2-alpha Realtime Camera Conversation
+## Mevcut Durum: v0.12.0-alpha Agent Mode Foundation
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
@@ -28,9 +29,13 @@ v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutula
 
 `v0.11.2-alpha` Realtime Camera Conversation kod, test ve dokümantasyon tarafında tamamlandı. Aynalı preview, kısa semantik kamera yorumu, benzer yorum cooldown’ı ve güncel kareyle yerel sesli soru-cevap eklendi. Yeni dependency, frame history veya semantic bounding box eklenmedi. Sonraki hedefler:
 
-- `v0.11.3-alpha`: Semantic Object Detection.
-- `v0.12.0-alpha`: Agent Mode Foundation.
+Manual realtime camera validation deferred.
+
+`v0.12.0-alpha` Agent Mode Foundation tamamlandı: typed planning, sanitized capability snapshot, independent risk policy, görünür plan ve kalıcı step onayı, verified execution, bounded retry/replan, cancellation, interrupted recovery, voice intent, panel, tray ve settings entegrasyonu eklendi. Kamera altyapısı değiştirilmedi. Sonraki hedefler:
+
+- `v0.12.1-alpha`: Agent Reliability & Task Templates.
 - `v0.13.0-alpha`: Codex Bridge.
+- `v0.14.0-alpha`: Safe Desktop Capabilities.
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 

@@ -2456,3 +2456,18 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Feature commitleri `22c61ca`, `5799ebe`; test commit’i `c4c0bf3` olarak yerelde oluşturuldu.
 - Dokümantasyon öncesi tam paket `833 passed`; yeni dependency, OpenCV, YOLO, frame persistence veya semantic detection yok.
 - `origin/main` push güvenlik katmanı tarafından ek açık kullanıcı onayı beklediği için henüz yapılmadı.
+
+## 2026-07-16 - Agent Mode Foundation
+
+- Başlangıç kapısında temiz ve senkron `main`, `HEAD == origin/main`, 870 test ve başarılı compile doğrulandı.
+- `lina.agent` altında typed models, planner, policy, controller, executor, verifier, approvals, bounded context, errors ve safe persistence katmanları eklendi.
+- Capability snapshot yalnız ad, açıklama, şema türü, availability, result/risk/approval metadata’sı taşır; callback, secret, raw environment veya kullanıcı içeriği taşımaz.
+- Default 8, hard 12 step; bir repair, bir read-only retry, bir replan; duplicate/cycle/loop ve unknown/prohibited tool guard tamamlandı.
+- Persistent/sensitive adımlarda plan onayından ayrı ve kapatılamayan step approval; uncertain persistent sonuçta no-retry uygulandı.
+- Single active session, execution/session/generation identity, conversation isolation, pause/resume/cancel, stale suppression ve shutdown cleanup eklendi.
+- Safe repository yalnız bounded metadata saklar; running session restart sonrası interrupted olur ve otomatik devam etmez.
+- Settings schema v6, explicit Agent intent’leri, voice approval, typed Qt panel, tray kontrolleri ve privacy-safe completion notification eklendi.
+- Normal sohbet, reminders, memory, files, voice, hands-free, Live Vision ve kamera regression kapsamı korundu; kamera kodu değiştirilmedi.
+- Manual realtime camera validation deferred.
+- Yeni dependency eklenmedi. Foundation commit’i `410c854`, entegrasyon commit’i `246a74d`.
+- Dokümantasyon öncesi tam paket 917 passed; compile başarılı.

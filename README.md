@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.11.2--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.0--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
@@ -24,6 +24,8 @@ Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıc
 
 `v0.11.2-alpha` aynalı kamera preview’ü, yeni ve anlamlı kamera değişiklikleri için kısa semantik yorumları ve kamera açıkken güncel kareyle yerel sesli soru-cevap akışını ekler. Her kare vision modeline gönderilmez; tek inference + tek pending frame ve yaklaşık 3 saniyelik minimum kamera analiz aralığı düşük VRAM’i korur.
 
+`v0.12.0-alpha`, yalnızca açık kullanıcı isteğiyle çalışan Agent Mode Foundation’ı ekler. Typed planlar kullanıcıya gösterilir; kalıcı adımlar ayrı onay ister, her araç sonucu deterministic kurallarla doğrulanır ve görevler duraklatılabilir, sürdürülebilir veya iptal edilebilir. Shell, browser, dosya yazma/silme, süreç başlatma ve gizli kamera/mikrofon erişimi Agent Mode dışında kalır.
+
 > [!IMPORTANT]
 > Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
 
@@ -36,6 +38,7 @@ Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıc
 - [Sesli etkileşim](#sesli-etkileşim)
 - [Görsel analiz](#görsel-analiz)
 - [Hatırlatıcılar ve güvenli araçlar](#hatırlatıcılar-ve-güvenli-araçlar)
+- [Agent Mode](#agent-mode)
 - [Ayarlar ve yerel veriler](#ayarlar-ve-yerel-veriler)
 - [Gizlilik ve güvenlik modeli](#gizlilik-ve-güvenlik-modeli)
 - [Mimari](#mimari)
@@ -57,6 +60,18 @@ Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya
 | **Graceful fallback** | Ollama, vision, STT veya TTS kullanılamadığında uygulama kontrollü hata verir; mevcut yazılı içerik korunur. |
 
 ## Özellikler
+
+### Agent Mode
+
+- Varsayılan kapalıdır; Ayarlar, ana panel veya açık “Agent modunda yap” komutuyla etkinleşir.
+- En fazla 3–12 arası ayarlanabilir, hard-limit 12 olan typed ve görünür plan üretir.
+- Yalnızca mevcut `SafeToolRegistry` capability snapshot’ındaki izinli araçları kullanır.
+- Read-only, persistent, sensitive ve prohibited risk sınıfları; kalıcı işlemlerde kapatılamayan step approval uygular.
+- Her adımda execution/session/generation kimliği, schema validation, timeout, cancellation ve typed result normalization vardır.
+- Typed başarı kanıtı olmadan model metnini başarı saymaz; sonuç `verified`, `failed` veya `uncertain` olur.
+- Read-only adım en fazla bir kez otomatik retry; en fazla bir bounded replan; persistent adım otomatik tekrar edilmez.
+- Tek aktif session, pause/resume/cancel, stale-result guard, interrupted restart recovery ve privacy-safe metadata persistence sağlar.
+- Panel ve tray; durum, ilerleme, risk, onay, adım sonuçları ve iptal kontrollerini yalnızca renge dayanmadan gösterir.
 
 ### Yerel sohbet ve inference
 
@@ -476,8 +491,9 @@ Tamamlanan ana hat:
 - `v0.11.0-alpha` — Live Vision & Camera Mode.
 - `v0.11.1-alpha` — Live Preview & Monitoring Overlays.
 - `v0.11.2-alpha` — Realtime Camera Conversation.
+- `v0.12.0-alpha` — Agent Mode Foundation.
 
-Planlanan sonraki alanlar `v0.11.3-alpha` Semantic Object Detection, `v0.12.0-alpha` Agent Mode Foundation ve `v0.13.0-alpha` Codex Bridge’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan sonraki alanlar `v0.12.1-alpha` Agent Reliability & Task Templates, `v0.13.0-alpha` Codex Bridge ve `v0.14.0-alpha` Safe Desktop Capabilities’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
 
 ## Dokümantasyon
 
@@ -487,6 +503,7 @@ Planlanan sonraki alanlar `v0.11.3-alpha` Semantic Object Detection, `v0.12.0-al
 - [v0.11.0-alpha sürüm notları](docs/release-notes-v0.11.0-alpha.md)
 - [v0.11.1-alpha sürüm notları](docs/release-notes-v0.11.1-alpha.md)
 - [v0.11.2-alpha sürüm notları](docs/release-notes-v0.11.2-alpha.md)
+- [v0.12.0-alpha sürüm notları](docs/release-notes-v0.12.0-alpha.md)
 - [Speech Architecture v1](docs/speech-architecture-v1.md)
 - [Brain Specification v1](docs/brain-specification-v1.md)
 - [Conversation Flow v1](docs/conversation-flow-v1.md)

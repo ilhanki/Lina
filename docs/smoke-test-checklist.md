@@ -2,6 +2,25 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## Windows Agent Mode Foundation Smoke Test
+
+- Temiz ayar profiliyle aç; Agent Mode kapalı, maksimum adım 8, maksimum replan 1, auto-start kapalı, plan göster açık ve persistent approval kilitli/açık olmalı.
+- Normal “Agent mode güvenli mi?” ve “Bir plan nasıl hazırlanır?” sorularının sohbet olarak kaldığını doğrula.
+- “Agent modunda hatırlatıcılarımı kontrol et” de; görünür plan kartı gelmeden tool çalışmamalı.
+- Plan kartında özet, adım sayısı, tool adı, risk ve onay işaretini; Ayrıntıları Göster/Gizle davranışını kontrol et.
+- Planı Başlat; read-only liste adımı bir kez çalışmalı, verifying ardından tamamlandı görünmeli.
+- Persistent hatırlatıcı planında genel plan onayından sonra ayrı step approval beklenmeli; onaylamadan kayıt oluşmamalı.
+- Onayla, Atla, Planı Düzenle ve İptal seçeneklerini ayrı oturumlarda dene; belirsiz “belki” hiçbir işlem yapmamalı.
+- “Duraklat”, “Devam et”, “Agent görevini iptal et” ve “Şu anda hangi adımdasın?” metin/ses komutlarını dene.
+- Tray’de Agent Modu, Aktif Görevi Göster, Duraklat/Devam Et ve İptal eylemlerini; aktif görev yokken disabled durumunu doğrula.
+- Agent çalışırken sohbet değiştir; eski sonuç yeni sohbete yazılmamalı. İptal sonrası geç callback görünmemeli.
+- Uygulamayı onay beklerken kapatıp aç; session interrupted olmalı, otomatik devam veya persistent tekrar olmamalı.
+- Shell, PowerShell, browser, git, dosya yazma/silme, mouse/keyboard ve kamera/mikrofonu gizlice başlatma isteklerinin blocked/prohibited olduğunu doğrula.
+- `data/agent-sessions.json` ve logları incele; raw arguments/tool payload, prompt, reasoning, reminder/memory content, dosya içeriği, image/audio/Base64 veya secret olmamalı.
+- Tamamlanan/başarısız/onay bekleyen görev bildirimlerinin hassas içerik göstermediğini ve aynı session için duplicate bildirim oluşmadığını doğrula.
+- Dark/light/system temaları ve %85/%100/%135 font ölçeğinde panel metninin, butonların ve status ikonlarının okunabildiğini kontrol et.
+- Manual realtime camera validation deferred; mevcut kamera smoke listesini ayrıca kullanıcı tarafında uygula.
+
 ## Windows Realtime Camera Conversation Smoke Test
 
 - Vision provider’ı ilk istekte boş, ikinci istekte geçerli cevap döndürecek şekilde test et; yalnız iki HTTP isteği ve geçerli kısa yorum görülmeli.
