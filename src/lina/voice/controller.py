@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 import logging
 import threading
+import time
 
-from lina.voice.models import VoiceSettings, VoiceState
+from lina.voice.models import VoicePlaybackRequest, VoicePriority, VoiceSettings, VoiceSource, VoiceState
 from lina.voice.playback import AudioPlaybackService
 from lina.voice.state_machine import VoiceStateMachine
 from lina.voice.tts_provider import normalize_spoken_text
@@ -30,6 +31,7 @@ class VoiceController:
         self._hands_free_paused = False
         self._cooldown_timer: threading.Timer | None = None
         self._command_after_cooldown = False
+        self._spoken_generations: set[tuple[str, str, str]] = set()
 
     @property
     def state(self) -> VoiceState:
@@ -115,6 +117,28 @@ class VoiceController:
         self._hands_free_paused = False
         return self.start_hands_free()
 
+    def run_wake_test(self, duration_seconds: float = 15.0) -> int:
+        """Count local wake detections without dispatching normal commands."""
+        if self._shutdown or not self.wake_word_available:
+            return 0
+        was_running = self.hands_free_enabled and not self._hands_free_paused
+        self._wake_word.stop()
+        count = 0
+        lock = threading.Lock()
+
+        def detected() -> None:
+            nonlocal count
+            with lock:
+                count += 1
+
+        if not self._wake_word.start(detected):
+            return 0
+        time.sleep(max(1.0, min(20.0, duration_seconds)))
+        self._wake_word.stop()
+        if was_running:
+            self.start_hands_free()
+        return count
+
     def request_confirmation_listening(self) -> bool:
         if not self.hands_free_enabled or not self._settings.voice_confirmation_enabled:
             return False
@@ -144,20 +168,33 @@ class VoiceController:
     def responses_enabled(self) -> bool:
         return self._settings.responses_enabled
 
-    def speak(self, text: str) -> bool:
-        return self._speak(text, allow=self._settings.responses_enabled or self.hands_free_enabled)
+    def speak(self, text: str, *, generation_id: str = "", conversation_id: str | None = None) -> bool:
+        request = VoicePlaybackRequest(text=text, generation_id=generation_id, conversation_id=conversation_id)
+        return self._speak(request, allow=self._settings.responses_enabled or self.hands_free_enabled)
 
     def speak_live_vision(self, text: str) -> bool:
         """Speak consented Live Vision feedback independently of chat response speech."""
-        return self._speak(text, allow=True)
+        return self._speak(VoicePlaybackRequest(text=text, source=VoiceSource.LIVE_VISION, priority=VoicePriority.LIVE_VISION), allow=True)
 
-    def _speak(self, text: str, *, allow: bool) -> bool:
+    def speak_agent(self, text: str, *, session_id: str | None = None, event_id: str = "", approval: bool = False, progress: bool = False) -> bool:
+        source = VoiceSource.AGENT_APPROVAL if approval else (VoiceSource.AGENT_PROGRESS if progress else VoiceSource.AGENT_RESULT)
+        priority = VoicePriority.CRITICAL_APPROVAL if approval else (VoicePriority.AGENT_PROGRESS if progress else VoicePriority.AGENT_RESULT)
+        request = VoicePlaybackRequest(text=text, source=source, agent_session_id=session_id, generation_id=event_id, priority=priority)
+        return self._speak(request, allow=True)
+
+    def _speak(self, request: VoicePlaybackRequest, *, allow: bool) -> bool:
         if self._shutdown or not self._settings.enabled or not allow:
             return False
-        spoken = normalize_spoken_text(text)
+        spoken = normalize_spoken_text(request.text)
         if not spoken:
             self._set_state(VoiceState.IDLE)
             return False
+        dedupe_key = (request.source.value, request.generation_id, " ".join(spoken.casefold().split()))
+        if dedupe_key in self._spoken_generations:
+            return False
+        self._spoken_generations.add(dedupe_key)
+        if len(self._spoken_generations) > 256:
+            self._spoken_generations = {dedupe_key}
         _logger.info("tts_requested")
         if not self.tts_available:
             _logger.warning("tts_failed error_category=unavailable")

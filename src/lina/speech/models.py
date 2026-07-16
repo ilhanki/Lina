@@ -25,6 +25,7 @@ class SpeechTranscriptionResult:
     is_final: bool
     language: str | None = None
     duration_seconds: float | None = None
+    low_quality: bool = False
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,7 @@ import logging
 import re
 import threading
 import unicodedata
+import time
 from typing import Protocol
 
 from lina.speech.models import AudioRecordingResult
@@ -49,6 +50,7 @@ class STTWakeWordDetector(WakeWordDetector):
         utterance_source: WakeUtteranceSource,
         phrase: str = "Hey Lina",
         on_detected: WakeDetectedCallback | None = None,
+        cooldown_seconds: float = 1.5,
     ) -> None:
         self._stt_provider = stt_provider
         self._utterance_source = utterance_source
@@ -58,6 +60,9 @@ class STTWakeWordDetector(WakeWordDetector):
         self._thread: threading.Thread | None = None
         self._lock = threading.RLock()
         self._shutdown = False
+        self._cooldown_seconds = max(0.5, cooldown_seconds)
+        self._last_detected_at = 0.0
+        self._rejected_wake_count = 0
 
     def is_available(self) -> bool:
         source_available = getattr(self._utterance_source, "is_available", lambda: True)
@@ -118,13 +123,17 @@ class STTWakeWordDetector(WakeWordDetector):
                 with self._lock:
                     phrase = self._phrase
                     callback = self._on_detected
-                if wake_phrase_matches(result.text, phrase):
+                now = time.monotonic()
+                if wake_phrase_matches(result.text, phrase) and now - self._last_detected_at >= self._cooldown_seconds:
+                    self._last_detected_at = now
                     _logger.info("wake_detected")
                     if callback is not None:
                         try:
                             callback()
                         except Exception:
                             _logger.warning("wake_detection_failed error_category=callback")
+                elif result.text:
+                    self._rejected_wake_count += 1
         except Exception:
             _logger.warning("wake_detection_failed error_category=audio_input")
 

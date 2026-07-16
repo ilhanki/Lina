@@ -89,6 +89,23 @@ def test_disabled_default_rejects_listening_and_speaking():
     assert not provider.started.is_set()
 
 
+def test_same_generation_and_source_is_not_spoken_twice():
+    controller, provider = make_controller()
+    assert controller.speak("Aynı yanıt", generation_id="g1")
+    assert provider.started.wait(1)
+    assert not controller.speak("Aynı yanıt", generation_id="g1")
+    assert provider.texts == ["Aynı yanıt"]
+    provider.release.set()
+
+
+def test_agent_approval_can_speak_when_normal_responses_are_disabled():
+    provider = BlockingProvider()
+    controller = VoiceController(AudioPlaybackService(provider), settings=VoiceSettings(enabled=True, responses_enabled=False))
+    assert controller.speak_agent("Onaylıyor musun?", session_id="s1", event_id="approval", approval=True)
+    assert provider.started.wait(1)
+    provider.release.set()
+
+
 def test_valid_listen_transcribe_think_flow():
     controller, _ = make_controller()
     assert controller.begin_listening()

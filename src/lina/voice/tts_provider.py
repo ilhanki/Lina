@@ -166,11 +166,23 @@ def normalize_spoken_text(text: str, max_characters: int = MAX_SPOKEN_CHARACTERS
     """Remove unsafe/noisy content while leaving the written response untouched."""
     value = re.sub(r"```[\s\S]*?```", " ", text)
     value = re.sub(r"`[^`\n]{1,200}`", " ", value)
-    value = re.sub(r"https?://\S{40,}", " bağlantı ", value)
+    value = re.sub(r"https?://\S+", " bağlantı ", value)
+    value = re.sub(r"(?m)^\s{0,3}(?:[-*+] |\d+[.)]\s+)", "", value)
+    value = re.sub(r"[*_~>#]", "", value)
+    value = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", " ", value)
     value = re.sub(r"(?m)^\s*[\{\[][^\n]{40,}[\}\]]\s*$", " ", value)
     value = re.sub(r"(?i)\b[A-Za-z0-9+/]{120,}={0,2}\b", " ", value)
     value = re.sub(r"(?m)^\s*(?:Traceback|File \".*\", line \d+).*$", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
+    sentences = re.split(r"(?<=[.!?])\s+", value)
+    unique: list[str] = []
+    seen: set[str] = set()
+    for sentence in sentences:
+        key = re.sub(r"\W+", " ", sentence.casefold()).strip()
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(sentence)
+    value = " ".join(unique)
     if len(value) <= max_characters:
         return value
     shortened = value[:max_characters].rsplit(" ", 1)[0].rstrip(" ,;:")

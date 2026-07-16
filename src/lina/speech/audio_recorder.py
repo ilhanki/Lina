@@ -18,6 +18,8 @@ from lina.speech.models import (
     SpeechUnavailableError,
 )
 from lina.voice.vad import VADResult, VoiceActivityDetector
+from lina.speech.audio_processing import preprocess_pcm16
+from lina.speech.calibration import MicrophoneCalibrationResult, MicrophoneCalibrationService
 
 
 _logger = logging.getLogger("lina.voice")
@@ -84,6 +86,32 @@ class SoundDeviceAudioRecorder:
     def set_device(self, device_id: int | None) -> None:
         self._device_id = device_id
 
+    def set_input_sensitivity(self, preset: str, calibrated_threshold: float | None = None) -> None:
+        defaults = {"sensitive": 0.010, "balanced": 0.020, "noisy": 0.035}
+        self._silence_threshold = calibrated_threshold if calibrated_threshold is not None else defaults.get(preset, 0.020)
+
+    def calibrate(self, duration_seconds: float = 5.0) -> MicrophoneCalibrationResult:
+        """Measure ambient and spoken energy in memory; no audio is persisted."""
+        if not self.is_available():
+            raise SpeechUnavailableError("Audio recorder is unavailable")
+        frames = int(self._sample_rate * max(4.0, min(8.0, duration_seconds)))
+        try:
+            recording = self._backend.rec(
+                frames,
+                samplerate=self._sample_rate,
+                channels=self._channels,
+                dtype="int16",
+                device=self._resolve_device(),
+            )
+            self._backend.wait()
+            pcm = recording.tobytes()
+            split = int(self._sample_rate * 2.0) * self._channels * 2
+            return MicrophoneCalibrationService().analyze(pcm[:split], pcm[split:])
+        except SpeechUnavailableError:
+            raise
+        except Exception as error:
+            raise SpeechRecordingError("Microphone calibration failed") from error
+
     def record_once(self) -> AudioRecordingResult:
         with self._recording_lock:
             if self._is_recording:
@@ -128,6 +156,7 @@ class SoundDeviceAudioRecorder:
             if vad_result is not None and not vad_result.accepted:
                 raise SpeechNoInputError("No valid speech was detected")
             pcm_data = vad_result.pcm_data if vad_result is not None else b"".join(chunks)
+            pcm_data = preprocess_pcm16(pcm_data)
             audio_data = _build_wav(
                 pcm_data=pcm_data,
                 sample_rate=self._sample_rate,

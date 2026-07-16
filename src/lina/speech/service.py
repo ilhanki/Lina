@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 import threading
+import time
 
 from lina.speech.audio_recorder import AudioRecorder, NoOpAudioRecorder
 from lina.speech.models import (
@@ -12,6 +13,8 @@ from lina.speech.models import (
     SpeechUnavailableError,
 )
 from lina.speech.providers import STTProvider, TTSProvider
+from lina.speech.audio_processing import normalize_transcription, transcription_is_low_quality
+from lina.speech.calibration import MicrophoneCalibrationResult
 
 
 class SpeechService:
@@ -29,6 +32,7 @@ class SpeechService:
         self._state = SpeechState.IDLE
         self._transcription_lock = threading.Lock()
         self._state_listeners: list[Callable[[SpeechState], None]] = []
+        self._last_transcription: tuple[str, float] | None = None
 
     def subscribe_state(self, listener: Callable[[SpeechState], None]) -> None:
         if listener not in self._state_listeners:
@@ -71,6 +75,17 @@ class SpeechService:
         if setter is not None:
             setter(device_id)
 
+    def configure_microphone(self, preset: str, calibrated_threshold: float | None = None) -> None:
+        setter = getattr(self._audio_recorder, "set_input_sensitivity", None)
+        if setter is not None:
+            setter(preset, calibrated_threshold)
+
+    def calibrate_microphone(self) -> MicrophoneCalibrationResult:
+        calibrate = getattr(self._audio_recorder, "calibrate", None)
+        if calibrate is None:
+            raise SpeechUnavailableError("Microphone calibration is unavailable")
+        return calibrate()
+
     def transcribe_once(self) -> SpeechTranscriptionResult:
         """Run one explicit transcription request without sending its text."""
         if not self._transcription_lock.acquire(blocking=False):
@@ -85,6 +100,21 @@ class SpeechService:
             recording = self._audio_recorder.record_once()
             self._set_state(SpeechState.TRANSCRIBING)
             result = self._stt_provider.transcribe(recording)
+            normalized = normalize_transcription(result.text)
+            low_quality = transcription_is_low_quality(normalized, result.confidence)
+            now = time.monotonic()
+            duplicate = bool(self._last_transcription and self._last_transcription[0] == normalized and now - self._last_transcription[1] < 2.0)
+            if normalized and not duplicate:
+                self._last_transcription = (normalized, now)
+            result = SpeechTranscriptionResult(
+                text="" if duplicate else normalized,
+                confidence=result.confidence,
+                source=result.source,
+                is_final=result.is_final,
+                language=result.language,
+                duration_seconds=result.duration_seconds,
+                low_quality=low_quality or duplicate,
+            )
         except SpeechUnavailableError:
             self._set_state(SpeechState.UNAVAILABLE)
             raise

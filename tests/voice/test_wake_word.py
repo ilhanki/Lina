@@ -43,7 +43,7 @@ def test_supported_wake_phrase_variants(value):
     assert wake_phrase_matches(value)
 
 
-@pytest.mark.parametrize("value", ["lina", "hey", "hey linaya", "hey lina nasılsın", "şey lina"])
+@pytest.mark.parametrize("value", ["lina", "hey", "hey linaya", "hey lina nasılsın", "şey lina", "lira", "leyla", "hey millet"])
 def test_wake_phrase_rejects_false_positives(value):
     assert not wake_phrase_matches(value)
 

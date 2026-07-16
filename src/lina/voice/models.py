@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from uuid import uuid4
 
 
 class VoiceState(str, Enum):
@@ -19,6 +20,40 @@ class VoiceState(str, Enum):
     COOLDOWN = "cooldown"
     ERROR = "error"
     DISABLED = "disabled"
+
+
+class VoiceSource(str, Enum):
+    USER_RESPONSE = "user_response"
+    AGENT_APPROVAL = "agent_approval"
+    AGENT_RESULT = "agent_result"
+    AGENT_PROGRESS = "agent_progress"
+    LIVE_VISION = "live_vision"
+
+
+class VoicePriority(int, Enum):
+    LIVE_VISION = 10
+    AGENT_PROGRESS = 20
+    AGENT_RESULT = 30
+    USER_RESPONSE = 40
+    CRITICAL_APPROVAL = 50
+
+
+@dataclass(frozen=True, slots=True)
+class VoicePlaybackRequest:
+    text: str
+    source: VoiceSource = VoiceSource.USER_RESPONSE
+    conversation_id: str | None = None
+    agent_session_id: str | None = None
+    generation_id: str = ""
+    priority: VoicePriority = VoicePriority.USER_RESPONSE
+    cancellable: bool = True
+    playback_session_id: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.generation_id:
+            object.__setattr__(self, "generation_id", uuid4().hex)
+        if not self.playback_session_id:
+            object.__setattr__(self, "playback_session_id", uuid4().hex)
 
 
 @dataclass(frozen=True, slots=True)

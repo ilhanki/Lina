@@ -90,6 +90,14 @@ def test_normalize_spoken_text_truncates_without_changing_input():
     assert original.startswith("Türkçe yanıt")
 
 
+def test_normalize_spoken_text_removes_markdown_emoji_and_duplicate_sentences():
+    spoken = normalize_spoken_text("- **Hazır.** 😊\n- Hazır. https://example.com/test")
+    assert "**" not in spoken
+    assert "😊" not in spoken
+    assert "https" not in spoken
+    assert spoken.count("Hazır.") == 1
+
+
 def test_unavailable_provider_is_safe():
     provider = UnavailableTTSProvider()
     assert not provider.is_available()

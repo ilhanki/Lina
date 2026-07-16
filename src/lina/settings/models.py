@@ -8,13 +8,14 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
 SUPPORTED_KEEP_ALIVE = frozenset({"0", "5m", "15m", "-1"})
 SUPPORTED_LIVE_VISION_SOURCES = frozenset({"camera", "screen", "region"})
 SUPPORTED_CHANGE_SENSITIVITY = frozenset({"low", "medium", "high"})
+SUPPORTED_MICROPHONE_SENSITIVITY = frozenset({"sensitive", "balanced", "noisy"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +63,8 @@ class SpeechUserSettings:
     return_to_wake_listening: bool = True
     voice_confirmation_enabled: bool = True
     microphone_device_id: int | None = None
+    input_sensitivity: str = "balanced"
+    calibrated_noise_threshold: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +114,9 @@ class AgentUserSettings:
     always_confirm_persistent_steps: bool = True
     speak_agent_progress: bool = False
     notify_agent_completion: bool = True
+    speak_important_agent_events: bool = True
+    speak_agent_completion: bool = True
+    speak_agent_approvals: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +151,10 @@ class UserSettings:
             raise ValueError("Speech rate must be between 0.5 and 2.0")
         if not 0.0 <= self.speech.volume <= 1.0:
             raise ValueError("Speech volume must be between 0.0 and 1.0")
+        if self.speech.input_sensitivity not in SUPPORTED_MICROPHONE_SENSITIVITY:
+            raise ValueError("Unsupported microphone sensitivity")
+        if self.speech.calibrated_noise_threshold is not None and not 0.004 <= self.speech.calibrated_noise_threshold <= 0.25:
+            raise ValueError("Calibrated microphone threshold must be between 0.004 and 0.25")
         if self.models.keep_alive not in SUPPORTED_KEEP_ALIVE:
             raise ValueError("Unsupported model keep-alive")
         if not 32 <= self.models.max_output_tokens <= 8192:
@@ -218,6 +228,8 @@ class UserSettings:
                 "return_to_wake_listening": self.speech.return_to_wake_listening,
                 "voice_confirmation_enabled": self.speech.voice_confirmation_enabled,
                 "microphone_device_id": self.speech.microphone_device_id,
+                "input_sensitivity": self.speech.input_sensitivity,
+                "calibrated_noise_threshold": self.speech.calibrated_noise_threshold,
             },
             "vision": {
                 "enabled": self.vision.enabled,
@@ -259,6 +271,9 @@ class UserSettings:
                 "always_confirm_persistent_steps": True,
                 "speak_agent_progress": self.agent.speak_agent_progress,
                 "notify_agent_completion": self.agent.notify_agent_completion,
+                "speak_important_agent_events": self.agent.speak_important_agent_events,
+                "speak_agent_completion": self.agent.speak_agent_completion,
+                "speak_agent_approvals": self.agent.speak_agent_approvals,
             },
         }
 
@@ -267,7 +282,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -324,6 +339,8 @@ class UserSettings:
                 return_to_wake_listening=_bool(speech, "return_to_wake_listening", defaults.speech.return_to_wake_listening),
                 voice_confirmation_enabled=_bool(speech, "voice_confirmation_enabled", defaults.speech.voice_confirmation_enabled),
                 microphone_device_id=_optional_int(speech, "microphone_device_id"),
+                input_sensitivity=_choice(speech, "input_sensitivity", defaults.speech.input_sensitivity, SUPPORTED_MICROPHONE_SENSITIVITY),
+                calibrated_noise_threshold=_optional_bounded_float(speech, "calibrated_noise_threshold", 0.004, 0.25),
             ),
             vision=VisionUserSettings(
                 enabled=_bool(vision, "enabled", defaults.vision.enabled),
@@ -365,6 +382,9 @@ class UserSettings:
                 always_confirm_persistent_steps=True,
                 speak_agent_progress=_bool(agent, "speak_agent_progress", defaults.agent.speak_agent_progress),
                 notify_agent_completion=_bool(agent, "notify_agent_completion", defaults.agent.notify_agent_completion),
+                speak_important_agent_events=_bool(agent, "speak_important_agent_events", defaults.agent.speak_important_agent_events),
+                speak_agent_completion=_bool(agent, "speak_agent_completion", defaults.agent.speak_agent_completion),
+                speak_agent_approvals=_bool(agent, "speak_agent_approvals", defaults.agent.speak_agent_approvals),
             ),
         )
 
@@ -394,6 +414,13 @@ def _bounded_float(section: dict[str, Any], key: str, default: float, minimum: f
     if isinstance(value, (int, float)) and not isinstance(value, bool) and minimum <= value <= maximum:
         return float(value)
     return default
+
+
+def _optional_bounded_float(section: dict[str, Any], key: str, minimum: float, maximum: float) -> float | None:
+    value = section.get(key)
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and minimum <= value <= maximum:
+        return float(value)
+    return None
 
 
 def _bounded_int(section: dict[str, Any], key: str, default: int, minimum: int, maximum: int) -> int:

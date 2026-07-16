@@ -74,3 +74,21 @@ def test_vad_reset_allows_new_utterance():
     vad.reset()
     assert vad.feed(_pcm(10000, 20)) is None
     assert vad.feed(_pcm(0, 20)).accepted
+
+
+def test_vad_pre_roll_preserves_audio_before_first_voiced_chunk():
+    vad = _vad(pre_roll_seconds=0.2)
+    silence = _pcm(0, 10)
+    speech = _pcm(10000, 20)
+    assert vad.feed(silence) is None
+    assert vad.feed(speech) is None
+    result = vad.feed(_pcm(0, 20))
+    assert result.accepted
+    assert len(result.pcm_data) >= len(silence) + len(speech)
+
+
+def test_adaptive_noise_floor_does_not_turn_steady_fan_into_speech():
+    vad = _vad(noise_threshold=0.1, adaptive_noise=True)
+    assert vad.feed(_pcm(2000, 20)) is None
+    result = vad.feed(_pcm(2200, 20))
+    assert result.reason is VADEndReason.NO_SPEECH
