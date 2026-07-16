@@ -2,6 +2,20 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Product Experience Redesign (v0.12.0-alpha tag öncesi)
+
+Qt katmanı dört yüzeye ayrılır: daraltılabilir sol navigasyon, merkez conversation workspace, varsayılan kapalı sağ DetailsInspector ve modal/overlay katmanı. LinaMainWindow signal/slot orkestrasyonunu korur; conversation, Agent, Voice, Vision, notification ve settings iş mantığı widget’lara taşınmaz. Kapalı Agent ve Vision yüzeyleri layout alanı tüketmez.
+
+lina.ui.design typed renk, spacing, radius, typography, control, layout ve motion token’larını sunar. QSS bu token’lardan üretilir; dark/light/system palette seçimi tek kaynaktan yapılır. Qt standard pixmap’leri theme-aware icon katmanında toplanır. Rastgele widget rengi, emoji tabanlı ana kontrol ve markalı asset kullanılmaz.
+
+Timeline merkezde 760–920 px okunabilir kolon kullanır. Assistant cevabı açık metin yüzeyi, user mesajı kompakt accent yüzeyi olarak render edilir. Kopyala/yeniden dene/seslendir eylemleri progresif gösterilir. Empty state önerileri persistence oluşturmadan composer’ı doldurur. Composer input, geçici bağlam ve Ekle/Mikrofon/Ekran/Agent/Gönder eylemlerini tek alt kolonda toplar.
+
+CommandPalette mevcut eylemleri klavye odaklı filtreler; unavailable action’ı açıkça işaretler. Inspector sistem, Agent ve Vision teknik ayrıntılarını ana sohbetten ayırır. Unified status generation önceliğiyle stale callback’leri reddeder. Responsive eşikte sidebar ikon moduna geçer, header ikonlaşır, composer sıkışır ve inspector kapanır.
+
+Settings schema v8; görünüm yoğunluğu ve güvenli pencere geometry persistence’ı ekler. Kayıtlı geometry negatif monitor origin’lerini destekler, ekrandan taşmış pencereyi görünür alana clamp eder. Ayarlar 11 aranabilir bölüme ayrılır; privacy sayfası local-only veri davranışını açıklar.
+
+Response Quality V2, yabancı phrase ve Türkçe ek almış yabancı stem sızıntısını kabul öncesi yakalar. Repair bağlamı stale/cancel kontrolünden geçer; geçersiz draft history, persistence veya TTS’ye ulaşmaz. Kamera capture, inference ve lifecycle iş mantığı bu yeniden tasarımda değiştirilmemiştir.
+
 ## Agent Mode Foundation (v0.12.0-alpha)
 
 ### Tag öncesi interaction quality ve voice stabilization

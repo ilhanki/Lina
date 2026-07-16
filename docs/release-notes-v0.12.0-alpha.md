@@ -2,6 +2,26 @@
 
 Bu sürüm Lina’ya güvenli, açıklanabilir ve kullanıcı kontrollü çok adımlı görev altyapısı ekler. Agent Mode varsayılan kapalıdır ve yalnız Ayarlar, ana panel veya açık Agent komutuyla devreye girer. Normal sohbet otomatik agent görevine dönüşmez.
 
+## Tag Öncesi Complete Product Experience Redesign
+
+- Typed dark/light/system renk, spacing, radius, typography, control, layout ve motion token sistemi.
+- Codex’ten yalnız odak ve progresif disclosure ilkelerini alan, Lina kimliğini koruyan yeni PySide6 app shell.
+- 264/64 px daraltılabilir sidebar; arama, filtre, gruplu conversation history, hover menü ve local status ayrıntıları.
+- Minimal conversation header, generation-safe unified status ve varsayılan kapalı sistem/Agent/Vision inspector’ı.
+- Merkezlenmiş 760–920 px timeline, açık assistant sunumu, kompakt user bubble ve progresif mesaj eylemleri.
+- Taşma oluşturmayan responsive empty state, tek composer ve Ekle/Mikrofon/Ekran/Agent/Gönder hiyerarşisi.
+- Ctrl+Shift+P command palette; Ctrl+L, Ctrl+F, Ctrl+N, Ctrl+, ve mevcut composer kısayolları.
+- Aktifken görünen kompakt Agent ilerlemesi ve Live Vision kartı; ayrıntılar inspector’a taşındı.
+- 11 aranabilir Settings bölümü, compact/comfortable density ve schema v8 migration.
+- Negatif monitor koordinatlarını destekleyen window state restore, off-screen clamp ve maximize persistence.
+- Qt standard, theme-aware ikonlar; emoji ana kontrolü, OpenAI/Codex asset’i veya yeni UI dependency yok.
+- Yabancı phrase, dil sızıntısı, bozuk Türkçe ek ve ilgisiz selamlamayı yakalayan Response Quality V2; stale/cancelled repair sonucu gösterilmez, saklanmaz ve seslendirilmez.
+- Offscreen dark/light/compact/settings görsel QA ve structural layout regresyon testleri.
+
+Bilinen sınırlar: Qt offscreen test ortamı sistem fontlarını rasterize edemeyebilir; gerçek Segoe UI, Windows DPI, çoklu ekran, tray, mikrofon/TTS ve kamera doğrulaması manuel smoke gerektirir. Kamera business logic’i değiştirilmemiştir. Sürüm 0.12.0a0 kalır ve tag oluşturulmaz.
+
+Redesign doğrulamasında tam paket 949 test, compileall, PySide6 import ve diff check kapılarından geçmiştir.
+
 ## Eklenenler
 
 - Typed `AgentSession`, `AgentPlan`, `AgentStep`, status, risk, approval, verification ve metrics modelleri.

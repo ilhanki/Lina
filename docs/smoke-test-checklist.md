@@ -2,6 +2,27 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## v0.12.0-alpha Complete Product Experience Redesign
+
+- İlk açılışta sohbet ana odak, inspector kapalı, Agent/Vision büyük panelleri gizli, composer odakta ve header minimal olmalı.
+- Yeni sohbet, kısa/uzun cevap, kod bloğu, çok uzun user mesajı, streaming, repair ve error durumlarında yatay taşma veya duplicate final olmamalı.
+- Yapay zekâ ajanı nedir? sorusu 2–4 doğal Türkçe cümle vermeli; Vietnamca/İngilizce sızıntısı, bozuk ek, ilgisiz selamlama ve tekrar olmamalı; reddedilen draft TTS’ye gitmemeli.
+- Sidebar’da collapse/expand, search/Escape, sohbet seçimi, rename/pin/archive/delete ve tooltip’leri klavye/fareyle doğrula.
+- 720 px dar pencerede ikon sidebar, ikon header, kompakt composer ve dikey suggestion’lar çakışmamalı; yatay scrollbar oluşmamalı.
+- 1080p/maximized pencerede timeline ve composer aynı merkez kolonda, assistant satırları okunabilir ve sağda anlamsız boşluk olmamalı.
+- Inspector sistem, Agent ve Vision ayrıntılarıyla açılıp kapanmalı; dar pencereye geçince güvenle kapanmalı.
+- Ctrl+Shift+P palette’i açmalı; arama, ok/Enter, unavailable action ve Escape/focus restore davranışını doğrula.
+- Agent plan approval, running progress, step approval, pause/resume/cancel, completed/failed/interrupted ve inspector özetlerini ayrı ayrı dene.
+- Voice ready/listening/transcribing/speaking/error, stop speech, hands-free ve wake durumları unified status’ta metinle anlaşılmalı.
+- Kamera/screen monitoring açıkken kaynak ve gizlilik metni görünmeli; stop/exit sonrası preview, overlay, timer ve cihaz handle’ı kalmamalı.
+- Notification Center’da yeni/düzenle/tamamla/ertele; silmede varsayılan Vazgeç davranışını kontrol et.
+- Ayarlar aramasıyla theme, density, calibration, wake, Agent ve privacy tercihlerini bul; Kaydet/Uygula/Vazgeç/Varsayılanlar davranışını dene.
+- Dark, light ve system temayı runtime değiştir; aktif draft, conversation ve panel state kaybolmamalı.
+- %85, %100, %125 ve %135 fontta buton kesilmesi, sidebar taşması, kayıp focus ring veya okunamayan disabled state olmamalı.
+- Yalnız klavye ile yeni sohbet, arama, composer, gönderme, palette, settings ve dialog iptal akışını tamamla; status sadece renge dayanmamalı.
+- Pencere konumunu secondary/negatif-origin monitörde kaydet; yeniden açılışta görünür alanda restore edildiğini ve kaldırılan monitör sonrası primary ekrana clamp edildiğini doğrula.
+- Tray’den aç, yeni sohbet, hands-free, Agent, Vision, bildirimler, ayarlar ve gerçek çıkışı dene; duplicate action veya orphan process kalmamalı.
+
 ## v0.12.0-alpha Interaction Quality & Voice Stabilization
 
 - `Yapay zekâ ajanı nedir?` sorusunda 2–4 cümlelik doğrudan Türkçe cevap, bağlamsız selamlama/dil karışması/persona karışması/tekrar olmamalı.

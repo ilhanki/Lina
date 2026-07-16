@@ -28,6 +28,8 @@ Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıc
 
 Tag öncesi stabilizasyon geçişi; Türkçe yanıt kalite denetimi ve tek repair sınırı, bağlam hijyeni, tekrarlı stream chunk koruması, normalize edilen mikrofon/STT hattı, adaptive VAD ve wake cooldown, TTS generation deduplication, Agent onay/sonuç sesleri, mikrofon kalibrasyonu ve birleşik durum göstergesi ekler. Ham ses, tam prompt veya reddedilen model cevabı saklanmaz.
 
+Tag öncesi Product Experience Redesign; sohbeti merkeze alan yeni uygulama kabuğu, daraltılabilir navigasyon, varsayılan kapalı ayrıntı inspector’ı, tek composer, progresif Agent/Voice/Vision yüzeyleri ve aranabilir Ayarlar mimarisi getirir. Typed design token’lar dark/light/system temalarını, %85–%135 yazı ölçeğini ve kompakt pencere davranışını ortak kaynaktan yönetir. Qt standard ikonları kullanılır; OpenAI/Codex markalı asset veya yeni UI dependency eklenmez.
+
 > [!IMPORTANT]
 > Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
 
@@ -500,6 +502,9 @@ Planlanan sonraki alanlar `v0.12.1-alpha` Agent Reliability & Task Templates, `v
 ## Dokümantasyon
 
 - [Mimari](docs/architecture.md)
+- [UI Design System](docs/ui-design-system.md)
+- [User Interface Architecture](docs/user-interface-architecture.md)
+- [Accessibility](docs/accessibility.md)
 - [v0.10.0-alpha sürüm notları](docs/release-notes-v0.10.0-alpha.md)
 - [v0.10.1-alpha sürüm notları](docs/release-notes-v0.10.1-alpha.md)
 - [v0.11.0-alpha sürüm notları](docs/release-notes-v0.11.0-alpha.md)

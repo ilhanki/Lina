@@ -18,7 +18,9 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.12.0-alpha Agent Mode Foundation
+## Mevcut Durum: v0.12.0-alpha Product Experience Redesign
+
+Complete Product Experience Redesign tamamlandı: typed design system, yeni app shell, conversation workspace, command palette, inspector, progresif Agent/Voice/Vision, aranabilir Settings ve Response Quality V2 hazırdır. Tag kararından önce Windows’ta gerçek %125/%135 DPI, çoklu monitör geometry restore, sistem temasını canlı değiştirme, gerçek mikrofon/WinRT TTS, kamera privacy göstergesi ve tray shutdown smoke turu yapılmalıdır. v0.12.0-alpha tag’i bu sprintte oluşturulmaz.
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 

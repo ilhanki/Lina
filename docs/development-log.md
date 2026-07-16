@@ -2483,3 +2483,17 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Agent approval/completion/important event ses tercihleri; mikrofon kalibrasyonu, wake test aracı ve stale-safe birleşik durum modeli eklendi.
 - Settings schema v7 eski şemaları koruyarak migration yapar. Yeni dependency, cloud speech, raw audio persistence veya kamera kodu değişikliği yoktur.
 - Başlangıçta 918, finalde 931 test geçti; compileall ve PySide6 import doğrulandı.
+
+## 2026-07-16 - Complete Product Experience Redesign
+
+- Başlangıçta temiz/senkron main, 931 test, compileall, 0.12.0a0 ve tag bulunmadığı doğrulandı.
+- Typed palette, spacing, radius, typography, control, layout, motion ve contrast design token katmanı eklendi.
+- Sidebar/app shell, minimal header, unified status, merkez timeline, empty state ve tek composer yeniden kuruldu.
+- Varsayılan kapalı details inspector ve klavye odaklı command palette eklendi.
+- Agent ve Live Vision yalnız aktifken görünen kompakt ilerleme yüzeylerine dönüştü; kamera iş mantığı değişmedi.
+- Settings 11 aranabilir bölüme ayrıldı; density ve window geometry persistence ile schema v8’e geçti.
+- Qt standard icon sistemi, accessible name/tooltip’ler, compact breakpoint, off-screen clamp ve yatay taşma korumaları eklendi.
+- Response Quality V2 yabancı phrase, yabancı stem + Türkçe ek ve ilgisiz selamlama sızıntılarını; Repair V2 stale/cancel sonucunu reddeder.
+- Dark/light/compact/settings ekranları fake içerikle offscreen render edilip incelendi; geçici binary’ler repository’ye eklenmedi.
+- Yeni dependency, branded asset, version bump veya tag eklenmedi. Windows DPI/mikrofon/TTS/kamera/tray turu manuel smoke kapsamındadır.
+- Final tam regresyon paketi 949 test geçti; compileall, PySide6 import ve diff check başarılıdır.
