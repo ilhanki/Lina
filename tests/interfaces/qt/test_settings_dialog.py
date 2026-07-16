@@ -12,9 +12,10 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     dialog = SettingsDialog(service)
     qtbot.addWidget(dialog)
 
-    assert dialog._navigation.count() == 11
-    assert dialog._navigation.item(3).text() == "Ses ve Mikrofon"
-    assert dialog._navigation.item(8).text() == "Gizlilik"
+    assert dialog._navigation.count() == 7
+    assert dialog._navigation.item(3).text() == "Ses"
+    assert dialog._navigation.item(5).text() == "Hatırlatıcılar"
+    assert dialog._navigation.item(6).text() == "Gelişmiş"
     assert dialog._agent_max_steps.minimum() == 3
     assert dialog._agent_max_steps.maximum() == 12
     assert dialog._agent_confirm_persistent.isChecked()
@@ -76,7 +77,7 @@ def test_settings_search_and_density_are_persistent(qtbot, tmp_path) -> None:
     qtbot.addWidget(dialog)
     dialog._settings_search.setText("kalibrasyon")
     visible = [dialog._navigation.item(index).text() for index in range(dialog._navigation.count()) if not dialog._navigation.item(index).isHidden()]
-    assert visible == ["Ses ve Mikrofon"]
+    assert visible == ["Ses"]
     dialog._density.setCurrentIndex(dialog._density.findData("compact"))
     dialog._apply()
     assert service.current.appearance.density == "compact"

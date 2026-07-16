@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
+    QScrollArea,
+    QSizePolicy,
     QSlider,
     QSpinBox,
     QStackedWidget,
@@ -84,23 +86,56 @@ class SettingsDialog(QDialog):
         self._navigation.setFixedWidth(190)
         self._navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._navigation.addItems(
-            ["Genel", "Görünüm", "Modeller", "Ses ve Mikrofon", "Hands-Free", "Vision", "Agent", "Bildirimler", "Gizlilik", "Gelişmiş", "Hakkında"]
+            ["Genel", "Görünüm", "Modeller", "Ses", "Vision", "Hatırlatıcılar", "Gelişmiş"]
         )
         content.addWidget(self._navigation)
         self._pages = QStackedWidget(self)
         self._pages.setObjectName("settingsPages")
-        general = self._general_page()
-        appearance = self._appearance_page()
-        models = self._models_page()
-        speech = self._speech_page()
-        hands_free = self._hands_free_page()
-        vision = self._vision_page()
-        agent = self._agent_page()
-        advanced = self._system_page()
-        notifications = self._notifications_page()
-        privacy = self._privacy_page()
-        about = self._about_page()
-        for page in (general, appearance, models, speech, hands_free, vision, agent, notifications, privacy, advanced, about):
+        general_section = self._general_page()
+        appearance_section = self._appearance_page()
+        models_section = self._models_page()
+        speech_section = self._speech_page()
+        hands_free_section = self._hands_free_page()
+        vision_section = self._vision_page()
+        system_section = self._system_page()
+        notifications_section = self._notifications_page()
+        agent_section = self._agent_page()
+        privacy_section = self._privacy_page()
+        about_section = self._about_page()
+        general = self._settings_page(
+            "Genel", "Lina’nın temel sohbet ve başlangıç davranışlarını yönet.",
+            (("Sohbet", general_section),),
+        )
+        appearance = self._settings_page(
+            "Görünüm", "Tema, yazı ölçeği ve arayüz yoğunluğunu seç.",
+            (("Arayüz", appearance_section),),
+        )
+        models = self._settings_page(
+            "Modeller", "Yerel Ollama modellerini ve performans sınırlarını yönet.",
+            (("Yerel modeller", models_section),),
+        )
+        speech = self._settings_page(
+            "Ses", "Mikrofon, konuşma, wake word ve hands-free tercihlerini tek yerde yönet.",
+            (("Konuşma ve mikrofon", speech_section), ("Hands-Free", hands_free_section)),
+        )
+        vision = self._settings_page(
+            "Vision", "Kamera ve ekran analizinin açık izinli davranışlarını yönet.",
+            (("Görsel analiz", vision_section),),
+        )
+        notifications = self._settings_page(
+            "Hatırlatıcılar ve Bildirimler", "Yerel hatırlatıcı ve masaüstü bildirim tercihlerini yönet.",
+            (("Bildirimler", notifications_section),),
+        )
+        advanced = self._settings_page(
+            "Gelişmiş", "Agent, gizlilik, sistem ve tanılama seçeneklerini gerektiğinde aç.",
+            (
+                ("Agent", agent_section),
+                ("Gizlilik", privacy_section),
+                ("Sistem", system_section),
+                ("Hakkında ve tanılama", about_section),
+            ),
+        )
+        for page in (general, appearance, models, speech, vision, notifications, advanced):
             self._pages.addWidget(page)
         self._navigation.currentRowChanged.connect(self._pages.setCurrentIndex)
         self._settings_search.textChanged.connect(self._filter_settings_navigation)
@@ -128,10 +163,9 @@ class SettingsDialog(QDialog):
     def _filter_settings_navigation(self, query: str) -> None:
         needle = " ".join(query.casefold().split())
         keywords = (
-            "dil sohbet", "tema görünüm font yoğunluk hareket", "model ollama performans",
-            "ses mikrofon stt tts kalibrasyon", "hands free wake hey lina", "vision kamera ekran",
-            "agent plan onay görev", "bildirim hatırlatıcı", "gizlilik yerel veri audio",
-            "tray başlangıç kapanış gelişmiş", "hakkında diagnostics sürüm",
+            "dil sohbet başlangıç", "tema görünüm font yoğunluk hareket", "model ollama performans",
+            "ses mikrofon stt tts kalibrasyon hands free wake hey lina", "vision kamera ekran",
+            "bildirim hatırlatıcı masaüstü", "agent plan onay görev gizlilik yerel veri tray kapanış diagnostics sürüm",
         )
         first_visible = -1
         for index in range(self._navigation.count()):
@@ -143,6 +177,43 @@ class SettingsDialog(QDialog):
         current = self._navigation.currentItem()
         if first_visible >= 0 and (current is None or current.isHidden()):
             self._navigation.setCurrentRow(first_visible)
+
+    def _settings_page(
+        self,
+        title: str,
+        description: str,
+        sections: tuple[tuple[str, QWidget], ...],
+    ) -> QScrollArea:
+        scroll = QScrollArea(self)
+        scroll.setObjectName("settingsPageScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        page = QWidget(scroll)
+        page.setMinimumWidth(0)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(12, 8, 12, 16)
+        layout.setSpacing(10)
+        heading = QLabel(title, page)
+        heading.setObjectName("settingsPageTitle")
+        layout.addWidget(heading)
+        note = QLabel(description, page)
+        note.setObjectName("settingsDescription")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        for section_title, section in sections:
+            section_heading = QLabel(section_title, page)
+            section_heading.setObjectName("settingsSectionTitle")
+            layout.addWidget(section_heading)
+            section.setMinimumWidth(0)
+            section.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            if isinstance(section.layout(), QFormLayout):
+                section.layout().setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+                section.layout().setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+            layout.addWidget(section)
+        layout.addStretch(1)
+        scroll.setWidget(page)
+        return scroll
 
     def _general_page(self) -> QWidget:
         page = QWidget(self)
