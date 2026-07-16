@@ -113,10 +113,34 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: none;
         }}
         QWidget#header {{
-            background: {panel_bg};
-            border: 1px solid {border};
-            border-radius: 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid {soft_border};
         }}
+        QLabel#conversationTitle, QLabel#inspectorTitle, QLabel#sidebarTitle {{
+            color: {text_primary}; font-size: 14pt; font-weight: 650;
+        }}
+        QLabel#conversationSubtitle {{ color: {text_muted}; font-size: 9pt; }}
+        QWidget#detailsInspector {{
+            background: {panel_bg}; border-left: 1px solid {soft_border};
+        }}
+        QDialog#commandPalette {{ background: {panel_bg}; }}
+        QPushButton#unifiedStatusButton, QPushButton#modeChip {{
+            background: {elevated_bg}; color: {text_secondary}; border: 1px solid {soft_border};
+            border-radius: 15px; min-height: 30px; padding: 0 10px;
+        }}
+        QPushButton#iconButton, QPushButton#sidebarCollapseButton {{
+            background: transparent; border: 1px solid transparent; min-width: 30px;
+            min-height: 30px; padding: 0 7px;
+        }}
+        QPushButton#iconButton:hover, QPushButton#sidebarCollapseButton:hover {{
+            background: {elevated_bg}; border-color: {soft_border};
+        }}
+        QPushButton#sidebarShortcut {{
+            background: transparent; color: {text_secondary}; border: 1px solid transparent;
+            text-align: left; min-height: 34px; padding: 0 9px;
+        }}
+        QPushButton#sidebarShortcut:hover {{ background: {elevated_bg}; border-color: {soft_border}; }}
         QWidget#composerPanel {{
             background: {panel_bg};
             border: 1px solid {border};
@@ -189,9 +213,9 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-color: {border};
         }}
         QWidget#assistantBubble {{
-            background: {assistant_bubble};
-            border: 1px solid {border};
-            border-radius: 14px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
         }}
         QWidget#userBubble {{
             background: {user_bubble};

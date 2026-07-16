@@ -274,7 +274,7 @@ def test_transcription_append_recalculates_composer_height(qtbot) -> None:
     assert composer.input.height() > COMPOSER_INPUT_MIN_HEIGHT
 
 
-def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path) -> None:
+def test_sidebar_has_collapsible_product_navigation_without_font_controls(qtbot, tmp_path) -> None:
     sidebar = SidebarWidget(tmp_path / "missing.png", "v0.test", "llama3")
     qtbot.addWidget(sidebar)
 
@@ -282,11 +282,21 @@ def test_sidebar_is_simplified_without_collapse_or_font_controls(qtbot, tmp_path
     assert sidebar.logo_label.text() == "L"
     assert not hasattr(sidebar, "font_decrease_button")
     assert not hasattr(sidebar, "font_increase_button")
-    assert not hasattr(sidebar, "collapse_button")
+    assert sidebar.collapse_button.accessibleName() == "Sol navigasyonu daralt"
     assert "Veriler cihazında" in sidebar.local_status.text()
     assert sidebar.session_scroll.objectName() == "sidebarConversationScroll"
     assert sidebar.session_scroll.viewport().objectName() == "sidebarConversationViewport"
     assert sidebar.session_list.objectName() == "sidebarConversationList"
+
+    with qtbot.waitSignal(sidebar.collapsed_changed, timeout=1000) as signal:
+        sidebar.collapse_button.click()
+    assert signal.args == [True]
+    assert sidebar.width() == SidebarWidget.COLLAPSED_WIDTH
+    assert sidebar.session_panel.isHidden()
+    assert sidebar.new_chat_button.toolTip() == "Yeni sohbet"
+
+    sidebar.set_collapsed(False)
+    assert sidebar.width() == SidebarWidget.WIDTH
 
 
 def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) -> None:

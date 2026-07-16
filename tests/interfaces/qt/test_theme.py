@@ -46,6 +46,8 @@ def test_stylesheet_uses_theme_specific_component_states() -> None:
     assert "QScrollArea#sidebarConversationScroll" in light
     assert "QWidget#chatTimelineViewport" in light
     assert "QWidget#sidebarConversationViewport" in light
+    assert "QWidget#detailsInspector" in light
+    assert "QPushButton#unifiedStatusButton" in light
 
 
 def test_font_scale_bounds_are_reflected_without_component_changes() -> None:

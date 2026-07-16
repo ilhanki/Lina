@@ -51,6 +51,8 @@ from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, Sideba
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.worker import FunctionWorker
+from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
+from lina.ui.design import design_tokens
 from lina.interfaces.status import StatusPriority, UnifiedStatusController
 from lina.services.conversation_service import ConversationService
 from lina.conversations.models import ConversationSession
@@ -225,7 +227,7 @@ class LinaMainWindow(QMainWindow):
         self._conversation_query = ""
 
         self.setWindowTitle("Lina")
-        self.setMinimumSize(1040, 640)
+        self.setMinimumSize(720, 560)
         self.resize(1240, 780)
         self._apply_window_icon()
         self._build_layout()
@@ -292,6 +294,12 @@ class LinaMainWindow(QMainWindow):
         panel_layout.setSpacing(8)
         root_layout.addWidget(panel, 1)
 
+        self._inspector = DetailsInspector(self)
+        self._inspector.setFixedWidth(design_tokens("dark").layout.inspector_width)
+        self._inspector.hide()
+        self._inspector.closed.connect(self._close_inspector)
+        root_layout.addWidget(self._inspector)
+
         self._build_header(panel_layout)
         self._build_chat_area(panel_layout)
         self._build_agent_panel(panel_layout)
@@ -307,56 +315,74 @@ class LinaMainWindow(QMainWindow):
         self._sidebar.session_archive_requested.connect(self.set_conversation_archived)
         self._sidebar.search_changed.connect(self._handle_conversation_search)
         self._sidebar.view_changed.connect(self._handle_conversation_view_changed)
+        self._sidebar.settings_requested.connect(self.open_settings)
+        self._sidebar.notifications_requested.connect(self.open_notifications)
+        self._sidebar.agent_tasks_requested.connect(self._show_agent_inspector)
+        self._sidebar.local_status_requested.connect(self._show_system_inspector)
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
         header.setObjectName("header")
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(14, 9, 14, 9)
-        layout.setSpacing(10)
+        layout.setContentsMargins(12, 7, 12, 7)
+        layout.setSpacing(8)
 
         titles = QVBoxLayout()
         self._session_title = QLabel(self._session_title_text, header)
-        self._session_title.setStyleSheet("font-size: 15pt; font-weight: 700;")
+        self._session_title.setObjectName("conversationTitle")
         titles.addWidget(self._session_title)
-        subtitle = QLabel("Lina ile yerel sohbet", header)
-        subtitle.setObjectName("mutedLabel")
+        subtitle = QLabel("Yerel sohbet", header)
+        subtitle.setObjectName("conversationSubtitle")
         titles.addWidget(subtitle)
         self._session_date_label = QLabel("", header)
         self._session_date_label.setObjectName("sessionDateLabel")
-        titles.addWidget(self._session_date_label)
+        self._session_date_label.hide()
         layout.addLayout(titles, 1)
 
+        self._status_button = QPushButton("Lina Durumu · Hazır", header)
+        self._status_button.setObjectName("unifiedStatusButton")
+        self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
+        self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
+        self._status_button.clicked.connect(self._show_status_menu)
+        layout.addWidget(self._status_button)
+
+        # Diagnostic labels remain as state sinks; details are progressively disclosed.
         self._model_status = QLabel("Model kontrol ediliyor...", header)
         self._model_status.setObjectName("statusChip")
-        layout.addWidget(self._model_status)
+        self._model_status.hide()
 
         self._speech_status = QLabel("Mic · hazırlanıyor", header)
         self._speech_status.setObjectName("statusChip")
-        layout.addWidget(self._speech_status)
+        self._speech_status.hide()
         self._voice_status = QLabel("Ses · kapalı", header)
         self._voice_status.setObjectName("statusChip")
-        layout.addWidget(self._voice_status)
+        self._voice_status.hide()
         if self._hands_free_service is not None:
             self._hands_free_toggle = QPushButton("Hands-free Kapalı", header)
             self._hands_free_toggle.setAccessibleName("Hands-free conversation aç veya kapat")
+            self._hands_free_toggle.setObjectName("modeChip")
             self._hands_free_toggle.clicked.connect(self._toggle_hands_free_from_tray)
+            self._hands_free_toggle.hide()
             layout.addWidget(self._hands_free_toggle)
             self._hands_free_pause = QPushButton("Dinlemeyi Duraklat", header)
             self._hands_free_pause.setAccessibleName("Hands-free dinlemeyi duraklat veya sürdür")
             self._hands_free_pause.clicked.connect(self._toggle_hands_free_pause)
             self._hands_free_pause.setEnabled(False)
-            layout.addWidget(self._hands_free_pause)
+            self._hands_free_pause.hide()
         if self._user_settings_service is not None:
             if self._notification_service is not None:
-                self._notification_button = QPushButton("🔔", header)
+                self._notification_button = QPushButton("Bildirimler", header)
                 self._notification_button.setObjectName("notificationButton")
+                self._notification_button.setToolTip("Bildirim merkezini aç")
+                self._notification_button.setAccessibleName("Bildirimler")
                 self._notification_button.clicked.connect(self.open_notifications)
                 layout.addWidget(self._notification_button)
-            self._settings_button = QPushButton("Ayarlar", header)
-            self._settings_button.setToolTip("Ayarlar")
-            self._settings_button.clicked.connect(self.open_settings)
-            layout.addWidget(self._settings_button)
+        self._inspector_button = QPushButton("Ayrıntılar", header)
+        self._inspector_button.setObjectName("iconButton")
+        self._inspector_button.setToolTip("Sağ ayrıntılar panelini aç veya kapat")
+        self._inspector_button.setAccessibleName("Ayrıntılar paneli")
+        self._inspector_button.clicked.connect(self._toggle_inspector)
+        layout.addWidget(self._inspector_button)
         parent_layout.addWidget(header)
 
     def _build_chat_area(self, parent_layout: QVBoxLayout) -> None:
@@ -377,6 +403,7 @@ class LinaMainWindow(QMainWindow):
 
     def _build_live_vision_panel(self, parent_layout: QVBoxLayout) -> None:
         panel = QWidget(self)
+        self._live_panel = panel
         panel.setObjectName("liveVisionPanel")
         layout = QHBoxLayout(panel)
         layout.setContentsMargins(10, 6, 10, 6)
@@ -399,6 +426,7 @@ class LinaMainWindow(QMainWindow):
         for button in (self._live_analyze, self._live_pause, self._live_stop, self._live_show_preview):
             button.setEnabled(False)
             layout.addWidget(button)
+        panel.hide()
         parent_layout.addWidget(panel)
 
     def _build_agent_panel(self, parent_layout: QVBoxLayout) -> None:
@@ -412,7 +440,7 @@ class LinaMainWindow(QMainWindow):
         self._agent_panel.resume_requested.connect(self._resume_agent)
         self._agent_panel.cancel_requested.connect(self._cancel_agent)
         self._agent_panel.render(self._agent_controller.session if self._agent_controller else None, enabled=self._agent_enabled)
-        self._agent_panel.setVisible(self._agent_controller is not None)
+        self._agent_panel.setVisible(bool(self._agent_controller and self._agent_controller.session))
         parent_layout.addWidget(self._agent_panel)
 
     def _build_footer(self, parent_layout: QVBoxLayout) -> None:
@@ -478,12 +506,69 @@ class LinaMainWindow(QMainWindow):
 
         clear_action = QAction(self)
         clear_action.setShortcut(QKeySequence("Ctrl+K"))
-        clear_action.triggered.connect(self.clear_chat)
+        clear_action.triggered.connect(self._show_command_palette)
+        self.addAction(clear_action)
+
+        palette_action = QAction(self)
+        palette_action.setShortcut(QKeySequence("Ctrl+Shift+P"))
+        palette_action.triggered.connect(self._show_command_palette)
+        self.addAction(palette_action)
 
         settings_action = QAction(self)
         settings_action.setShortcut(QKeySequence("Ctrl+,"))
         settings_action.triggered.connect(self.open_settings)
         self.addAction(settings_action)
+
+    def _palette_actions(self) -> tuple[PaletteAction, ...]:
+        return (
+            PaletteAction("new_chat", "Yeni sohbet", "sohbet temizle", self.start_new_chat),
+            PaletteAction("search", "Sohbetlerde ara", "geçmiş bul", self._sidebar.search_input.setFocus),
+            PaletteAction("agent", "Agent görev ayrıntıları", "plan görev", self._show_agent_inspector, self._agent_controller is not None),
+            PaletteAction("notifications", "Bildirimleri aç", "hatırlatıcı", self.open_notifications, self._notification_service is not None),
+            PaletteAction("settings", "Ayarları aç", "tema ses model", self.open_settings, self._user_settings_service is not None),
+            PaletteAction("inspector", "Ayrıntılar panelini aç", "durum sistem", self._show_system_inspector),
+        )
+
+    def _show_command_palette(self) -> None:
+        if not hasattr(self, "_command_palette") or self._command_palette is None:
+            self._command_palette = CommandPalette(self._palette_actions(), self)
+        self._command_palette.open_focused()
+
+    def _toggle_inspector(self) -> None:
+        if self._inspector.isVisible():
+            self._close_inspector()
+        else:
+            self._show_system_inspector()
+
+    def _close_inspector(self) -> None:
+        self._inspector.hide()
+        self._inspector_button.setText("Ayrıntılar")
+
+    def _show_system_inspector(self) -> None:
+        details = "\n".join((self._model_status.text(), self._speech_status.text(), self._voice_status.text()))
+        self._inspector.show_details("Lina Durumu", details)
+        self._inspector_button.setText("Ayrıntıları Kapat")
+
+    def _show_agent_inspector(self) -> None:
+        session = self._agent_controller.session if self._agent_controller else None
+        summary = "Aktif Agent görevi yok."
+        if session is not None:
+            summary = self._agent_controller.result_summary()
+            if session.plan is not None:
+                summary = f"{session.plan.summary}\n\n{summary}"
+        self._inspector.show_details("Agent Görevi", summary)
+        self._inspector_button.setText("Ayrıntıları Kapat")
+
+    def _show_status_menu(self) -> None:
+        menu = QMenu(self)
+        for text in (self._model_status.text(), self._speech_status.text(), self._voice_status.text()):
+            action = menu.addAction(text)
+            action.setEnabled(False)
+        menu.addSeparator()
+        details = menu.addAction("Tüm ayrıntıları göster")
+        selected = menu.exec(self._status_button.mapToGlobal(self._status_button.rect().bottomLeft()))
+        if selected is details:
+            self._show_system_inspector()
 
     def open_settings(self) -> None:
         """Open one settings dialog instance and focus it when already open."""
@@ -1028,6 +1113,7 @@ class LinaMainWindow(QMainWindow):
             return
         session = self._agent_controller.session if self._agent_controller else None
         self._agent_panel.render(session, enabled=self._agent_enabled)
+        self._agent_panel.setVisible(session is not None and not session.terminal)
         active = bool(self._agent_controller and self._agent_controller.active_session)
         if hasattr(self, "_tray_agent_pause_action"):
             self._tray_agent_show_action.setEnabled(active)
@@ -1489,6 +1575,7 @@ class LinaMainWindow(QMainWindow):
         if not isinstance(snapshot, LiveVisionSnapshot):
             return
         active = snapshot.state not in {LiveVisionState.IDLE, LiveVisionState.DISABLED, LiveVisionState.UNAVAILABLE}
+        self._live_panel.setVisible(active)
         label = self._live_source_label(snapshot.source)
         state_labels = {
             LiveVisionState.STARTING: "Başlatılıyor", LiveVisionState.MONITORING: "Takip ediliyor",
@@ -2511,6 +2598,8 @@ class LinaMainWindow(QMainWindow):
     def _set_status(self, text: str, *, generation: int | None = None, priority: StatusPriority = StatusPriority.ACTIVE) -> None:
         if self._unified_status.publish(text, generation=generation, priority=priority):
             self._status_label.setText(text)
+            if hasattr(self, "_status_button"):
+                self._status_button.setText(f"Lina Durumu · {text}")
 
     def _run_initial_diagnostics(self) -> None:
         if self._diagnostics_service is None:
@@ -2583,7 +2672,7 @@ class LinaMainWindow(QMainWindow):
         self._thread_pool.start(worker)
 
     def _update_message_widths(self) -> None:
-        width = int(min(780, max(340, self._scroll.viewport().width() * 0.70)))
+        width = int(min(design_tokens("dark").layout.chat_readable, max(320, self._scroll.viewport().width() * 0.86)))
         for row in self._message_rows:
             message = getattr(row, "_message_widget", None)
             if isinstance(message, ChatMessageWidget):
@@ -2591,6 +2680,11 @@ class LinaMainWindow(QMainWindow):
 
     def resizeEvent(self, event: Any) -> None:
         super().resizeEvent(event)
+        if hasattr(self, "_sidebar"):
+            compact = self.width() < design_tokens("dark").layout.compact_breakpoint
+            self._sidebar.set_collapsed(compact)
+            if compact and hasattr(self, "_inspector"):
+                self._close_inspector()
         self._update_message_widths()
 
     def _is_scroll_near_bottom(self) -> bool:

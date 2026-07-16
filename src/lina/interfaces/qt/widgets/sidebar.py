@@ -9,6 +9,7 @@ from PySide6.QtGui import QFontMetrics, QPixmap
 from PySide6.QtWidgets import (
     QLabel,
     QComboBox,
+    QHBoxLayout,
     QLineEdit,
     QMenu,
     QPushButton,
@@ -46,8 +47,14 @@ class SidebarWidget(QWidget):
     session_archive_requested = Signal(int, bool)
     search_changed = Signal(str)
     view_changed = Signal(str)
+    collapsed_changed = Signal(bool)
+    agent_tasks_requested = Signal()
+    notifications_requested = Signal()
+    settings_requested = Signal()
+    local_status_requested = Signal()
 
-    WIDTH = 248
+    WIDTH = 264
+    COLLAPSED_WIDTH = 64
 
     def __init__(
         self,
@@ -65,31 +72,44 @@ class SidebarWidget(QWidget):
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(10)
 
-        self.logo_label = QLabel(self)
+        self._collapsed = False
+        brand_row = QWidget(self)
+        brand_layout = QHBoxLayout(brand_row)
+        brand_layout.setContentsMargins(0, 0, 0, 0)
+        brand_layout.setSpacing(8)
+        self.logo_label = QLabel(brand_row)
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         pixmap = QPixmap(str(logo_path)) if logo_path.exists() else QPixmap()
         if not pixmap.isNull():
             self.logo_label.setPixmap(
                 pixmap.scaled(
-                    56,
-                    56,
+                    32,
+                    32,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
             )
         else:
             self.logo_label.setText("L")
-        layout.addWidget(self.logo_label)
+        brand_layout.addWidget(self.logo_label)
 
-        title = QLabel("Lina", self)
-        title.setStyleSheet("font-size: 17pt; font-weight: 700;")
-        layout.addWidget(title)
-        subtitle = QLabel("Local AI Assistant", self)
-        subtitle.setObjectName("mutedLabel")
-        layout.addWidget(subtitle)
-        version_label = QLabel(version, self)
-        version_label.setObjectName("mutedLabel")
-        layout.addWidget(version_label)
+        self.title_label = QLabel("Lina", brand_row)
+        self.title_label.setObjectName("sidebarTitle")
+        brand_layout.addWidget(self.title_label, 1)
+        self.collapse_button = QPushButton("‹", brand_row)
+        self.collapse_button.setObjectName("sidebarCollapseButton")
+        self.collapse_button.setAccessibleName("Sol navigasyonu daralt")
+        self.collapse_button.setToolTip("Sol navigasyonu daralt")
+        self.collapse_button.setFixedSize(32, 32)
+        brand_layout.addWidget(self.collapse_button)
+        layout.addWidget(brand_row)
+
+        self.subtitle_label = QLabel("Yerel çalışma alanı", self)
+        self.subtitle_label.setObjectName("mutedLabel")
+        layout.addWidget(self.subtitle_label)
+        self.version_label = QLabel(version, self)
+        self.version_label.setObjectName("mutedLabel")
+        self.version_label.hide()
 
         self.new_chat_button = QPushButton("Yeni Sohbet", self)
         self.new_chat_button.setObjectName("accentButton")
@@ -145,20 +165,38 @@ class SidebarWidget(QWidget):
         status_layout.addWidget(self.local_status)
         layout.addWidget(self.status_panel)
 
+        self.shortcuts = QWidget(self)
+        shortcut_layout = QVBoxLayout(self.shortcuts)
+        shortcut_layout.setContentsMargins(0, 0, 0, 0)
+        shortcut_layout.setSpacing(4)
+        self.agent_tasks_button = QPushButton("Agent görevleri", self.shortcuts)
+        self.notification_button = QPushButton("Bildirimler", self.shortcuts)
+        self.settings_button = QPushButton("Ayarlar", self.shortcuts)
+        for button, name in (
+            (self.agent_tasks_button, "Agent görevleri"),
+            (self.notification_button, "Bildirimler"),
+            (self.settings_button, "Ayarlar"),
+        ):
+            button.setObjectName("sidebarShortcut")
+            button.setToolTip(name)
+            button.setAccessibleName(name)
+            shortcut_layout.addWidget(button)
+        layout.addWidget(self.shortcuts)
+
         self.new_chat_button.clicked.connect(self.new_chat_requested)
 
         self.search_input = ConversationSearchInput(self)
         self.search_input.setObjectName("conversationSearchInput")
         self.search_input.setPlaceholderText("Sohbetlerde ara...")
         self.search_input.setAccessibleName("Sohbetlerde ara")
-        layout.insertWidget(5, self.search_input)
+        layout.insertWidget(3, self.search_input)
         self.filter_combo = QComboBox(self)
         self.filter_combo.setObjectName("conversationFilter")
         self.filter_combo.setAccessibleName("Sohbet görünümü")
         self.filter_combo.addItem("Sohbetler", "chats")
         self.filter_combo.addItem("Sabitlenenler", "pinned")
         self.filter_combo.addItem("Arşiv", "archive")
-        layout.insertWidget(6, self.filter_combo)
+        layout.insertWidget(4, self.filter_combo)
         self._search_timer = QTimer(self)
         self._search_timer.setSingleShot(True)
         self._search_timer.setInterval(250)
@@ -169,6 +207,40 @@ class SidebarWidget(QWidget):
         self.filter_combo.currentIndexChanged.connect(
             lambda _index: self.view_changed.emit(str(self.filter_combo.currentData()))
         )
+        self.collapse_button.clicked.connect(self.toggle_collapsed)
+        self.agent_tasks_button.clicked.connect(self.agent_tasks_requested)
+        self.notification_button.clicked.connect(self.notifications_requested)
+        self.settings_button.clicked.connect(self.settings_requested)
+        self.status_panel.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.status_panel.mousePressEvent = lambda _event: self.local_status_requested.emit()  # type: ignore[method-assign]
+
+    @property
+    def collapsed(self) -> bool:
+        return self._collapsed
+
+    def toggle_collapsed(self) -> None:
+        self.set_collapsed(not self._collapsed)
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        if self._collapsed == collapsed:
+            return
+        self._collapsed = collapsed
+        self.setFixedWidth(self.COLLAPSED_WIDTH if collapsed else self.WIDTH)
+        for widget in (
+            self.title_label, self.subtitle_label, self.search_input, self.filter_combo,
+            self.session_panel, self.status_panel,
+        ):
+            widget.setVisible(not collapsed)
+        self.logo_label.setVisible(not collapsed)
+        self.new_chat_button.setText("+" if collapsed else "Yeni Sohbet")
+        self.new_chat_button.setToolTip("Yeni sohbet")
+        self.collapse_button.setText("›" if collapsed else "‹")
+        self.collapse_button.setToolTip("Sol navigasyonu genişlet" if collapsed else "Sol navigasyonu daralt")
+        self.collapse_button.setAccessibleName(self.collapse_button.toolTip())
+        compact_labels = ((self.agent_tasks_button, "A"), (self.notification_button, "B"), (self.settings_button, "⚙"))
+        for button, compact in compact_labels:
+            button.setText(compact if collapsed else button.toolTip())
+        self.collapsed_changed.emit(collapsed)
 
     def set_session_title(self, title: str) -> None:
         self.session_title.setText(title)
