@@ -25,6 +25,10 @@ class ModelRequest:
     image_attachment: ImageAttachment | None = None
     keep_alive: str | int | None = None
     max_output_tokens: int | None = None
+    temperature: float | None = None
+    top_p: float | None = None
+    repeat_penalty: float | None = None
+    stream: bool | None = None
 
 
 @dataclass(frozen=True)

@@ -27,7 +27,12 @@ def test_brain_sends_built_prompt_to_model_provider() -> None:
     brain.respond("Hello")
 
     assert provider.requests == [
-        ModelRequest(messages=prompt_builder.build(user_message="Hello"))
+        ModelRequest(
+            messages=prompt_builder.build(user_message="Hello"),
+            temperature=0.45,
+            top_p=0.9,
+            repeat_penalty=1.08,
+        )
     ]
 
 

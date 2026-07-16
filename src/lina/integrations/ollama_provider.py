@@ -120,9 +120,15 @@ class OllamaProvider(ModelProvider):
             "messages": messages,
             "stream": self._stream,
             "options": {
-                "temperature": 0.1,
+                "temperature": 0.1 if request.temperature is None else request.temperature,
             },
         }
+        if request.top_p is not None:
+            payload["options"]["top_p"] = request.top_p
+        if request.repeat_penalty is not None:
+            payload["options"]["repeat_penalty"] = request.repeat_penalty
+        if request.stream is not None:
+            payload["stream"] = request.stream
         max_output_tokens = request.max_output_tokens or self._max_output_tokens
         if max_output_tokens is not None:
             payload["options"]["num_predict"] = max_output_tokens
@@ -132,7 +138,7 @@ class OllamaProvider(ModelProvider):
         if request.image_attachment is not None:
             payload["think"] = False
         try:
-            chunks = self._post_stream("/api/chat", payload, started)
+            chunks = self._post_stream("/api/chat", payload, started, stream=request.stream)
         except OllamaProviderError as error:
             self._last_metrics = InferenceMetrics(
                 provider="ollama", model=model, first_token_ms=None,
@@ -361,8 +367,14 @@ def normalize_ollama_response(chunks: list[Any], *, camera: bool = False) -> Nor
         content_found = content_found or found
         if found:
             formats.append(format_type)
-        if isinstance(content, str):
-            parts.append(content)
+        if isinstance(content, str) and content:
+            current = "".join(parts)
+            if content == (parts[-1] if parts else None) or current.endswith(content):
+                continue
+            if current and content.startswith(current):
+                parts[:] = [content]
+            else:
+                parts.append(content)
     text = _normalize_response_text("".join(parts), camera=camera)
     format_type = formats[0] if formats and len(set(formats)) == 1 else "mixed" if formats else "unknown"
     return NormalizedOllamaResponse(text, format_type, content_found, len(chunks))

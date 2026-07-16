@@ -59,11 +59,8 @@ class PromptBuilder:
             )
 
         system_sections.append(
-            "Response instructions:\n"
-            "Yalnız son user mesajına doğrudan cevap ver. Önceki mesajları cevap olarak "
-            "tekrarlama veya konuşma dökümünü devam ettirme. "
-            "Kullanıcı mesajından isim türetme; gerekiyorsa yalnız İlhan diye hitap et. "
-            "Konuşmacı etiketi veya meta cevap başlığı yazma."
+            "Response instructions: Yalnız son user mesajına doğrudan cevap ver. "
+            "Kullanıcı mesajından isim türetme; konuşmacı etiketi yazma."
         )
 
         messages = [

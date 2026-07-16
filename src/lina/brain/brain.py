@@ -3,7 +3,7 @@
 from typing import Sequence
 
 from lina.brain.conversation_context import ConversationContext
-from lina.brain.model_provider import ModelProvider, ModelRequest, ModelResponse
+from lina.brain.model_provider import ModelMessage, ModelProvider, ModelRequest, ModelResponse
 from lina.brain.prompt_builder import ConversationTurn, PromptBuilder
 from lina.brain.prompts import DEFAULT_SYSTEM_PROMPT
 from lina.vision.models import ImageAttachment
@@ -33,12 +33,13 @@ class Brain:
             history=conversation_history,
             project_context=project_context,
         )
-        request = ModelRequest(messages=messages)
+        request = ModelRequest(messages=messages, temperature=0.45, top_p=0.9, repeat_penalty=1.08)
         return self._model_provider.generate(request)
 
     def respond_with_context(self, context: ConversationContext) -> ModelResponse:
         request = ModelRequest(
-            messages=self._prompt_builder.build_from_context(context)
+            messages=self._prompt_builder.build_from_context(context),
+            temperature=0.45, top_p=0.9, repeat_penalty=1.08,
         )
         return self._model_provider.generate(request)
 
@@ -53,3 +54,16 @@ class Brain:
             image_attachment=attachment,
         )
         return self._model_provider.generate(request)
+
+    def repair_response(self, user_question: str, draft: str) -> str:
+        """Run one low-temperature, non-streaming repair without full history."""
+        messages = (
+            ModelMessage(
+                role="system",
+                content=("Aşağıdaki cevabı anlamını koruyarak doğal ve düzgün Türkçeyle yeniden yaz. "
+                         "Tekrarları, anlamsız ifadeleri ve gereksiz İngilizce kelimeleri kaldır. "
+                         "Yeni bilgi ekleme; reasoning veya rol etiketi yazma."),
+            ),
+            ModelMessage(role="user", content=f"Soru: {user_question}\n\nCevap: {draft}"),
+        )
+        return self._model_provider.generate(ModelRequest(messages=messages, temperature=0.1, top_p=0.8, repeat_penalty=1.05, stream=False)).text

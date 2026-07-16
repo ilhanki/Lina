@@ -91,11 +91,16 @@ def trim_conversation_history(
     """Keep newest complete user/assistant pairs within a deterministic budget."""
     selected: list[ConversationTurn] = []
     used = 0
+    last_signature: tuple[str, str] | None = None
     for turn in reversed(history[-max_turns:]):
         user = _safe_context_text(turn.user_message)
         assistant = _safe_context_text(turn.assistant_response)
         if not user or not assistant:
             continue
+        signature = (user, assistant)
+        if signature == last_signature:
+            continue
+        last_signature = signature
         cost = len(user) + len(assistant)
         if selected and used + cost > character_budget:
             break
@@ -114,4 +119,6 @@ def _safe_context_text(text: str) -> str:
     value = _BASE64_PATTERN.sub("[binary omitted]", text)
     value = re.sub(r"(?is)<(?:tool_debug|internal_metadata)>.*?</(?:tool_debug|internal_metadata)>", "", value)
     value = re.sub(r"(?i)data:image/[^;]+;base64,\S+", "[image omitted]", value)
+    value = re.sub(r"(?is)<agent_plan>.*?</agent_plan>", "[agent plan omitted]", value)
+    value = re.sub(r"(?im)^\s*(?:system|assistant|user)\s*:\s*", "", value)
     return value.strip()
