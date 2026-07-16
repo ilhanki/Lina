@@ -30,6 +30,8 @@ Tag öncesi stabilizasyon geçişi; Türkçe yanıt kalite denetimi ve tek repai
 
 Tag öncesi Product Experience Redesign; sohbeti merkeze alan yeni uygulama kabuğu, daraltılabilir navigasyon, varsayılan kapalı ayrıntı inspector’ı, tek composer, progresif Agent/Voice/Vision yüzeyleri ve aranabilir Ayarlar mimarisi getirir. Typed design token’lar dark/light/system temalarını, %85–%135 yazı ölçeğini ve kompakt pencere davranışını ortak kaynaktan yönetir. Qt standard ikonları kullanılır; OpenAI/Codex markalı asset veya yeni UI dependency eklenmez.
 
+UI Simplification & Response Quality Polish geçişi; sidebar’ı branding/yeni sohbet/arama/listeyle sınırlar, Mic/Ekran/Agent eylemlerini composer’daki tek Araçlar menüsünde toplar, bildirimleri yalnız okunmamış içerik olduğunda gösterir ve Ayarlar’ı yedi ana bölüme indirir. Türkçe kalite kapısı genel selamlama/yardım kalıplarını, yabancı kelime kırıntılarını ve bozuk teknik ekleri kabul öncesinde yakalar.
+
 > [!IMPORTANT]
 > Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
 
@@ -248,7 +250,7 @@ Kalıcı bir işlem gerekiyorsa Lina önce açıklama ve onay kartı gösterir. 
 | Maksimum kayıt | `12 saniye` |
 | Transcription modu | Composer’a ekle |
 
-Mikrofon yalnız kullanıcı Mic düğmesine bastığında açılır. Ham kayıt kalıcı dosyaya veya conversation veritabanına yazılmaz.
+Mikrofon yalnız kullanıcı composer’daki **Araçlar → Mikrofon** eylemini seçtiğinde açılır. Ham kayıt kalıcı dosyaya veya conversation veritabanına yazılmaz.
 
 ### Windows TTS
 
@@ -273,7 +275,7 @@ Başarılı çalışmada terminalde `tts_synthesis_started`, `playback_started` 
 
 ### Wake word ve hands-free conversation
 
-Hands-free varsayılan kapalıdır. Kullanıcı **Ayarlar → Konuşma → Hands-free conversation** seçeneğini açtığında Lina mikrofonun yerel dinleneceğini, sesin saklanmayacağını ve cloud’a gönderilmeyeceğini açıkça bildirir. Onaydan sonra akış şöyledir:
+Hands-free varsayılan kapalıdır. Kullanıcı **Ayarlar → Ses → Hands-Free** seçeneğini açtığında Lina mikrofonun yerel dinleneceğini, sesin saklanmayacağını ve cloud’a gönderilmeyeceğini açıkça bildirir. Onaydan sonra akış şöyledir:
 
 ```text
 Hey Lina → Dinliyorum → VAD komutu tamamlar → Local STT → Otomatik gönder

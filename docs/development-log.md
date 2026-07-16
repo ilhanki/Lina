@@ -2497,3 +2497,14 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Dark/light/compact/settings ekranları fake içerikle offscreen render edilip incelendi; geçici binary’ler repository’ye eklenmedi.
 - Yeni dependency, branded asset, version bump veya tag eklenmedi. Windows DPI/mikrofon/TTS/kamera/tray turu manuel smoke kapsamındadır.
 - Final tam regresyon paketi 949 test geçti; compileall, PySide6 import ve diff check başarılıdır.
+
+## 2026-07-16 - UI Simplification & Response Quality Polish
+
+- Product Experience Redesign üzerinde ikinci bir yoğunluk audit’i yapıldı; backend ve controller zincirleri değiştirilmeden kalan görünür kalabalık çıkarıldı.
+- Sidebar görünür içeriği branding, yeni sohbet, arama ve session listesiyle sınırlandı; filtre, local status ve utility kısayolları Araçlar/command palette erişimine taşındı.
+- Header kısa unified status + Araçlar düzeyine indi; bildirim ikonu yalnız unread count sıfırdan büyükken görünür.
+- Composer Ekle/Araçlar/Gönder hiyerarşisine geçti; Mikrofon, Ekran ve Agent signal’ları tek menüde korunur.
+- Settings 11 maddeden yedi ana bölüme konsolide edildi; uzun sayfalara dikey scroll, row wrapping ve yatay taşma koruması eklendi.
+- Türkçe quality gate genel selamlama/yardım kalıpları, yabancı kelime kırıntıları ve bozuk teknik ekler için güçlendirildi; İngilizce istenen yanıtlara müdahale edilmez.
+- Dark/light/720 px compact ve Settings/Gelişmiş ekranları fake veriyle offscreen render edildi; geçici artefact’lar temizlendi.
+- Başlangıçtaki 949 test finalde 955 teste yükseldi; tam paket, compileall, PySide6 import ve diff check başarılıdır.

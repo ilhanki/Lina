@@ -10,11 +10,11 @@ Kullanıcının ilk gördüğü aktif sohbet, Lina cevabı, composer ve unified 
 
 ## Navigasyon
 
-Expanded sidebar 264 px, collapsed sidebar 64 px’tir. Yeni sohbet, arama, filtre, tarih gruplu session listesi ve hover context menu mevcut conversation servislerine signal yollar. Collapsed modda metinler gizlenir; Qt icon, accessible name ve tooltip kalır. Agent, notification, settings ve local status alt bölgede ikincildir.
+Expanded sidebar 264 px, collapsed sidebar 64 px’tir. Görünür expanded yüzey branding, yeni sohbet, arama ve tarih gruplu session listesinden oluşur. Filtrelenmiş sohbet görünümleri, Agent, notification, settings ve sistem ayrıntıları header’daki Araçlar menüsü veya command palette üzerinden açılır. Hover context menu mevcut conversation servislerine signal yollar. Collapsed modda metinler gizlenir; yeni sohbet ikonu, accessible name ve tooltip kalır.
 
 ## Timeline ve composer
 
-Timeline viewport’a göre en fazla 880 px readable width hesaplar ve her message row’u merkezler. Assistant metni açık surface’te, user mesajı sağ hizalı accent bubble’da görünür. Streaming aynı widget’ı finalize eder; repair finali duplicate message oluşturmaz. Composer aynı merkez kolona bağlıdır, multiline auto-grow ve stop state’ini korur.
+Timeline viewport’a göre en fazla 880 px readable width hesaplar ve her message row’u merkezler. Assistant metni açık surface’te, user mesajı sağ hizalı accent bubble’da görünür. Streaming aynı widget’ı finalize eder; repair finali duplicate message oluşturmaz. Composer aynı merkez kolona bağlıdır, multiline auto-grow ve stop state’ini korur. Görünür eylemler Ekle, Araçlar ve Gönder’dir; Mikrofon, Ekran ve Agent sinyalleri tek bağlamsal menüden mevcut controller zincirlerine gider.
 
 ## Agent, Voice ve Vision
 
@@ -22,7 +22,7 @@ Agent paneli typed session render eder; plan onayı, ilgili step eylemleri ve pr
 
 ## Settings
 
-Settings dialog arama + sabit navigasyon + stacked page yapısı kullanır. Genel, Görünüm, Modeller, Ses ve Mikrofon, Hands-Free, Vision, Agent, Bildirimler, Gizlilik, Gelişmiş ve Hakkında bölümleri ayrı sorumluluk taşır. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
+Settings dialog arama + sabit navigasyon + scroll edilebilir stacked page yapısı kullanır. Yedi ana bölüm Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Hands-Free Ses altında; Agent, Gizlilik, Sistem ve Hakkında/Tanılama Gelişmiş altında gruplandırılır. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
 
 ## State ve lifecycle
 

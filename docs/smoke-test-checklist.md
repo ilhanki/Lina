@@ -5,6 +5,9 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 ## v0.12.0-alpha Complete Product Experience Redesign
 
 - İlk açılışta sohbet ana odak, inspector kapalı, Agent/Vision büyük panelleri gizli, composer odakta ve header minimal olmalı.
+- Sidebar’da yalnız Lina, Yeni Sohbet, arama ve sohbet listesi görünmeli; local/device metni ve utility kısayolları ana yüzeyi doldurmamalı.
+- Composer’da Ekle, Araçlar ve Gönder görünmeli; Araçlar menüsündeki Mikrofon, Ekran ve Agent mevcut işlevlerini korumalı.
+- Bildirim ikonu yalnız okunmamış bildirim olduğunda görünmeli; sıfır durumda header’da yer kaplamamalı.
 - Yeni sohbet, kısa/uzun cevap, kod bloğu, çok uzun user mesajı, streaming, repair ve error durumlarında yatay taşma veya duplicate final olmamalı.
 - Yapay zekâ ajanı nedir? sorusu 2–4 doğal Türkçe cümle vermeli; Vietnamca/İngilizce sızıntısı, bozuk ek, ilgisiz selamlama ve tekrar olmamalı; reddedilen draft TTS’ye gitmemeli.
 - Sidebar’da collapse/expand, search/Escape, sohbet seçimi, rename/pin/archive/delete ve tooltip’leri klavye/fareyle doğrula.
@@ -17,6 +20,7 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 - Kamera/screen monitoring açıkken kaynak ve gizlilik metni görünmeli; stop/exit sonrası preview, overlay, timer ve cihaz handle’ı kalmamalı.
 - Notification Center’da yeni/düzenle/tamamla/ertele; silmede varsayılan Vazgeç davranışını kontrol et.
 - Ayarlar aramasıyla theme, density, calibration, wake, Agent ve privacy tercihlerini bul; Kaydet/Uygula/Vazgeç/Varsayılanlar davranışını dene.
+- Ayarlar navigasyonunun yedi bölüm olduğunu; uzun Ses ve Gelişmiş sayfalarında dikey scroll olup yatay scroll olmadığını doğrula.
 - Dark, light ve system temayı runtime değiştir; aktif draft, conversation ve panel state kaybolmamalı.
 - %85, %100, %125 ve %135 fontta buton kesilmesi, sidebar taşması, kayıp focus ring veya okunamayan disabled state olmamalı.
 - Yalnız klavye ile yeni sohbet, arama, composer, gönderme, palette, settings ve dialog iptal akışını tamamla; status sadece renge dayanmamalı.

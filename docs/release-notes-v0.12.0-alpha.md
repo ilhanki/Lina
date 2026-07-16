@@ -6,13 +6,15 @@ Bu sürüm Lina’ya güvenli, açıklanabilir ve kullanıcı kontrollü çok ad
 
 - Typed dark/light/system renk, spacing, radius, typography, control, layout ve motion token sistemi.
 - Codex’ten yalnız odak ve progresif disclosure ilkelerini alan, Lina kimliğini koruyan yeni PySide6 app shell.
-- 264/64 px daraltılabilir sidebar; arama, filtre, gruplu conversation history, hover menü ve local status ayrıntıları.
+- 264/64 px daraltılabilir sidebar; görünür yüzey yalnız branding, yeni sohbet, arama ve gruplu conversation history’den oluşur.
 - Minimal conversation header, generation-safe unified status ve varsayılan kapalı sistem/Agent/Vision inspector’ı.
 - Merkezlenmiş 760–920 px timeline, açık assistant sunumu, kompakt user bubble ve progresif mesaj eylemleri.
-- Taşma oluşturmayan responsive empty state, tek composer ve Ekle/Mikrofon/Ekran/Agent/Gönder hiyerarşisi.
+- Taşma oluşturmayan responsive empty state; tek composer ve Ekle/Araçlar/Gönder hiyerarşisi. Mikrofon, Ekran ve Agent bağlamsal Araçlar menüsündedir.
 - Ctrl+Shift+P command palette; Ctrl+L, Ctrl+F, Ctrl+N, Ctrl+, ve mevcut composer kısayolları.
 - Aktifken görünen kompakt Agent ilerlemesi ve Live Vision kartı; ayrıntılar inspector’a taşındı.
-- 11 aranabilir Settings bölümü, compact/comfortable density ve schema v8 migration.
+- Yedi aranabilir Settings bölümü; Ses altında Hands-Free, Gelişmiş altında Agent/Gizlilik/Sistem/Tanılama, compact/comfortable density ve schema v8 migration.
+- Sıfır okunmamış bildirimde gizlenen header bildirimi; sohbet görünümü, bildirimler, sistem ayrıntıları ve Ayarlar için tek utility menüsü.
+- Genel yardım/selamlama kalıbı, yabancı kelime kırıntısı ve bozuk teknik ekleri yakalayan odaklı Türkçe response quality polish.
 - Negatif monitor koordinatlarını destekleyen window state restore, off-screen clamp ve maximize persistence.
 - Qt standard, theme-aware ikonlar; emoji ana kontrolü, OpenAI/Codex asset’i veya yeni UI dependency yok.
 - Yabancı phrase, dil sızıntısı, bozuk Türkçe ek ve ilgisiz selamlamayı yakalayan Response Quality V2; stale/cancelled repair sonucu gösterilmez, saklanmaz ve seslendirilmez.
@@ -21,6 +23,8 @@ Bu sürüm Lina’ya güvenli, açıklanabilir ve kullanıcı kontrollü çok ad
 Bilinen sınırlar: Qt offscreen test ortamı sistem fontlarını rasterize edemeyebilir; gerçek Segoe UI, Windows DPI, çoklu ekran, tray, mikrofon/TTS ve kamera doğrulaması manuel smoke gerektirir. Kamera business logic’i değiştirilmemiştir. Sürüm 0.12.0a0 kalır ve tag oluşturulmaz.
 
 Redesign doğrulamasında tam paket 949 test, compileall, PySide6 import ve diff check kapılarından geçmiştir.
+
+UI simplification ve response quality polish sonrasında tam paket 955 teste yükselmiştir; yeni dependency, kamera iş mantığı değişikliği, sürüm artışı veya tag yoktur.
 
 ## Eklenenler
 
