@@ -19,7 +19,7 @@ from lina.interfaces.qt.theme import SPACE_SM
 
 COMPOSER_INPUT_MIN_HEIGHT = 54
 COMPOSER_INPUT_MAX_HEIGHT = 140
-COMPOSER_BUTTON_HEIGHT = 46
+COMPOSER_BUTTON_HEIGHT = 36
 
 
 class ComposerInput(QPlainTextEdit):
@@ -67,6 +67,7 @@ class ComposerWidget(QWidget):
     screen_context_remove_requested = Signal()
     screen_context_preview_requested = Signal()
     screen_context_change_requested = Signal()
+    agent_mode_requested = Signal()
 
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
@@ -74,6 +75,7 @@ class ComposerWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._initial_resize_done = False
         self._waiting = False
+        self._compact = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(SPACE_SM)
@@ -118,22 +120,8 @@ class ComposerWidget(QWidget):
         self.screen_context_chip.hide()
         layout.addWidget(self.screen_context_chip)
 
-        action_row = QWidget(self)
-        action_layout = QHBoxLayout(action_row)
-        action_layout.setContentsMargins(0, 0, 0, 0)
-        action_layout.setSpacing(SPACE_SM)
-        layout.addWidget(action_row)
-
-        self.attachment_button = QPushButton("+", self)
-        self._configure_action_button(
-            self.attachment_button,
-            tooltip="Dosya ekle - henüz aktif değil",
-            accessible_name="Dosya ekle",
-        )
-        action_layout.addWidget(self.attachment_button)
-
         self.input = ComposerInput(self)
-        self.input.setPlaceholderText("Lina'ya bir mesaj yaz...")
+        self.input.setPlaceholderText("Lina’ya bir mesaj yaz…")
         self.input.setMinimumHeight(COMPOSER_INPUT_MIN_HEIGHT)
         self.input.setMaximumHeight(COMPOSER_INPUT_MAX_HEIGHT)
         self.input.setFixedHeight(COMPOSER_INPUT_MIN_HEIGHT)
@@ -142,9 +130,20 @@ class ComposerWidget(QWidget):
         self.input.setFont(QFont(font_family, font_size))
         self.input.setAccessibleName("Lina mesaj alanı")
         self.input.setAccessibleDescription("Enter gönderir, Shift Enter yeni satır ekler")
-        action_layout.addWidget(self.input, 1)
+        layout.addWidget(self.input)
 
-        self.mic_button = QPushButton("● Mic", self)
+        action_row = QWidget(self)
+        action_row.setObjectName("composerToolbar")
+        action_layout = QHBoxLayout(action_row)
+        action_layout.setContentsMargins(0, 0, 0, 0)
+        action_layout.setSpacing(SPACE_SM)
+        layout.addWidget(action_row)
+
+        self.attachment_button = QPushButton("Ekle", self)
+        self._configure_action_button(self.attachment_button, tooltip="Görsel veya dosya ekle", accessible_name="Ekle")
+        action_layout.addWidget(self.attachment_button)
+
+        self.mic_button = QPushButton("Mikrofon", self)
         self._configure_action_button(
             self.mic_button,
             tooltip="Konuşmayı metne çevir",
@@ -159,6 +158,18 @@ class ComposerWidget(QWidget):
             accessible_name="Ekran görüntüsü yakala",
         )
         action_layout.addWidget(self.screen_button)
+
+        self.agent_button = QPushButton("Agent", self)
+        self._configure_action_button(
+            self.agent_button,
+            tooltip="Agent çalışma modunu aç veya kapat",
+            accessible_name="Agent modu",
+        )
+        action_layout.addWidget(self.agent_button)
+        self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)
+        self.input_hint.setObjectName("composerHint")
+        action_layout.addStretch(1)
+        action_layout.addWidget(self.input_hint)
 
         self.send_button = QPushButton("Gönder", self)
         self._configure_action_button(
@@ -176,6 +187,7 @@ class ComposerWidget(QWidget):
         self.attachment_button.clicked.connect(self.attachment_requested)
         self.mic_button.clicked.connect(self.mic_requested)
         self.screen_button.clicked.connect(self.screen_requested)
+        self.agent_button.clicked.connect(self.agent_mode_requested)
         self.screen_context_remove_button.clicked.connect(
             self.screen_context_remove_requested
         )
@@ -257,12 +269,24 @@ class ComposerWidget(QWidget):
         self.input.setFont(QFont(family, size))
         self._resize_input_to_content()
 
+    def set_compact(self, compact: bool) -> None:
+        self._compact = compact
+        self.input_hint.setVisible(not compact)
+        labels = (
+            (self.attachment_button, "+", "Ekle"),
+            (self.mic_button, "Mic", "Mikrofon"),
+            (self.screen_button, "Ekran", "Ekran"),
+            (self.agent_button, "Agent", "Agent"),
+        )
+        for button, short, full in labels:
+            button.setText(short if compact else full)
+
     def set_mic_state(self, state: str) -> None:
         """Update the visible microphone action state."""
         labels = {
-            "idle": "● Mic",
-            "listening": "■ Durdur",
-            "transcribing": "... Çevriliyor",
+            "idle": "Mikrofon",
+            "listening": "Durdur",
+            "transcribing": "Çevriliyor…",
         }
         self.mic_button.setText(labels.get(state, labels["idle"]))
 

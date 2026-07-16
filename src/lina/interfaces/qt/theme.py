@@ -146,6 +146,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: 1px solid {border};
             border-radius: 12px;
         }}
+        QWidget#composerRow, QWidget#composerToolbar, QWidget#messageActions {{ background: transparent; border: none; }}
+        QLabel#composerHint {{ color: {text_muted}; font-size: 9pt; }}
         QWidget#screenContextChip {{
             background: {elevated_bg};
             border: 1px solid {accent};
@@ -248,6 +250,10 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QLabel#welcomeSubtitle {{
             color: {text_muted};
             font-size: 11pt;
+        }}
+        QPushButton#suggestionButton {{
+            background: {panel_bg}; color: {text_secondary}; border: 1px solid {soft_border};
+            border-radius: 10px; min-height: 38px; padding: 0 12px;
         }}
         QLabel#welcomeFallbackLogo {{
             color: {accent};

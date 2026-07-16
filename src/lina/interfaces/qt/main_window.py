@@ -449,7 +449,15 @@ class LinaMainWindow(QMainWindow):
             font_size=self._message_font_size,
             parent=self,
         )
-        parent_layout.addWidget(self._composer)
+        composer_row = QWidget(self)
+        composer_row.setObjectName("composerRow")
+        composer_layout = QHBoxLayout(composer_row)
+        composer_layout.setContentsMargins(0, 0, 0, 0)
+        composer_layout.addStretch(1)
+        self._composer.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
+        composer_layout.addWidget(self._composer, 1)
+        composer_layout.addStretch(1)
+        parent_layout.addWidget(composer_row)
 
         footer = QWidget(self)
         footer.setObjectName("statusPanel")
@@ -462,6 +470,7 @@ class LinaMainWindow(QMainWindow):
         self._status_label.setObjectName("mutedLabel")
         self._status_label.setAccessibleName("Lina Durumu")
         layout.addWidget(self._status_label, 1)
+        footer.hide()
         parent_layout.addWidget(footer)
 
         self._composer.send_requested.connect(self.send_message)
@@ -487,6 +496,7 @@ class LinaMainWindow(QMainWindow):
             self.change_active_attachment
         )
         self._composer.mic_requested.connect(self.handle_mic_request)
+        self._composer.agent_mode_requested.connect(self._toggle_agent_mode)
 
     def _bind_shortcuts(self) -> None:
         focus_action = QAction(self)
@@ -1940,7 +1950,12 @@ class LinaMainWindow(QMainWindow):
             conversation_id=conversation_id,
             parent=self._message_container,
         )
+        self._welcome_state.prompt_selected.connect(self._use_welcome_prompt)
         self._message_layout.insertWidget(0, self._welcome_state)
+
+    def _use_welcome_prompt(self, prompt: str) -> None:
+        self._composer.set_text(prompt)
+        self._composer.input.setFocus()
 
     def _hide_welcome_state(self) -> None:
         if self._welcome_state is None:
@@ -2495,6 +2510,9 @@ class LinaMainWindow(QMainWindow):
             parent=self._message_container,
         )
         message.copy_requested.connect(self._copy_text)
+        message.retry_requested.connect(self._retry_last_response)
+        message.read_aloud_requested.connect(self._read_message_aloud)
+        message.stop_speech_requested.connect(self.stop_voice)
         message.image_preview_requested.connect(self._show_image_preview)
         message.reanalyze_requested.connect(self.reanalyze_visual_context)
         row = QWidget(self._message_container)
@@ -2514,6 +2532,16 @@ class LinaMainWindow(QMainWindow):
         if should_scroll:
             self._schedule_scroll_to_bottom()
         return message
+
+    def _retry_last_response(self) -> None:
+        if self._is_waiting or not self._input_history:
+            return
+        self._composer.set_text(self._input_history[-1])
+        self.send_message()
+
+    def _read_message_aloud(self, text: str) -> None:
+        if self._voice_controller is None or not self._voice_controller.speak_response(text):
+            self._set_status("Sesli yanıt başlatılamadı; yazılı cevap hazır.")
 
     def _show_image_preview(self, context: object) -> None:
         if not isinstance(context, ScreenContext):
@@ -2672,8 +2700,12 @@ class LinaMainWindow(QMainWindow):
         self._thread_pool.start(worker)
 
     def _update_message_widths(self) -> None:
-        width = int(min(design_tokens("dark").layout.chat_readable, max(320, self._scroll.viewport().width() * 0.86)))
+        viewport_width = self._scroll.viewport().width()
+        width = int(min(design_tokens("dark").layout.chat_readable, max(320, viewport_width * 0.86)))
+        outer_margin = max(0, (viewport_width - width) // 2)
         for row in self._message_rows:
+            if row.layout() is not None:
+                row.layout().setContentsMargins(outer_margin, 0, outer_margin, 0)
             message = getattr(row, "_message_widget", None)
             if isinstance(message, ChatMessageWidget):
                 message.set_bubble_width(width)
@@ -2683,6 +2715,7 @@ class LinaMainWindow(QMainWindow):
         if hasattr(self, "_sidebar"):
             compact = self.width() < design_tokens("dark").layout.compact_breakpoint
             self._sidebar.set_collapsed(compact)
+            self._composer.set_compact(compact)
             if compact and hasattr(self, "_inspector"):
                 self._close_inspector()
         self._update_message_widths()

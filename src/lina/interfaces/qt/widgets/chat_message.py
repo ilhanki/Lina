@@ -29,6 +29,9 @@ class ChatMessageWidget(QWidget):
     """Render one user, assistant, or typing message as a cohesive bubble."""
 
     copy_requested = Signal(str)
+    retry_requested = Signal()
+    read_aloud_requested = Signal(str)
+    stop_speech_requested = Signal()
     image_preview_requested = Signal(object)
     reanalyze_requested = Signal(object)
 
@@ -57,7 +60,7 @@ class ChatMessageWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(SPACE_SM)
 
-        self.sender_label = QLabel("Lina", self)
+        self.sender_label = QLabel("Lina düşünüyor" if typing else "Lina", self)
         self.sender_label.setObjectName("senderLabel")
         self.sender_label.setVisible(role == "assistant")
         layout.addWidget(self.sender_label)
@@ -65,7 +68,7 @@ class ChatMessageWidget(QWidget):
         self.bubble = QWidget(self)
         self.bubble.setObjectName("userBubble" if role == "user" else "assistantBubble")
         bubble_layout = QVBoxLayout(self.bubble)
-        bubble_layout.setContentsMargins(16, 14, 16, 10)
+        bubble_layout.setContentsMargins(6 if role == "assistant" else 16, 8 if role == "assistant" else 12, 6 if role == "assistant" else 16, 6)
         bubble_layout.setSpacing(SPACE_MD)
         layout.addWidget(self.bubble)
 
@@ -103,7 +106,9 @@ class ChatMessageWidget(QWidget):
         )
         bubble_layout.addWidget(self.text_label)
 
-        metadata = QHBoxLayout()
+        self.action_bar = QWidget(self.bubble)
+        self.action_bar.setObjectName("messageActions")
+        metadata = QHBoxLayout(self.action_bar)
         metadata.setContentsMargins(0, 0, 0, 0)
         metadata.setSpacing(SPACE_SM)
         self.timestamp_label = QLabel(format_message_time(self.created_at), self.bubble)
@@ -111,13 +116,34 @@ class ChatMessageWidget(QWidget):
         metadata.addWidget(self.timestamp_label)
         metadata.addStretch(1)
 
-        self.copy_button = QPushButton("Kopyala", self.bubble)
+        self.copy_button = QPushButton("Kopyala", self.action_bar)
         self.copy_button.setObjectName("copyButton")
         self.copy_button.setToolTip("Bu mesajı kopyala")
         self.copy_button.setAccessibleName("Mesajı kopyala")
         self.copy_button.clicked.connect(lambda: self.copy_requested.emit(self.raw_text))
         self.copy_button.setVisible(not typing)
         metadata.addWidget(self.copy_button)
+        self.retry_button = QPushButton("Yeniden dene", self.action_bar)
+        self.retry_button.setObjectName("copyButton")
+        self.retry_button.setToolTip("Son isteği yeniden gönder")
+        self.retry_button.setAccessibleName("Yanıtı yeniden dene")
+        self.retry_button.setVisible(role == "assistant" and not typing)
+        self.retry_button.clicked.connect(self.retry_requested)
+        metadata.addWidget(self.retry_button)
+        self.read_aloud_button = QPushButton("Seslendir", self.action_bar)
+        self.read_aloud_button.setObjectName("copyButton")
+        self.read_aloud_button.setToolTip("Bu yanıtı seslendir")
+        self.read_aloud_button.setAccessibleName("Yanıtı seslendir")
+        self.read_aloud_button.setVisible(role == "assistant" and not typing)
+        self.read_aloud_button.clicked.connect(lambda: self.read_aloud_requested.emit(self.raw_text))
+        metadata.addWidget(self.read_aloud_button)
+        self.stop_speech_button = QPushButton("Sesi durdur", self.action_bar)
+        self.stop_speech_button.setObjectName("copyButton")
+        self.stop_speech_button.setToolTip("Seslendirmeyi durdur")
+        self.stop_speech_button.setAccessibleName("Sesi durdur")
+        self.stop_speech_button.setVisible(role == "assistant" and not typing)
+        self.stop_speech_button.clicked.connect(self.stop_speech_requested)
+        metadata.addWidget(self.stop_speech_button)
         self.visual_status_label = QLabel(self.bubble)
         self.visual_status_label.setObjectName("mutedLabel")
         self.visual_status_label.setVisible(visual_context is not None)
@@ -132,7 +158,18 @@ class ChatMessageWidget(QWidget):
             lambda: self.reanalyze_requested.emit(self.visual_context)
         )
         metadata.addWidget(self.reanalyze_button)
-        bubble_layout.addLayout(metadata)
+        self.action_bar.setVisible(not typing and role == "user")
+        bubble_layout.addWidget(self.action_bar)
+
+    def enterEvent(self, event) -> None:
+        if not self.typing:
+            self.action_bar.show()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        if self.role == "assistant":
+            self.action_bar.hide()
+        super().leaveEvent(event)
 
     def _handle_image_click(self, _event) -> None:
         if self.visual_context is not None:
@@ -149,7 +186,7 @@ class ChatMessageWidget(QWidget):
     def set_bubble_width(self, width: int) -> None:
         """Bound the bubble to a readable responsive width."""
         bounded_width = max(320, width)
-        minimum_width = min(MIN_BUBBLE_WIDTH, bounded_width)
+        minimum_width = bounded_width if self.role == "assistant" else min(MIN_BUBBLE_WIDTH, bounded_width)
         self.setMaximumWidth(bounded_width)
         self.bubble.setMaximumWidth(bounded_width)
         self.setMinimumWidth(minimum_width)
@@ -162,3 +199,18 @@ class ChatMessageWidget(QWidget):
                 Qt.TransformationMode.SmoothTransformation,
             )
             self.image_label.setPixmap(preview)
+
+    def update_stream_preview(self, text: str) -> None:
+        """Update only the transient widget; persistence remains owned by the service."""
+        if not self.typing:
+            return
+        self.raw_text = text
+        self.text_label.setText(text)
+        self.sender_label.setText("Lina yanıtlıyor")
+
+    def finalize_stream(self, text: str) -> None:
+        self.raw_text = text
+        self.text_label.setText(text)
+        self.typing = False
+        self.sender_label.setText("Lina")
+        self.copy_button.show()

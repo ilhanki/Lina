@@ -4,15 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget
 
 from lina.interfaces.qt.formatting import build_welcome_message
 
 
 class WelcomeStateWidget(QWidget):
     """Render a non-persistent welcome experience for an empty session."""
+
+    prompt_selected = Signal(str)
 
     def __init__(
         self,
@@ -61,6 +63,19 @@ class WelcomeStateWidget(QWidget):
             "Bir şey sorabilir, ekran görüntüsü gösterebilir veya dosyalar hakkında konuşabilirsin."
         )
         layout.addWidget(self.subtitle_label)
+        suggestions = QHBoxLayout()
+        suggestions.setSpacing(8)
+        for text in (
+            "Bugün neye odaklanmalıyım?",
+            "Yapay zekâ ajanını açıkla",
+            "Bir ekran görüntüsünü incele",
+        ):
+            button = QPushButton(text, self)
+            button.setObjectName("suggestionButton")
+            button.setAccessibleName(f"Öneri: {text}")
+            button.clicked.connect(lambda _checked=False, prompt=text: self.prompt_selected.emit(prompt))
+            suggestions.addWidget(button)
+        layout.addLayout(suggestions)
         layout.addStretch(3)
         self.refresh(conversation_id)
 

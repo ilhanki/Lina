@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
 from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QPushButton
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
@@ -13,6 +14,7 @@ from lina.interfaces.qt.widgets.composer import (
     COMPOSER_INPUT_MAX_HEIGHT,
     COMPOSER_INPUT_MIN_HEIGHT,
 )
+from lina.interfaces.qt.widgets.welcome_state import WelcomeStateWidget
 from lina.screen.models import ScreenContext
 from lina.conversations.models import ConversationSession
 from lina.conversations.models import ConversationSearchResult
@@ -51,7 +53,7 @@ def test_chat_message_is_selectable_and_copyable(qtbot) -> None:
     assert widget.text_label.textInteractionFlags() & Qt.TextInteractionFlag.TextSelectableByMouse
     assert widget.sender_label.text() == "Lina"
     assert widget.timestamp_label.text()
-    assert widget.copy_button.parent() is widget.bubble
+    assert widget.copy_button.parent() is widget.action_bar
 
 
 def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
@@ -60,8 +62,8 @@ def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
 
     widget.set_bubble_width(760)
 
-    assert widget.minimumWidth() == MIN_BUBBLE_WIDTH
-    assert widget.bubble.minimumWidth() == MIN_BUBBLE_WIDTH
+    assert widget.minimumWidth() == 760
+    assert widget.bubble.minimumWidth() == 760
     assert widget.maximumWidth() == 760
 
 
@@ -164,6 +166,50 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.mic_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.screen_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
+    assert composer.input.parent() is composer
+    assert composer.input_hint.text().startswith("Enter gönderir")
+
+
+def test_composer_compact_mode_and_agent_action(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    composer.set_compact(True)
+    assert composer.input_hint.isHidden()
+    assert composer.attachment_button.text() == "+"
+    with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
+        composer.agent_button.click()
+
+
+def test_assistant_message_progressive_actions(qtbot) -> None:
+    widget = ChatMessageWidget("assistant", "Yanıt", "Arial", 11)
+    qtbot.addWidget(widget)
+    assert widget.action_bar.isHidden()
+    widget.action_bar.show()
+    with qtbot.waitSignal(widget.read_aloud_requested, timeout=1000) as signal:
+        widget.read_aloud_button.click()
+    assert signal.args == ["Yanıt"]
+    with qtbot.waitSignal(widget.retry_requested, timeout=1000):
+        widget.retry_button.click()
+
+
+def test_stream_preview_finalizes_one_message_widget(qtbot) -> None:
+    widget = ChatMessageWidget("assistant", "Düşünüyor…", "Arial", 11, typing=True)
+    qtbot.addWidget(widget)
+    widget.update_stream_preview("İlk parça")
+    assert widget.text_label.text() == "İlk parça"
+    widget.finalize_stream("Kabul edilen final")
+    assert widget.text_label.text() == "Kabul edilen final"
+    assert not widget.typing
+
+
+def test_welcome_state_has_non_persistent_prompt_suggestions(qtbot, tmp_path) -> None:
+    welcome = WelcomeStateWidget(tmp_path / "missing.png")
+    qtbot.addWidget(welcome)
+    suggestions = welcome.findChildren(QPushButton, "suggestionButton")
+    assert len(suggestions) == 3
+    with qtbot.waitSignal(welcome.prompt_selected, timeout=1000) as signal:
+        suggestions[1].click()
+    assert "ajan" in signal.args[0]
 
 
 def test_composer_screen_context_chip_can_be_shown_and_removed(qtbot) -> None:
