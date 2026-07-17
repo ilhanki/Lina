@@ -9,6 +9,12 @@ class AgentPlanError(AgentError):
     pass
 
 
+class AgentClarificationRequired(AgentPlanError):
+    def __init__(self, message: str, missing_parameters: tuple[str, ...] = ()) -> None:
+        super().__init__(message)
+        self.missing_parameters = tuple(missing_parameters)
+
+
 class AgentPolicyError(AgentError):
     pass
 

@@ -7,25 +7,65 @@ from typing import Callable
 from uuid import uuid4
 
 from lina.agent.context import AgentContext
-from lina.agent.errors import AgentPlanError, AgentPolicyError
+from lina.agent.errors import AgentClarificationRequired, AgentPlanError, AgentPolicyError
 from lina.agent.models import AgentPlan, AgentStep, RiskLevel, VerificationRule
 from lina.agent.policy import AgentPolicy
 from lina.brain.routing.validation import parse_reminder_arguments
 
 
 class AgentPlanner:
-    def __init__(self, policy: AgentPolicy, generator: Callable[[AgentContext, str | None], object] | None = None) -> None:
+    def __init__(
+        self,
+        policy: AgentPolicy,
+        generator: Callable[[AgentContext, str | None], object] | None = None,
+        template_registry: object | None = None,
+    ) -> None:
         self.policy = policy
         self.generator = generator
+        self.template_registry = template_registry
 
     def plan(self, context: AgentContext) -> AgentPlan:
         available = {item.name for item in context.capabilities if item.available}
-        if self.generator is None:
+        template_plan = self._template_plan(context, available)
+        if template_plan is not None:
+            plan = template_plan
+        elif self.generator is None:
             plan = self._deterministic_plan(context, available)
         else:
             plan = self._generate_with_repair(context)
         self.policy.validate_plan(plan, available)
         return plan
+
+    def match_template(self, context: AgentContext):
+        if self.template_registry is None:
+            return None
+        from lina.agent.templates.matcher import TaskTemplateMatcher
+
+        available = {item.name for item in context.capabilities if item.available}
+        return TaskTemplateMatcher(self.template_registry).match(
+            context.user_request,
+            available_capabilities=available,
+            agent_mode_enabled=True,
+        )
+
+    def _template_plan(self, context: AgentContext, available: set[str]) -> AgentPlan | None:
+        match = self.match_template(context)
+        if match is None or match.template_id is None:
+            if match is not None and match.ambiguous:
+                raise AgentClarificationRequired(
+                    "Bunu hatırlatıcı olarak mı oluşturayım, yoksa yalnızca plan mı hazırlayayım?"
+                )
+            return None
+        if match.missing_parameters:
+            raise AgentClarificationRequired(
+                _clarification_for(match.missing_parameters), match.missing_parameters
+            )
+        template = self.template_registry.require(match.template_id)
+        from lina.agent.templates.validators import validate_parameters
+
+        parameters = dict(match.extracted_parameters)
+        validate_parameters(dict(template.input_schema), parameters)
+        return template.create_plan(parameters)
 
     def replan(self, context: AgentContext, failed_step: AgentStep, error_code: str) -> AgentPlan:
         if self.generator is None:
@@ -102,4 +142,24 @@ class AgentPlanner:
             str(raw.get("plan_id") or uuid4().hex), str(raw.get("summary", "")).strip(), steps,
             raw.get("estimated_step_count"), bool(raw.get("requires_approval", True)),
             revision=int(raw.get("revision", 1)),
+            template_id=str(raw["template_id"]) if raw.get("template_id") else None,
+            title=str(raw["title"]) if raw.get("title") else None,
+            risk_summary=str(raw.get("risk_summary", "")),
         )
+
+
+def _clarification_for(missing: tuple[str, ...]) -> str:
+    missing_set = set(missing)
+    if "future_time" in missing_set:
+        return "Geçmiş bir saat seçemeyiz. Hangi gelecek tarih ve saati kullanayım?"
+    if missing_set == {"time"}:
+        return "Saat kaçta hatırlatayım?"
+    if missing_set == {"date"}:
+        return "Hangi gün hatırlatayım?"
+    if missing_set == {"title"}:
+        return "Neyi hatırlatmamı istersin?"
+    if missing_set == {"content"}:
+        return "Hangi bilgiyi hafızaya kaydetmemi istersin?"
+    if missing_set == {"target"}:
+        return "Hangi izinli dosyayı okumamı istersin?"
+    return "Görevi başlatmak için bazı bilgiler eksik."

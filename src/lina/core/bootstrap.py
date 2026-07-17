@@ -12,6 +12,7 @@ from lina.brain.prompts import VISION_SYSTEM_PROMPT
 from lina.brain.routing.router import IntentRouter
 from lina.brain.routing.tools import build_safe_tool_registry
 from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentSessionRepository, AgentVerifier
+from lina.agent.templates import build_builtin_template_registry
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -263,7 +264,7 @@ def create_application_services(
         max_replans=user_preferences.agent.max_agent_replans,
     )
     agent_controller = AgentController(
-        AgentPlanner(agent_policy),
+        AgentPlanner(agent_policy, template_registry=build_builtin_template_registry()),
         AgentExecutor(safe_tool_registry),
         AgentVerifier(),
         agent_policy,

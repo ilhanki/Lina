@@ -127,10 +127,14 @@ class AgentPlan:
     requires_approval: bool = True
     created_at: datetime = field(default_factory=utc_now)
     revision: int = 1
+    template_id: str | None = None
+    title: str | None = None
+    risk_summary: str = ""
 
     def __post_init__(self) -> None:
         self.steps = list(self.steps)
         self.estimated_step_count = len(self.steps) if self.estimated_step_count is None else self.estimated_step_count
+        self.title = (self.title or self.summary).strip()
         self.validate()
 
     def validate(self, maximum_steps: int = HARD_MAX_STEPS) -> None:
