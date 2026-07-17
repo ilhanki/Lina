@@ -224,11 +224,87 @@ class TaskTemplateParameterDialog(QDialog):
         return values
 
 
+class AgentStepArgumentsDialog(QDialog):
+    """Edit a pending step through its real tool schema; never executes the tool."""
+
+    def __init__(self, title: str, schema: dict[str, type | tuple[type, ...]], values: dict[str, object], parent=None) -> None:
+        super().__init__(parent)
+        self.schema = dict(schema)
+        self.setObjectName("agentStepArguments")
+        self.setWindowTitle(f"{title} · Girdileri Düzenle")
+        layout = QVBoxLayout(self)
+        explanation = QLabel("Değişiklik yeni bir plan revision’ı oluşturur ve yeniden onaylanır.", self)
+        explanation.setWordWrap(True)
+        layout.addWidget(explanation)
+        self.form = QFormLayout()
+        layout.addLayout(self.form)
+        self.fields: dict[str, QWidget] = {}
+        for name, kind in self.schema.items():
+            field = self._field(name, kind, values.get(name))
+            self.fields[name] = field
+            self.form.addRow(_field_label(name), field)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok, self)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Planı Güncelle")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _field(self, name: str, kind: type | tuple[type, ...], current: object) -> QWidget:
+        kinds = kind if isinstance(kind, tuple) else (kind,)
+        if datetime in kinds:
+            value = current if isinstance(current, datetime) else datetime.now().astimezone()
+            container = QWidget(self)
+            row = QHBoxLayout(container)
+            row.setContentsMargins(0, 0, 0, 0)
+            date = QDateEdit(QDate(value.year, value.month, value.day), container)
+            date.setCalendarPopup(True)
+            clock = QTimeEdit(QTime(value.hour, value.minute), container)
+            date.setAccessibleName(f"{_field_label(name)} tarihi")
+            clock.setAccessibleName(f"{_field_label(name)} saati")
+            row.addWidget(date)
+            row.addWidget(clock)
+            container.date_field = date  # type: ignore[attr-defined]
+            container.time_field = clock  # type: ignore[attr-defined]
+            return container
+        if name in {"recurrence", "range", "summary_length", "category"}:
+            combo = QComboBox(self)
+            choices = {
+                "recurrence": (("Tekrarlama yok", "none"), ("Her gün", "daily"), ("Her hafta", "weekly")),
+                "range": (("Yaklaşanlar", "upcoming"), ("Yarın", "tomorrow"), ("Bu hafta", "week")),
+                "summary_length": (("Kısa", "short"), ("Orta", "medium")),
+                "category": (("Sohbet tercihi", "conversation_note"),),
+            }[name]
+            for label, value in choices:
+                combo.addItem(label, value)
+            resolved = getattr(current, "value", current)
+            index = combo.findData(resolved)
+            combo.setCurrentIndex(max(index, 0))
+            combo.setAccessibleName(_field_label(name))
+            return combo
+        field = QLineEdit(str(current or ""), self)
+        field.setAccessibleName(_field_label(name))
+        return field
+
+    def arguments(self) -> dict[str, object]:
+        values: dict[str, object] = {}
+        for name, field in self.fields.items():
+            if hasattr(field, "date_field"):
+                date = field.date_field.date().toPython()  # type: ignore[attr-defined]
+                clock = field.time_field.time().toPython()  # type: ignore[attr-defined]
+                values[name] = datetime.combine(date, clock).astimezone()
+            elif isinstance(field, QComboBox):
+                values[name] = field.currentData()
+            else:
+                values[name] = field.text().strip()  # type: ignore[union-attr]
+        return values
+
+
 class PlanReviewWidget(QWidget):
     start_requested = Signal()
     skip_requested = Signal(str)
     remove_requested = Signal(str)
     move_requested = Signal(str, int)
+    arguments_requested = Signal(str)
     regenerate_requested = Signal()
     cancel_requested = Signal()
 
@@ -251,6 +327,7 @@ class PlanReviewWidget(QWidget):
         self.down_button = _button("Aşağı", actions, lambda: self._move(1), self)
         self.skip_button = _button("Atla", actions, self._skip, self)
         self.remove_button = _button("Opsiyoneli Kaldır", actions, self._remove, self)
+        self.arguments_button = _button("Girdileri Düzenle", actions, self._arguments, self)
         self.regenerate_button = _button("Yeniden Üret", actions, self.regenerate_requested.emit, self)
         self.cancel_button = _button("İptal", actions, self.cancel_requested.emit, self)
         self.start_button = _button("Başlat", actions, self.start_requested.emit, self)
@@ -291,6 +368,7 @@ class PlanReviewWidget(QWidget):
             f"{step.description}\nAraç: {step.tool_name}\nRisk: {_risk_label(step.risk_level)}\nOnay: {approval}\nBağımlılıklar: {dependencies}"
         )
         self.remove_button.setEnabled(step.optional)
+        self.arguments_button.setEnabled(bool(step.typed_arguments) and step.status.value == "pending")
 
     def _move(self, direction: int) -> None:
         step = self._current_step()
@@ -306,6 +384,11 @@ class PlanReviewWidget(QWidget):
         step = self._current_step()
         if step is not None and step.optional:
             self.remove_requested.emit(step.step_id)
+
+    def _arguments(self) -> None:
+        step = self._current_step()
+        if step is not None and self.arguments_button.isEnabled():
+            self.arguments_requested.emit(step.step_id)
 
 
 class AgentInspectorV2(QWidget):

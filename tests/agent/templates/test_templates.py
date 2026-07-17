@@ -159,6 +159,20 @@ def test_reminder_template_rejects_past_time():
     assert "future_time" in match.missing_parameters
 
 
+def test_explicit_template_parameters_reject_past_naive_and_invalid_ranges():
+    registry = build_builtin_template_registry()
+    with pytest.raises(ValueError, match="gelecekte"):
+        registry.require("reminders.create").create_plan({
+            "title": "Geçmiş", "due_at": datetime.now(timezone.utc), "recurrence": "none",
+        })
+    with pytest.raises(ValueError, match="saat dilimi"):
+        registry.require("reminders.create").create_plan({
+            "title": "Naive", "due_at": datetime.now(), "recurrence": "none",
+        })
+    with pytest.raises(ValueError, match="aralığı"):
+        registry.require("reminders.summary").create_plan({"range": "all"})
+
+
 def test_template_plan_factory_never_executes_a_tool():
     registry = build_builtin_template_registry()
     template = registry.require("memory.store")

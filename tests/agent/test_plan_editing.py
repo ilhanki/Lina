@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -86,13 +86,27 @@ def test_update_arguments_requires_exact_typed_tool_schema():
     before = _plan(_step("one", tool="reminder.create", risk=RiskLevel.PERSISTENT, arguments={"title": "eski", "due_at": datetime.now(timezone.utc), "recurrence": "none"}))
     schemas = {"reminder.create": {"title": str, "due_at": datetime, "recurrence": str}}
     editor = _editor("reminder.create", schemas=schemas)
-    due_at = datetime.now(timezone.utc)
+    due_at = datetime.now(timezone.utc) + timedelta(hours=1)
     after, difference = editor.update_arguments(before, "one", {"title": "yeni", "due_at": due_at.isoformat(), "recurrence": "none"})
     assert after.steps[0].typed_arguments["title"] == "yeni"
     assert isinstance(after.steps[0].typed_arguments["due_at"], datetime)
     assert difference.modified_steps == ("one",)
     with pytest.raises(AgentPolicyError, match="schema"):
         editor.update_arguments(before, "one", {"title": "yeni", "extra": "yasak"})
+
+
+def test_update_arguments_rejects_empty_past_naive_and_invalid_enum_values():
+    before = _plan(_step("one", tool="reminder.create", risk=RiskLevel.PERSISTENT, arguments={"title": "eski", "due_at": datetime.now(timezone.utc) + timedelta(hours=1), "recurrence": "none"}))
+    schemas = {"reminder.create": {"title": str, "due_at": datetime, "recurrence": str}}
+    editor = _editor("reminder.create", schemas=schemas)
+    with pytest.raises(AgentPolicyError, match="boş"):
+        editor.update_arguments(before, "one", {"title": " ", "due_at": datetime.now(timezone.utc) + timedelta(hours=1), "recurrence": "none"})
+    with pytest.raises(AgentPolicyError, match="gelecekte"):
+        editor.update_arguments(before, "one", {"title": "x", "due_at": datetime.now(timezone.utc) - timedelta(minutes=1), "recurrence": "none"})
+    with pytest.raises(AgentPolicyError, match="saat dilimi"):
+        editor.update_arguments(before, "one", {"title": "x", "due_at": datetime.now() + timedelta(hours=1), "recurrence": "none"})
+    with pytest.raises(AgentPolicyError, match="Tekrarlama"):
+        editor.update_arguments(before, "one", {"title": "x", "due_at": datetime.now(timezone.utc) + timedelta(hours=1), "recurrence": "monthly"})
 
 
 def test_replace_step_cannot_lower_risk_remove_approval_or_add_prohibited_tool():

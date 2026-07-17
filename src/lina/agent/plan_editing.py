@@ -194,8 +194,12 @@ def _validate_arguments(arguments: dict[str, Any], schema: dict[str, type | tupl
             except ValueError as error:
                 raise AgentPolicyError(f"'{name}' girdisi geçersiz.") from error
             arguments[name] = value
-        if not isinstance(value, kind):
-            raise AgentPolicyError(f"'{name}' girdisi beklenen türde değil.")
+    from lina.agent.templates.validators import TemplateInputError, validate_parameters
+
+    try:
+        validate_parameters(schema, arguments)
+    except TemplateInputError as error:
+        raise AgentPolicyError(str(error)) from error
 
 
 def _step_payload(step: AgentStep) -> tuple[object, ...]:

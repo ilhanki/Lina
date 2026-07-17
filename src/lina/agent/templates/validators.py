@@ -61,8 +61,22 @@ def validate_parameters(schema: dict[str, type | tuple[type, ...]], parameters: 
     if missing:
         raise TemplateInputError("Görevi başlatmak için bazı bilgiler eksik.", missing)
     for name, kind in schema.items():
-        if not isinstance(parameters[name], kind):
+        value = parameters[name]
+        if not isinstance(value, kind):
             raise TemplateInputError(f"'{name}' bilgisi beklenen türde değil.")
+        if isinstance(value, str) and not value.strip():
+            raise TemplateInputError(f"'{name}' bilgisi boş olamaz.", (name,))
+        if name == "due_at" and isinstance(value, datetime):
+            if value.tzinfo is None or value.utcoffset() is None:
+                raise TemplateInputError("Hatırlatma zamanı saat dilimi içermeli.")
+            if value <= datetime.now(value.tzinfo):
+                raise TemplateInputError("Hatırlatma zamanı gelecekte olmalı.")
+        if name == "recurrence" and getattr(value, "value", value) not in {"none", "daily", "weekly"}:
+            raise TemplateInputError("Tekrarlama seçeneği geçersiz.")
+        if name == "range" and value not in {"upcoming", "tomorrow", "week"}:
+            raise TemplateInputError("Tarih aralığı geçersiz.")
+        if name == "summary_length" and value not in {"short", "medium"}:
+            raise TemplateInputError("Özet uzunluğu geçersiz.")
 
 
 def _normalize(text: str) -> str:

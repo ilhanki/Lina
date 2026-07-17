@@ -70,14 +70,9 @@ class TaskTemplate:
         return self.enabled and self.required_capabilities.issubset(available_capabilities)
 
     def create_plan(self, parameters: Mapping[str, Any]) -> AgentPlan:
-        unknown = set(parameters) - set(self.input_schema)
-        if unknown:
-            raise ValueError("Şablon izin verilmeyen parametre içeriyor.")
-        for name, kind in self.input_schema.items():
-            if name not in parameters:
-                raise ValueError(f"Şablon için '{name}' bilgisi eksik.")
-            if not isinstance(parameters[name], kind):
-                raise TypeError(f"'{name}' parametresi beklenen türde değil.")
+        from lina.agent.templates.validators import validate_parameters
+
+        validate_parameters(dict(self.input_schema), dict(parameters))
         return self.plan_factory(MappingProxyType(dict(parameters)))
 
     def to_dict(self) -> dict[str, Any]:

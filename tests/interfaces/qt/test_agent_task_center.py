@@ -18,6 +18,7 @@ from lina.agent import (
 from lina.agent.templates import build_builtin_template_registry
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
+    AgentStepArgumentsDialog,
     AgentTaskCenterDialog,
     PlanReviewWidget,
     TaskTemplateBrowserDialog,
@@ -60,6 +61,21 @@ def test_template_parameter_form_returns_typed_data_without_execution(qtbot):
     assert values["recurrence"] == "none"
 
 
+def test_step_arguments_dialog_preserves_typed_values_without_execution(qtbot):
+    due_at = datetime.now().astimezone()
+    dialog = AgentStepArgumentsDialog(
+        "Hatırlatıcıyı oluştur",
+        {"title": str, "due_at": datetime, "recurrence": str},
+        {"title": "İlk başlık", "due_at": due_at, "recurrence": "weekly"},
+    )
+    qtbot.addWidget(dialog)
+    assert dialog.fields["title"].text() == "İlk başlık"
+    assert dialog.fields["recurrence"].currentData() == "weekly"
+    values = dialog.arguments()
+    assert isinstance(values["due_at"], datetime)
+    assert values["recurrence"] == "weekly"
+
+
 def test_plan_review_shows_tool_risk_approval_dependencies_and_edit_signals(qtbot):
     widget = PlanReviewWidget()
     qtbot.addWidget(widget)
@@ -72,6 +88,10 @@ def test_plan_review_shows_tool_risk_approval_dependencies_and_edit_signals(qtbo
     assert "Gerekli" in widget.details.text()
     assert "one" in widget.details.text()
     assert widget.remove_button.isEnabled()
+    assert widget.arguments_button.isEnabled()
+    with qtbot.waitSignal(widget.arguments_requested) as arguments_signal:
+        qtbot.mouseClick(widget.arguments_button, Qt.MouseButton.LeftButton)
+    assert arguments_signal.args == ["two"]
     with qtbot.waitSignal(widget.skip_requested) as signal:
         qtbot.mouseClick(widget.skip_button, Qt.MouseButton.LeftButton)
     assert signal.args == ["two"]

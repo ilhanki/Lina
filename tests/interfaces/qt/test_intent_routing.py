@@ -13,7 +13,18 @@ from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import NotificationService
 from lina.services.conversation_models import ConversationResult
 from lina.services.model_diagnostics_service import VisionDiagnosticsResult, VisionStatus
-from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentVerifier
+from lina.agent import (
+    AgentController,
+    AgentExecutor,
+    AgentPlan,
+    AgentPlanner,
+    AgentPolicy,
+    AgentSession,
+    AgentSessionRepository,
+    AgentSessionStatus,
+    AgentStep,
+    AgentVerifier,
+)
 from lina.agent.templates import build_builtin_template_registry
 
 
@@ -211,4 +222,32 @@ def test_agent_template_clarification_is_conversation_isolated_and_explanations_
     controller.cancel(controller.session.session_id)
     _send(window, "Hatırlatıcı nedir?")
     assert conversation.calls[-1].text == "Hatırlatıcı nedir?"
+    window._force_exit = True; window.close()
+
+
+def test_historical_safe_restart_reopens_template_for_private_parameter_confirmation(qtbot, tmp_path) -> None:
+    reminders = NotificationService(NotificationRepository(tmp_path / "notifications.sqlite3"))
+    registry = build_safe_tool_registry(reminders, None, None)
+    policy = AgentPolicy()
+    repository = AgentSessionRepository(tmp_path / "agent.json")
+    source = AgentSession.create(8, "private historical request")
+    source.status = AgentSessionStatus.INTERRUPTED
+    source.plan = AgentPlan(
+        "plan", "Hatırlatıcı planı", [AgentStep("one", "Oluştur", "Oluştur", "reminder.create", {})],
+        template_id="reminders.create",
+    )
+    repository.save(source)
+    controller = AgentController(
+        AgentPlanner(policy, template_registry=build_builtin_template_registry()),
+        AgentExecutor(registry), AgentVerifier(), policy, repository,
+    )
+    window = LinaMainWindow(_Conversation(), intent_router=IntentRouter(registry), agent_controller=controller, thread_pool=_ImmediatePool())
+    qtbot.addWidget(window)
+    selected = []
+    window._prepare_task_template = selected.append
+
+    window._restart_agent_task(source.session_id)
+
+    assert selected == ["reminders.create"]
+    assert "yeniden doğrula" in window._status_label.text().casefold()
     window._force_exit = True; window.close()

@@ -63,6 +63,7 @@ from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
+    AgentStepArgumentsDialog,
     AgentTaskCenterDialog,
     PlanReviewWidget,
     TaskTemplateBrowserDialog,
@@ -118,7 +119,7 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.12.0-alpha"
+APP_VERSION = "v0.12.1-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -700,7 +701,13 @@ class LinaMainWindow(QMainWindow):
         controller = self._agent_controller
         current = controller.session if controller else None
         if controller is None or current is None or current.session_id != session_id:
-            self._set_status("Bu geçmiş görev gizlilik nedeniyle otomatik yeniden kurulmadı; şablonu açıp bilgileri yeniden doğrula.")
+            center = AgentTaskCenter(controller.repository) if controller and controller.repository else None
+            task = center.get(session_id) if center else None
+            if task is not None and task.template_id and self._template_registry() is not None:
+                self._set_status("Geçmiş görev gizlilik nedeniyle otomatik yürütülmeyecek; bilgileri yeniden doğrula.")
+                self._prepare_task_template(task.template_id)
+            else:
+                self._set_status("Bu geçmiş görev gizlilik nedeniyle otomatik yeniden kurulmadı; şablonu açıp bilgileri yeniden doğrula.")
             return
         try:
             controller.safe_restart(session_id)
@@ -1401,6 +1408,21 @@ class LinaMainWindow(QMainWindow):
         review.skip_requested.connect(lambda step_id: apply_edit(lambda plan: editor.skip_step(plan, step_id)))
         review.remove_requested.connect(lambda step_id: apply_edit(lambda plan: editor.remove_optional_step(plan, step_id)))
         review.move_requested.connect(move_step)
+
+        def edit_arguments(step_id: str) -> None:
+            current = controller.session
+            if current is None or current.plan is None:
+                return
+            step = next((item for item in current.plan.steps if item.step_id == step_id), None)
+            definition = controller.executor.registry.get_by_name(step.tool_name) if step is not None else None
+            if step is None or definition is None:
+                self._set_status("Bu adım için düzenlenebilir typed schema bulunamadı.")
+                return
+            dialog = AgentStepArgumentsDialog(step.title, definition.input_schema, step.typed_arguments, self)
+            if dialog.exec():
+                apply_edit(lambda plan: editor.update_arguments(plan, step_id, dialog.arguments()))
+
+        review.arguments_requested.connect(edit_arguments)
 
         def regenerate() -> None:
             current = controller.session
