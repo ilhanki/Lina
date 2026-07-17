@@ -206,19 +206,32 @@ python gui.py
 
 Kontroller:
 
-- Lina penceresi açılır. Özel header ("Lina", "Personal AI Assistant") ve sağ alt köşede status bar ("Bağlanıyor...", "Bağlı") görünür.
-- Input alanı focus alır.
-- Üstte "Clear Chat" ve "Copy Last Response" butonları mevcuttur.
+- Lina penceresi açılır; sidebar, minimal sohbet header’ı, empty state ve tek composer görünür.
+- Composer input alanı focus alır.
+- Yeni sohbet, arama, session listesi, kısa durum ve Araçlar erişilebilir durumdadır.
 - `help` kısa yardım cevabı verir.
 - `Saat kaç?` yerel saati döndürür.
 - `Sen kimsin?` Lina kimlik cevabı verir.
 - `Neler yapabiliyorsun?` mevcut gerçek yetenekleri dürüstçe söyler.
 - `selam Lina bugün nasılsın?` normal chat olarak Ollama'ya gider.
-- Cevap beklenirken input alanı disable olur, status bar "Düşünüyor..." veya benzeri durumu yansıtır.
-- Cevap gelince input tekrar aktif olur.
+- Cevap beklenirken input kullanılabilir kalır, gönder ikonu stop eylemine dönüşür ve kısa durum güncellenir.
+- Cevap gelince stop eylemi tekrar gönder eylemine döner.
 - Yeni mesajlarda sohbet alanı aşağı kayar.
-- "Copy Last Response" butonuna basıldığında son asistan cevabı panoya kopyalanır.
-- "Clear Chat" butonuna basıldığında sohbet geçmişi temizlenir.
+- Assistant mesajına hover/focus ile gelen Kopyala eylemi mesajı panoya aktarır.
+- Yeni Sohbet eylemi mevcut konuşmayı silmeden yeni session açar.
+
+## Premium Workstation UI Smoke Test
+
+- 1440×900 koyu temada sidebar’ın 280 px kaldığını; aktif sohbetin yalnız listede bir kez vurgulandığını doğrula.
+- Header’da başlık, yerel çalışma alanı metni, kısa durum ve Araçlar dışında kalıcı teknik panel olmadığını doğrula.
+- Assistant kartlarının 720 px, user bubble’larının 560 px sınırını aşmadığını ve uzun satırların yatay scrollbar üretmediğini doğrula.
+- Composer’ın tek yüzey gibi göründüğünü; Ekle/Araçlar/gönder ikonlarının klavye focus’u, tooltip’i ve accessible name’i olduğunu doğrula.
+- Yanıt beklerken gönder ikonunun stop ikonuna dönüştüğünü, input’un kullanılabilir kaldığını ve iptalin mevcut controller zincirini kullandığını doğrula.
+- 800 px altına inerken sidebar’ın 60 px’e çöktüğünü, inspector’ın kapandığını ve mesaj/composer alanının taşmadığını doğrula.
+- Ayarlar’da yedi ana navigasyon maddesini, aranabilir section card’ları, %135 font ölçeğini ve kaydet/uygula davranışını doğrula.
+- Agent, Vision, Voice ve bildirimlerin kapalıyken ana ekranda alan tüketmediğini; aktifken mevcut panel/inspector’a açıldığını doğrula.
+- Dark, light ve system temalarında çizgi ikonların okunur olduğunu; focus ve seçimlerin yalnız renkle anlatılmadığını doğrula.
+- Türkçe normal yanıtta rol etiketi, iç prompt, yabancı kalıp giriş/kapanış veya bozuk teknik ek sızıntısı olmadığını doğrula.
 
 ## Ollama Kapalıyken Davranış
 

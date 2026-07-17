@@ -2521,3 +2521,15 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Agent yanıt kalite kapısı, event bazlı TTS/bildirim deduplication, recovery bildirimi ve Settings schema v9 entegrasyonu tamamlandı.
 - `pyproject.toml` sürümü `0.12.1a0`, uygulama etiketi `v0.12.1-alpha` oldu; yeni dependency veya tag eklenmedi.
 - Sprint boyunca yedi doğal yerel commit oluşturuldu. Final tam paket 1.039 test, compileall ve diff check kapılarından geçti.
+
+## 2026-07-17 - Premium AI Workstation UI & Response Polish
+
+- Backend controller ve persistence zincirleri değiştirilmeden PySide6 shell, sidebar, header, timeline, composer, tool kartları, Agent yüzeyi ve Settings yeniden yoğunluk denetiminden geçirildi.
+- Dark palette derin lacivert surface hiyerarşisine; layout 280/60 navigasyon, 820 px sohbet, 720/560 px mesaj ve 860 px composer ölçülerine taşındı.
+- Aktif sohbetin yinelenen “bu oturum” bloğu kaldırıldı; kapalı Agent/Vision/Voice/notification yüzeyleri progressive disclosure davranışını korudu.
+- Assistant ve user mesajları ayrışan bounded kartlara; composer tek yüzeye ve icon-only send/stop davranışına geçti.
+- Platform dosya ikonları yerine aktif palette bağlı, kod tabanlı 20 px çizgi ikon sistemi eklendi.
+- Settings yedi ana bölümünü koruyarak ürün başlığı, 204 px navigation ve ortak section card hiyerarşisine geçti.
+- Tool ayrıntıları varsayılan kapalı hale getirildi; Agent paneli yalnız gerçek session varken görünen profesyonel progress card olarak kaldı.
+- Türkçe prompt ilk cümlede sonuç, doğal ifade ve iç talimat/rol sızıntısını önleme kurallarıyla; kalite kapısı yüksek güvenli meta leakage tespitiyle güçlendirildi.
+- `scripts/render_ui_preview.py` ile ana sohbet ve Settings offscreen render edilip görsel olarak incelendi; binary QA artefact’ları repository’ye eklenmedi.

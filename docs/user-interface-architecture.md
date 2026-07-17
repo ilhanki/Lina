@@ -10,11 +10,11 @@ Kullanıcının ilk gördüğü aktif sohbet, Lina cevabı, composer ve unified 
 
 ## Navigasyon
 
-Expanded sidebar 264 px, collapsed sidebar 64 px’tir. Görünür expanded yüzey branding, yeni sohbet, arama ve tarih gruplu session listesinden oluşur. Filtrelenmiş sohbet görünümleri, Agent, notification, settings ve sistem ayrıntıları header’daki Araçlar menüsü veya command palette üzerinden açılır. Hover context menu mevcut conversation servislerine signal yollar. Collapsed modda metinler gizlenir; yeni sohbet ikonu, accessible name ve tooltip kalır.
+Expanded sidebar 280 px, collapsed sidebar 60 px’tir. Görünür expanded yüzey branding, sakin birincil yeni sohbet eylemi, arama ve tarih gruplu session listesinden oluşur. Aktif sohbet yalnız listede vurgulanır; aynı başlık ikinci bir “bu oturum” bloğunda tekrarlanmaz. Filtrelenmiş sohbet görünümleri, Agent, notification, settings ve sistem ayrıntıları header’daki Araçlar menüsü veya command palette üzerinden açılır. Hover context menu mevcut conversation servislerine signal yollar. Collapsed modda metinler gizlenir; yeni sohbet ikonu, accessible name ve tooltip kalır.
 
 ## Timeline ve composer
 
-Timeline viewport’a göre en fazla 880 px readable width hesaplar ve her message row’u merkezler. Assistant metni açık surface’te, user mesajı sağ hizalı accent bubble’da görünür. Streaming aynı widget’ı finalize eder; repair finali duplicate message oluşturmaz. Composer aynı merkez kolona bağlıdır, multiline auto-grow ve stop state’ini korur. Görünür eylemler Ekle, Araçlar ve Gönder’dir; Mikrofon, Ekran ve Agent sinyalleri tek bağlamsal menüden mevcut controller zincirlerine gider.
+Timeline viewport’a göre en fazla 820 px readable kolon hesaplar ve her message row’u merkezler. Assistant yanıtı en fazla 720 px ince çerçeveli surface kartta, user mesajı en fazla 560 px sağ hizalı lacivert bubble’da görünür. Streaming aynı widget’ı finalize eder; repair finali duplicate message oluşturmaz. Composer aynı merkez kolona bağlı, tek 860 px yüzeydir; multiline auto-grow ve icon-only send/stop state’ini korur. Görünür eylemler Ekle, Araçlar ve gönder ikonudur; Mikrofon, Ekran ve Agent sinyalleri tek bağlamsal menüden mevcut controller zincirlerine gider.
 
 ## Agent, Voice ve Vision
 
@@ -26,7 +26,7 @@ Voice ayrı büyük panel yerine unified status ve composer mic action’ıyla g
 
 ## Settings
 
-Settings dialog arama + sabit navigasyon + scroll edilebilir stacked page yapısı kullanır. Yedi ana bölüm Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Hands-Free Ses altında; Agent, Gizlilik, Sistem ve Hakkında/Tanılama Gelişmiş altında gruplandırılır. Agent alanında şablon önerisi, başlangıç recovery bildirimi, geçmiş saklama, ses/bildirim tercihleri ve değiştirilemez persistent-approval güvenlik açıklaması bulunur. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
+Settings dialog ürün başlığı + arama + 204 px sabit navigasyon + scroll edilebilir stacked page yapısı kullanır. Her ayar grubu aynı spacing ve border token’larına bağlı bağımsız bir section card’dır. Yedi ana bölüm Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Hands-Free Ses altında; Agent, Gizlilik, Sistem ve Hakkında/Tanılama Gelişmiş altında gruplandırılır. Agent alanında şablon önerisi, başlangıç recovery bildirimi, geçmiş saklama, ses/bildirim tercihleri ve değiştirilemez persistent-approval güvenlik açıklaması bulunur. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
 
 ## State ve lifecycle
 
@@ -34,8 +34,8 @@ UI güncellemeleri session/request/generation kimliğiyle stale sonuçları bast
 
 ## Responsive katmanlar
 
-- Compact: 760 px altı veya density=compact; icon sidebar/header, compact composer, inspector kapalı.
+- Compact: 800 px altı veya density=compact; icon sidebar/header, compact composer, inspector kapalı.
 - Medium: expanded sidebar ve merkez workspace; inspector isteğe bağlı.
-- Large: readable content maksimumda kalır, boşluk iki yana dengeli dağılır.
+- Large: 1120 px ve üstünde readable content maksimumda kalır, boşluk iki yana dengeli dağılır.
 
 Minimum pencere 720×560’tır. Empty state suggestion grid dar alanda tek kolona geçer; chat horizontal scrollbar’ı kullanmaz.

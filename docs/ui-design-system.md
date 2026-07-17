@@ -13,7 +13,7 @@ src/lina/ui/design/tokens.py immutable typed modeller sunar:
 - RadiusTokens: 4/6/8/12/16 ve pill.
 - TypographyTokens: display, title, subtitle, body, compact, label, caption ve monospace.
 - ControlMetrics: compact/default/large/composer yükseklikleri.
-- LayoutMetrics: 264/64 navigasyon, readable chat, content, inspector ve composer limitleri.
+- LayoutMetrics: 280/60 navigasyon, 820 px readable chat, 720 px assistant kartı, 860 px composer ve 320 px inspector limitleri.
 - MotionTokens: kısa/normal süreler ve reduce-motion davranışı.
 
 design_tokens dark, light veya system için tek erişim noktasıdır. validate_design_tokens zorunlu contrast ve ölçü ilişkilerini doğrular. Legacy QSS anahtarları geçiş süresince typed palette’ten türetilir.
@@ -24,12 +24,14 @@ Dark palette tam siyah yerine derin nötr canvas, light palette kirli beyaz canv
 
 ## İkonlar ve kontroller
 
-icons.py Qt standard pixmap’lerini anlamlı adlarla sunar. İkonlar theme-aware’dir; ana kontroller emoji kullanmaz. Her icon-only eylem accessible name ve tooltip taşır. Bir yüzeyde tek baskın primary action hedeflenir; destructive confirmation varsayılanı iptaldir.
+icons.py platformdan bağımsız, 20 px çizgi ikonlarını anlamlı adlarla sunar. İkon rengi aktif dark/light palette’ten gelir; ana kontroller emoji veya eski platform dosya ikonları kullanmaz. Her icon-only eylem accessible name ve tooltip taşır. Bir yüzeyde tek baskın primary action hedeflenir; destructive confirmation varsayılanı iptaldir.
 
 ## Kullanım kuralları
 
 - Yeni renk veya spacing eklemeden önce mevcut token’ı kullan.
 - Büyük kart/border yerine surface tonu ve boşlukla hiyerarşi kur.
+- Accent rengini birincil eylem, focus, seçim ve aktif ilerleme dışında kullanma.
+- Birincil sohbet ekranında kapalı Agent, Vision, Voice ve bildirim yüzeyleri için boş alan ayırma.
 - Widget içine servis/business logic taşıma.
 - Teknik ayrıntıyı status popover veya inspector’a koy.
 - Layout testi için pixel-perfect screenshot yerine structural assertion kullan.
@@ -46,4 +48,4 @@ icons.py Qt standard pixmap’lerini anlamlı adlarla sunar. İkonlar theme-awar
 
 ## Görsel regresyon stratejisi
 
-Offscreen render fake/demo veriyle new chat, active chat, settings ve compact durumlarını kontrol eder. Screenshot’lar geçici geliştirme artefact’ıdır ve repository’ye eklenmez. CI; token, selector, visibility, geometry, accessible name, focus ve state assertion’larına dayanır. Gerçek Windows font/DPI ve native tray/media davranışı manuel smoke ile tamamlanır.
+`scripts/render_ui_preview.py` fake/demo veriyle active chat ve Settings yüzeylerini deterministik olarak offscreen render eder. Screenshot’lar geçici geliştirme artefact’ıdır ve repository’ye eklenmez. CI; token, selector, visibility, geometry, accessible name, focus ve state assertion’larına dayanır. Gerçek Windows font/DPI ve native tray/media davranışı manuel smoke ile tamamlanır.
