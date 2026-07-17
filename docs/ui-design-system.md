@@ -4,6 +4,14 @@
 
 Lina’nın arayüzü sohbeti birincil, teknik ayrıntıyı ikincil kabul eder. Accent yalnız primary action, seçim, focus ve aktif ilerleme için kullanılır. Kapalı özellikler alan tüketmez; risk, hata ve durum yalnız renkle anlatılmaz. Native Windows pencere davranışı korunur.
 
+## Design System V3
+
+V3; canvas/sidebar/workspace/inspector/elevated/interactive yüzeylerini ve hover/pressed/selected, user/assistant message, composer/input, accent-soft durumlarını semantik alias olarak tanımlar. Dark palette derin nötr lacivert yüzeyler ve ölçülü mavi accent; light palette kırık beyaz canvas, beyaz içerik yüzeyi ve koyu okunabilir metin kullanır. System teması işletim sistemi lightness değerinden dark/light seçer.
+
+Spacing ritmi 2–64 px, message/composer radius 16/18 px, sidebar 280/60 px, inspector 300–360 px, readable message 720–900 px ayarlanabilir sınırlarındadır. Large eşik 1320 px, compact eşik 900 px; minimum pencere 760×600’dür. Elevation typed sıralaması floating/dialog/tooltip/menu katmanlarını belgeler; mevcut QSS gölge yerine yüzey ve sınır ayrımını tercih eder.
+
+İkon katmanı isim+renk+ölçü ile cache’lenir ve yalnız 16/18/20/24 px üretir. Primary navigation, tool, status, file, voice, vision, agent, memory, copy/history/pin/archive/delete ve send/stop durumları aynı çizgi dilini kullanır. Icon-only kontroller accessible name, description veya tooltip olmadan kullanılamaz.
+
 ## Token modeli
 
 src/lina/ui/design/tokens.py immutable typed modeller sunar:

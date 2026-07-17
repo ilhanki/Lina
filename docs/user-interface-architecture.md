@@ -1,5 +1,13 @@
 # Lina User Interface Architecture
 
+## v0.12.2 responsive app shell
+
+Geniş pencerede sol navigation, conversation workspace ve sağ contextual inspector aynı anda görünür. 900–1319 px aralığında sidebar açık kalır, inspector kullanıcı eylemiyle scrim üzerinde sağ drawer olur. 760–899 px aralığında sidebar ikon moduna geçer; composer ikincil araç etiketlerini gizler ve aynı drawer davranışını korur. Escape drawer’ı kapatır, odak inspector düğmesine döner; genişliğe bağlı otomatik kapanma kullanıcının kalıcı tercih değerini silmez.
+
+Header konuşma başlığı, metinsel hazır/aktif durum ve iki icon-only eylemle sınırlıdır. Timeline 820 px readable hedefi kullanır; kısa assistant kartı 360 px’e kadar doğal kalabilir. Assistant avatarı ve güvenli zengin içerik; user için sağ hizalı accent yüzeyi vardır. Composer borderless multiline input, Dosya/Mikrofon/Ekran/Daha Fazla, dairesel send/stop ve yerel model/disclaimer footer’ından oluşur.
+
+Context inspector ana sayfası Tools, güvenli Memory özetleri ve gerçek local storage durumunu birleştirir. Tool detayları aynı stacked yüzeyde progresif açılır. Memory repository yoksa veya boşsa bunun metinsel boş durumu gösterilir. Local storage hesaplaması async ve bounded’dır; hayali kota gösterilmez.
+
 ## App shell
 
 LinaMainWindow native QMainWindow olarak kalır. Sol SidebarWidget, merkez workspace ve sağ DetailsInspector yatay shell’i oluşturur. Merkezde minimal header, conversation timeline, yalnız aktifken Agent/Vision bağlamı ve composer vardır. Confirmation, Settings, Command Palette, calibration, wake test ve critical errors modal/overlay katmanındadır.

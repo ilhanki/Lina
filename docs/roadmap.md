@@ -13,14 +13,16 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.12.0-alpha`: Agent Mode Foundation tamamlandı.
 - `v0.12.0-alpha` tag öncesi Interaction Quality & Voice Stabilization tamamlandı; Windows gerçek mikrofon/TTS ve realtime kamera doğrulaması manuel smoke testtedir.
 - `v0.12.1-alpha`: Agent Reliability, Task Templates & Recovery tamamlandı.
+- `v0.12.2-alpha`: Reference-Driven Premium Desktop Experience tamamlandı.
 - `v0.13.0-alpha`: Codex Bridge.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
+- `v0.15.0-alpha`: Packaging & Update Foundation.
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.12.1-alpha Agent Reliability, Task Templates & Recovery
+## Mevcut Durum: v0.12.2-alpha Reference-Driven Premium Desktop Experience
 
-Agent Reliability, Task Templates & Recovery tamamlandı: gerçek capability’lere bağlı typed şablonlar, conservative matcher, eksik parametre clarification’ı, editable plan review/diff, Task Center V2, error taxonomy, checkpoint/event geçmişi, bounded read-only retry, idempotency ve no-auto-resume recovery hazırdır. Settings schema v9 ve Agent Türkçe/voice/notification entegrasyonu tamamlandı. `v0.12.1-alpha` tag’i bu sprintte oluşturulmaz.
+Referans odaklı premium deneyim tamamlandı: geniş üç kolon, orta/kompakt sağ çekmece, sohbet önizlemeli sidebar, güvenli Markdown subset’i, birleşik composer, gerçek tool/memory/storage inspector’ı, Design System V3, Settings schema v10 ve Response Quality/Repair V3 hazırdır. `v0.12.2-alpha` tag’i bu sprintte oluşturulmaz.
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
@@ -38,8 +40,11 @@ Manual realtime camera validation deferred.
 
 `v0.12.1-alpha` Agent Reliability, Task Templates & Recovery tamamlandı. Şablon kataloğu yalnız gerçek local capability’leri kullanır; system status, conversation search, browser/desktop automation veya yeni yetki eklenmedi. Sonraki hedefler:
 
+`v0.12.2-alpha` Reference-Driven Premium Desktop Experience tamamlandı. Var olan backend sözleşmeleri korunurken uygulama kabuğu, sidebar, chat, composer, inspector, ayarlar ve erişilebilir responsive davranış yenilendi. Fake kullanıcı/account/Pro veya depolama kotası eklenmedi. Sonraki hedefler:
+
 - `v0.13.0-alpha`: Codex Bridge.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
+- `v0.15.0-alpha`: Packaging & Update Foundation.
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
 

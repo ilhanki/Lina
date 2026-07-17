@@ -2,6 +2,20 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## v0.12.2-alpha Reference-Driven Premium Desktop Experience
+
+- 1440×900 dark/light/system temalarında sidebar + chat + inspector üç kolonunu; 1100 px’de sağ drawer’ı; 800 px’de collapsed sidebar + overlay drawer’ı doğrula.
+- Drawer’ı araç düğmesi, scrim, close ve Escape ile aç/kapat; kapatınca klavye odağının araç düğmesine döndüğünü doğrula.
+- Sidebar’da gerçek son mesaj preview/time, tarih grupları, debounce search ve rename/pin/archive/delete context eylemlerini doğrula.
+- Kısa/uzun user ve assistant mesajları, başlık/list/bold/inline code/fenced code, streaming finalize, image preview ve hover eylemlerinde taşma/HTML çalıştırma olmadığını doğrula.
+- Composer multiline auto-grow, Enter/Shift+Enter, Dosya/Mikrofon/Ekran/Daha Fazla, send/stop, attachment remove/change ve kompakt görünümü doğrula.
+- Tools satırlarının Chat, Voice, Vision, File, Agent ve Memory için mevcut controller/sinyallere gittiğini; unavailable capability’nin sahte başarı göstermediğini doğrula.
+- Memory bölümünde yalnız gerçek ve hassas olmayan 2–4 özet/empty state; local storage bölümünde gerçek data/cache ölçümü ve kullanıcı eylemli klasör açmayı doğrula. Fake quota/account/Pro verisi olmamalı.
+- Settings’te theme, sidebar başlangıcı, right panel görünürlük/genişlik, message genişliği ve son bölüm tercihlerini kaydet; restart ve schema v9→v10 migration’ını doğrula.
+- Ctrl+N, Ctrl+K, Ctrl+Shift+P, Ctrl+,, Ctrl+L, Ctrl+F ve Escape’i; accessible name/tooltip, focus ring, yalnız renge bağlı olmayan status’ları Narrator/NVDA ile doğrula.
+- Türkçe kalite hatası üret; invalid draft’ın history/DB/TTS/notification’a gitmediğini, yalnız bir non-streaming repair yapıldığını ve gerekirse sabit güvenli fallback’in gösterildiğini doğrula.
+- Windows’ta minimize/maximize/restore/snap/drag/resize, %125/%150 DPI, çoklu monitör, tray close/exit, aktif worker kapanışı, mikrofon/kamera privacy lifecycle’ını smoke et.
+
 ## v0.12.1-alpha Agent Reliability, Task Templates & Recovery
 
 - Agent Mode kapalıyken doğal “yarın sporu hatırlat” isteğinin normal routing davranışını koruduğunu; açıkken güvenli şablona eşlenip eksik yalnız saat bilgisini sorduğunu doğrula.

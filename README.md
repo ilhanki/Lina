@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.1--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.2--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
@@ -27,6 +27,8 @@ Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıc
 `v0.12.0-alpha`, yalnızca açık kullanıcı isteğiyle çalışan Agent Mode Foundation’ı ekler. Typed planlar kullanıcıya gösterilir; kalıcı adımlar ayrı onay ister, her araç sonucu deterministic kurallarla doğrulanır ve görevler duraklatılabilir, sürdürülebilir veya iptal edilebilir. Shell, browser, dosya yazma/silme, süreç başlatma ve gizli kamera/mikrofon erişimi Agent Mode dışında kalır.
 
 `v0.12.1-alpha`, Agent Mode’u typed hazır görevler, güvenli doğal dil eşleme, düzenlenebilir plan incelemesi, plan farkı, Task Center V2, privacy-safe checkpoint geçmişi ve kontrollü restart recovery ile güçlendirir. Read-only timeout/transient hataları en fazla bir kez tekrar edilir; kalıcı ve sonucu belirsiz işlemler otomatik tekrarlanmaz. Görev geçmişi ham istek, araç argümanı veya içerik saklamaz.
+
+`v0.12.2-alpha`, referans odaklı premium masaüstü deneyimini getirir: geniş pencerede kalıcı üç kolon, orta ve kompakt genişlikte erişilebilir sağ çekmece, gerçek sohbet önizlemeli sidebar, güvenli zengin mesajlar, birleşik composer, gerçek araç/bellek/yerel depolama inspector’ı ve kalıcı görünüm tercihleri. Fake hesap, Pro planı veya depolama kotası gösterilmez; mevcut Agent, Voice ve Vision yetkileri genişletilmeden progresif olarak sunulur.
 
 Tag öncesi stabilizasyon geçişi; Türkçe yanıt kalite denetimi ve tek repair sınırı, bağlam hijyeni, tekrarlı stream chunk koruması, normalize edilen mikrofon/STT hattı, adaptive VAD ve wake cooldown, TTS generation deduplication, Agent onay/sonuç sesleri, mikrofon kalibrasyonu ve birleşik durum göstergesi ekler. Ham ses, tam prompt veya reddedilen model cevabı saklanmaz.
 
@@ -505,8 +507,9 @@ Tamamlanan ana hat:
 - `v0.11.2-alpha` — Realtime Camera Conversation.
 - `v0.12.0-alpha` — Agent Mode Foundation.
 - `v0.12.1-alpha` — Agent Reliability, Task Templates & Recovery.
+- `v0.12.2-alpha` — Reference-Driven Premium Desktop Experience.
 
-Planlanan sonraki alanlar `v0.13.0-alpha` Codex Bridge ve `v0.14.0-alpha` Safe Desktop Capabilities’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan sonraki alanlar `v0.13.0-alpha` Codex Bridge, `v0.14.0-alpha` Safe Desktop Capabilities ve `v0.15.0-alpha` Packaging & Update Foundation’dır. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
 
 ## Dokümantasyon
 
@@ -521,6 +524,8 @@ Planlanan sonraki alanlar `v0.13.0-alpha` Codex Bridge ve `v0.14.0-alpha` Safe D
 - [v0.11.2-alpha sürüm notları](docs/release-notes-v0.11.2-alpha.md)
 - [v0.12.0-alpha sürüm notları](docs/release-notes-v0.12.0-alpha.md)
 - [v0.12.1-alpha sürüm notları](docs/release-notes-v0.12.1-alpha.md)
+- [v0.12.2-alpha sürüm notları](docs/release-notes-v0.12.2-alpha.md)
+- [Referans UI uygulama notları](docs/reference-ui-implementation.md)
 - [Agent görev şablonları](docs/agent-task-templates.md)
 - [Agent kurtarma ve güvenilirlik](docs/agent-recovery.md)
 - [Speech Architecture v1](docs/speech-architecture-v1.md)

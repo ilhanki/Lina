@@ -2,6 +2,16 @@
 
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
+## Reference-Driven Premium Desktop Experience (v0.12.2-alpha)
+
+`LinaMainWindow`, native `QMainWindow` davranışını koruyan responsive bir shell’dir. `ApplicationViewState` geniş/orta/kompakt sunumu typed olarak ayırır: genişte `SidebarWidget + conversation workspace + ContextInspector` kalıcı üç kolondur; orta ve kompakt genişlikte inspector, odak geri dönüşlü scrim üzerinde sağ drawer olur. Presentation state backend controller durumunun yerine geçmez.
+
+`ContextInspector` yalnız gerçek sinyalleri sunar. Chat composer’a, Voice mevcut speech/voice durumuna, Vision mevcut controller’a, File açık dosya eylemine, Agent typed görev inspector’ına, Memory gerçek `MemoryService` repository’sine bağlıdır. Hassas bellek özetleri filtrelenir. `LocalStorageService` yalnız onaylı local data/cache klasörlerini GUI thread’i dışında, bounded ve cache’li ölçer; fake kota, hesap veya Pro verisi üretmez.
+
+Design System V3 typed semantic surface/state token’larını, 16/18/20/24 px cache’li çizgi ikonlarını ve genişlik sınırlarını tek kaynakta toplar. Conversation repository son güvenli metni sidebar preview projection’ına ekler. Assistant rich text katmanı model HTML’ini önce escape edip yalnız başlık, liste, vurgu ve code subset’ini render eder. Response Quality V3 kabul öncesi çalışır; en fazla bir düşük-temperature, non-streaming Repair V3 denemesi vardır.
+
+Settings schema v10 sidebar, right panel, panel bölümü/genişliği, mesaj genişliği ve son settings bölümünü migrate ederek kalıcı tutar. Pencere geometry clamp, tray, shutdown, Agent, Voice, Vision ve conversation servis sözleşmeleri korunur. Offscreen 18 yüzeylik QA matrisi geçici dosyalarla çalışır; release çıktısına screenshot eklemez.
+
 ## Product Experience Redesign (v0.12.0-alpha tag öncesi)
 
 Qt katmanı dört yüzeye ayrılır: daraltılabilir sol navigasyon, merkez conversation workspace, varsayılan kapalı sağ DetailsInspector ve modal/overlay katmanı. LinaMainWindow signal/slot orkestrasyonunu korur; conversation, Agent, Voice, Vision, notification ve settings iş mantığı widget’lara taşınmaz. Kapalı Agent ve Vision yüzeyleri layout alanı tüketmez.

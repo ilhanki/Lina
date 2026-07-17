@@ -2533,3 +2533,16 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Tool ayrıntıları varsayılan kapalı hale getirildi; Agent paneli yalnız gerçek session varken görünen profesyonel progress card olarak kaldı.
 - Türkçe prompt ilk cümlede sonuç, doğal ifade ve iç talimat/rol sızıntısını önleme kurallarıyla; kalite kapısı yüksek güvenli meta leakage tespitiyle güçlendirildi.
 - `scripts/render_ui_preview.py` ile ana sohbet ve Settings offscreen render edilip görsel olarak incelendi; binary QA artefact’ları repository’ye eklenmedi.
+
+## 2026-07-17 - Reference-Driven Premium Desktop Experience
+
+- Premium referans ile mevcut uygulama shell’i; kolonlar, bilgi yoğunluğu, header, message, composer, contextual tools ve responsive davranış açısından karşılaştırıldı.
+- Design System V3 semantic yüzey/state alias’ları, genişlik/radius/control/elevation token’ları ve isim+renk+ölçü anahtarlı icon cache ile tamamlandı.
+- Typed `ApplicationViewState` ile geniş kalıcı üç kolon, orta sağ drawer ve kompakt icon sidebar + drawer davranışı eklendi; native Windows title bar korundu.
+- Conversation repository son mesaj preview projection’ı, sidebar üç satırlı başlık/preview/time kartları ve mevcut context eylemleriyle zenginleştirildi.
+- Assistant avatarı, güvenli Markdown/code subset’i, adaptive message kartı ve Dosya/Mikrofon/Ekran/Daha Fazla içeren premium composer eklendi.
+- Context inspector gerçek Chat/Voice/Vision/File/Agent/Memory sinyallerine, hassas içerik filtreli `MemoryService` kayıtlarına ve async/cache’li bounded local storage ölçümüne bağlandı.
+- Settings schema v10 sidebar/right panel/message genişliği/son settings bölümü state’ini migrate edip persist eder hale geldi.
+- Response Quality V3 teknik allowlist ve kullanıcı terimi farkındalığıyla; Repair V3 exact prompt, tek non-streaming deneme ve sabit güvenli fallback ile tamamlandı.
+- Dark/light, large/medium/compact, tools/memory/system/voice/vision/agent ve settings dahil 18 offscreen yüzey incelendi. Stale Memory widget çakışması yakalanıp lifecycle düzeltmesi uygulandı; geçici PNG’ler temizlendi.
+- Sürüm `0.12.2a0` / `v0.12.2-alpha` olarak güncellendi. Yeni ağır dependency veya tag eklenmedi; push açık kullanıcı izni bekler.
