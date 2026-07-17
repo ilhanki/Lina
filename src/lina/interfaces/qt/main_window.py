@@ -3448,13 +3448,11 @@ class LinaMainWindow(QMainWindow):
     def _schedule_scroll_to_bottom(self) -> None:
         self._pending_scroll_to_bottom = True
         self._pending_scroll_to_top = False
-        self._scroll_retry_count = 8
+        self._scroll_retry_count = 0
         self._message_container.layout().activate()
-        QTimer.singleShot(0, self._scroll_to_bottom)
-        QTimer.singleShot(25, self._scroll_to_bottom)
-        QTimer.singleShot(75, self._scroll_to_bottom)
-        QTimer.singleShot(150, self._scroll_to_bottom)
-        QTimer.singleShot(250, self._scroll_to_bottom)
+        for delay in (0, 25, 75, 150, 300, 600, 1000):
+            QTimer.singleShot(delay, self._scroll_to_bottom)
+        QTimer.singleShot(1100, self._finish_scroll_to_bottom)
 
     def _schedule_scroll_to_top(self) -> None:
         self._pending_scroll_to_top = True
@@ -3467,22 +3465,19 @@ class LinaMainWindow(QMainWindow):
         if not self._pending_scroll_to_bottom:
             return
         bar = self._scroll.verticalScrollBar()
-        if bar.maximum() == 0 and self._scroll_retry_count > 0:
-            self._scroll_retry_count -= 1
-            QTimer.singleShot(25, self._scroll_to_bottom)
-            return
         self._is_programmatic_scroll = True
         try:
             bar.setValue(bar.maximum())
         finally:
             self._is_programmatic_scroll = False
-        if self._scroll_retry_count <= 0:
-            self._pending_scroll_to_bottom = False
-            self._scroll_retry_count = 0
-            self._auto_scroll_enabled = True
+
+    def _finish_scroll_to_bottom(self) -> None:
+        if not self._pending_scroll_to_bottom:
             return
-        self._scroll_retry_count -= 1
-        QTimer.singleShot(25, self._scroll_to_bottom)
+        self._scroll_to_bottom()
+        self._pending_scroll_to_bottom = False
+        self._scroll_retry_count = 0
+        self._auto_scroll_enabled = True
 
     def _scroll_to_top(self) -> None:
         bar = self._scroll.verticalScrollBar()

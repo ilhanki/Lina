@@ -407,7 +407,7 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
     assert all(button.minimumHeight() == 72 for button in session_buttons)
-    assert "İkinci ö" in session_buttons[1].text()
+    assert session_buttons[1]._preview_text == "İkinci önizleme"
     assert "·" in session_buttons[0].text()
 
 
