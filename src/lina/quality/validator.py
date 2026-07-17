@@ -14,6 +14,7 @@ _ALLOWED_TECHNICAL = frozenset({
     "agent", "model", "prompt", "context", "tool", "provider", "commit", "branch",
     "repository", "release", "tag", "stream", "token", "windows", "pyside",
     "stt", "tts", "microphone", "audio", "vision", "markdown", "unicode",
+    "framework", "git", "github", "pyside6", "llama", "gemma", "mistral",
 })
 _COMMON_ENGLISH = frozenset({
     "about", "things", "images", "today", "hello", "user", "assistant", "because",
@@ -54,13 +55,20 @@ class ResponseQualityValidator:
         normalized = re.sub(r"[ \t]+", " ", normalized)
         normalized = re.sub(r"\n{3,}", "\n\n", normalized).strip()
         words = re.findall(r"[^\W\d_]+(?:['’-][^\W\d_]+)?", normalized.casefold(), re.UNICODE)
+        user_words = frozenset(
+            re.findall(r"[^\W\d_]+(?:['’-][^\W\d_]+)?", user_text.casefold(), re.UNICODE)
+        )
         sentences = _sentences(normalized)
         repetition = _repetition_score(sentences, words)
-        mixing = _language_mixing_score(words) if expected_language == "tr" else 0.0
+        mixing = _language_mixing_score(words, user_words) if expected_language == "tr" else 0.0
         malformed_hits = len(_MALFORMED.findall(normalized))
         foreign_phrase = bool(_FOREIGN_PHRASE.search(normalized))
         foreign_word_count = sum(word in _COMMON_FOREIGN for word in words)
-        english_leak_count = sum(word in _COMMON_ENGLISH for word in words if word not in _ALLOWED_TECHNICAL)
+        english_leak_count = sum(
+            word in _COMMON_ENGLISH
+            for word in words
+            if word not in _ALLOWED_TECHNICAL and word not in user_words
+        )
         foreign_word_leak = expected_language == "tr" and (foreign_word_count > 0 or english_leak_count >= 2)
         persona = bool(_BAD_PERSONA.search(normalized))
         substantive_user = _is_substantive_user(user_text)
@@ -135,10 +143,14 @@ def _repetition_score(sentences: list[str], words: list[str]) -> float:
     return max(exact, near, ngram_score)
 
 
-def _language_mixing_score(words: list[str]) -> float:
+def _language_mixing_score(words: list[str], user_words: frozenset[str] = frozenset()) -> float:
     if not words:
         return 0.0
-    foreign = sum(word in _COMMON_ENGLISH or word in _COMMON_FOREIGN or _looks_mixed(word) for word in words if word not in _ALLOWED_TECHNICAL)
+    foreign = sum(
+        word in _COMMON_ENGLISH or word in _COMMON_FOREIGN or _looks_mixed(word)
+        for word in words
+        if word not in _ALLOWED_TECHNICAL and word not in user_words
+    )
     return foreign / max(1, len(words))
 
 

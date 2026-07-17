@@ -9,7 +9,7 @@ from lina.quality.models import ResponseRepairResult
 from lina.quality.validator import ResponseQualityValidator
 
 
-SAFE_FALLBACK = "Bu cevabı düzgün biçimde oluşturamadım. Sorunu daha kısa şekilde yeniden deneyebilirsin."
+SAFE_FALLBACK = "Bu yanıtı güvenilir biçimde oluşturamadım. Daha kısa bir şekilde yeniden deneyebiliriz."
 _logger = logging.getLogger("lina.response_quality")
 
 

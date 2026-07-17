@@ -6,6 +6,7 @@ from lina.quality import ResponseQualityValidator, ResponseRepairService, SAFE_F
 @pytest.mark.parametrize("text", [
     "Yapay zekâ ajanı, hedefe ulaşmak için plan yapan ve izinli araçları kullanan bir sistemdir.",
     "Python API üzerinden JSON yanıtı alınabilir.",
+    "PySide6 framework ve GitHub repository birlikte kullanılabilir.",
 ])
 def test_valid_turkish_and_allowed_technical_terms(text):
     assert ResponseQualityValidator().validate(text, user_text="Bu nedir?").is_valid
@@ -76,6 +77,17 @@ def test_casual_turkish_and_explicit_english_remain_valid():
         user_text="What does this system do?",
         expected_language="unknown",
     ).is_valid
+    assert validator.validate(
+        "Kullanıcının özellikle istediği dashboard düzenini koruyabilirim.",
+        user_text="Bu dashboard düzenini korur musun?",
+    ).is_valid
+
+
+def test_safe_fallback_contract_is_stable():
+    assert SAFE_FALLBACK == (
+        "Bu yanıtı güvenilir biçimde oluşturamadım. "
+        "Daha kısa bir şekilde yeniden deneyebiliriz."
+    )
 
 
 def test_cancelled_or_stale_repair_is_never_presented():

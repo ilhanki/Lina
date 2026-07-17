@@ -60,10 +60,11 @@ class Brain:
         messages = (
             ModelMessage(
                 role="system",
-                content=("Aşağıdaki cevabı anlamını koruyarak doğal ve düzgün Türkçeyle yeniden yaz. "
-                         "Tekrarları, anlamsız ifadeleri ve gereksiz İngilizce kelimeleri kaldır. "
-                         "Doğrudan soruya gir; genel selamlama, yardım teklifi veya kalıp kapanış ekleme. "
-                         "Yeni bilgi ekleme; reasoning veya rol etiketi yazma."),
+                content=(
+                    "Aşağıdaki yanıtı kullanıcı sorusuna doğrudan cevap veren doğal Türkçeyle "
+                    "yeniden yaz. Yabancı dil kırıntılarını, bozuk ekleri, alakasız "
+                    "selamlamaları ve tekrarları kaldır. Yeni bilgi ekleme."
+                ),
             ),
             ModelMessage(role="user", content=f"Soru: {user_question}\n\nCevap: {draft}"),
         )

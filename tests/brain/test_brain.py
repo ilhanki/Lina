@@ -148,3 +148,19 @@ def test_brain_passes_image_attachment_to_provider() -> None:
 
     assert provider.requests[0].image_attachment is attachment
     assert provider.requests[0].messages[-1].content == "Bu ekranda ne var?"
+
+
+def test_brain_repair_uses_v3_prompt_and_non_streaming_low_temperature() -> None:
+    provider = FakeModelProvider()
+    brain = Brain(model_provider=provider)
+
+    brain.repair_response("Soru", "Bozuk yanıt")
+
+    request = provider.requests[0]
+    assert request.temperature == 0.1
+    assert request.stream is False
+    assert request.messages[0].content == (
+        "Aşağıdaki yanıtı kullanıcı sorusuna doğrudan cevap veren doğal Türkçeyle "
+        "yeniden yaz. Yabancı dil kırıntılarını, bozuk ekleri, alakasız "
+        "selamlamaları ve tekrarları kaldır. Yeni bilgi ekleme."
+    )
