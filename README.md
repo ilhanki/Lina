@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/branding/lina-logo.png" alt="Lina logosu" width="180">
+  <img src="assets/branding/lina-logo.png" alt="Lina" width="180">
 </p>
 
 <h1 align="center">Lina</h1>
@@ -12,166 +12,126 @@
   <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.2--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
-  <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
+  <img alt="Inference" src="https://img.shields.io/badge/inference-Ollama_local-111111">
   <img alt="Lisans" src="https://img.shields.io/badge/lisans-Proprietary-b45309">
 </p>
 
-Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıcıları ve güvenli yerel araçları tek bir PySide6 masaüstü deneyiminde birleştirir. Metin ve görsel modeller [Ollama](https://ollama.com/) üzerinden yerel çalışır; mikrofon kaydı, konuşma sentezi, sohbet geçmişi ve kullanıcı tercihleri açık sınırlar içinde cihazda tutulur.
-
-`v0.11.0-alpha` ile açık kullanıcı onayına bağlı kamera, tam ekran ve seçili bölge Live Vision takibi eklenmiştir. Yakalama bellekte yapılır; yalnız anlamlı değişiklikler yerel vision modeline gider ve ham frame, screenshot veya Base64 kalıcı olarak saklanmaz.
-
-`v0.11.1-alpha` kamera monitoring sırasında diske yazmayan canlı QImage preview’ü, görüntü değişikliği bölgelerini gösteren geçici kutuları ve ekran/bölge çevresinde zorunlu click-through privacy çerçevesini ekler. Kutular semantik nesne tespiti değildir.
-
-`v0.11.2-alpha` aynalı kamera preview’ü, yeni ve anlamlı kamera değişiklikleri için kısa semantik yorumları ve kamera açıkken güncel kareyle yerel sesli soru-cevap akışını ekler. Her kare vision modeline gönderilmez; tek inference + tek pending frame ve yaklaşık 3 saniyelik minimum kamera analiz aralığı düşük VRAM’i korur.
-
-`v0.12.0-alpha`, yalnızca açık kullanıcı isteğiyle çalışan Agent Mode Foundation’ı ekler. Typed planlar kullanıcıya gösterilir; kalıcı adımlar ayrı onay ister, her araç sonucu deterministic kurallarla doğrulanır ve görevler duraklatılabilir, sürdürülebilir veya iptal edilebilir. Shell, browser, dosya yazma/silme, süreç başlatma ve gizli kamera/mikrofon erişimi Agent Mode dışında kalır.
-
-`v0.12.1-alpha`, Agent Mode’u typed hazır görevler, güvenli doğal dil eşleme, düzenlenebilir plan incelemesi, plan farkı, Task Center V2, privacy-safe checkpoint geçmişi ve kontrollü restart recovery ile güçlendirir. Read-only timeout/transient hataları en fazla bir kez tekrar edilir; kalıcı ve sonucu belirsiz işlemler otomatik tekrarlanmaz. Görev geçmişi ham istek, araç argümanı veya içerik saklamaz.
-
-`v0.12.2-alpha`, referans odaklı premium masaüstü deneyimini getirir: geniş pencerede kalıcı üç kolon, orta ve kompakt genişlikte erişilebilir sağ çekmece, gerçek sohbet önizlemeli sidebar, güvenli zengin mesajlar, birleşik composer, gerçek araç/bellek/yerel depolama inspector’ı ve kalıcı görünüm tercihleri. Fake hesap, Pro planı veya depolama kotası gösterilmez; mevcut Agent, Voice ve Vision yetkileri genişletilmeden progresif olarak sunulur.
-
-Tag öncesi stabilizasyon geçişi; Türkçe yanıt kalite denetimi ve tek repair sınırı, bağlam hijyeni, tekrarlı stream chunk koruması, normalize edilen mikrofon/STT hattı, adaptive VAD ve wake cooldown, TTS generation deduplication, Agent onay/sonuç sesleri, mikrofon kalibrasyonu ve birleşik durum göstergesi ekler. Ham ses, tam prompt veya reddedilen model cevabı saklanmaz.
-
-Tag öncesi Product Experience Redesign; sohbeti merkeze alan yeni uygulama kabuğu, daraltılabilir navigasyon, varsayılan kapalı ayrıntı inspector’ı, tek composer, progresif Agent/Voice/Vision yüzeyleri ve aranabilir Ayarlar mimarisi getirir. Typed design token’lar dark/light/system temalarını, %85–%135 yazı ölçeğini ve kompakt pencere davranışını ortak kaynaktan yönetir. Qt standard ikonları kullanılır; OpenAI/Codex markalı asset veya yeni UI dependency eklenmez.
-
-UI Simplification & Response Quality Polish geçişi; sidebar’ı branding/yeni sohbet/arama/listeyle sınırlar, Mic/Ekran/Agent eylemlerini composer’daki tek Araçlar menüsünde toplar, bildirimleri yalnız okunmamış içerik olduğunda gösterir ve Ayarlar’ı yedi ana bölüme indirir. Türkçe kalite kapısı genel selamlama/yardım kalıplarını, yabancı kelime kırıntılarını ve bozuk teknik ekleri kabul öncesinde yakalar.
+Lina; yerel sohbet, kalıcı hafıza, sesli etkileşim, görsel analiz, hatırlatıcılar ve kullanıcı onaylı Agent görevlerini tek bir PySide6 masaüstü uygulamasında birleştirir. Metin ve vision inference [Ollama](https://ollama.com/) üzerinden, konuşmayı yazıya çevirme `faster-whisper` ile, sesli yanıt ise Windows üzerinde yerel çalışır.
 
 > [!IMPORTANT]
-> Lina aktif geliştirme aşamasında bir alpha sürümüdür. Windows masaüstü hedeflenir; API’ler, veri şemaları ve kullanıcı deneyimi kararlı sürümden önce değişebilir.
+> Lina aktif geliştirme aşamasında bir **alpha** sürümüdür. Birincil hedef Windows masaüstüdür; arayüz, veri şemaları ve uygulama sözleşmeleri kararlı sürümden önce değişebilir.
+
+## Öne çıkanlar
+
+| Alan | Lina’nın yaklaşımı |
+| --- | --- |
+| **Yerel yapay zekâ** | Metin ve görsel modeller varsayılan olarak cihazınızdaki Ollama servisini kullanır. |
+| **Görünür kullanıcı kontrolü** | Mikrofon, kamera, ekran yakalama ve kalıcı işlemler açık kullanıcı eylemiyle başlar. |
+| **Güvenli Agent Mode** | Typed plan, risk sınıflandırması, adım onayı, doğrulanmış sonuç ve kontrollü recovery sunar. |
+| **Veri minimizasyonu** | Ham ses, TTS çıktısı, screenshot bytes, Base64 ve model reasoning’i kalıcı geçmişe yazılmaz. |
+| **Premium masaüstü deneyimi** | Responsive üç kolon, conversation sidebar, contextual inspector ve dark/light/system temaları vardır. |
+| **Denetlenebilir kalite** | Türkçe yanıtlar persistence ve TTS öncesinde doğrulanır; en fazla bir güvenli repair uygulanır. |
 
 ## İçindekiler
 
-- [Neden Lina?](#neden-lina)
-- [Özellikler](#özellikler)
+- [Ürün deneyimi](#ürün-deneyimi)
+- [Yetenekler](#yetenekler)
 - [Hızlı başlangıç](#hızlı-başlangıç)
 - [Kullanım örnekleri](#kullanım-örnekleri)
-- [Sesli etkileşim](#sesli-etkileşim)
-- [Görsel analiz](#görsel-analiz)
-- [Hatırlatıcılar ve güvenli araçlar](#hatırlatıcılar-ve-güvenli-araçlar)
-- [Agent Mode](#agent-mode)
-- [Ayarlar ve yerel veriler](#ayarlar-ve-yerel-veriler)
-- [Gizlilik ve güvenlik modeli](#gizlilik-ve-güvenlik-modeli)
+- [Ayarlar](#ayarlar)
+- [Gizlilik ve güvenlik](#gizlilik-ve-güvenlik)
+- [Yerel veriler](#yerel-veriler)
 - [Mimari](#mimari)
-- [Geliştirme ve test](#geliştirme-ve-test)
+- [Geliştirme](#geliştirme)
 - [Bilinen sınırlar](#bilinen-sınırlar)
+- [Yol haritası](#yol-haritası)
 - [Dokümantasyon](#dokümantasyon)
 
-## Neden Lina?
+## Ürün deneyimi
 
-Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya çalışmaz. Yetkileri dar, davranışı görünür ve verisi yerel bir yardımcı olmayı hedefler.
+`v0.12.2-alpha`, Lina’nın referans odaklı premium masaüstü arayüzünü sunar:
 
-| İlke | Lina’daki karşılığı |
-| --- | --- |
-| **Local-first** | Metin ve vision inference yerel Ollama’ya, STT yerel faster-whisper’a, TTS Windows WinRT’ye gider. |
-| **Kullanıcı kontrolü** | Mikrofon, ekran yakalama, görsel yükleme ve kalıcı araç işlemleri açık kullanıcı eylemiyle başlar. |
-| **Güvenli varsayılanlar** | Sesli yanıt ve wake word varsayılan kapalıdır; belirsiz intent’ler normal sohbete döner. |
-| **Denetlenebilir araçlar** | Araç çalışmaları timeline’da durum kartlarıyla görünür; riskli kalıcı işlemler onay ister. |
-| **Veri minimizasyonu** | Ham ses, TTS çıktısı, screenshot bytes ve Base64 konuşma veritabanına kalıcı yazılmaz. |
-| **Graceful fallback** | Ollama, vision, STT veya TTS kullanılamadığında uygulama kontrollü hata verir; mevcut yazılı içerik korunur. |
+- Geniş pencerelerde **sidebar + conversation workspace + contextual inspector** düzeni.
+- Orta genişlikte sağ drawer; kompakt görünümde icon sidebar ve overlay drawer.
+- Son mesaj önizlemesi, tarih grupları, arama, sabitleme ve arşivleme içeren conversation navigation.
+- Güvenli Markdown/code gösterimi, streaming ve mesaj eylemleri içeren assistant kartları.
+- Dosya, mikrofon, ekran ve ek araçları birleştiren multiline composer.
+- Gerçek Chat, Voice, Vision, File, Agent ve Memory sinyallerine bağlı sağ araç paneli.
+- Dark, light ve system tema; yazı ölçeği, density ve kalıcı pencere tercihleri.
+- Sol sidebar’ın alt bölümünde sürekli erişilebilir **Ayarlar** düğmesi.
 
-## Özellikler
+Arayüzde sahte kullanıcı hesabı, ücretli plan, cloud hizmeti veya depolama kotası gösterilmez. Bir capability kullanılamıyorsa bunun yerine açık bir unavailable/empty state sunulur.
+
+## Yetenekler
+
+### Yerel sohbet ve conversation history
+
+- Ollama `/api/chat` ile structured `system`, `user` ve `assistant` rolleri.
+- Streaming yanıtlar ve privacy-safe inference metrikleri.
+- SQLite tabanlı çoklu sohbet geçmişi.
+- Sohbet oluşturma, yeniden adlandırma, silme, sabitleme ve arşivleme.
+- Başlık ve mesaj metninde debounce edilen yerel arama.
+- İlk gerçek mesaja kadar persistence oluşturmayan ephemeral yeni sohbet.
+- Response Quality V3 ve tek-atımlık Repair V3.
+
+Varsayılan metin modeli `llama3.2:3b`’dir. Model ve runtime sınırları Ayarlar’dan değiştirilebilir.
 
 ### Agent Mode
 
-- Varsayılan kapalıdır; Ayarlar, ana panel veya açık “Agent modunda yap” komutuyla etkinleşir.
-- En fazla 3–12 arası ayarlanabilir, hard-limit 12 olan typed ve görünür plan üretir.
-- Yalnızca mevcut `SafeToolRegistry` capability snapshot’ındaki izinli araçları kullanır.
-- Read-only, persistent, sensitive ve prohibited risk sınıfları; kalıcı işlemlerde kapatılamayan step approval uygular.
-- Her adımda execution/session/generation kimliği, schema validation, timeout, cancellation ve typed result normalization vardır.
-- Typed başarı kanıtı olmadan model metnini başarı saymaz; sonuç `verified`, `failed` veya `uncertain` olur.
-- Read-only adım en fazla bir kez otomatik retry; en fazla bir bounded replan; persistent adım otomatik tekrar edilmez.
-- Tek aktif session, pause/resume/cancel, stale-result guard, interrupted restart recovery ve privacy-safe metadata persistence sağlar.
-- Yalnız gerçek capability’lere bağlı typed görev şablonları; eksik alan için tek ve bağlama özel açıklama sorusu sunar.
-- Plan adımlarını, argümanlarını ve bağımlılıklarını politika sınırları içinde düzenler; değişiklikleri onay öncesi diff olarak gösterir.
-- Task Center V2 aktif, onay bekleyen, yarım, tamamlanan ve başarısız görevleri ayırır; restart her zaman yeni session kimliğiyle ve yeniden onayla başlar.
-- Her adım için bounded event/checkpoint geçmişi, error taxonomy, recovery action ve idempotency koruması tutar.
-- Panel ve tray; durum, ilerleme, risk, onay, adım sonuçları ve iptal kontrollerini yalnızca renge dayanmadan gösterir.
+Agent Mode varsayılan olarak kapalıdır ve yeni bir genel bilgisayar kontrol yetkisi vermez.
 
-### Yerel sohbet ve inference
+- Yalnız mevcut `SafeToolRegistry` capability snapshot’ındaki araçlarla typed plan üretir.
+- Planı çalıştırmadan önce kullanıcıya gösterir ve düzenlenebilir plan farkını sunar.
+- Read-only, persistent, sensitive ve prohibited risk sınıflarını ayrı değerlendirir.
+- Kalıcı adımlarda kapatılamayan açık kullanıcı onayı uygular.
+- Schema validation, timeout, cancellation, stale-result guard ve typed result normalization kullanır.
+- Read-only transient hatalarda en fazla bir retry; kalıcı veya belirsiz sonuçlarda otomatik tekrar yoktur.
+- Pause, resume, cancel, bounded replan ve interrupted restart recovery sağlar.
+- Task Center V2’de aktif, onay bekleyen, duraklatılmış, yarım ve tamamlanan görevleri ayırır.
+- Ham araç argümanlarını veya tool payload’larını görev geçmişinde saklamaz.
 
-- Ollama `/api/chat` ile structured `system`, `user` ve `assistant` rolleri.
-- Varsayılan metin modeli: `llama3.2:3b`.
-- Streaming yanıt ve privacy-safe performans ölçümleri.
-- İlk token süresi, toplam süre, token sayıları, token/sn ve model yükleme süresi.
-- Ayarlanabilir keep-alive, maksimum çıktı token’ı ve context bütçesi.
-- İsteğe bağlı arka plan warm-up.
-- Düşük VRAM sistemler için text/vision model unload koordinasyonu.
-- Live Vision için tek aktif inference, en fazla bir pending frame ve latest-frame-wins geri basınç politikası.
-- QVideoSink üzerinden inference’dan bağımsız kamera preview’ü; preview kareleri JPEG/Base64 olarak encode edilmez.
-- Ayarlanabilir aynalı kamera preview’ü; inference orijinal yönü, değişiklik kutuları aynalı koordinatı kullanır.
-- Tek session içinde otomatik kısa kamera yorumu, benzer cümle cooldown’ı ve “Ne görüyorsun?” gibi güncel-kare soruları.
-- En fazla beş grid tabanlı değişiklik kutusu ve mouse/keyboard input almayan ekran/bölge monitoring çerçevesi.
-- En yeni tamamlanmış konuşma çiftlerini koruyan deterministik context trimming.
+Ayrıntılı sözleşmeler için [Agent görev şablonları](docs/agent-task-templates.md) ve [Agent recovery](docs/agent-recovery.md) belgelerine bakın.
 
-### Kalıcı sohbet deneyimi
+### Memory ve güvenli dosyalar
 
-- SQLite tabanlı çoklu sohbet geçmişi.
-- İlk gerçek mesaja kadar veritabanına yazılmayan ephemeral yeni sohbet.
-- Sohbet oluşturma, yeniden adlandırma, silme, sabitleme ve arşivleme.
-- Başlık ve mesaj metninde yerel arama.
-- Bugün, dün, son 7 gün, son 30 gün ve daha eski tarih grupları.
-- Gerçek mesaj zamanlarını koruyan conversation timeline.
-- Boş sohbette veritabanına yazılmayan zamana duyarlı welcome alanı.
-- Uygulama yeniden açıldığında son sohbeti geri yükleme seçeneği.
-
-### Memory
-
-- Ayrı SQLite veritabanında açık komutlarla yönetilen kalıcı hafıza.
-- Hatırlama, listeleme, unutma ve temizleme akışları.
-- Duplicate kayıt koruması.
-- Hassas bilgi filtresi.
-- Memory store işlemi için kullanıcı onayı.
-
-### Güvenli dosya erişimi
-
+- Açık komutlarla hatırlama, listeleme, unutma ve temizleme.
+- Duplicate kayıt ve hassas bilgi koruması.
+- Memory yazma işlemi için kullanıcı onayı.
 - Yalnız sabit allowlist içindeki proje dokümanlarına read-only erişim.
-- UTF-8 metin doğrulaması ve bounded context.
-- Absolute path, drive path, UNC path, `..` traversal ve symlink escape reddi.
+- Absolute path, UNC path, `..` traversal ve symlink escape reddi.
 - Dosya yazma, silme, taşıma veya yeniden adlandırma yetkisi yoktur.
 
-### Konuşma
+### Sesli etkileşim
 
 - Kullanıcı eylemiyle başlayan push-to-talk.
-- `sounddevice` ile süre ve sessizlik sınırı bulunan kayıt.
-- `faster-whisper` ile yerel Türkçe transcription.
-- Transcription’ı composer’a ekleme veya doğrudan gönderme modu.
-- Windows WinRT ile isteğe bağlı Türkçe sesli yanıt.
-- Final normal chat ve kısa tool sonuçları için ortak TTS akışı.
-- Barge-in ve “Sesi Durdur” ile aktif playback’i kesme.
-- Kod blokları, uzun URL’ler, ham JSON, stack trace ve Base64 için konuşma normalizasyonu.
-- Açık privacy onayıyla etkinleşen “Hey Lina” hands-free conversation.
-- Enerji kapılı VAD; yalnız geçerli konuşma segmentlerinde local STT.
-- Sesli confirmation cevapları, wake cooldown ve wake-phrase zorunlu barge-in.
-- Mikrofon listeleme, yenileme, test ve kayıp cihazda varsayılan input fallback’i.
+- `sounddevice` ile bounded kayıt ve `faster-whisper` ile yerel transcription.
+- Transcription’ı composer’a ekleme veya doğrudan gönderme tercihi.
+- Windows üzerinde isteğe bağlı yerel TTS; streaming token’ları değil yalnız final cevap seslendirilir.
+- Barge-in, “Sesi Durdur”, mikrofon test ve kalibrasyon akışları.
+- Açık privacy onayıyla “Hey Lina” hands-free conversation.
+- Wake phrase, VAD, cooldown ve generation deduplication korumaları.
+
+Ham mikrofon kaydı ve TTS çıktısı diske yazılmaz. Hands-free varsayılan olarak kapalıdır.
 
 ### Vision ve ekran bağlamı
 
-- Varsayılan vision modeli: `qwen3-vl:2b`.
 - PNG, JPEG, WebP ve BMP görsel yükleme.
-- Tam ekran veya alan seçerek ekran yakalama.
-- Göndermeden önce önizleme ve açık kullanıcı onayı.
-- Attachment thumbnail, değiştir, kaldır ve yeniden analiz akışları.
-- Model yeteneğini Ollama `/api/show` içindeki `vision` capability ile doğrulama.
-- Görseldeki metni güvenilmeyen içerik kabul eden prompt-injection sınırı.
-- Başarılı analizden sonra geçici attachment’ı tüketme seçeneği.
+- Tam ekran veya seçili bölge yakalama; göndermeden önce önizleme.
+- Açık izinle kamera, screen/region monitoring ve Live Vision.
+- Attachment önizleme, değiştirme, kaldırma ve yeniden analiz.
+- Ollama `/api/show` üzerinden vision capability doğrulaması.
+- Tek aktif inference, en fazla bir pending frame ve latest-frame-wins geri basınç politikası.
+- Ham frame, screenshot veya Base64 persistence’ı olmadan session-local işleme.
 
-### Bildirimler ve hatırlatıcılar
+Varsayılan vision modeli `qwen3-vl:2b`’dir. Live Vision gerçek zamanlı video kaydı veya nesne tanıma sistemi değildir.
+
+### Hatırlatıcılar ve bildirimler
 
 - Tek seferlik, günlük ve haftalık yerel hatırlatıcılar.
-- Notification Center ve okunmamış bildirim sayacı.
-- Uygulama açıkken veya sistem tepsisindeyken arka plan scheduler.
+- Notification Center ve okunmamış bildirim durumu.
+- Uygulama açıkken veya system tray’deyken çalışan scheduler.
 - Kaçırılan hatırlatıcıları sonraki açılışta işleme.
-- Reminder verisini conversation ve Memory’den ayrı SQLite veritabanında tutma.
-
-### Masaüstü deneyimi
-
-- PySide6 tabanlı modern Windows arayüzü.
-- Dark, light ve system tema.
-- `%85–135` font ölçeği, compact mode ve reduce motion tercihleri.
-- System tray, kapanış davranışı ve başlangıçta küçültme seçenekleri.
-- Mesaj başına kopyalama, akıllı auto-scroll ve input history.
-- Tool confirmation, çalışma, başarı, hata, retry ve cancel durum kartları.
-- Ayarlar içinden kurulu Ollama modellerini yenileme ve vision capability doğrulama.
+- Conversation ve Memory’den ayrı SQLite persistence.
 
 ## Hızlı başlangıç
 
@@ -179,38 +139,38 @@ Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya
 
 - Windows 10 veya üzeri.
 - Python `3.11+`.
-- Yerel olarak kurulu ve çalışan [Ollama](https://ollama.com/).
-- STT kullanacaksanız mikrofon ve Windows mikrofon izni.
-- Vision kullanacaksanız yeterli RAM/VRAM ve uyumlu bir vision modeli.
+- Kurulu ve çalışan [Ollama](https://ollama.com/).
+- Speech için mikrofon ve Windows mikrofon izni.
+- Vision için yeterli RAM/VRAM ve uyumlu bir model.
 
-### 1. Repoyu ve Python ortamını hazırlayın
+### Kurulum
 
 ```powershell
 git clone https://github.com/ilhanki/Lina.git
 cd Lina
 
 python -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-PowerShell activation policy sanal ortamı etkinleştirmeyi engellerse komutları doğrudan `.venv` Python’ıyla çalıştırabilirsiniz:
+PowerShell activation policy sanal ortamı engelliyorsa doğrudan sanal ortam Python’ını kullanabilirsiniz:
 
 ```powershell
-.\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-### 2. Ollama modellerini hazırlayın
+### Modeller
 
 ```powershell
 ollama pull llama3.2:3b
 ollama pull qwen3-vl:2b
 ```
 
-Yalnız metin sohbeti kullanacaksanız vision modelini indirmeniz gerekmez. Model adlarını daha sonra **Ayarlar → Modeller** bölümünden değiştirebilirsiniz.
+Yalnız metin sohbeti kullanacaksanız vision modelini indirmeniz gerekmez.
 
-### 3. Lina’yı başlatın
+### Çalıştırma
 
 Masaüstü uygulaması:
 
@@ -233,275 +193,171 @@ Bunu hatırla: kısa ve doğrudan cevapları tercih ediyorum.
 Benim hakkımda ne hatırlıyorsun?
 
 README dosyasını özetle.
-Roadmap'te sıradaki hedef ne?
+Roadmap’te sıradaki hedef ne?
 
 Yarın saat 09:30 için “stand-up” hatırlatıcısı oluştur.
-Hatırlatıcılarımı listele.
-
 Bu ekran görüntüsündeki hatayı açıkla.
 ```
 
-Kalıcı bir işlem gerekiyorsa Lina önce açıklama ve onay kartı gösterir. Eksik tarih veya saat gibi bilgiler clarification akışıyla tamamlanır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` mevcut pending işlemi kapatır.
+Kalıcı bir işlem gerekiyorsa Lina önce işlem ve risk özetini gösterir. Eksik tarih/saat gibi bilgiler clarification akışıyla tamamlanır. `iptal`, `vazgeç`, `boşver` ve `gerek yok` ifadeleri pending işlemi kapatır.
 
-## Sesli etkileşim
+## Ayarlar
 
-### Push-to-talk STT
+Ayarlar penceresine iki yoldan ulaşabilirsiniz:
 
-İlk mikrofon kullanımında `faster-whisper` modeli indirilebilir; süre bağlantıya ve sisteme göre değişir. Sonraki çalışmalar yerel model cache’ini kullanır. Varsayılan yapılandırma:
+- Sol sidebar’ın altındaki **Ayarlar** düğmesi.
+- `Ctrl+,` klavye kısayolu.
 
-| Ayar | Varsayılan |
+Ana bölümler Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Agent, Gizlilik, Sistem ve tanılama seçenekleri Gelişmiş altında gruplanır.
+
+| Alan | Örnek tercihler |
 | --- | --- |
-| Model | `base` |
-| Dil | `tr` |
-| Device | `cpu` |
-| Compute type | `int8` |
-| Maksimum kayıt | `12 saniye` |
-| Transcription modu | Composer’a ekle |
+| Görünüm | Dark/light/system, font scale, density, sidebar, right panel ve mesaj genişliği |
+| Modeller | Text/vision modeli, timeout, keep-alive, refresh ve benchmark |
+| Ses | Input device, STT/TTS, kalibrasyon, hands-free, wake phrase ve barge-in |
+| Vision | Görsel analiz, kamera, monitoring ve attachment davranışı |
+| Agent | Agent Mode, adım sınırı, plan görünürlüğü, recovery ve history retention |
+| Sistem | Tray, kapanış davranışı, başlangıç ve yerel çalışma tercihleri |
 
-Mikrofon yalnız kullanıcı composer’daki **Araçlar → Mikrofon** eylemini seçtiğinde açılır. Ham kayıt kalıcı dosyaya veya conversation veritabanına yazılmaz.
+Kullanıcı tercihleri atomik JSON olarak `%LOCALAPPDATA%\Lina\user-settings.json` konumunda tutulur. Bozuk veya eski schema güvenli varsayılanlara migrate edilir.
 
-### Windows TTS
-
-Sesli yanıtlar varsayılan olarak kapalıdır. **Ayarlar → Ses → Sesli yanıtlar etkin** seçeneği açıldığında yalnız final assistant cevabı seslendirilir; streaming token’ları okunmaz.
-
-Runtime TTS hattı PySide6’nın Windows **WinRT** motorunu kullanır:
-
-- WinRT sesleri ile SAPI/System.Speech sesleri aynı listeye karıştırılmaz.
-- Yalnız SAPI tarafında bulunan bir ses Lina’da sahte biçimde gösterilmez.
-- Seçili WinRT sesi sentezlenemezse kullanılabilir varsayılan WinRT sese fallback yapılır.
-- Motor gerçek `Speaking → Ready` yaşam döngüsü bitene kadar GUI thread’inde tutulur.
-- TTS çıktısı geçici veya kalıcı ses dosyası olarak yazılmaz.
-- TTS hatası yazılı cevabı veya timeline’ı silmez.
-
-Chat ve Ollama kullanmadan gerçek Windows TTS hattını test etmek için:
-
-```powershell
-python scripts/tts_smoke.py
-```
-
-Başarılı çalışmada terminalde `tts_synthesis_started`, `playback_started` ve `playback_completed` zinciri görünür.
-
-### Wake word ve hands-free conversation
-
-Hands-free varsayılan kapalıdır. Kullanıcı **Ayarlar → Ses → Hands-Free** seçeneğini açtığında Lina mikrofonun yerel dinleneceğini, sesin saklanmayacağını ve cloud’a gönderilmeyeceğini açıkça bildirir. Onaydan sonra akış şöyledir:
-
-```text
-Hey Lina → Dinliyorum → VAD komutu tamamlar → Local STT → Otomatik gönder
-→ Normal chat/tool routing → Final TTS → Cooldown → Hey Lina bekleniyor
-```
-
-- Kabul edilen varsayılan wake varyasyonları: `hey lina`, `he lina`, `hey, lina`.
-- Eşleme conservative’dir; fuzzy veya tek kelimelik eşleşme yapılmaz.
-- Mikrofon akışı full STT ile sürekli çözülmez. Bounded VAD yalnız yeterli konuşma segmenti tamamlandığında faster-whisper çağırır.
-- Yalnız sessizlikte “Bir şey duyamadım”, boş transcription’da “Seni anlayamadım”, düşük confidence sonucunda “Tekrar söyler misin?” geri bildirimi verilir.
-- Reminder ve Memory confirmation soruları seslendirilir; `evet`, `onayla`, `tamam`, `oluştur`, `kaydet` ile onay, `hayır`, `iptal`, `vazgeç`, `boşver`, `gerek yok` ile iptal edilebilir.
-- TTS sırasında otomatik barge-in için wake phrase zorunludur. Kısa gürültü playback’i kesmez; başarılı wake eski playback generation’ını stale yapar.
-- Playback sonrasında 1–3 saniyelik cooldown uygulanır ve sonra wake listening yeniden başlar.
-- Header ve tray üzerinden dinleme duraklatılabilir, sürdürülebilir veya tamamen kapatılabilir.
-- Mode kapatıldığında ve gerçek exit sırasında detector, recorder, STT ve TTS akışları durdurulur.
-
-## Görsel analiz
-
-Lina görüntüyü yalnız açık kullanıcı eylemiyle alır:
-
-```text
-Ekran → Tüm Ekranı Yakala / Alan Seçerek Yakala → Önizle → Sohbete Ekle
-+ → Görsel seç → Sorunu yaz → Gönder
-```
-
-- Aktif attachment bellekte tutulur ve yalnız ilgili vision isteğine eklenir.
-- Kaynak görsel değiştirilmez.
-- Screenshot veya image bytes kalıcı conversation history’ye yazılmaz.
-- Geçmişteki görsel mesaj yalnız güvenli metadata placeholder’ıyla gösterilir.
-- Vision başarısız olursa text modele sahte görsel analiz yaptırılmaz.
-- Başarısız attachment kullanıcı isterse yeniden analiz için korunur.
-
-## Hatırlatıcılar ve güvenli araçlar
-
-Deterministik intent router yalnız açık ve desteklenen Türkçe kalıpları araç akışına yönlendirir. Belirsiz istekler normal sohbet olarak işlenir.
-
-Desteklenen araç alanları:
-
-- Reminder oluşturma ve listeleme.
-- Memory kaydetme ve geri çağırma.
-- Allowlist içindeki proje dosyalarını okuma.
-- Mevcut ekran, alan seçimi ve görsel yükleme akışlarını başlatma.
-
-Reminder oluşturma ve Memory kaydetme her zaman kullanıcı onayı ister. Read-only araçlar kontrollü retry edilebilir. Yeni sohbet, sohbet değişimi, arşivleme, silme, zaman aşımı veya gerçek uygulama çıkışı pending işlemi temizler.
-
-Hatırlatmaların zamanında gösterilebilmesi için Lina’nın açık veya system tray’de çalışıyor olması gerekir. Lina tamamen kapalıyken Windows bildirimi üretemez.
-
-## Ayarlar ve yerel veriler
-
-### Uygulama yapılandırması
-
-Çalışma ortamı varsayılanları [`config/default.toml`](config/default.toml) içindedir:
-
-| Bölüm | Sorumluluk |
-| --- | --- |
-| `ollama` | Base URL, varsayılan model ve request timeout |
-| `runtime` | Conversation history ve proje context sınırları |
-| `memory` | Memory durumu, SQLite yolu ve context limitleri |
-| `speech` | STT provider, model, dil, cihaz ve kayıt sınırları |
-| `vision` | Vision model, timeout, maksimum görsel boyutu ve tüketim politikası |
-| `conversations` | Conversation SQLite yolu, sidebar ve history limitleri |
-| `paths` | Data, log, model ve cache dizinleri |
-| `logging` | Uygulama log seviyesi |
-
-### Kullanıcı tercihleri
-
-GUI’de değiştirilen tercihler atomik JSON olarak şu konumda saklanır:
-
-```text
-%LOCALAPPDATA%\\Lina\\user-settings.json
-```
-
-Bu dosya tema, model seçimi, ses tercihleri, vision davranışı, tray ve bildirim ayarlarını içerir. Bozuk veya gelecekteki bir schema uygulamayı çökertmez; güvenli varsayılanlar kullanılır.
-
-### Yerel veri özeti
-
-| Veri | Varsayılan konum | Kalıcı mı? |
-| --- | --- | --- |
-| Memory | `data/lina_memory.sqlite3` | Evet |
-| Sohbetler | `data/conversations.sqlite3` | Evet |
-| Hatırlatıcılar/bildirimler | `data/notifications.sqlite3` | Evet |
-| Kullanıcı tercihleri | `%LOCALAPPDATA%\\Lina\\user-settings.json` | Evet |
-| Loglar | `logs/` | Evet, içerik-minimize logging politikasıyla |
-| Mikrofonun ham sesi | Bellek | Hayır |
-| TTS ses çıktısı | Windows WinRT doğrudan output | Hayır |
-| Screenshot/image bytes | Aktif oturum belleği | Hayır |
-
-## Klavye kısayolları
+### Klavye kısayolları
 
 | Kısayol | İşlem |
 | --- | --- |
 | `Enter` | Mesajı gönder |
 | `Shift+Enter` | Yeni satır |
-| `↑` / `↓` | Composer ilk/son satırındayken input geçmişi |
+| `↑` / `↓` | Composer input geçmişi |
 | `Ctrl+L` | Composer’a odaklan |
-| `Ctrl+F` | Sohbet aramasına odaklan |
+| `Ctrl+F` | Sohbet araması |
 | `Ctrl+N` | Yeni sohbet |
+| `Ctrl+K` / `Ctrl+Shift+P` | Komut paleti |
 | `Ctrl+,` | Ayarları aç |
-| `Escape` | Aktif arama veya pending UI akışını bağlama göre kapat |
+| `Escape` | Aktif drawer, arama veya bağlamsal yüzeyi kapat |
 
-## Gizlilik ve güvenlik modeli
+## Gizlilik ve güvenlik
 
-Lina’nın mevcut yetki sınırları bilinçli olarak dardır:
+Lina’nın yetki sınırları bilinçli olarak dardır.
 
-- Genel dosya sistemi erişimi yoktur.
-- Shell, PowerShell/CMD veya arbitrary code execution aracı yoktur.
-- Dosya yazma, silme, taşıma veya yeniden adlandırma yoktur.
-- Browser automation, mouse/keyboard kontrolü ve process/application launch yoktur.
-- Cloud LLM, cloud vision, cloud STT veya cloud TTS entegrasyonu yoktur.
-- Always-on microphone, sürekli ekran izleme ve kamera erişimi yoktur.
-- Memory yalnız açık komut ve gerekli onayla yazılır.
-- Görseldeki metin yetki veya sistem talimatı olarak uygulanmaz.
-- LLM tek başına tool çalıştıramaz; typed registry, validation ve permission policy sınırları geçerlidir.
-- Privacy-safe loglar kullanıcı mesajını, prompt’u, dosya içeriğini, ham görseli veya ses içeriğini taşımaz.
+| Desteklenen | Desteklenmeyen |
+| --- | --- |
+| Yerel Ollama inference | Cloud LLM, cloud vision veya cloud speech |
+| Kullanıcı eylemli mikrofon/kamera/ekran | Gizli veya izinsiz capture |
+| Allowlist tabanlı read-only dosya okuma | Genel dosya sistemi veya dosya yazma/silme |
+| Typed ve onaylı güvenli araçlar | Shell, PowerShell/CMD veya arbitrary code execution |
+| Yerel Memory ve conversation persistence | Ham ses, screenshot bytes, Base64 veya model reasoning persistence’ı |
+| Uygulama içi Agent planları | Browser automation, mouse/keyboard kontrolü veya process launch |
 
-Lina’nın Ollama ile yaptığı HTTP iletişimi varsayılan olarak `http://localhost:11434` adresindeki yerel servise gider. Model dosyalarının ilk indirilmesi ve faster-whisper modelinin ilk hazırlanması internet erişimi gerektirebilir.
+Ek korumalar:
+
+- LLM tek başına tool çalıştıramaz; registry, schema ve permission policy uygulanır.
+- Kalıcı araç işlemleri açık kullanıcı onayı ister.
+- Görseldeki metin güvenilmeyen içeriktir; sistem talimatı veya yetki sayılmaz.
+- Geçersiz model cevabı final assistant mesajı, persistence, notification veya TTS girdisi olmaz.
+- Privacy-safe loglar prompt, kullanıcı mesajı, dosya içeriği, ham görsel veya ses taşımaz.
+
+Ollama iletişimi varsayılan olarak `http://localhost:11434` adresindeki yerel servise gider. İlk model indirmeleri ve `faster-whisper` modelinin ilk hazırlanması internet erişimi gerektirebilir.
+
+## Yerel veriler
+
+| Veri | Varsayılan konum | Kalıcı mı? |
+| --- | --- | --- |
+| Memory | `data/lina_memory.sqlite3` | Evet |
+| Sohbetler | `data/conversations.sqlite3` | Evet |
+| Hatırlatıcılar ve bildirimler | `data/notifications.sqlite3` | Evet |
+| Kullanıcı tercihleri | `%LOCALAPPDATA%\Lina\user-settings.json` | Evet |
+| Loglar | `logs/` | Evet, içerik-minimize politikasıyla |
+| Mikrofonun ham sesi | Bellek | Hayır |
+| TTS ses çıktısı | Doğrudan Windows output | Hayır |
+| Screenshot ve image bytes | Aktif oturum belleği | Hayır |
+
+Çalışma ortamı varsayılanları [`config/default.toml`](config/default.toml) dosyasındadır.
 
 ## Mimari
 
 ```mermaid
 flowchart LR
     UI["PySide6 GUI / CLI"] --> Services["Application Services"]
-    Services --> Brain["Brain + Context"]
-    Services --> Router["Intent Router + Safe Tools"]
+    Services --> Brain["Brain + Context + Quality"]
+    Services --> Router["Intent Router + Agent Policy"]
     Services --> Capabilities["Memory · Files · Vision · Speech · Notifications"]
     Brain --> Ollama["Local Ollama"]
     Router --> Capabilities
     Capabilities --> SQLite["Local SQLite"]
     Capabilities --> Whisper["faster-whisper"]
-    Capabilities --> WinRT["Windows WinRT TTS"]
+    Capabilities --> WinRT["Windows TTS"]
 ```
-
-Ana paketler:
 
 | Paket | Sorumluluk |
 | --- | --- |
-| `core` | Bootstrap, application lifecycle, config, paths ve logging |
+| `core` | Bootstrap, lifecycle, config, paths ve logging |
 | `interfaces` | PySide6 GUI, widget’lar, worker’lar ve CLI |
 | `services` | Conversation ve capability koordinasyonu |
-| `brain` | Prompt, context, model orchestration ve deterministic routing |
-| `integrations` | Ollama adapter’ı |
-| `conversations` | Session/message modelleri ve SQLite persistence |
-| `memory` | Açık kullanıcı kontrollü kalıcı hafıza |
-| `files` | Allowlist tabanlı read-only proje dosyası erişimi |
-| `vision` / `screen` | Geçici image context ve capture contract’ları |
-| `speech` | Mikrofon kaydı ve STT |
-| `voice` | TTS provider, playback ve voice state controller |
+| `brain` / `quality` | Prompt, context, model orchestration ve yanıt doğrulama |
+| `agent` | Typed planlama, policy, execution, task templates ve recovery |
+| `conversations` / `memory` | Framework-neutral modeller ve SQLite persistence |
+| `files` | Allowlist tabanlı read-only dosya erişimi |
+| `vision` / `screen` | Geçici image context, capture ve Live Vision sözleşmeleri |
+| `speech` / `voice` | Mikrofon, STT, TTS ve voice lifecycle |
 | `notifications` | Reminder repository, scheduler ve presenter |
-| `inference` | Metrics, benchmark ve model lifecycle |
-| `settings` | Framework-neutral kullanıcı tercihleri ve atomik persistence |
+| `settings` | Typed kullanıcı tercihleri ve atomik persistence |
+| `ui.design` | Semantic token, palette ve cache’li ikon sistemi |
 
-Bağımlılık yönü UI’dan servis ve contract katmanlarına doğrudur. Business logic widget sınıflarına, dış sistem ayrıntıları domain servislerine gömülmez.
+UI, servis ve domain katmanlarından ayrıdır. Widget’lar capability kurallarını yeniden tanımlamaz; backend state typed servis/controller sözleşmelerinden gelir. Ayrıntılar için [mimari dokümanı](docs/architecture.md) kaynak kabul edilmelidir.
 
-## Geliştirme ve test
+## Geliştirme
 
-Geliştirme bağımlılıklarını kurun:
+Geliştirme bağımlılıkları:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
 ```
 
-Tüm test paketi:
+Tam test paketi:
 
 ```powershell
-python -m pytest
+python -m pytest -q
 ```
 
-Belirli bir alan:
+Compile kontrolü:
 
 ```powershell
-python -m pytest tests/voice -q
+python -m compileall -q src/lina
 ```
 
-Son yerel doğrulama sonucu:
+Son doğrulanan regresyon sonucu:
 
 ```text
-1039 passed
+1053 passed
 ```
 
-Testler dış sistemleri mümkün olduğunca fake provider ve geçici repository’lerle izole eder. Gerçek mikrofon, Windows voice, audio device, Ollama modeli, VRAM davranışı ve GUI görsel kalitesi için manuel smoke test gerekir. Ayrıntılı kontrol listesi: [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md).
+Otomatik testler dış sistemleri fake provider ve geçici repository’lerle izole eder. Gerçek Ollama modeli, Windows mikrofon/TTS, kamera, DPI, multi-monitor ve GUI erişilebilirliği için [manuel smoke checklist](docs/smoke-test-checklist.md) uygulanmalıdır.
 
-Kod standardı özeti:
+Geliştirme ilkeleri:
 
-- Python `3.11+` ve type hints.
-- Kod ve identifier’lar İngilizce; kullanıcı metinleri ve dokümantasyon Türkçe.
-- Küçük sorumluluklar ve YAGNI.
-- Conventional Commits.
-- Kod değişikliğiyle birlikte ilgili testler.
+- Python `3.11+`, type hints ve küçük sorumluluklar.
+- Kod ve identifier’larda İngilizce; kullanıcı metinleri ve dokümantasyonda Türkçe.
+- Conventional Commits ve değişiklikle birlikte ilgili testler.
 - Repository içinde secret, token veya kişisel veri tutmama.
 
-Katkı ayrıntıları için [contributing.md](contributing.md) dosyasına bakın.
+Katkı kuralları için [contributing.md](contributing.md) dosyasına bakın.
 
 ## Bilinen sınırlar
 
-- Proje alpha aşamasındadır.
-- Yalnız Windows masaüstü birincil hedef ve gerçek TTS platformudur.
-- Model yanıt kalitesi seçilen yerel modele bağlıdır.
-- Speech doğruluğu mikrofona, gürültüye, modele ve işlemciye bağlıdır.
-- Wake detection yerel faster-whisper model kalitesine, mikrofona ve ortam gürültüsüne bağlıdır; özel keyword engine veya acoustic echo cancellation içermez.
-- Live Vision açık onayla ve bounded periyodik snapshot analiziyle çalışır; gerçek zamanlı video anlayışı, video kaydı, yüz tanıma veya cloud vision içermez.
-- Kamera preview kutuları yalnız hareket/yeni-beliren/kaybolan görüntü bölgelerini gösterir; telefon, insan veya bardak gibi nesne kimliği iddia etmez.
-- Files capability genel dosya yöneticisi değildir; yalnız sabit proje dokümanlarını okuyabilir.
-- Hatırlatıcı bildirimi için uygulamanın açık veya tray’de olması gerekir.
-- Autostart/Windows registry entegrasyonu uygulanmamıştır.
-- Codex bridge ve genel bilgisayar kontrolü mevcut sürüm kapsamı dışındadır; Agent Mode yalnız allowlist içindeki yerel capability’lerle çalışır.
+- Proje alpha aşamasındadır ve Windows birincil hedeftir.
+- Model yanıt kalitesi seçilen yerel modele ve donanıma bağlıdır.
+- STT ve wake-word doğruluğu mikrofon, gürültü ve model kalitesinden etkilenir.
+- Live Vision bounded snapshot analizi yapar; video kaydı, yüz tanıma veya semantic object detection değildir.
+- Hatırlatıcı bildirimi için uygulamanın açık veya system tray’de olması gerekir.
+- Autostart/Windows registry entegrasyonu henüz uygulanmamıştır.
+- Codex Bridge ve genel bilgisayar kontrolü bu sürümün kapsamı dışındadır.
 
 ## Yol haritası
 
-Tamamlanan ana hat:
+Tamamlanan son sürüm hattı:
 
-- `v0.4.x` — Local Memory.
-- `v0.5.x` — Güvenli Files ve masaüstü deneyimi.
-- `v0.6.x` — Local STT ve PySide6 geçişi.
-- `v0.7.x` — Screen context ve local vision.
-- `v0.8.x` — Conversation persistence, timeline, search ve management.
-- `v0.9.x` — Settings, system tray, notifications ve güvenli tool routing.
-- `v0.10.0-alpha` — Voice interaction ve inference performance foundation.
-- `v0.10.1-alpha` — Wake word ve hands-free conversation.
+- `v0.10.0-alpha` — Voice Interaction & Inference Performance Foundation.
+- `v0.10.1-alpha` — Wake Word & Hands-Free Conversation.
 - `v0.11.0-alpha` — Live Vision & Camera Mode.
 - `v0.11.1-alpha` — Live Preview & Monitoring Overlays.
 - `v0.11.2-alpha` — Realtime Camera Conversation.
@@ -509,37 +365,34 @@ Tamamlanan ana hat:
 - `v0.12.1-alpha` — Agent Reliability, Task Templates & Recovery.
 - `v0.12.2-alpha` — Reference-Driven Premium Desktop Experience.
 
-Planlanan sonraki alanlar `v0.13.0-alpha` Codex Bridge, `v0.14.0-alpha` Safe Desktop Capabilities ve `v0.15.0-alpha` Packaging & Update Foundation’dır. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan yön:
+
+1. `v0.13.0-alpha` — Codex Bridge.
+2. `v0.14.0-alpha` — Safe Desktop Capabilities.
+3. `v0.15.0-alpha` — Packaging & Update Foundation.
+
+Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 
 ## Dokümantasyon
 
-- [Mimari](docs/architecture.md)
-- [UI Design System](docs/ui-design-system.md)
-- [User Interface Architecture](docs/user-interface-architecture.md)
-- [Accessibility](docs/accessibility.md)
-- [v0.10.0-alpha sürüm notları](docs/release-notes-v0.10.0-alpha.md)
-- [v0.10.1-alpha sürüm notları](docs/release-notes-v0.10.1-alpha.md)
-- [v0.11.0-alpha sürüm notları](docs/release-notes-v0.11.0-alpha.md)
-- [v0.11.1-alpha sürüm notları](docs/release-notes-v0.11.1-alpha.md)
-- [v0.11.2-alpha sürüm notları](docs/release-notes-v0.11.2-alpha.md)
-- [v0.12.0-alpha sürüm notları](docs/release-notes-v0.12.0-alpha.md)
-- [v0.12.1-alpha sürüm notları](docs/release-notes-v0.12.1-alpha.md)
-- [v0.12.2-alpha sürüm notları](docs/release-notes-v0.12.2-alpha.md)
-- [Referans UI uygulama notları](docs/reference-ui-implementation.md)
-- [Agent görev şablonları](docs/agent-task-templates.md)
-- [Agent kurtarma ve güvenilirlik](docs/agent-recovery.md)
-- [Speech Architecture v1](docs/speech-architecture-v1.md)
-- [Brain Specification v1](docs/brain-specification-v1.md)
-- [Conversation Flow v1](docs/conversation-flow-v1.md)
-- [Vision](docs/vision.md)
-- [Roadmap](docs/roadmap.md)
-- [Smoke Test Checklist](docs/smoke-test-checklist.md)
-- [Development Log](docs/development-log.md)
-- [Katkı ve geliştirme standartları](contributing.md)
+| Belge | İçerik |
+| --- | --- |
+| [Mimari](docs/architecture.md) | Katmanlar, servisler ve güvenlik sınırları |
+| [Referans UI uygulaması](docs/reference-ui-implementation.md) | v0.12.2 shell, responsive ve inspector kararları |
+| [UI Design System](docs/ui-design-system.md) | Token, palette, tipografi ve ikon sistemi |
+| [User Interface Architecture](docs/user-interface-architecture.md) | App shell, conversation ve progressive disclosure |
+| [Accessibility](docs/accessibility.md) | Klavye, focus, status ve ekran okuyucu politikası |
+| [Agent görev şablonları](docs/agent-task-templates.md) | Typed template ve capability sözleşmesi |
+| [Agent recovery](docs/agent-recovery.md) | Retry, idempotency, checkpoint ve restart davranışı |
+| [Speech Architecture](docs/speech-architecture-v1.md) | STT/TTS ve hands-free lifecycle |
+| [Vision](docs/vision.md) | Image, capture, monitoring ve privacy modeli |
+| [v0.12.2 sürüm notları](docs/release-notes-v0.12.2-alpha.md) | Sürüm kapsamı ve bilinen sınırlar |
+| [Smoke Test Checklist](docs/smoke-test-checklist.md) | Windows manuel doğrulama listesi |
+| [Development Log](docs/development-log.md) | Kronolojik geliştirme kaydı |
 
 ## Lisans
 
-Lina şu anda kişisel kullanım amacıyla geliştirilen **proprietary** bir projedir. Kullanım, değiştirme ve dağıtım hakları açık kaynak lisansı verilmiş sayılmaz; koşullar proje sahibi tarafından belirlenir.
+Lina **proprietary** bir projedir. Açık kaynak lisansı verilmiş sayılmaz; kullanım, değiştirme ve dağıtım koşulları proje sahibi tarafından belirlenir.
 
 ---
 
