@@ -393,8 +393,8 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     qtbot.addWidget(sidebar)
     timestamp = datetime.now()
     sessions = (
-        ConversationSession(1, "İlk Sohbet", timestamp, timestamp, timestamp),
-        ConversationSession(2, "İkinci Sohbet", timestamp, timestamp, timestamp),
+        ConversationSession(1, "İlk Sohbet", timestamp, timestamp, timestamp, preview="İlk önizleme"),
+        ConversationSession(2, "İkinci Sohbet", timestamp, timestamp, timestamp, preview="İkinci önizleme"),
     )
 
     sidebar.set_sessions(sessions, active_id=2)
@@ -404,7 +404,8 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
     assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
-    assert all(button.minimumHeight() == 60 for button in session_buttons)
+    assert all(button.minimumHeight() == 72 for button in session_buttons)
+    assert "İkinci ö" in session_buttons[1].text()
     assert "·" in session_buttons[0].text()
 
 

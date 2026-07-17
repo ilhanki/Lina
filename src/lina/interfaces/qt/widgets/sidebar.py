@@ -311,8 +311,8 @@ class SidebarWidget(QWidget):
         button = QPushButton(session.title, self.session_list)
         button.setObjectName("sessionButton")
         button.setToolTip(session.title)
-        button.setMinimumHeight(60)
-        button.setMaximumHeight(60)
+        button.setMinimumHeight(72)
+        button.setMaximumHeight(72)
         button.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
@@ -321,6 +321,7 @@ class SidebarWidget(QWidget):
         button._activity_text = format_conversation_datetime(  # type: ignore[attr-defined]
             session.last_message_at or session.created_at
         )
+        button._preview_text = " ".join(session.preview.split())  # type: ignore[attr-defined]
         button._session = session  # type: ignore[attr-defined]
         button._is_pinned = session.is_pinned  # type: ignore[attr-defined]
         button.setCheckable(True)
@@ -415,8 +416,14 @@ class SidebarWidget(QWidget):
                 available_width,
             )
             activity = getattr(button, "_activity_text", "")
+            preview = getattr(button, "_preview_text", "") or "Henüz mesaj yok"
+            elided_preview = QFontMetrics(button.font()).elidedText(
+                preview,
+                Qt.TextElideMode.ElideRight,
+                available_width,
+            )
             prefix = "• " if getattr(button, "_is_pinned", False) else ""
-            button.setText(f"{prefix}{elided_title}\n{activity}")
+            button.setText(f"{prefix}{elided_title}\n{elided_preview}\n{activity}")
             if getattr(button, "_is_pinned", False):
                 button.setToolTip(f"Sabitlenmiş sohbet\n{title}")
             else:

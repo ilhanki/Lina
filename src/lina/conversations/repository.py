@@ -213,7 +213,13 @@ class ConversationRepository:
                 rows = connection.execute(
                     f"""
                     SELECT id, title, created_at, updated_at, last_message_at,
-                           is_pinned, is_archived, pinned_at, archived_at
+                           is_pinned, is_archived, pinned_at, archived_at,
+                           COALESCE((
+                               SELECT content FROM conversation_messages
+                               WHERE conversation_id = conversations.id
+                                 AND role IN ('user', 'assistant')
+                               ORDER BY sequence_number DESC LIMIT 1
+                           ), '') AS preview
                     FROM conversations
                     WHERE {visibility}
                     ORDER BY is_pinned DESC,
@@ -232,7 +238,13 @@ class ConversationRepository:
             with self._connection() as connection:
                 row = connection.execute(
                     """SELECT id, title, created_at, updated_at, last_message_at,
-                              is_pinned, is_archived, pinned_at, archived_at
+                              is_pinned, is_archived, pinned_at, archived_at,
+                              COALESCE((
+                                  SELECT content FROM conversation_messages
+                                  WHERE conversation_id = conversations.id
+                                    AND role IN ('user', 'assistant')
+                                  ORDER BY sequence_number DESC LIMIT 1
+                              ), '') AS preview
                        FROM conversations WHERE id = ?""",
                     (conversation_id,),
                 ).fetchone()
@@ -521,6 +533,7 @@ def _row_to_session(row: sqlite3.Row) -> ConversationSession:
             if "archived_at" in row.keys() and row["archived_at"]
             else None
         ),
+        preview=str(row["preview"]) if "preview" in row.keys() else "",
     )
 
 

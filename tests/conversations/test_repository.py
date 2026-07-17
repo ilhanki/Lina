@@ -53,6 +53,7 @@ def test_repository_supports_session_crud_and_cascade_delete(tmp_path) -> None:
 
     assert message.id is not None
     assert repository.list_conversations()[0].last_message_at == now
+    assert repository.list_conversations()[0].preview == "Merhaba"
     renamed = repository.rename_conversation(session.id or 0, "İlk Sohbet", now=now)
     assert renamed.title == "İlk Sohbet"
     assert len(repository.list_messages(session.id or 0)) == 1

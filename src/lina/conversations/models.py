@@ -26,6 +26,7 @@ class ConversationSession:
     is_archived: bool = False
     pinned_at: datetime | None = None
     archived_at: datetime | None = None
+    preview: str = ""
 
 
 @dataclass(frozen=True, slots=True)
