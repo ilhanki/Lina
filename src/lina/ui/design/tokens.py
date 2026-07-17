@@ -39,6 +39,62 @@ class ColorPalette:
     user_surface: str
     user_text: str
 
+    @property
+    def canvas_secondary(self) -> str:
+        return self.surface_secondary
+
+    @property
+    def sidebar_surface(self) -> str:
+        return self.surface_secondary
+
+    @property
+    def workspace_surface(self) -> str:
+        return self.canvas
+
+    @property
+    def inspector_surface(self) -> str:
+        return self.surface_secondary
+
+    @property
+    def elevated_surface(self) -> str:
+        return self.surface_elevated
+
+    @property
+    def interactive_surface(self) -> str:
+        return self.surface_primary
+
+    @property
+    def hover_surface(self) -> str:
+        return self.surface_hover
+
+    @property
+    def pressed_surface(self) -> str:
+        return self.surface_pressed
+
+    @property
+    def selected_surface(self) -> str:
+        return self.surface_selected
+
+    @property
+    def user_message_surface(self) -> str:
+        return self.user_surface
+
+    @property
+    def assistant_message_surface(self) -> str:
+        return self.surface_primary
+
+    @property
+    def composer_surface(self) -> str:
+        return self.surface_primary
+
+    @property
+    def input_surface(self) -> str:
+        return self.surface_primary
+
+    @property
+    def accent_soft(self) -> str:
+        return self.surface_selected
+
     def as_legacy_dict(self) -> dict[str, str]:
         """Keep established QSS and extensions source-compatible during migration."""
         return {
@@ -63,10 +119,12 @@ class SpacingTokens:
     xs: int = 4
     sm: int = 6
     md: int = 8
+    ten: int = 10
     lg: int = 12
     xl: int = 16
     xxl: int = 20
     xxxl: int = 24
+    twenty_eight: int = 28
     huge: int = 32
     giant: int = 40
     jumbo: int = 48
@@ -80,6 +138,9 @@ class RadiusTokens:
     md: int = 8
     lg: int = 12
     xl: int = 16
+    extra_large: int = 20
+    message: int = 16
+    composer: int = 18
     pill: int = 999
 
 
@@ -102,6 +163,9 @@ class ControlMetrics:
     default: int = 36
     large: int = 42
     composer: int = 46
+    sidebar_item: int = 64
+    composer_min: int = 58
+    composer_max: int = 160
     icon_small: int = 16
     icon_default: int = 20
     icon_large: int = 24
@@ -117,8 +181,21 @@ class LayoutMetrics:
     composer_maximum: int = 860
     message_spacing: int = 20
     header_height: int = 68
-    compact_breakpoint: int = 800
-    medium_breakpoint: int = 1120
+    compact_breakpoint: int = 900
+    medium_breakpoint: int = 1320
+    minimum_window_width: int = 760
+    minimum_window_height: int = 600
+    inspector_minimum: int = 300
+    inspector_maximum: int = 360
+
+
+@dataclass(frozen=True, slots=True)
+class ElevationTokens:
+    base: int = 0
+    floating: int = 8
+    dialog: int = 18
+    tooltip: int = 24
+    menu: int = 16
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,6 +213,7 @@ class DesignTokens:
     typography: TypographyTokens = TypographyTokens()
     controls: ControlMetrics = ControlMetrics()
     layout: LayoutMetrics = LayoutMetrics()
+    elevation: ElevationTokens = ElevationTokens()
     motion: MotionTokens = MotionTokens()
 
 

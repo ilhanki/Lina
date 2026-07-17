@@ -4,6 +4,7 @@ from lina.ui.design.tokens import (
     ColorPalette,
     ControlMetrics,
     DesignTokens,
+    ElevationTokens,
     LayoutMetrics,
     MotionTokens,
     RadiusTokens,
@@ -16,7 +17,7 @@ from lina.ui.design.tokens import (
 from lina.ui.design.icons import standard_icon
 
 __all__ = [
-    "ColorPalette", "ControlMetrics", "DesignTokens", "LayoutMetrics",
+    "ColorPalette", "ControlMetrics", "DesignTokens", "ElevationTokens", "LayoutMetrics",
     "MotionTokens", "RadiusTokens", "SpacingTokens", "TypographyTokens",
     "contrast_ratio", "design_tokens", "resolve_palette",
     "standard_icon",
