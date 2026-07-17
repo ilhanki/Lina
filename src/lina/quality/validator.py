@@ -38,6 +38,11 @@ _GENERIC_HELP = re.compile(
     re.I,
 )
 _GENERIC_CLOSING = re.compile(r"\b(?:umarım yardımcı olmuştur|başka bir sorun olursa sorabilirsin)\b", re.I)
+_META_LEAK = re.compile(
+    r"(?:<\|(?:system|assistant|user|end)_?\|>|\b(?:system prompt|developer message|"
+    r"as an ai language model|internal instruction|chain of thought)\s*:?)",
+    re.I,
+)
 
 
 class ResponseQualityValidator:
@@ -64,6 +69,7 @@ class ResponseQualityValidator:
             substantive_user
             and (_GENERIC_HELP.search(normalized) or (len(sentences) >= 4 and _GENERIC_CLOSING.search(normalized)))
         )
+        meta_leak = bool(_META_LEAK.search(normalized))
         punctuation_only = not any(character.isalnum() for character in normalized)
         incomplete = bool(normalized and len(words) > 5 and normalized.endswith(("…", "...", ",", ";", ":", "-")))
         malformed = min(1.0, malformed_hits * 0.45 + persona * 0.7 + irrelevant_greeting * 0.35 + incomplete * 0.35 + foreign_phrase * 0.7)
@@ -80,6 +86,8 @@ class ResponseQualityValidator:
             reasons.append("foreign_word_leak")
         if irrelevant_greeting or generic_boilerplate:
             reasons.append("generic_boilerplate")
+        if meta_leak:
+            reasons.append("meta_leak")
         if malformed >= 0.45:
             reasons.append("malformed")
         detected = "tr" if expected_language == "tr" and mixing < 0.5 else "mixed" if expected_language == "tr" and mixing else expected_language
@@ -99,6 +107,7 @@ class ResponseQualityValidator:
                 "foreign_phrase_detected": foreign_phrase,
                 "foreign_word_leak_detected": foreign_word_leak,
                 "generic_boilerplate_detected": irrelevant_greeting or generic_boilerplate,
+                "meta_leak_detected": meta_leak,
             },
         )
 
