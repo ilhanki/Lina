@@ -282,6 +282,10 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: none;
             padding: 0;
         }}
+        QLabel#assistantAvatar {{
+            background: {selected}; color: {accent}; border: 1px solid {accent};
+            border-radius: 16px; font-weight: 700;
+        }}
         QLabel#messageImagePreview {{
             background: {composer_bg};
             border: 1px solid {soft_border};

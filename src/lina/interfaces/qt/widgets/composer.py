@@ -143,9 +143,9 @@ class ComposerWidget(QWidget):
         action_layout.setSpacing(SPACE_SM)
         layout.addWidget(action_row)
 
-        self.attachment_button = QPushButton("Ekle", self)
-        self.attachment_button.setIcon(standard_icon(self, "add"))
-        self._configure_action_button(self.attachment_button, tooltip="Görsel veya dosya ekle", accessible_name="Ekle")
+        self.attachment_button = QPushButton("Dosya", self)
+        self.attachment_button.setIcon(standard_icon(self, "file"))
+        self._configure_action_button(self.attachment_button, tooltip="Görsel veya dosya ekle", accessible_name="Dosya ekle")
         self.attachment_button.setObjectName("composerUtilityButton")
         action_layout.addWidget(self.attachment_button)
 
@@ -156,7 +156,7 @@ class ComposerWidget(QWidget):
             tooltip="Konuşmayı metne çevir",
             accessible_name="Mikrofon",
         )
-        self.mic_button.hide()
+        action_layout.addWidget(self.mic_button)
 
         self.screen_button = QPushButton("Ekran", self)
         self.screen_button.setIcon(standard_icon(self, "screen"))
@@ -165,7 +165,7 @@ class ComposerWidget(QWidget):
             tooltip="Tam ekran veya seçili alan görüntüsü ekle",
             accessible_name="Ekran görüntüsü yakala",
         )
-        self.screen_button.hide()
+        action_layout.addWidget(self.screen_button)
 
         self.agent_button = QPushButton("Agent", self)
         self.agent_button.setIcon(standard_icon(self, "agent"))
@@ -176,12 +176,12 @@ class ComposerWidget(QWidget):
         )
         self.agent_button.hide()
 
-        self.tools_button = QPushButton("Araçlar", self)
-        self.tools_button.setIcon(standard_icon(self, "details"))
+        self.tools_button = QPushButton("", self)
+        self.tools_button.setIcon(standard_icon(self, "more"))
         self._configure_action_button(
             self.tools_button,
-            tooltip="Mikrofon, ekran ve Agent araçlarını aç",
-            accessible_name="Araçlar menüsü",
+            tooltip="Daha fazla araç",
+            accessible_name="Daha fazla araç",
         )
         self.tools_button.setObjectName("composerUtilityButton")
         self.tools_menu = QMenu(self.tools_button)
@@ -304,9 +304,11 @@ class ComposerWidget(QWidget):
     def set_compact(self, compact: bool) -> None:
         self._compact = compact
         self.input_hint.hide()
+        self.mic_button.setVisible(not compact)
+        self.screen_button.setVisible(not compact)
         labels = (
-            (self.attachment_button, "+", "Ekle"),
-            (self.tools_button, "", "Araçlar"),
+            (self.attachment_button, "", "Dosya"),
+            (self.tools_button, "", ""),
         )
         for button, short, full in labels:
             button.setText(short if compact else full)
@@ -321,7 +323,7 @@ class ComposerWidget(QWidget):
         label = labels.get(state, labels["idle"])
         self.mic_button.setText(label)
         self.mic_action.setText(label)
-        self.tools_button.setText(label if state != "idle" else ("" if self._compact else "Araçlar"))
+        self.tools_button.setToolTip(label if state != "idle" else "Daha fazla araç")
 
     def set_mic_enabled(self, enabled: bool) -> None:
         self.mic_button.setEnabled(enabled)

@@ -62,8 +62,8 @@ def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
 
     widget.set_bubble_width(760)
 
-    assert widget.minimumWidth() == MIN_ASSISTANT_WIDTH
-    assert widget.bubble.minimumWidth() == MIN_ASSISTANT_WIDTH
+    assert widget.minimumWidth() == 360
+    assert widget.bubble.minimumWidth() == 360
     assert widget.maximumWidth() == MAX_ASSISTANT_WIDTH
 
 
@@ -171,8 +171,8 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.input_hint.isHidden()
     assert composer.send_button.text() == ""
     assert composer.send_button.accessibleName() == "Mesajı gönder"
-    assert composer.mic_button.isHidden()
-    assert composer.screen_button.isHidden()
+    assert composer.mic_button.isHidden() is False
+    assert composer.screen_button.isHidden() is False
     assert composer.agent_button.isHidden()
     assert not composer.tools_button.isHidden()
     assert [action.text() for action in composer.tools_menu.actions()] == [
@@ -185,7 +185,9 @@ def test_composer_compact_mode_and_agent_action(qtbot) -> None:
     qtbot.addWidget(composer)
     composer.set_compact(True)
     assert composer.input_hint.isHidden()
-    assert composer.attachment_button.text() == "+"
+    assert composer.attachment_button.text() == ""
+    assert composer.mic_button.isHidden()
+    assert composer.screen_button.isHidden()
     with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
         composer.agent_button.click()
 

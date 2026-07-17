@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from lina.interfaces.qt.theme import SPACE_MD, SPACE_SM
 from lina.interfaces.qt.formatting import format_message_time
+from lina.interfaces.qt.message_content import RichMessageLabel
 from lina.screen.models import ScreenContext
 
 
@@ -73,7 +74,18 @@ class ChatMessageWidget(QWidget):
         bubble_layout = QVBoxLayout(self.bubble)
         bubble_layout.setContentsMargins(18, 14, 18, 11)
         bubble_layout.setSpacing(SPACE_MD)
-        layout.addWidget(self.bubble)
+        content_row = QHBoxLayout()
+        content_row.setContentsMargins(0, 0, 0, 0)
+        content_row.setSpacing(10)
+        self.avatar_label = QLabel("L", self)
+        self.avatar_label.setObjectName("assistantAvatar")
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.avatar_label.setFixedSize(32, 32)
+        self.avatar_label.setAccessibleName("Lina")
+        self.avatar_label.setVisible(role == "assistant")
+        content_row.addWidget(self.avatar_label, 0, Qt.AlignmentFlag.AlignTop)
+        content_row.addWidget(self.bubble)
+        layout.addLayout(content_row)
 
         self.image_label: QLabel | None = None
         self._preview_pixmap: QPixmap | None = None
@@ -95,10 +107,9 @@ class ChatMessageWidget(QWidget):
                 self.image_label.mousePressEvent = self._handle_image_click  # type: ignore[method-assign]
                 bubble_layout.addWidget(self.image_label)
 
-        self.text_label = QLabel(text, self.bubble)
+        self.text_label = RichMessageLabel(text, self.bubble)
         self.text_label.setObjectName("bubbleText")
         self.text_label.setWordWrap(True)
-        self.text_label.setTextFormat(Qt.TextFormat.PlainText)
         self.text_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
@@ -189,7 +200,11 @@ class ChatMessageWidget(QWidget):
     def set_bubble_width(self, width: int) -> None:
         """Bound the bubble to a readable responsive width."""
         maximum = MAX_ASSISTANT_WIDTH if self.role == "assistant" else MAX_USER_WIDTH
-        minimum = MIN_ASSISTANT_WIDTH if self.role == "assistant" else MIN_USER_WIDTH
+        minimum = (
+            (360 if len(self.raw_text) < 180 else MIN_ASSISTANT_WIDTH)
+            if self.role == "assistant"
+            else MIN_USER_WIDTH
+        )
         bounded_width = max(280, min(maximum, width))
         minimum_width = min(minimum, bounded_width)
         self.setMaximumWidth(bounded_width)
