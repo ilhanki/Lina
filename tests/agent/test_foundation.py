@@ -126,9 +126,9 @@ def test_executor_validates_schema_and_normalizes_exception():
     from lina.agent.models import CancellationToken
     from lina.brain.routing.models import RequestContext
     invalid = executor.execute(AgentStep("1", "x", "x", "memory.recall", {}), RequestContext(None), CancellationToken())
-    assert invalid.error_code == "validation_error"
+    assert invalid.error_code == "invalid_arguments"
     failed = executor.execute(AgentStep("2", "x", "x", "memory.recall", {"query": "x"}), RequestContext(None), CancellationToken())
-    assert failed.error_code == "execution_error"
+    assert failed.error_code == "internal_error"
     assert "secret" not in failed.summary
     executor.shutdown()
 

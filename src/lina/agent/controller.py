@@ -2,19 +2,26 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from threading import RLock
+from uuid import uuid4
 
 from lina.agent.context import AgentContext
-from lina.agent.errors import AgentPlanError, AgentStateError
+from lina.agent.errors import AgentClarificationRequired, AgentErrorCode, AgentPlanError, AgentStateError
 from lina.agent.executor import AgentExecutor
 from lina.agent.models import (
-    AgentPlan, AgentSession, AgentSessionStatus, AgentStep, AgentStepStatus,
-    ApprovalDecision, VerificationStatus,
+    AgentEvent, AgentEventSeverity, AgentEventType, AgentPlan, AgentSession,
+    AgentSessionStatus, AgentStep, AgentStepStatus, ApprovalDecision, RiskLevel,
+    VerificationStatus,
 )
 from lina.agent.persistence import AgentSessionRepository
 from lina.agent.planner import AgentPlanner
 from lina.agent.policy import AgentPolicy
+from lina.agent.reliability import (
+    AgentLoopDetector, checkpoint_for_step, idempotency_key,
+    normalized_operation_hash, user_error_message,
+)
 from lina.agent.verifier import AgentVerifier
 from lina.brain.routing.models import RequestContext
 
@@ -52,6 +59,7 @@ class AgentController:
         self._session: AgentSession | None = None
         self._capabilities = ()
         self._step_attempts: dict[str, int] = {}
+        self._loop_detector = AgentLoopDetector()
         self._lock = RLock()
 
     @property
@@ -72,6 +80,8 @@ class AgentController:
             session.generation_id = generation_id
             self._session = session
             self._step_attempts.clear()
+            self._loop_detector.reset()
+            self._record_event(AgentEventType.SESSION_CREATED, "Agent görevi oluşturuldu.")
             self._persist()
             return session
 
@@ -86,12 +96,36 @@ class AgentController:
             context = AgentContext.bounded(session.user_request, recent_messages, relevant_memories, self._capabilities)
             try:
                 session.plan = self.planner.plan(context)
-            except Exception:
-                session.status = AgentSessionStatus.FAILED
+            except AgentClarificationRequired as error:
+                loop = self._loop_detector.observe_clarification(str(error))
+                if loop.detected:
+                    session.status = AgentSessionStatus.FAILED
+                    session.error_code = AgentErrorCode.LOOP_DETECTED.value
+                    session.metrics.loop_detection_count += 1
+                    session.last_summary = user_error_message(AgentErrorCode.LOOP_DETECTED)
+                    self._record_event(
+                        AgentEventType.SESSION_FAILED,
+                        session.last_summary,
+                        severity=AgentEventSeverity.ERROR,
+                        technical_code=session.error_code,
+                    )
+                else:
+                    session.status = AgentSessionStatus.AWAITING_INPUT
+                    session.approval_state = ",".join(error.missing_parameters) or "clarification"
+                    session.last_summary = str(error)
                 session.touch()
                 self._persist()
                 raise
+            except Exception:
+                session.status = AgentSessionStatus.FAILED
+                session.error_code = AgentErrorCode.INTERNAL_ERROR.value
+                session.touch()
+                self._record_event(AgentEventType.SESSION_FAILED, "Plan güvenli biçimde hazırlanamadı.", severity=AgentEventSeverity.ERROR, technical_code=session.error_code)
+                self._persist()
+                raise
             session.metrics.planned_step_count = len(session.plan.steps)
+            session.last_summary = "Agent planı hazır."
+            self._record_event(AgentEventType.PLAN_CREATED, "Agent planı oluşturuldu.")
             auto = (
                 self.auto_start_read_only_plans and not self.always_show_plan
                 and len(session.plan.steps) == 1
@@ -104,6 +138,28 @@ class AgentController:
                 self.run()
             return session.plan
 
+    def provide_input(
+        self,
+        session_id: str,
+        text: str,
+        conversation_id: int | None,
+        generation_id: int | None = None,
+    ) -> AgentPlan:
+        with self._lock:
+            session = self._matching(session_id, generation_id)
+            if session.status is not AgentSessionStatus.AWAITING_INPUT:
+                raise AgentStateError("Agent görevi ek bilgi beklemiyor.")
+            if session.conversation_id != conversation_id:
+                raise AgentStateError("Agent açıklaması farklı bir sohbetten uygulanamaz.")
+            if not text.strip():
+                raise AgentStateError("Görevi sürdürmek için gerekli bilgiyi yaz.")
+            session.user_request = f"{session.user_request} {text.strip()}"[:2400]
+            session.status = AgentSessionStatus.PLANNING
+            session.approval_state = None
+            session.touch()
+            self._persist()
+            return self.plan(capabilities=self._capabilities)
+
     def approve_plan(self, session_id: str, generation_id: int | None = None) -> AgentSession:
         with self._lock:
             session = self._matching(session_id, generation_id)
@@ -112,6 +168,8 @@ class AgentController:
             session.approval_state = "plan_approved"
             session.metrics.approval_count += 1
             session.status = AgentSessionStatus.READY
+            session.last_summary = "Plan kullanıcı tarafından onaylandı."
+            self._record_event(AgentEventType.PLAN_APPROVED, "Plan kullanıcı tarafından onaylandı.")
             session.touch()
             self._persist()
             return session
@@ -133,12 +191,14 @@ class AgentController:
                     continue
                 if any(self._step_by_id(dep).status is not AgentStepStatus.SUCCEEDED for dep in step.dependencies):
                     step.status = AgentStepStatus.BLOCKED
-                    step.error_code = "dependency_failed"
+                    step.error_code = AgentErrorCode.DEPENDENCY_FAILED.value
                     return self._finish_failure()
                 if self.policy.requires_step_approval(step):
                     step.status = AgentStepStatus.WAITING_APPROVAL
                     session.status = AgentSessionStatus.AWAITING_STEP_APPROVAL
                     session.approval_state = step.step_id
+                    session.last_summary = "Kalıcı adım kullanıcı onayı bekliyor."
+                    self._record_event(AgentEventType.APPROVAL_REQUESTED, "Kalıcı adım için onay istendi.", step_id=step.step_id)
                     session.touch()
                     self._persist()
                     return session
@@ -155,6 +215,7 @@ class AgentController:
             if decision is ApprovalDecision.AMBIGUOUS:
                 return session
             if decision is ApprovalDecision.CANCEL:
+                self._record_event(AgentEventType.APPROVAL_DENIED, "Kullanıcı onayı reddetti.", step_id=step.step_id)
                 return self.cancel(session_id)
             if decision is ApprovalDecision.MODIFY:
                 session.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL
@@ -165,6 +226,9 @@ class AgentController:
                 step.status = AgentStepStatus.SKIPPED
                 step.result_summary = "Kullanıcı tarafından atlandı."
                 session.metrics.skipped_count += 1
+                step.verification_status = None
+                session.checkpoints.append(checkpoint_for_step(step))
+                self._record_event(AgentEventType.STEP_SKIPPED, "Adım kullanıcı tarafından atlandı.", step_id=step.step_id)
                 session.current_step_index += 1
                 session.status = AgentSessionStatus.RUNNING
                 self._persist()
@@ -173,6 +237,7 @@ class AgentController:
             step.approval_required = False
             session.approval_state = f"approved:{step.step_id}"
             session.status = AgentSessionStatus.RUNNING
+            self._record_event(AgentEventType.APPROVAL_GRANTED, "Kalıcı adım onaylandı.", step_id=step.step_id)
             if not self._execute_current(step):
                 return session
             return self.run()
@@ -183,6 +248,8 @@ class AgentController:
             if session.status not in {AgentSessionStatus.RUNNING, AgentSessionStatus.READY, AgentSessionStatus.AWAITING_STEP_APPROVAL}:
                 raise AgentStateError("Agent görevi bu durumda duraklatılamaz.")
             session.status = AgentSessionStatus.PAUSED
+            session.last_summary = "Agent görevi duraklatıldı."
+            self._record_event(AgentEventType.SESSION_PAUSED, session.last_summary)
             session.touch()
             self._persist()
             return session
@@ -197,6 +264,8 @@ class AgentController:
                 self._persist()
                 return session
             session.status = AgentSessionStatus.READY
+            session.last_summary = "Görev güvenli kullanıcı eylemiyle yeniden başlatıldı."
+            self._record_event(AgentEventType.SESSION_RESUMED, session.last_summary)
             self._persist()
             return self.run()
 
@@ -210,7 +279,15 @@ class AgentController:
     def shutdown(self) -> None:
         with self._lock:
             if self.active_session is not None:
-                self.cancel(self.active_session.session_id)
+                session = self.active_session
+                session.cancellation_token.cancel()
+                session.generation_id += 1
+                session.status = AgentSessionStatus.INTERRUPTED
+                session.error_code = AgentErrorCode.INTERRUPTED.value
+                session.last_summary = user_error_message(AgentErrorCode.INTERRUPTED)
+                self._record_event(AgentEventType.SESSION_INTERRUPTED, session.last_summary, severity=AgentEventSeverity.WARNING, technical_code=session.error_code)
+                session.touch()
+                self._persist()
             self.executor.shutdown()
 
     def status(self) -> AgentProgress | None:
@@ -229,12 +306,94 @@ class AgentController:
         completed = sum(step.status is AgentStepStatus.SUCCEEDED for step in session.plan.steps)
         skipped = sum(step.status is AgentStepStatus.SKIPPED for step in session.plan.steps)
         failed = sum(step.status in {AgentStepStatus.FAILED, AgentStepStatus.BLOCKED} for step in session.plan.steps)
-        return f"Tamamlanan: {completed}; atlanan: {skipped}; başarısız: {failed}."
+        if session.status is AgentSessionStatus.COMPLETED:
+            return f"Görev tamamlandı. {completed} adım güvenli biçimde doğrulandı."
+        if session.status is AgentSessionStatus.PARTIALLY_COMPLETED:
+            return f"Görev kısmen tamamlandı. {completed} adım doğrulandı, {skipped} adım atlandı."
+        if session.status is AgentSessionStatus.UNCERTAIN:
+            return user_error_message(AgentErrorCode.PERSISTENT_OUTCOME_UNCERTAIN)
+        if session.status in {AgentSessionStatus.FAILED, AgentSessionStatus.BLOCKED} and session.error_code:
+            return user_error_message(session.error_code)
+        if session.status is AgentSessionStatus.AWAITING_INPUT:
+            return session.last_summary or "Görevi başlatmak için bazı bilgiler eksik."
+        return f"Görev ilerliyor: {completed} tamamlandı, {skipped} atlandı, {failed} başarısız."
+
+    def safe_restart(self, session_id: str, *, user_request: str | None = None) -> AgentSession:
+        with self._lock:
+            source = self._matching(session_id)
+            if source.status not in {
+                AgentSessionStatus.FAILED,
+                AgentSessionStatus.CANCELLED,
+                AgentSessionStatus.INTERRUPTED,
+                AgentSessionStatus.BLOCKED,
+                AgentSessionStatus.UNCERTAIN,
+                AgentSessionStatus.PARTIALLY_COMPLETED,
+            }:
+                raise AgentStateError("Bu görev güvenli kopya olarak yeniden başlatılamaz.")
+            replacement = AgentSession.create(source.conversation_id, user_request or source.user_request)
+            replacement.source_session_id = source.session_id
+            replacement.generation_id = source.generation_id + 1
+            if source.plan is not None:
+                id_map = {step.step_id: f"restart-{index}" for index, step in enumerate(source.plan.steps, 1)}
+                steps: list[AgentStep] = []
+                for original in source.plan.steps:
+                    step = deepcopy(original)
+                    step.step_id = id_map[original.step_id]
+                    step.dependencies = tuple(id_map[item] for item in original.dependencies)
+                    step.status = AgentStepStatus.PENDING
+                    step.result_summary = None
+                    step.error_code = None
+                    step.execution_id = None
+                    step.verification_status = None
+                    step.retry_count = 0
+                    step.idempotency_key = None
+                    step.approval_required = step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}
+                    steps.append(step)
+                replacement.plan = AgentPlan(
+                    uuid4().hex,
+                    source.plan.summary,
+                    steps,
+                    template_id=source.plan.template_id,
+                    title=source.plan.title,
+                    risk_summary=source.plan.risk_summary,
+                )
+                replacement.metrics.planned_step_count = len(steps)
+                replacement.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL
+                replacement.duplicate_check_required = any(
+                    step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}
+                    and original.status in {AgentStepStatus.RUNNING, AgentStepStatus.VERIFYING, AgentStepStatus.SUCCEEDED, AgentStepStatus.FAILED}
+                    for step, original in zip(steps, source.plan.steps)
+                )
+            self._session = replacement
+            self._step_attempts.clear()
+            self._loop_detector.reset()
+            self._record_event(AgentEventType.SESSION_CREATED, "Görev güvenli bir kopya olarak yeniden hazırlandı.")
+            self._persist()
+            return replacement
 
     def _execute_current(self, step: AgentStep) -> bool:
         session = self._require_session()
+        if not self.executor.available(step.tool_name):
+            step.status = AgentStepStatus.BLOCKED
+            step.error_code = AgentErrorCode.TOOL_UNAVAILABLE.value
+            step.result_summary = user_error_message(AgentErrorCode.TOOL_UNAVAILABLE)
+            session.error_code = step.error_code
+            session.metrics.tool_availability_failure_count += 1
+            session.checkpoints.append(checkpoint_for_step(step))
+            self._record_event(AgentEventType.STEP_FAILED, step.result_summary, step_id=step.step_id, severity=AgentEventSeverity.WARNING, technical_code=step.error_code)
+            session.status = AgentSessionStatus.BLOCKED
+            session.touch()
+            self._persist()
+            return False
+        step.idempotency_key = step.idempotency_key or idempotency_key(session.session_id, step)
         step.status = AgentStepStatus.RUNNING
+        self._record_event(AgentEventType.STEP_STARTED, "Agent adımı başlatıldı.", step_id=step.step_id)
+        generation = session.generation_id
         result = self.executor.execute(step, RequestContext(session.conversation_id, generation_id=session.generation_id, confirmed=True), session.cancellation_token)
+        if session.generation_id != generation:
+            step.status = AgentStepStatus.CANCELLED
+            step.error_code = AgentErrorCode.STALE_RESULT.value
+            return False
         if session.cancellation_token.cancelled:
             self._finish_cancelled()
             return False
@@ -243,22 +402,48 @@ class AgentController:
         session.metrics.step_duration_ms.append(result.duration_ms)
         step.status = AgentStepStatus.VERIFYING
         verification = self.verifier.verify(step, result)
+        step.verification_status = verification.status
         if verification.status is VerificationStatus.VERIFIED:
             step.status = AgentStepStatus.SUCCEEDED
             step.result_summary = verification.summary
             session.metrics.succeeded_count += 1
+            session.checkpoints.append(checkpoint_for_step(step))
+            self._record_event(AgentEventType.STEP_VERIFIED, "Agent adımı deterministic olarak doğrulandı.", step_id=step.step_id)
             session.current_step_index += 1
             session.touch()
-            self._persist()
+            stored = self._persist()
+            if not stored and step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}:
+                step.status = AgentStepStatus.FAILED
+                step.verification_status = VerificationStatus.UNCERTAIN
+                step.error_code = AgentErrorCode.PERSISTENT_OUTCOME_UNCERTAIN.value
+                session.metrics.uncertain_outcome_count += 1
+                self._finish_failure(uncertain=True)
+                return False
             return True
-        step.error_code = result.error_code or verification.status.value
+        step.error_code = result.error_code or (
+            AgentErrorCode.VERIFICATION_UNCERTAIN.value
+            if verification.status is VerificationStatus.UNCERTAIN
+            else AgentErrorCode.VERIFICATION_FAILED.value
+        )
+        session.error_code = step.error_code
         step.result_summary = verification.summary
         attempts = self._step_attempts.get(step.step_id, 0) + 1
         self._step_attempts[step.step_id] = attempts
-        if verification.status is VerificationStatus.FAILED and self.policy.can_retry(step, attempts):
-            return self._execute_current(step)
+        step.retry_count = attempts
         step.status = AgentStepStatus.FAILED
+        session.checkpoints.append(checkpoint_for_step(step))
+        self._record_event(AgentEventType.STEP_FAILED, "Agent adımı doğrulanamadı.", step_id=step.step_id, severity=AgentEventSeverity.WARNING, technical_code=step.error_code)
+        self._persist()
+        if (
+            verification.status is VerificationStatus.FAILED
+            and result.retryable
+            and self.policy.can_retry(step, attempts, step.error_code, cancelled=session.cancellation_token.cancelled)
+        ):
+            session.metrics.retry_count += 1
+            return self._execute_current(step)
         session.metrics.failed_count += 1
+        if verification.status is VerificationStatus.UNCERTAIN:
+            session.metrics.uncertain_outcome_count += 1
         if self._try_replan(step):
             return True
         self._finish_failure(uncertain=verification.status is VerificationStatus.UNCERTAIN)
@@ -271,17 +456,26 @@ class AgentController:
         completed = tuple(step.result_summary or step.title for step in session.plan.steps if step.status is AgentStepStatus.SUCCEEDED)
         context = AgentContext.bounded(session.user_request, capabilities=self._capabilities, completed=completed)
         session.status = AgentSessionStatus.REPLANNING
+        self._record_event(AgentEventType.REPLAN_STARTED, "Güvenli yeniden planlama başlatıldı.")
         try:
             replacement = self.planner.replan(context, failed_step, failed_step.error_code or "failed")
         except AgentPlanError:
             return False
-        signatures = {(step.tool_name, repr(sorted(step.typed_arguments.items()))) for step in session.plan.steps if step.risk_level.value == "persistent"}
-        if any((step.tool_name, repr(sorted(step.typed_arguments.items()))) in signatures for step in replacement.steps if step.risk_level.value == "persistent"):
+        signatures = {normalized_operation_hash(step) for step in session.plan.steps if step.risk_level is RiskLevel.PERSISTENT}
+        if any(normalized_operation_hash(step) in signatures for step in replacement.steps if step.risk_level is RiskLevel.PERSISTENT):
+            return False
+        plan_signature = ":".join(normalized_operation_hash(step) for step in replacement.steps)
+        progress_token = ":".join(sorted(step.step_id for step in session.plan.steps if step.status is AgentStepStatus.SUCCEEDED))
+        loop = self._loop_detector.observe_replan(plan_signature, progress_token)
+        if loop.detected:
+            session.metrics.loop_detection_count += 1
+            session.error_code = AgentErrorCode.LOOP_DETECTED.value
             return False
         session.metrics.replan_count += 1
         session.plan = AgentPlan(replacement.plan_id, replacement.summary, [step for step in session.plan.steps if step.status is AgentStepStatus.SUCCEEDED] + replacement.steps, revision=session.plan.revision + 1)
         session.current_step_index = sum(step.status is AgentStepStatus.SUCCEEDED for step in session.plan.steps)
         session.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL if any(self.policy.requires_step_approval(step) for step in replacement.steps) else AgentSessionStatus.RUNNING
+        self._record_event(AgentEventType.REPLAN_COMPLETED, "Plan güvenli biçimde güncellendi.")
         self._persist()
         return session.status is AgentSessionStatus.RUNNING
 
@@ -291,14 +485,23 @@ class AgentController:
         session.status = AgentSessionStatus.PARTIALLY_COMPLETED if skipped else AgentSessionStatus.COMPLETED
         session.current_step_index = len(session.plan.steps) if session.plan else 0
         session.touch()
+        session.last_summary = "Görev tamamlandı." if not skipped else "Görev kısmen tamamlandı."
+        self._record_event(AgentEventType.SESSION_COMPLETED, session.last_summary)
         self._persist()
         return session
 
     def _finish_failure(self, uncertain: bool = False) -> AgentSession:
         session = self._require_session()
         completed = bool(session.plan and any(step.status is AgentStepStatus.SUCCEEDED for step in session.plan.steps))
-        session.status = AgentSessionStatus.PARTIALLY_COMPLETED if completed or uncertain else AgentSessionStatus.FAILED
+        session.status = AgentSessionStatus.UNCERTAIN if uncertain else (AgentSessionStatus.PARTIALLY_COMPLETED if completed else AgentSessionStatus.FAILED)
+        session.error_code = (
+            AgentErrorCode.PERSISTENT_OUTCOME_UNCERTAIN.value
+            if uncertain
+            else session.error_code or AgentErrorCode.INTERNAL_ERROR.value
+        )
+        session.last_summary = user_error_message(session.error_code)
         session.touch()
+        self._record_event(AgentEventType.SESSION_FAILED, session.last_summary, severity=AgentEventSeverity.ERROR, technical_code=session.error_code)
         self._persist()
         return session
 
@@ -309,8 +512,11 @@ class AgentController:
                 if step.status in {AgentStepStatus.PENDING, AgentStepStatus.WAITING_APPROVAL, AgentStepStatus.RUNNING, AgentStepStatus.VERIFYING}:
                     step.status = AgentStepStatus.CANCELLED
         session.status = AgentSessionStatus.CANCELLED
+        session.error_code = AgentErrorCode.USER_CANCELLED.value
         session.metrics.cancellation_count += 1
         session.touch()
+        session.last_summary = "Agent görevi iptal edildi."
+        self._record_event(AgentEventType.SESSION_CANCELLED, session.last_summary)
         self._persist()
         return session
 
@@ -329,6 +535,29 @@ class AgentController:
         session = self._require_session()
         return next(step for step in session.plan.steps if step.step_id == step_id)  # type: ignore[union-attr]
 
-    def _persist(self) -> None:
+    def _record_event(
+        self,
+        event_type: AgentEventType,
+        summary: str,
+        *,
+        step_id: str | None = None,
+        severity: AgentEventSeverity = AgentEventSeverity.INFO,
+        technical_code: str | None = None,
+    ) -> None:
+        if self._session is not None:
+            self._session.events.append(AgentEvent.create(
+                self._session.session_id,
+                event_type,
+                summary,
+                step_id=step_id,
+                severity=severity,
+                technical_code=technical_code,
+            ))
+
+    def _persist(self) -> bool:
         if self.repository is not None and self._session is not None:
-            self.repository.save(self._session)
+            try:
+                self.repository.save(self._session)
+            except (OSError, ValueError, TypeError):
+                return False
+        return True

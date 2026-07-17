@@ -47,6 +47,12 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
             return ToolResult(False, "Kaydedilecek bilgiyi netleştirir misin?", error_code="validation_error", requires_follow_up=True)
         if memory.is_sensitive_content(content):
             return ToolResult(False, "Bu bilgi hassas göründüğü için hafızaya kaydedemem.", error_code="permission_denied")
+        duplicate = next(
+            (item for item in memory.list_memories() if " ".join(item.content.casefold().split()) == " ".join(content.casefold().split())),
+            None,
+        )
+        if duplicate is not None:
+            return ToolResult(True, "Bu bilgi zaten hafızadaydı; ikinci bir kayıt oluşturmadım.", duplicate)
         created = memory.add_memory(MemoryType.CONVERSATION_NOTE, content)
         return ToolResult(True, "Bunu hafızaya kaydettim." if created else "Bu bilgi zaten hafızadaydı.", created)
 

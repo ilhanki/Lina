@@ -76,7 +76,7 @@ def _reminder_create(values: Mapping[str, object]) -> AgentPlan:
 
 
 def _reminder_list(values: Mapping[str, object]) -> AgentPlan:
-    step = AgentStep("list-reminders", "Hatırlatıcıları getir", "İlgili hatırlatıcıları salt okunur listele.", "reminder.list", {}, verification_rule="non_empty")
+    step = AgentStep("list-reminders", "Hatırlatıcıları getir", "İlgili hatırlatıcıları salt okunur listele.", "reminder.list", {}, verification_rule="typed_success")
     return _plan("reminders.summary", f"Hatırlatıcı özeti ({values['range']})", [step])
 
 

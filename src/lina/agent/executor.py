@@ -8,7 +8,7 @@ from threading import Lock
 from time import monotonic
 from uuid import uuid4
 
-from lina.agent.models import AgentStep, CancellationToken, ExecutionResult
+from lina.agent.models import AgentStep, CancellationToken, ExecutionResult, RiskLevel
 from lina.brain.routing.models import IntentRequest, RequestContext
 
 
@@ -17,13 +17,23 @@ class AgentExecutor:
         self.registry = registry
         self.timeout_seconds = max(0.1, timeout_seconds)
         self._active: set[str] = set()
+        self._persistent_attempts: set[str] = set()
         self._lock = Lock()
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="lina-agent")
 
     def execute(self, step: AgentStep, context: RequestContext, cancellation: CancellationToken) -> ExecutionResult:
         execution_id = uuid4().hex
         if cancellation.cancelled:
-            return ExecutionResult(False, "Agent görevi iptal edildi.", error_code="cancelled", execution_id=execution_id)
+            return ExecutionResult(False, "Agent görevi iptal edildi.", error_code="user_cancelled", execution_id=execution_id)
+        if step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE} and step.idempotency_key:
+            with self._lock:
+                if step.idempotency_key in self._persistent_attempts:
+                    return ExecutionResult(
+                        False,
+                        "Kalıcı işlem daha önce denendi; otomatik olarak tekrarlanmadı.",
+                        error_code="persistent_outcome_uncertain",
+                        execution_id=execution_id,
+                    )
         with self._lock:
             if step.step_id in self._active:
                 return ExecutionResult(False, "Bu adım zaten çalışıyor.", error_code="duplicate_execution", execution_id=execution_id)
@@ -32,22 +42,29 @@ class AgentExecutor:
         try:
             definition = getattr(self.registry, "get_by_name", lambda _name: None)(step.tool_name)
             if definition is None or not definition.available():
-                return self._result(False, "Gerekli araç şu anda kullanılamıyor.", "unavailable", execution_id, started)
+                return self._result(False, "Gerekli araç şu anda kullanılamıyor.", "tool_unavailable", execution_id, started)
             error = self._validate_arguments(step.typed_arguments, definition.input_schema)
             if error:
-                return self._result(False, error, "validation_error", execution_id, started)
+                return self._result(False, error, "invalid_arguments", execution_id, started)
+            if step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE} and step.idempotency_key:
+                with self._lock:
+                    self._persistent_attempts.add(step.idempotency_key)
             request = IntentRequest(definition.intent, 1.0, "Agent Mode step", dict(step.typed_arguments), definition.requires_confirmation, "agent", execution_id)
             future = self._pool.submit(definition.execute, request, context)
             try:
                 raw = future.result(timeout=self.timeout_seconds)
             except TimeoutError:
                 future.cancel()
-                return self._result(False, "Araç zaman aşımına uğradı.", "timeout", execution_id, started, True)
+                persistent = step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}
+                code = "persistent_outcome_uncertain" if persistent else "timeout"
+                return self._result(False, "Araç zaman aşımına uğradı.", code, execution_id, started, not persistent)
             except Exception:
-                return self._result(False, "Araç adımı güvenli biçimde tamamlanamadı.", "execution_error", execution_id, started)
+                return self._result(False, "Araç adımı güvenli biçimde tamamlanamadı.", "internal_error", execution_id, started)
             if cancellation.cancelled:
-                return self._result(False, "Agent görevi iptal edildi.", "cancelled", execution_id, started)
-            return ExecutionResult(bool(raw.success), str(raw.user_message)[:500], raw.data, raw.error_code, execution_id, round((monotonic() - started) * 1000), bool(raw.retryable))
+                code = "persistent_outcome_uncertain" if step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE} else "user_cancelled"
+                return self._result(False, "Agent görevi iptal edildi.", code, execution_id, started)
+            code = _normalize_error_code(raw.error_code, retryable=bool(raw.retryable))
+            return ExecutionResult(bool(raw.success), str(raw.user_message)[:500], raw.data, code, execution_id, round((monotonic() - started) * 1000), bool(raw.retryable) and step.risk_level is RiskLevel.READ_ONLY)
         finally:
             with self._lock:
                 self._active.discard(step.step_id)
@@ -75,3 +92,25 @@ class AgentExecutor:
 
     def shutdown(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+
+    def available(self, tool_name: str) -> bool:
+        definition = getattr(self.registry, "get_by_name", lambda _name: None)(tool_name)
+        try:
+            return bool(definition is not None and definition.available())
+        except Exception:
+            return False
+
+
+def _normalize_error_code(code: str | None, *, retryable: bool) -> str | None:
+    if code is None:
+        return None
+    return {
+        "unavailable": "tool_unavailable",
+        "validation_error": "invalid_arguments",
+        "confirmation_required": "approval_required",
+        "cancelled": "user_cancelled",
+        "persistence_error": "storage_failure",
+        "execution_error": "transient_failure" if retryable else "internal_error",
+        "stale_request": "stale_result",
+        "unsupported": "unsupported_request",
+    }.get(code, code)

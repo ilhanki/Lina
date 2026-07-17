@@ -1,11 +1,15 @@
 """Deterministic verification; model prose is never proof of success."""
 
-from lina.agent.models import AgentStep, ExecutionResult, VerificationResult, VerificationStatus
+from lina.agent.models import AgentStep, ExecutionResult, RiskLevel, VerificationResult, VerificationStatus
 
 
 class AgentVerifier:
     def verify(self, step: AgentStep, result: ExecutionResult) -> VerificationResult:
         if not result.success:
+            if result.error_code == "persistent_outcome_uncertain" or (
+                result.error_code == "timeout" and step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}
+            ):
+                return VerificationResult(VerificationStatus.UNCERTAIN, "Kalıcı işlemin sonucu doğrulanamadı; otomatik tekrar yapılmayacak.")
             return VerificationResult(VerificationStatus.FAILED, result.summary[:300])
         rule = step.verification_rule
         if rule.kind in {"typed_success", "success"}:

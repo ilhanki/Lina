@@ -71,8 +71,20 @@ class AgentPolicy:
     def requires_step_approval(step: AgentStep) -> bool:
         return step.approval_required or step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE}
 
-    def can_retry(self, step: AgentStep, attempts: int) -> bool:
-        return step.risk_level is RiskLevel.READ_ONLY and attempts <= self.max_step_retries
+    def can_retry(
+        self,
+        step: AgentStep,
+        attempts: int,
+        error_code: str = "transient_failure",
+        *,
+        cancelled: bool = False,
+    ) -> bool:
+        return (
+            not cancelled
+            and step.risk_level is RiskLevel.READ_ONLY
+            and attempts <= self.max_step_retries
+            and error_code in {"timeout", "transient_failure"}
+        )
 
     def capability_snapshot(self, registry: object) -> tuple[CapabilitySnapshot, ...]:
         definitions = getattr(registry, "definitions", lambda: ())()

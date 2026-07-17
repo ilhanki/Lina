@@ -34,6 +34,7 @@ class AgentStepStatus(str, Enum):
 class AgentSessionStatus(str, Enum):
     IDLE = "idle"
     PLANNING = "planning"
+    AWAITING_INPUT = "awaiting_input"
     AWAITING_PLAN_APPROVAL = "awaiting_plan_approval"
     READY = "ready"
     RUNNING = "running"
@@ -46,6 +47,7 @@ class AgentSessionStatus(str, Enum):
     CANCELLED = "cancelled"
     BLOCKED = "blocked"
     INTERRUPTED = "interrupted"
+    UNCERTAIN = "uncertain"
 
 
 class RiskLevel(str, Enum):
@@ -68,6 +70,34 @@ class ApprovalDecision(str, Enum):
     MODIFY = "modify"
     CANCEL = "cancel"
     AMBIGUOUS = "ambiguous"
+
+
+class AgentEventType(str, Enum):
+    SESSION_CREATED = "session_created"
+    PLAN_CREATED = "plan_created"
+    PLAN_MODIFIED = "plan_modified"
+    PLAN_APPROVED = "plan_approved"
+    STEP_STARTED = "step_started"
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_GRANTED = "approval_granted"
+    APPROVAL_DENIED = "approval_denied"
+    STEP_VERIFIED = "step_verified"
+    STEP_FAILED = "step_failed"
+    STEP_SKIPPED = "step_skipped"
+    REPLAN_STARTED = "replan_started"
+    REPLAN_COMPLETED = "replan_completed"
+    SESSION_PAUSED = "session_paused"
+    SESSION_RESUMED = "session_resumed"
+    SESSION_INTERRUPTED = "session_interrupted"
+    SESSION_CANCELLED = "session_cancelled"
+    SESSION_COMPLETED = "session_completed"
+    SESSION_FAILED = "session_failed"
+
+
+class AgentEventSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,12 +137,17 @@ class AgentStep:
     error_code: str | None = None
     execution_id: str | None = None
     optional: bool = False
+    verification_status: VerificationStatus | None = None
+    retry_count: int = 0
+    idempotency_key: str | None = None
 
     def __post_init__(self) -> None:
         self.risk_level = RiskLevel(self.risk_level)
         self.status = AgentStepStatus(self.status)
         self.dependencies = tuple(self.dependencies)
         self.verification_rule = VerificationRule.from_value(self.verification_rule)
+        if self.verification_status is not None:
+            self.verification_status = VerificationStatus(self.verification_status)
         if not self.step_id or not self.title.strip() or not self.tool_name.strip():
             raise AgentPlanError("Plan adımı kimlik, başlık ve araç içermeli.")
         if not isinstance(self.typed_arguments, dict):
@@ -181,6 +216,10 @@ class AgentMetrics:
     replan_count: int = 0
     cancellation_count: int = 0
     step_duration_ms: list[int] = field(default_factory=list)
+    retry_count: int = 0
+    uncertain_outcome_count: int = 0
+    loop_detection_count: int = 0
+    tool_availability_failure_count: int = 0
 
     def safe_dict(self) -> dict[str, Any]:
         durations = self.step_duration_ms
@@ -193,6 +232,10 @@ class AgentMetrics:
             "approval_count": self.approval_count,
             "replan_count": self.replan_count,
             "cancellation_count": self.cancellation_count,
+            "retry_count": self.retry_count,
+            "uncertain_outcome_count": self.uncertain_outcome_count,
+            "loop_detection_count": self.loop_detection_count,
+            "tool_availability_failure_count": self.tool_availability_failure_count,
             "average_step_duration_ms": round(sum(durations) / len(durations)) if durations else 0,
         }
 
@@ -223,6 +266,12 @@ class AgentSession:
     cancellation_token: CancellationToken = field(default_factory=CancellationToken)
     metrics: AgentMetrics = field(default_factory=AgentMetrics)
     generation_id: int = 0
+    source_session_id: str | None = None
+    error_code: str | None = None
+    last_summary: str = ""
+    duplicate_check_required: bool = False
+    events: list["AgentEvent"] = field(default_factory=list)
+    checkpoints: list["AgentCheckpoint"] = field(default_factory=list)
 
     @classmethod
     def create(cls, conversation_id: int | None, user_request: str) -> "AgentSession":
@@ -237,7 +286,47 @@ class AgentSession:
             AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
             AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED,
             AgentSessionStatus.BLOCKED, AgentSessionStatus.INTERRUPTED,
+            AgentSessionStatus.UNCERTAIN,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class AgentEvent:
+    event_id: str
+    session_id: str
+    event_type: AgentEventType
+    timestamp: datetime
+    short_summary: str
+    severity: AgentEventSeverity = AgentEventSeverity.INFO
+    user_visible: bool = True
+    step_id: str | None = None
+    technical_code: str | None = None
+
+    @classmethod
+    def create(
+        cls,
+        session_id: str,
+        event_type: AgentEventType,
+        short_summary: str,
+        *,
+        step_id: str | None = None,
+        severity: AgentEventSeverity = AgentEventSeverity.INFO,
+        user_visible: bool = True,
+        technical_code: str | None = None,
+    ) -> "AgentEvent":
+        return cls(uuid4().hex, session_id, event_type, utc_now(), short_summary[:160], severity, user_visible, step_id, technical_code)
+
+
+@dataclass(frozen=True, slots=True)
+class AgentCheckpoint:
+    step_id: str
+    status: AgentStepStatus
+    tool_name: str
+    risk_level: RiskLevel
+    verification_status: VerificationStatus | None
+    short_result_summary: str
+    timestamp: datetime
+    execution_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
