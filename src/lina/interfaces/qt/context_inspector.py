@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
     QScrollArea,
     QStackedWidget,
@@ -59,6 +60,7 @@ class ToolsPanel(QFrame):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("contextSection")
+        self.setMinimumHeight(410)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -86,6 +88,7 @@ class MemoryPanel(QFrame):
     def __init__(self, memory_service: MemoryService | None = None, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("contextSection")
+        self.setMinimumHeight(132)
         self._memory_service = memory_service
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -113,6 +116,7 @@ class MemoryPanel(QFrame):
         while self.items.count():
             item = self.items.takeAt(0)
             if item.widget() is not None:
+                item.widget().hide()
                 item.widget().deleteLater()
         if self._memory_service is None:
             self._add_empty("Bellek bu çalışma alanında etkin değil.")
@@ -150,6 +154,7 @@ class LocalStatusPanel(QFrame):
     def __init__(self, model_name: str, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("contextSection")
+        self.setMinimumHeight(152)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(7)
@@ -219,6 +224,7 @@ class ContextInspector(QWidget):
         home_layout = QVBoxLayout(home)
         home_layout.setContentsMargins(0, 0, 0, 0)
         home_layout.setSpacing(20)
+        home_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         self.tools_panel = ToolsPanel(home)
         self.memory_panel = MemoryPanel(memory_service, home)
         self.local_panel = LocalStatusPanel(model_name, home)
@@ -286,4 +292,5 @@ class ContextInspector(QWidget):
             item = self.content.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.hide()
                 widget.deleteLater()

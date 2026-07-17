@@ -16,6 +16,7 @@ from lina.interfaces.qt.main_window import (
     clamp_window_geometry,
 )
 from lina.interfaces.qt.image_loader import ImageLoadError
+from lina.interfaces.qt.view_state import ResponsiveMode
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
 from lina.vision.models import PNG_SIGNATURE
@@ -1185,3 +1186,39 @@ def test_auto_scroll_preserves_position_when_user_reads_old_messages(qtbot) -> N
     qtbot.wait(50)
 
     assert bar.value() == 0
+
+
+def test_responsive_shell_docks_and_overlays_context_panel(qtbot) -> None:
+    window = LinaMainWindow(
+        conversation_service=FakeConversationService(),
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.resize(1440, 800)
+    window.show()
+    qtbot.wait(20)
+
+    assert window._responsive_mode is ResponsiveMode.LARGE
+    assert window._inspector.display_mode == "docked"
+    assert window._root_layout.indexOf(window._inspector) >= 0
+    assert window._inspector.isVisible()
+
+    window.resize(1100, 800)
+    qtbot.wait(20)
+    assert window._responsive_mode is ResponsiveMode.MEDIUM
+    assert window._inspector.isHidden()
+
+    window._toggle_inspector()
+    assert window._inspector.display_mode == "drawer"
+    assert window._root_layout.indexOf(window._inspector) == -1
+    assert window._drawer_scrim.isVisible()
+
+    window.resize(800, 700)
+    qtbot.wait(20)
+    assert window._responsive_mode is ResponsiveMode.COMPACT
+    assert window._sidebar.collapsed
+    window._handle_escape()
+    assert window._inspector.isHidden()
+    assert window._drawer_scrim.isHidden()

@@ -3,7 +3,7 @@ from datetime import datetime
 from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
 from lina.memory.models import MemoryRecord, MemoryType
 from lina.services.local_storage_service import LocalStorageSnapshot
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QPushButton
 
 
 def test_inspector_is_progressive_and_accessible(qtbot):
@@ -40,6 +40,12 @@ def test_context_inspector_exposes_real_tool_routes_and_memory(qtbot):
     assert inspector.memory_panel.items.count() == 1
     inspector.set_storage_snapshot(LocalStorageSnapshot(2048, 2, ()))
     assert "2.0 KB" in inspector.local_panel.storage_label.text()
+    inspector.memory_panel.refresh()
+    assert inspector.memory_panel.items.count() == 1
+    assert len([
+        button for button in inspector.memory_panel.findChildren(QPushButton)
+        if "Koyu temayı" in button.text() and not button.isHidden()
+    ]) <= 1
 
 
 def test_command_palette_filters_and_executes_keyboard_action(qtbot):
