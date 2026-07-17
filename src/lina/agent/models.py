@@ -106,6 +106,7 @@ class AgentStep:
     result_summary: str | None = None
     error_code: str | None = None
     execution_id: str | None = None
+    optional: bool = False
 
     def __post_init__(self) -> None:
         self.risk_level = RiskLevel(self.risk_level)

@@ -10,14 +10,16 @@ from lina.agent.models import (
     VerificationResult, VerificationRule, VerificationStatus,
 )
 from lina.agent.persistence import AgentSessionRepository
+from lina.agent.plan_editing import AgentPlanDiff, AgentPlanEditor, diff_plans, render_plan_diff
 from lina.agent.planner import AgentPlanner
 from lina.agent.policy import AgentPolicy
+from lina.agent.quality import AgentPlanQualityValidator, PlanQualityIssue, PlanQualityIssueCode, PlanQualityResult
 from lina.agent.verifier import AgentVerifier
 
 __all__ = [
     "AgentContext", "AgentController", "AgentExecutor", "AgentPlan", "AgentPlanner", "AgentPolicy", "AgentProgress",
-    "AgentSession", "AgentSessionRepository", "AgentSessionStatus", "AgentStep",
+    "AgentPlanDiff", "AgentPlanEditor", "AgentPlanQualityValidator", "AgentSession", "AgentSessionRepository", "AgentSessionStatus", "AgentStep",
     "AgentStepStatus", "AgentVerifier", "ApprovalDecision", "CapabilitySnapshot",
     "ExecutionResult", "RiskLevel", "VerificationResult", "VerificationRule",
-    "VerificationStatus", "parse_approval",
+    "PlanQualityIssue", "PlanQualityIssueCode", "PlanQualityResult", "VerificationStatus", "diff_plans", "parse_approval", "render_plan_diff",
 ]

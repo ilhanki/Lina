@@ -61,6 +61,11 @@ class AgentPolicy:
             if signature in seen:
                 raise AgentPolicyError("Plan aynı adımı tekrar etmeye başladı. Güvenlik için görev durduruldu.")
             seen.add(signature)
+        from lina.agent.quality import AgentPlanQualityValidator
+
+        quality = AgentPlanQualityValidator().validate(plan, allowed_tools=available_tools)
+        if not quality.valid:
+            raise AgentPolicyError(quality.issues[0].summary)
 
     @staticmethod
     def requires_step_approval(step: AgentStep) -> bool:

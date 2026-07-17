@@ -32,7 +32,7 @@ class AgentPlanner:
         elif self.generator is None:
             plan = self._deterministic_plan(context, available)
         else:
-            plan = self._generate_with_repair(context)
+            plan = self._generate_with_repair(context, available)
         self.policy.validate_plan(plan, available)
         return plan
 
@@ -75,15 +75,19 @@ class AgentPlanner:
         self.policy.validate_plan(plan, {item.name for item in context.capabilities if item.available})
         return plan
 
-    def _generate_with_repair(self, context: AgentContext) -> AgentPlan:
+    def _generate_with_repair(self, context: AgentContext, available: set[str]) -> AgentPlan:
         raw = self.generator(context, None)
         try:
-            return self._parse(raw)
-        except (AgentPlanError, ValueError, TypeError):
-            repaired = self.generator(context, "Önceki çıktı şemaya uymadı; yalnızca geçerli typed plan döndür.")
+            plan = self._parse(raw)
+            self.policy.validate_plan(plan, available)
+            return plan
+        except (AgentPlanError, AgentPolicyError, ValueError, TypeError):
+            repaired = self.generator(context, "Önceki çıktı şema veya plan kalitesi kurallarına uymadı; yalnızca geçerli typed plan döndür.")
             try:
-                return self._parse(repaired)
-            except (AgentPlanError, ValueError, TypeError) as error:
+                plan = self._parse(repaired)
+                self.policy.validate_plan(plan, available)
+                return plan
+            except (AgentPlanError, AgentPolicyError, ValueError, TypeError) as error:
                 raise AgentPlanError("Bu görev için güvenli bir plan oluşturamadım.") from error
 
     def _deterministic_plan(self, context: AgentContext, available: set[str]) -> AgentPlan:
