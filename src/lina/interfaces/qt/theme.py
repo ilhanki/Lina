@@ -137,9 +137,36 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             color: {text_primary}; font-size: 14pt; font-weight: 650;
         }}
         QLabel#conversationSubtitle {{ color: {text_muted}; font-size: 9pt; }}
+        QLabel#readyStatusDot {{ color: {success}; font-size: 8pt; }}
         QWidget#detailsInspector {{
             background: {sidebar_bg}; border-left: 1px solid {soft_border};
         }}
+        QWidget#drawerScrim {{ background: rgba(4, 9, 18, 118); }}
+        QStackedWidget#inspectorPages, QWidget#inspectorHome,
+        QScrollArea#inspectorScroll, QScrollArea#inspectorScroll > QWidget > QWidget {{
+            background: {sidebar_bg}; border: none;
+        }}
+        QFrame#contextSection {{ background: transparent; border: none; }}
+        QLabel#inspectorSectionTitle {{
+            color: {text_secondary}; font-size: 10pt; font-weight: 650; padding: 2px 2px 6px;
+        }}
+        QLabel#inspectorDescription, QLabel#inspectorEmptyState {{
+            color: {text_muted}; font-size: 9pt; padding: 2px;
+        }}
+        QPushButton#contextToolRow {{
+            background: transparent; color: {text_primary}; border: 1px solid transparent;
+            border-radius: 11px; min-height: 58px; text-align: left; padding: 5px 10px;
+        }}
+        QPushButton#contextToolRow:hover {{ background: {elevated_bg}; border-color: {soft_border}; }}
+        QPushButton#memoryCard {{
+            background: {elevated_bg}; color: {text_secondary}; border: 1px solid {soft_border};
+            border-radius: 8px; text-align: left; padding: 7px 9px;
+        }}
+        QPushButton#memoryCard:hover {{ border-color: {accent}; color: {text_primary}; }}
+        QPushButton#inspectorLinkButton {{
+            background: transparent; color: {accent}; border: none; padding: 4px 2px;
+        }}
+        QPushButton#inspectorLinkButton:hover {{ color: {accent_hover}; }}
         QDialog#commandPalette {{ background: {panel_bg}; }}
         QPushButton#unifiedStatusButton {{
             background: transparent; color: {text_muted}; border: 1px solid transparent;
@@ -157,6 +184,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QPushButton#iconButton:hover, QPushButton#sidebarCollapseButton:hover {{
             background: {elevated_bg}; border-color: {soft_border};
         }}
+        QPushButton#iconButton[opened="true"] {{ background: {selected}; border-color: {soft_border}; }}
         QPushButton#sidebarShortcut {{
             background: transparent; color: {text_secondary}; border: 1px solid transparent;
             text-align: left; min-height: 34px; padding: 0 9px;
@@ -177,6 +205,9 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QWidget#statusPanel {{
             background: transparent;
             border: none;
+        }}
+        QLabel#composerDisclaimer, QLabel#composerModelLabel {{
+            color: {text_muted}; font-size: 8pt; padding: 0 12px;
         }}
         QPushButton#sessionButton {{
             background: transparent;

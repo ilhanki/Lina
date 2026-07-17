@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -26,6 +26,12 @@ class AppearanceSettings:
     compact_mode: bool = False
     reduce_motion: bool = False
     density: str = "comfortable"
+    sidebar_collapsed: bool = False
+    right_panel_visible: bool = True
+    right_panel_section: str = "tools"
+    right_panel_width: int = 320
+    message_width: int = 820
+    settings_last_section: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,8 +112,8 @@ class SystemSettings:
     show_missed_reminders: bool = True
     window_x: int | None = None
     window_y: int | None = None
-    window_width: int = 1240
-    window_height: int = 780
+    window_width: int = 1440
+    window_height: int = 900
     window_maximized: bool = False
 
 
@@ -152,6 +158,14 @@ class UserSettings:
             raise ValueError("Appearance font scale must be between 0.85 and 1.35")
         if self.appearance.density not in SUPPORTED_DENSITIES:
             raise ValueError("Unsupported interface density")
+        if self.appearance.right_panel_section not in {"tools", "memory", "agent", "voice", "vision", "system"}:
+            raise ValueError("Unsupported right panel section")
+        if not 300 <= self.appearance.right_panel_width <= 360:
+            raise ValueError("Right panel width must be between 300 and 360")
+        if not 720 <= self.appearance.message_width <= 900:
+            raise ValueError("Message width must be between 720 and 900")
+        if not 0 <= self.appearance.settings_last_section <= 9:
+            raise ValueError("Settings section index is outside safe bounds")
         if self.general.language != "tr":
             raise ValueError("Only Turkish user settings are supported")
         if self.speech.language != "tr":
@@ -212,6 +226,12 @@ class UserSettings:
                 "compact_mode": self.appearance.compact_mode,
                 "reduce_motion": self.appearance.reduce_motion,
                 "density": self.appearance.density,
+                "sidebar_collapsed": self.appearance.sidebar_collapsed,
+                "right_panel_visible": self.appearance.right_panel_visible,
+                "right_panel_section": self.appearance.right_panel_section,
+                "right_panel_width": self.appearance.right_panel_width,
+                "message_width": self.appearance.message_width,
+                "settings_last_section": self.appearance.settings_last_section,
             },
             "general": {
                 "language": self.general.language,
@@ -307,7 +327,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, 8, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -325,6 +345,17 @@ class UserSettings:
                 compact_mode=_bool(appearance, "compact_mode", defaults.appearance.compact_mode),
                 reduce_motion=_bool(appearance, "reduce_motion", defaults.appearance.reduce_motion),
                 density=_choice(appearance, "density", defaults.appearance.density, SUPPORTED_DENSITIES),
+                sidebar_collapsed=_bool(appearance, "sidebar_collapsed", defaults.appearance.sidebar_collapsed),
+                right_panel_visible=_bool(appearance, "right_panel_visible", defaults.appearance.right_panel_visible),
+                right_panel_section=_choice(
+                    appearance,
+                    "right_panel_section",
+                    defaults.appearance.right_panel_section,
+                    {"tools", "memory", "agent", "voice", "vision", "system"},
+                ),
+                right_panel_width=_bounded_int(appearance, "right_panel_width", defaults.appearance.right_panel_width, 300, 360),
+                message_width=_bounded_int(appearance, "message_width", defaults.appearance.message_width, 720, 900),
+                settings_last_section=_bounded_int(appearance, "settings_last_section", defaults.appearance.settings_last_section, 0, 9),
             ),
             general=GeneralSettings(
                 language=_choice(general, "language", "tr", {"tr"}),

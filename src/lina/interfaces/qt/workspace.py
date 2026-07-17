@@ -7,10 +7,10 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QDialog, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QPushButton, QVBoxLayout, QWidget,
+    QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
-from lina.ui.design import standard_icon
+
+from lina.interfaces.qt.context_inspector import ContextInspector
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,57 +22,7 @@ class PaletteAction:
     available: bool = True
 
 
-class DetailsInspector(QWidget):
-    closed = Signal()
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setObjectName("detailsInspector")
-        self.setAccessibleName("Ayrıntılar paneli")
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        header = QHBoxLayout()
-        self.title = QLabel("Ayrıntılar", self)
-        self.title.setObjectName("inspectorTitle")
-        header.addWidget(self.title, 1)
-        self.close_button = QPushButton("Kapat", self)
-        self.close_button.setObjectName("iconButton")
-        self.close_button.setToolTip("Ayrıntılar panelini kapat")
-        self.close_button.setAccessibleName("Ayrıntıları kapat")
-        self.close_button.setIcon(standard_icon(self, "close"))
-        header.addWidget(self.close_button)
-        layout.addLayout(header)
-        self.summary = QLabel("Aktif görev veya oturum ayrıntıları burada görünür.", self)
-        self.summary.setObjectName("mutedLabel")
-        self.summary.setWordWrap(True)
-        self.summary.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addWidget(self.summary)
-        self.content = QVBoxLayout()
-        layout.addLayout(self.content)
-        layout.addStretch(1)
-        self.close_button.clicked.connect(self.closed)
-
-    def show_details(self, title: str, summary: str) -> None:
-        self._clear_content()
-        self.title.setText(title)
-        self.summary.show()
-        self.summary.setText(summary)
-        self.show()
-
-    def show_widget(self, title: str, widget: QWidget) -> None:
-        self._clear_content()
-        self.title.setText(title)
-        self.summary.hide()
-        widget.setParent(self)
-        self.content.addWidget(widget)
-        self.show()
-
-    def _clear_content(self) -> None:
-        while self.content.count():
-            item = self.content.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+DetailsInspector = ContextInspector
 
 
 class CommandPalette(QDialog):

@@ -8,8 +8,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QRect, QTimer, QThreadPool, Qt, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QCursor, QFont, QGuiApplication, QIcon, QImage, QKeySequence
+from PySide6.QtCore import QRect, QTimer, QThreadPool, Qt, Signal, QUrl
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QCursor,
+    QDesktopServices,
+    QFont,
+    QGuiApplication,
+    QIcon,
+    QImage,
+    QKeySequence,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -70,10 +80,14 @@ from lina.interfaces.qt.agent_task_center import (
     TaskTemplateParameterDialog,
 )
 from lina.interfaces.qt.worker import FunctionWorker
+from lina.interfaces.qt.context_inspector import DrawerScrim
+from lina.interfaces.qt.view_state import ApplicationViewState, ResponsiveMode, RightPanelSection
 from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
 from lina.ui.design import design_tokens, standard_icon
 from lina.interfaces.status import StatusPriority, UnifiedStatusController
 from lina.services.conversation_service import ConversationService
+from lina.services.local_storage_service import LocalStorageService, LocalStorageSnapshot
+from lina.memory.service import MemoryService
 from lina.conversations.models import ConversationSession
 from lina.services.conversation_models import ConversationInput, ConversationResult
 from lina.interfaces.qt.widgets.welcome_state import WelcomeStateWidget
@@ -119,7 +133,7 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.12.1-alpha"
+APP_VERSION = "v0.12.2-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -176,6 +190,8 @@ class LinaMainWindow(QMainWindow):
         hands_free_service: HandsFreeConversationService | None = None,
         live_vision_controller: LiveVisionController | None = None,
         agent_controller: AgentController | None = None,
+        memory_service: MemoryService | None = None,
+        local_storage_service: LocalStorageService | None = None,
         screen_preview_factory: Callable[[ScreenContext, QWidget | None], QDialog]
         | None = None,
         thread_pool: QThreadPool | None = None,
@@ -192,6 +208,8 @@ class LinaMainWindow(QMainWindow):
         self._hands_free_service = hands_free_service
         self._live_vision_controller = live_vision_controller
         self._agent_controller = agent_controller
+        self._memory_service = memory_service
+        self._local_storage_service = local_storage_service
         self._agent_enabled = bool(
             user_settings_service and user_settings_service.current.agent.agent_mode_enabled
         )
@@ -264,10 +282,17 @@ class LinaMainWindow(QMainWindow):
         )
         self._conversation_view = "chats"
         self._conversation_query = ""
+        self._view_state = ApplicationViewState()
+        self._responsive_mode = ResponsiveMode.LARGE
+        self._right_panel_requested_visible = True
+        self._right_panel_width = design_tokens("dark").layout.inspector_width
+        self._message_width = design_tokens("dark").layout.chat_readable
+        self._storage_snapshot: LocalStorageSnapshot | None = None
 
         self.setWindowTitle("Lina")
-        self.setMinimumSize(720, 560)
-        self.resize(1240, 780)
+        metrics = design_tokens("dark").layout
+        self.setMinimumSize(metrics.minimum_window_width, metrics.minimum_window_height)
+        self.resize(1440, 900)
         self._apply_window_icon()
         self._build_layout()
         self.voice_state_changed.connect(self._apply_voice_state)
@@ -306,11 +331,14 @@ class LinaMainWindow(QMainWindow):
         self._run_initial_diagnostics()
         self._run_initial_vision_diagnostics()
         self._refresh_speech_status()
+        self._refresh_local_storage()
 
     def _build_layout(self) -> None:
         central = QWidget(self)
         central.setObjectName("centralWidget")
+        self._central = central
         root_layout = QHBoxLayout(central)
+        self._root_layout = root_layout
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
@@ -334,11 +362,17 @@ class LinaMainWindow(QMainWindow):
         panel_layout.setSpacing(0)
         root_layout.addWidget(panel, 1)
 
-        self._inspector = DetailsInspector(self)
-        self._inspector.setFixedWidth(design_tokens("dark").layout.inspector_width)
-        self._inspector.hide()
+        self._inspector = DetailsInspector(self._memory_service, model_name, central)
+        self._inspector.setFixedWidth(self._right_panel_width)
         self._inspector.closed.connect(self._close_inspector)
+        self._inspector.tool_requested.connect(self._handle_context_tool)
+        self._inspector.memory_requested.connect(self._show_memory_inspector)
+        self._inspector.data_folder_requested.connect(self._open_local_data_folder)
         root_layout.addWidget(self._inspector)
+
+        self._drawer_scrim = DrawerScrim(central)
+        self._drawer_scrim.clicked.connect(self._close_inspector)
+        self._drawer_scrim.hide()
 
         self._build_header(panel_layout)
         self._build_chat_area(panel_layout)
@@ -372,16 +406,25 @@ class LinaMainWindow(QMainWindow):
         self._session_title = QLabel(self._session_title_text, header)
         self._session_title.setObjectName("conversationTitle")
         titles.addWidget(self._session_title)
-        subtitle = QLabel("Yerel çalışma alanı", header)
-        subtitle.setObjectName("conversationSubtitle")
-        titles.addWidget(subtitle)
+        status_row = QHBoxLayout()
+        status_row.setSpacing(6)
+        status_dot = QLabel("●", header)
+        status_dot.setObjectName("readyStatusDot")
+        status_dot.setAccessibleName("Hazır")
+        status_row.addWidget(status_dot)
+        self._header_status_label = QLabel("Hazır", header)
+        self._header_status_label.setObjectName("conversationSubtitle")
+        status_row.addWidget(self._header_status_label)
+        status_row.addStretch(1)
+        titles.addLayout(status_row)
         self._session_date_label = QLabel("", header)
         self._session_date_label.setObjectName("sessionDateLabel")
         self._session_date_label.hide()
         layout.addLayout(titles, 1)
 
-        self._status_button = QPushButton("Hazır", header)
+        self._status_button = QPushButton("", header)
         self._status_button.setObjectName("unifiedStatusButton")
+        self._status_button.setIcon(standard_icon(self, "status"))
         self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
         self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
         self._status_button.clicked.connect(self._show_status_menu)
@@ -420,12 +463,12 @@ class LinaMainWindow(QMainWindow):
                 self._notification_button.clicked.connect(self.open_notifications)
                 self._notification_button.hide()
                 layout.addWidget(self._notification_button)
-        self._inspector_button = QPushButton("Araçlar", header)
+        self._inspector_button = QPushButton("", header)
         self._inspector_button.setObjectName("iconButton")
-        self._inspector_button.setToolTip("Araçlar ve uygulama seçenekleri")
-        self._inspector_button.setAccessibleName("Araçlar menüsü")
-        self._inspector_button.setIcon(standard_icon(self, "details"))
-        self._inspector_button.clicked.connect(self._show_tools_menu)
+        self._inspector_button.setToolTip("Bağlamsal araçları aç veya kapat")
+        self._inspector_button.setAccessibleName("Bağlamsal araçlar")
+        self._inspector_button.setIcon(standard_icon(self, "tools"))
+        self._inspector_button.clicked.connect(self._toggle_inspector)
         layout.addWidget(self._inspector_button)
         parent_layout.addWidget(header)
 
@@ -511,7 +554,7 @@ class LinaMainWindow(QMainWindow):
 
         footer = QWidget(self)
         footer.setObjectName("statusPanel")
-        footer.setMaximumHeight(24)
+        footer.setMaximumHeight(28)
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(4, 0, 4, 2)
         layout.setSpacing(0)
@@ -519,8 +562,19 @@ class LinaMainWindow(QMainWindow):
         self._status_label = QLabel("Hazır", footer)
         self._status_label.setObjectName("mutedLabel")
         self._status_label.setAccessibleName("Lina Durumu")
-        layout.addWidget(self._status_label, 1)
-        footer.hide()
+        self._status_label.hide()
+        layout.addWidget(self._status_label)
+        disclaimer = QLabel("Lina hata yapabilir. Önemli bilgileri doğrulayın.", footer)
+        disclaimer.setObjectName("composerDisclaimer")
+        layout.addWidget(disclaimer, 1)
+        model_name = (
+            self._diagnostics_service.configured_model
+            if self._diagnostics_service is not None
+            else "yerel model"
+        )
+        self._composer_model_label = QLabel(f"Yerel · {model_name}", footer)
+        self._composer_model_label.setObjectName("composerModelLabel")
+        layout.addWidget(self._composer_model_label)
         parent_layout.addWidget(footer)
 
         self._composer.send_requested.connect(self.send_message)
@@ -579,6 +633,20 @@ class LinaMainWindow(QMainWindow):
         settings_action.triggered.connect(self.open_settings)
         self.addAction(settings_action)
 
+        escape_action = QAction(self)
+        escape_action.setShortcut(QKeySequence(Qt.Key.Key_Escape))
+        escape_action.triggered.connect(self._handle_escape)
+        self.addAction(escape_action)
+
+    def _handle_escape(self) -> None:
+        if self._inspector.isVisible() and self._responsive_mode is not ResponsiveMode.LARGE:
+            self._close_inspector()
+            return
+        if self._sidebar.search_input.text():
+            self._sidebar.search_input.clear()
+            return
+        self._composer.input.setFocus()
+
     def _palette_actions(self) -> tuple[PaletteAction, ...]:
         return (
             PaletteAction("new_chat", "Yeni sohbet", "sohbet temizle", self.start_new_chat),
@@ -600,27 +668,163 @@ class LinaMainWindow(QMainWindow):
         if self._inspector.isVisible():
             self._close_inspector()
         else:
-            self._show_system_inspector()
+            self._inspector.show_home()
+            self._view_state = replace(
+                self._view_state,
+                right_panel_section=RightPanelSection.TOOLS,
+            )
+            self._present_inspector()
 
     def _close_inspector(self) -> None:
         self._inspector.hide()
+        self._drawer_scrim.hide()
+        self._right_panel_requested_visible = False
+        self._view_state = replace(self._view_state, right_panel_visible=False)
         self._set_inspector_button_state(opened=False)
+        self._inspector_button.setFocus()
 
     def _set_inspector_button_state(self, *, opened: bool) -> None:
-        self._inspector_button.setText("" if self._compact_chrome else "Araçlar")
-        self._inspector_button.setToolTip("Araçlar ve uygulama seçenekleri")
+        self._inspector_button.setProperty("opened", opened)
+        self._inspector_button.setToolTip(
+            "Bağlamsal araçları kapat" if opened else "Bağlamsal araçları aç"
+        )
+        self._inspector_button.style().unpolish(self._inspector_button)
+        self._inspector_button.style().polish(self._inspector_button)
+
+    def _present_inspector(self) -> None:
+        self._right_panel_requested_visible = True
+        self._view_state = replace(self._view_state, right_panel_visible=True)
+        if self._responsive_mode is ResponsiveMode.LARGE:
+            self._dock_inspector()
+        else:
+            self._undock_inspector()
+        self._inspector.show()
+        self._inspector.raise_()
+        self._set_inspector_button_state(opened=True)
+
+    def _dock_inspector(self) -> None:
+        self._drawer_scrim.hide()
+        if self._root_layout.indexOf(self._inspector) < 0:
+            self._inspector.hide()
+            self._inspector.setParent(self._central)
+            self._root_layout.addWidget(self._inspector)
+        self._inspector.display_mode = "docked"
+        self._inspector.setFixedWidth(self._right_panel_width)
+
+    def _undock_inspector(self) -> None:
+        if self._root_layout.indexOf(self._inspector) >= 0:
+            self._root_layout.removeWidget(self._inspector)
+            self._inspector.setParent(self._central)
+        self._inspector.display_mode = "drawer"
+        self._position_inspector_drawer()
+        self._drawer_scrim.setGeometry(self._central.rect())
+        self._drawer_scrim.show()
+        self._drawer_scrim.raise_()
+        self._inspector.raise_()
+
+    def _position_inspector_drawer(self) -> None:
+        available = self._central.width()
+        width = min(self._right_panel_width, max(280, available - 48))
+        self._inspector.setGeometry(available - width, 0, width, self._central.height())
+
+    def _apply_responsive_layout(self) -> None:
+        tokens = design_tokens("dark").layout
+        previous = self._responsive_mode
+        derived = self._view_state.for_width(self.width(), tokens)
+        self._responsive_mode = derived.responsive_mode
+        compact = (
+            self._interface_density == "compact"
+            or self._responsive_mode is ResponsiveMode.COMPACT
+        )
+        self._sidebar.set_collapsed(compact)
+        self._composer.set_compact(compact)
+        self._update_responsive_chrome(compact)
+        if self._responsive_mode is ResponsiveMode.LARGE:
+            self._dock_inspector()
+            self._inspector.setVisible(self._right_panel_requested_visible)
+            self._drawer_scrim.hide()
+        else:
+            if previous is ResponsiveMode.LARGE:
+                self._inspector.hide()
+            if self._inspector.isVisible():
+                self._undock_inspector()
+            else:
+                self._drawer_scrim.hide()
+        self._view_state = replace(
+            derived,
+            right_panel_visible=self._inspector.isVisible(),
+        )
 
     def _show_system_inspector(self) -> None:
         details = "\n".join((self._model_status.text(), self._speech_status.text(), self._voice_status.text()))
         self._inspector.show_details("Lina Durumu", details)
-        self._set_inspector_button_state(opened=True)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.SYSTEM)
+        self._present_inspector()
 
     def _show_agent_inspector(self) -> None:
         session = self._agent_controller.session if self._agent_controller else None
         inspector = AgentInspectorV2(self._inspector)
         inspector.render(session)
         self._inspector.show_widget("Agent Görevi", inspector)
-        self._set_inspector_button_state(opened=True)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.AGENT)
+        self._present_inspector()
+
+    def _show_memory_inspector(self) -> None:
+        if self._memory_service is None:
+            summary = "Bellek bu çalışma alanında etkin değil."
+        else:
+            memories = tuple(
+                item.content
+                for item in self._memory_service.list_memories()
+                if not self._memory_service.is_sensitive_content(item.content)
+            )
+            summary = "\n\n".join(f"• {item}" for item in memories) or "Henüz kayıtlı bir bilgi yok."
+        self._inspector.show_details("Bellek", summary)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.MEMORY)
+        self._present_inspector()
+
+    def _show_voice_inspector(self) -> None:
+        details = "\n".join((self._speech_status.text(), self._voice_status.text()))
+        self._inspector.show_details("Sesli Mod", details)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.VOICE)
+        self._present_inspector()
+
+    def _handle_context_tool(self, tool_id: str) -> None:
+        if tool_id == "chat":
+            if self._responsive_mode is not ResponsiveMode.LARGE:
+                self._close_inspector()
+            self._composer.input.setFocus()
+        elif tool_id == "voice":
+            self._show_voice_inspector()
+        elif tool_id == "vision":
+            self._show_vision_inspector()
+        elif tool_id == "file":
+            self.handle_image_upload()
+        elif tool_id == "agent":
+            self._show_agent_inspector()
+        elif tool_id == "memory":
+            self._show_memory_inspector()
+
+    def _refresh_local_storage(self) -> None:
+        if self._local_storage_service is None:
+            return
+        worker = FunctionWorker(self._local_storage_service.measure)
+        worker.signals.result.connect(self._apply_local_storage_snapshot)
+        self._start_worker(worker)
+
+    def _apply_local_storage_snapshot(self, result: object) -> None:
+        if isinstance(result, LocalStorageSnapshot):
+            self._storage_snapshot = result
+            self._inspector.set_storage_snapshot(result)
+
+    def _open_local_data_folder(self) -> None:
+        snapshot = self._storage_snapshot
+        locations = snapshot.locations if snapshot is not None else ()
+        target = next((path for path in locations if path.exists()), None)
+        if target is None:
+            self._set_status("Yerel veri klasörü bulunamadı.")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(target)))
 
     def _template_registry(self):
         return self._agent_controller.planner.template_registry if self._agent_controller else None
@@ -697,7 +901,8 @@ class LinaMainWindow(QMainWindow):
         task = center.get(session_id) if center else None
         if task is not None:
             self._inspector.show_details(task.title, task.last_summary)
-            self._set_inspector_button_state(opened=True)
+            self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.AGENT)
+            self._present_inspector()
 
     def _restart_agent_task(self, session_id: str) -> None:
         controller = self._agent_controller
@@ -727,7 +932,8 @@ class LinaMainWindow(QMainWindow):
         if snapshot is not None:
             summary = f"Kaynak: {snapshot.source.value}\nDurum: {snapshot.state.value}\n{snapshot.last_result or snapshot.user_message}"
         self._inspector.show_details("Vision Oturumu", summary)
-        self._set_inspector_button_state(opened=True)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.VISION)
+        self._present_inspector()
 
     def _show_status_menu(self) -> None:
         menu = QMenu(self)
@@ -1014,7 +1220,19 @@ class LinaMainWindow(QMainWindow):
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
         self._interface_density = settings.appearance.density
-        self._sidebar.set_collapsed(settings.appearance.density == "compact" or self.width() < design_tokens("dark").layout.compact_breakpoint)
+        self._right_panel_width = settings.appearance.right_panel_width
+        self._message_width = settings.appearance.message_width
+        self._right_panel_requested_visible = settings.appearance.right_panel_visible
+        section = RightPanelSection(settings.appearance.right_panel_section)
+        self._view_state = replace(
+            self._view_state,
+            theme=settings.appearance.theme,
+            sidebar_collapsed=settings.appearance.sidebar_collapsed,
+            right_panel_visible=settings.appearance.right_panel_visible,
+            right_panel_section=section,
+        )
+        self._inspector.setFixedWidth(self._right_panel_width)
+        self._apply_responsive_layout()
         self._voice_responses_enabled = settings.speech.voice_responses_enabled
         hands_free_was_enabled = self._hands_free_enabled
         self._hands_free_enabled = settings.speech.hands_free_enabled
@@ -1103,9 +1321,19 @@ class LinaMainWindow(QMainWindow):
             window_width=max(720, geometry.width()), window_height=max(560, geometry.height()),
             window_maximized=self.isMaximized(),
         )
-        if system != current.system:
+        appearance = replace(
+            current.appearance,
+            sidebar_collapsed=self._sidebar.collapsed,
+            right_panel_visible=self._right_panel_requested_visible,
+            right_panel_section=self._view_state.right_panel_section.value,
+            right_panel_width=self._right_panel_width,
+            message_width=self._message_width,
+        )
+        if system != current.system or appearance != current.appearance:
             try:
-                self._user_settings_service.update(replace(current, system=system))
+                self._user_settings_service.update(
+                    replace(current, system=system, appearance=appearance)
+                )
             except OSError:
                 pass
 
@@ -3083,15 +3311,15 @@ class LinaMainWindow(QMainWindow):
     def _set_status(self, text: str, *, generation: int | None = None, priority: StatusPriority = StatusPriority.ACTIVE) -> None:
         if self._unified_status.publish(text, generation=generation, priority=priority):
             self._status_label.setText(text)
+            if hasattr(self, "_header_status_label"):
+                self._header_status_label.setText(text)
             if hasattr(self, "_status_button"):
-                self._status_button.setText("" if self._compact_chrome else text)
                 self._status_button.setToolTip(
                     f"Lina Durumu: {text}. Model, mikrofon, ses, Agent ve Vision ayrıntılarını göster"
                 )
 
     def _update_responsive_chrome(self, compact: bool) -> None:
         self._compact_chrome = compact
-        self._status_button.setText("" if compact else self._status_label.text())
         self._set_inspector_button_state(opened=self._inspector.isVisible())
         if hasattr(self, "_notification_button"):
             self._refresh_notification_badge()
@@ -3168,7 +3396,7 @@ class LinaMainWindow(QMainWindow):
 
     def _update_message_widths(self) -> None:
         viewport_width = self._scroll.viewport().width()
-        width = int(min(design_tokens("dark").layout.chat_readable, max(320, viewport_width * 0.86)))
+        width = int(min(self._message_width, max(320, viewport_width * 0.86)))
         outer_margin = max(0, (viewport_width - width) // 2)
         for row in self._message_rows:
             if row.layout() is not None:
@@ -3180,12 +3408,7 @@ class LinaMainWindow(QMainWindow):
     def resizeEvent(self, event: Any) -> None:
         super().resizeEvent(event)
         if hasattr(self, "_sidebar"):
-            compact = self._interface_density == "compact" or self.width() < design_tokens("dark").layout.compact_breakpoint
-            self._sidebar.set_collapsed(compact)
-            self._composer.set_compact(compact)
-            self._update_responsive_chrome(compact)
-            if compact and hasattr(self, "_inspector"):
-                self._close_inspector()
+            self._apply_responsive_layout()
         self._update_message_widths()
 
     def showEvent(self, event: Any) -> None:

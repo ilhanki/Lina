@@ -263,11 +263,23 @@ class SettingsDialog(QDialog):
         self._density = QComboBox(page)
         self._density.addItem("Rahat", "comfortable")
         self._density.addItem("Kompakt", "compact")
+        self._sidebar_collapsed_default = QCheckBox("Sidebar’ı daraltılmış başlat", page)
+        self._right_panel_default = QCheckBox("Büyük pencerede bağlamsal paneli göster", page)
+        self._right_panel_width = QSpinBox(page)
+        self._right_panel_width.setRange(300, 360)
+        self._right_panel_width.setSuffix(" px")
+        self._message_width = QSpinBox(page)
+        self._message_width.setRange(720, 900)
+        self._message_width.setSuffix(" px")
         form.addRow("Tema", self._theme)
         form.addRow("Yazı ölçeği", self._font_scale)
         form.addRow(self._compact_mode)
         form.addRow(self._reduce_motion)
         form.addRow("Arayüz yoğunluğu", self._density)
+        form.addRow(self._sidebar_collapsed_default)
+        form.addRow(self._right_panel_default)
+        form.addRow("Sağ panel genişliği", self._right_panel_width)
+        form.addRow("Mesaj genişliği", self._message_width)
         return page
 
     def _models_page(self) -> QWidget:
@@ -617,6 +629,13 @@ class SettingsDialog(QDialog):
         self._compact_mode.setChecked(settings.appearance.compact_mode)
         self._reduce_motion.setChecked(settings.appearance.reduce_motion)
         _select_data(self._density, settings.appearance.density)
+        self._sidebar_collapsed_default.setChecked(settings.appearance.sidebar_collapsed)
+        self._right_panel_default.setChecked(settings.appearance.right_panel_visible)
+        self._right_panel_width.setValue(settings.appearance.right_panel_width)
+        self._message_width.setValue(settings.appearance.message_width)
+        self._navigation.setCurrentRow(
+            min(settings.appearance.settings_last_section, self._navigation.count() - 1)
+        )
         self._text_model.setText(settings.models.text_model)
         self._vision_model.setText(settings.models.vision_model)
         _select_data(self._keep_alive, settings.models.keep_alive)
@@ -687,6 +706,11 @@ class SettingsDialog(QDialog):
                 compact_mode=self._compact_mode.isChecked(),
                 reduce_motion=self._reduce_motion.isChecked(),
                 density=str(self._density.currentData()),
+                sidebar_collapsed=self._sidebar_collapsed_default.isChecked(),
+                right_panel_visible=self._right_panel_default.isChecked(),
+                right_panel_width=self._right_panel_width.value(),
+                message_width=self._message_width.value(),
+                settings_last_section=max(0, self._navigation.currentRow()),
             ),
             general=replace(
                 self._draft.general,

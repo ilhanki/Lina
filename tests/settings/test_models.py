@@ -13,6 +13,8 @@ def test_default_user_settings_are_turkish_and_local_first() -> None:
     assert settings.system.close_behavior == "exit"
     assert settings.general.intent_routing_enabled is True
     assert settings.appearance.density == "comfortable"
+    assert settings.appearance.right_panel_visible is True
+    assert settings.appearance.right_panel_width == 320
 
 
 def test_user_settings_round_trip_contains_only_known_preferences() -> None:
@@ -25,7 +27,8 @@ def test_user_settings_round_trip_contains_only_known_preferences() -> None:
     assert "messages" not in serialized
     assert "image_bytes" not in serialized
     assert "base64" not in serialized
-    assert payload["system"]["window_width"] == 1240
+    assert payload["system"]["window_width"] == 1440
+    assert payload["appearance"]["right_panel_section"] == "tools"
 
 
 def test_invalid_values_fall_back_to_safe_defaults() -> None:

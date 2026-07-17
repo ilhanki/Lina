@@ -52,6 +52,8 @@ def run_qt_application(
         hands_free_service=services.hands_free_service,
         live_vision_controller=services.live_vision_controller,
         agent_controller=services.agent_controller,
+        memory_service=services.memory_service,
+        local_storage_service=services.local_storage_service,
     )
     window.show()
     if (

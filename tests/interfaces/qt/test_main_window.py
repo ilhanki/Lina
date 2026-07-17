@@ -473,9 +473,11 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert window._scroll.objectName() == "chatTimelineScroll"
     assert window._scroll.viewport().objectName() == "chatTimelineViewport"
     assert window._message_container.objectName() == "chatTimeline"
-    assert window._status_button.text() == "Hazır"
-    assert window._inspector_button.text() == "Araçlar"
-    assert window._inspector.isHidden()
+    assert window._status_button.text() == ""
+    assert window._header_status_label.text() == "Hazır"
+    assert window._inspector_button.accessibleName() == "Bağlamsal araçlar"
+    assert window._inspector.isHidden() is False
+    assert window._inspector.display_mode == "docked"
     tools = window._build_tools_menu()
     assert [action.text() for action in tools.actions() if not action.isSeparator()] == [
         "Komut paleti", "Agent ile çalış", "Hazır görevler", "Agent Görev Merkezi",

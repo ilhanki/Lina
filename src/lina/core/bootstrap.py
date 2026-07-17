@@ -24,6 +24,7 @@ from lina.files.file_access_service import FileAccessService
 from lina.integrations.ollama_provider import OllamaProvider
 from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
+from lina.services.local_storage_service import LocalStorageService
 from lina.notifications.repository import NotificationRepository
 from lina.notifications.service import NotificationService
 from lina.services.conversation_service import ConversationService
@@ -74,6 +75,8 @@ class ApplicationServices:
     hands_free_service: HandsFreeConversationService | None = None
     live_vision_controller: LiveVisionController | None = None
     agent_controller: AgentController | None = None
+    memory_service: MemoryService | None = None
+    local_storage_service: LocalStorageService | None = None
 
 
 def create_application_services(
@@ -125,6 +128,7 @@ def create_application_services(
         database_path=settings.memory.database_path,
         enabled=settings.memory.enabled,
     )
+    local_storage_service = LocalStorageService((paths.data_dir, paths.cache_dir))
     conversation_history_service = _create_conversation_history_service(
         project_root=project_root,
         database_path=settings.conversations.database_path,
@@ -295,6 +299,8 @@ def create_application_services(
         hands_free_service=hands_free_service,
         live_vision_controller=live_vision_controller,
         agent_controller=agent_controller,
+        memory_service=memory_service,
+        local_storage_service=local_storage_service,
     )
 
 
