@@ -186,11 +186,9 @@ class SidebarWidget(QWidget):
         shortcut_layout.setSpacing(4)
         self.agent_tasks_button = QPushButton("Agent görevleri", self.shortcuts)
         self.notification_button = QPushButton("Bildirimler", self.shortcuts)
-        self.settings_button = QPushButton("Ayarlar", self.shortcuts)
         for button, name in (
             (self.agent_tasks_button, "Agent görevleri"),
             (self.notification_button, "Bildirimler"),
-            (self.settings_button, "Ayarlar"),
         ):
             button.setObjectName("sidebarShortcut")
             button.setToolTip(name)
@@ -198,9 +196,18 @@ class SidebarWidget(QWidget):
             shortcut_layout.addWidget(button)
         self.agent_tasks_button.setIcon(standard_icon(self, "agent"))
         self.notification_button.setIcon(standard_icon(self, "notifications"))
-        self.settings_button.setIcon(standard_icon(self, "settings"))
         layout.addWidget(self.shortcuts)
         self.shortcuts.hide()
+
+        self.settings_button = QPushButton("Ayarlar", self)
+        self.settings_button.setObjectName("sidebarShortcut")
+        self.settings_button.setIcon(standard_icon(self, "settings"))
+        self.settings_button.setToolTip("Ayarlar · Ctrl+,")
+        self.settings_button.setAccessibleName("Ayarlar")
+        self.settings_button.setAccessibleDescription(
+            "Tema, modeller, ses, Vision, Agent ve gizlilik ayarlarını aç"
+        )
+        layout.addWidget(self.settings_button)
 
         self.new_chat_button.clicked.connect(self.new_chat_requested)
 
@@ -269,8 +276,9 @@ class SidebarWidget(QWidget):
         self.new_chat_button.setToolTip("Yeni sohbet")
         self.collapse_button.setToolTip("Sol navigasyonu genişlet" if collapsed else "Sol navigasyonu daralt")
         self.collapse_button.setAccessibleName(self.collapse_button.toolTip())
-        for button in (self.agent_tasks_button, self.notification_button, self.settings_button):
+        for button in (self.agent_tasks_button, self.notification_button):
             button.setText("" if collapsed else button.toolTip())
+        self.settings_button.setText("" if collapsed else "Ayarlar")
         self.collapsed_changed.emit(collapsed)
 
     def set_session_title(self, title: str) -> None:

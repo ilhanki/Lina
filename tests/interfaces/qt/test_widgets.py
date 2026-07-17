@@ -378,6 +378,11 @@ def test_sidebar_has_collapsible_product_navigation_without_font_controls(qtbot,
     assert sidebar.filter_combo.isHidden()
     assert sidebar.status_panel.isHidden()
     assert sidebar.shortcuts.isHidden()
+    assert sidebar.settings_button.isHidden() is False
+    assert sidebar.settings_button.text() == "Ayarlar"
+    assert sidebar.settings_button.toolTip() == "Ayarlar · Ctrl+,"
+    with qtbot.waitSignal(sidebar.settings_requested, timeout=1000):
+        sidebar.settings_button.click()
 
     with qtbot.waitSignal(sidebar.collapsed_changed, timeout=1000) as signal:
         sidebar.collapse_button.click()
@@ -385,6 +390,8 @@ def test_sidebar_has_collapsible_product_navigation_without_font_controls(qtbot,
     assert sidebar.width() == SidebarWidget.COLLAPSED_WIDTH
     assert sidebar.session_panel.isHidden()
     assert sidebar.new_chat_button.toolTip() == "Yeni sohbet"
+    assert sidebar.settings_button.isHidden() is False
+    assert sidebar.settings_button.text() == ""
 
     sidebar.set_collapsed(False)
     assert sidebar.width() == SidebarWidget.WIDTH
