@@ -17,12 +17,13 @@ from lina.agent.planner import AgentPlanner
 from lina.agent.policy import AgentPolicy
 from lina.agent.quality import AgentPlanQualityValidator, PlanQualityIssue, PlanQualityIssueCode, PlanQualityResult
 from lina.agent.reliability import AgentLoopDetector, AgentLoopResult, idempotency_key, recovery_actions, user_error_message
+from lina.agent.task_center import AgentTaskCenter, AgentTaskSummary, RecoveryNotice, TaskCenterSection
 from lina.agent.verifier import AgentVerifier
 
 __all__ = [
-    "AgentCheckpoint", "AgentContext", "AgentController", "AgentErrorCode", "AgentEvent", "AgentEventSeverity", "AgentEventType", "AgentExecutor", "AgentLoopDetector", "AgentLoopResult", "AgentPlan", "AgentPlanner", "AgentPolicy", "AgentProgress",
+    "AgentCheckpoint", "AgentContext", "AgentController", "AgentErrorCode", "AgentEvent", "AgentEventSeverity", "AgentEventType", "AgentExecutor", "AgentLoopDetector", "AgentLoopResult", "AgentPlan", "AgentPlanner", "AgentPolicy", "AgentProgress", "AgentTaskCenter", "AgentTaskSummary",
     "AgentPlanDiff", "AgentPlanEditor", "AgentPlanQualityValidator", "AgentSession", "AgentSessionRepository", "AgentSessionStatus", "AgentStep",
     "AgentStepStatus", "AgentVerifier", "ApprovalDecision", "CapabilitySnapshot",
     "ExecutionResult", "RiskLevel", "VerificationResult", "VerificationRule",
-    "PlanQualityIssue", "PlanQualityIssueCode", "PlanQualityResult", "VerificationStatus", "diff_plans", "idempotency_key", "parse_approval", "recovery_actions", "render_plan_diff", "user_error_message",
+    "PlanQualityIssue", "PlanQualityIssueCode", "PlanQualityResult", "RecoveryNotice", "TaskCenterSection", "VerificationStatus", "diff_plans", "idempotency_key", "parse_approval", "recovery_actions", "render_plan_diff", "user_error_message",
 ]

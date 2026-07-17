@@ -1,4 +1,5 @@
 from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
+from PySide6.QtWidgets import QLabel
 
 
 def test_inspector_is_progressive_and_accessible(qtbot):
@@ -8,6 +9,10 @@ def test_inspector_is_progressive_and_accessible(qtbot):
     assert inspector.title.text() == "Agent Görevi"
     assert inspector.summary.text() == "İki adım tamamlandı."
     assert inspector.accessibleName() == "Ayrıntılar paneli"
+    widget = QLabel("Typed içerik")
+    inspector.show_widget("Teknik Durum", widget)
+    assert inspector.summary.isHidden()
+    assert inspector.content.count() == 1
 
 
 def test_command_palette_filters_and_executes_keyboard_action(qtbot):

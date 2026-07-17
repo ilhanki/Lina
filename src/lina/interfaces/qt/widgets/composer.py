@@ -70,6 +70,7 @@ class ComposerWidget(QWidget):
     screen_context_preview_requested = Signal()
     screen_context_change_requested = Signal()
     agent_mode_requested = Signal()
+    task_templates_requested = Signal()
 
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
@@ -187,6 +188,8 @@ class ComposerWidget(QWidget):
         self.screen_menu = self.tools_menu.addMenu("Ekran görüntüsü")
         self.agent_action = self.tools_menu.addAction("Agent modu")
         self.agent_action.triggered.connect(self.agent_button.click)
+        self.task_templates_action = self.tools_menu.addAction("Hazır görevler")
+        self.task_templates_action.triggered.connect(self.task_templates_requested.emit)
         self.tools_button.setMenu(self.tools_menu)
         action_layout.addWidget(self.tools_button)
         self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)

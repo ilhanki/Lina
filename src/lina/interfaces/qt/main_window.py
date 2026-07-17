@@ -28,7 +28,16 @@ from PySide6.QtWidgets import (
 )
 
 from lina.brain.model_provider import EmptyModelResponseError, ModelResponse
-from lina.agent import AgentController, AgentSessionStatus, ApprovalDecision, parse_approval
+from lina.agent import (
+    AgentContext,
+    AgentController,
+    AgentPlanEditor,
+    AgentSessionStatus,
+    AgentTaskCenter,
+    ApprovalDecision,
+    parse_approval,
+    render_plan_diff,
+)
 from lina.agent.errors import AgentError
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
@@ -50,6 +59,13 @@ from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, build_stylesheet, res
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
+from lina.interfaces.qt.agent_task_center import (
+    AgentInspectorV2,
+    AgentTaskCenterDialog,
+    PlanReviewWidget,
+    TaskTemplateBrowserDialog,
+    TaskTemplateParameterDialog,
+)
 from lina.interfaces.qt.worker import FunctionWorker
 from lina.interfaces.qt.workspace import CommandPalette, DetailsInspector, PaletteAction
 from lina.ui.design import design_tokens, standard_icon
@@ -177,6 +193,9 @@ class LinaMainWindow(QMainWindow):
             user_settings_service and user_settings_service.current.agent.agent_mode_enabled
         )
         self._agent_notified_sessions: set[str] = set()
+        self._agent_task_center_dialog: AgentTaskCenterDialog | None = None
+        self._task_template_dialog: TaskTemplateBrowserDialog | None = None
+        self._plan_review_dialog: QDialog | None = None
         self._live_vision_enabled = True
         self._pending_region_monitor_focus: str | None = None
         self._live_capture_invoker: QtCaptureInvoker | None = None
@@ -332,7 +351,7 @@ class LinaMainWindow(QMainWindow):
         self._sidebar.view_changed.connect(self._handle_conversation_view_changed)
         self._sidebar.settings_requested.connect(self.open_settings)
         self._sidebar.notifications_requested.connect(self.open_notifications)
-        self._sidebar.agent_tasks_requested.connect(self._show_agent_inspector)
+        self._sidebar.agent_tasks_requested.connect(self._show_agent_task_center)
         self._sidebar.local_status_requested.connect(self._show_system_inspector)
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
@@ -457,7 +476,7 @@ class LinaMainWindow(QMainWindow):
         self._agent_panel.start_requested.connect(self._start_agent_plan)
         self._agent_panel.approve_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.APPROVE))
         self._agent_panel.skip_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.SKIP))
-        self._agent_panel.modify_requested.connect(lambda: self._decide_agent_step(ApprovalDecision.MODIFY))
+        self._agent_panel.modify_requested.connect(self._show_plan_review)
         self._agent_panel.pause_requested.connect(self._pause_agent)
         self._agent_panel.resume_requested.connect(self._resume_agent)
         self._agent_panel.cancel_requested.connect(self._cancel_agent)
@@ -498,6 +517,7 @@ class LinaMainWindow(QMainWindow):
 
         self._composer.send_requested.connect(self.send_message)
         self._composer.stop_requested.connect(self.cancel_active_response)
+        self._composer.task_templates_requested.connect(self._show_task_templates)
         self._composer.history_requested.connect(self._navigate_input_history)
         self._composer.attachment_requested.connect(self.handle_image_upload)
         self._screen_menu = self._composer.screen_menu
@@ -556,6 +576,8 @@ class LinaMainWindow(QMainWindow):
             PaletteAction("new_chat", "Yeni sohbet", "sohbet temizle", self.start_new_chat),
             PaletteAction("search", "Sohbetlerde ara", "geçmiş bul", self._sidebar.search_input.setFocus),
             PaletteAction("agent", "Agent görev ayrıntıları", "plan görev", self._show_agent_inspector, self._agent_controller is not None),
+            PaletteAction("agent_templates", "Hazır Agent görevleri", "şablon template görev", self._show_task_templates, self._template_registry() is not None),
+            PaletteAction("agent_tasks", "Agent Görev Merkezi", "geçmiş recovery yarım", self._show_agent_task_center, self._agent_controller is not None),
             PaletteAction("notifications", "Bildirimleri aç", "hatırlatıcı", self.open_notifications, self._notification_service is not None),
             PaletteAction("settings", "Ayarları aç", "tema ses model", self.open_settings, self._user_settings_service is not None),
             PaletteAction("inspector", "Ayrıntılar panelini aç", "durum sistem", self._show_system_inspector),
@@ -587,16 +609,103 @@ class LinaMainWindow(QMainWindow):
 
     def _show_agent_inspector(self) -> None:
         session = self._agent_controller.session if self._agent_controller else None
-        summary = (
-            "Aktif Agent görevi yok. Sohbette ‘bunu planla’, ‘adım adım çöz’ "
-            "veya ‘Agent modunda ilerle’ diyerek başlayabilirsin."
-        )
-        if session is not None:
-            summary = self._agent_controller.result_summary()
-            if session.plan is not None:
-                summary = f"{session.plan.summary}\n\n{summary}"
-        self._inspector.show_details("Agent Görevi", summary)
+        inspector = AgentInspectorV2(self._inspector)
+        inspector.render(session)
+        self._inspector.show_widget("Agent Görevi", inspector)
         self._set_inspector_button_state(opened=True)
+
+    def _template_registry(self):
+        return self._agent_controller.planner.template_registry if self._agent_controller else None
+
+    def _available_agent_tools(self) -> set[str]:
+        if self._agent_controller is None:
+            return set()
+        return {
+            item.name
+            for item in self._agent_controller.policy.capability_snapshot(self._agent_controller.executor.registry)
+            if item.available
+        }
+
+    def _show_task_templates(self) -> None:
+        registry = self._template_registry()
+        if registry is None:
+            self._set_status("Hazır Agent görevleri şu anda kullanılamıyor.")
+            return
+        dialog = TaskTemplateBrowserDialog(registry, self._available_agent_tools(), self)
+        dialog.template_selected.connect(self._prepare_task_template)
+        dialog.finished.connect(lambda _result: setattr(self, "_task_template_dialog", None))
+        self._task_template_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+
+    def _prepare_task_template(self, template_id: str) -> None:
+        registry = self._template_registry()
+        if registry is None or self._agent_controller is None:
+            return
+        template = registry.get(template_id)
+        if template is None:
+            return
+        dialog = TaskTemplateParameterDialog(template, self)
+        if not dialog.exec():
+            return
+        try:
+            session = self._agent_controller.create_from_template(
+                template_id,
+                dialog.parameters(),
+                self._routing_session_key,
+                self._active_request_id,
+            )
+        except AgentError as error:
+            self._set_status(str(error))
+            return
+        self._agent_enabled = True
+        self._update_agent_ui()
+        self._set_status(f"{session.plan.title} hazır; çalıştırılmadan önce plan onayı bekliyor.")
+        self._show_plan_review()
+
+    def _show_agent_task_center(self) -> None:
+        controller = self._agent_controller
+        if controller is None or controller.repository is None:
+            self._show_agent_inspector()
+            return
+        if self._agent_task_center_dialog is None:
+            dialog = AgentTaskCenterDialog(AgentTaskCenter(controller.repository), self)
+            dialog.open_requested.connect(self._open_agent_task)
+            dialog.restart_requested.connect(self._restart_agent_task)
+            dialog.finished.connect(lambda _result: setattr(self, "_agent_task_center_dialog", None))
+            self._agent_task_center_dialog = dialog
+        else:
+            self._agent_task_center_dialog.reload()
+        self._agent_task_center_dialog.show()
+        self._agent_task_center_dialog.raise_()
+        self._agent_task_center_dialog.activateWindow()
+
+    def _open_agent_task(self, session_id: str) -> None:
+        current = self._agent_controller.session if self._agent_controller else None
+        if current is not None and current.session_id == session_id:
+            self._show_agent_inspector()
+            return
+        center = AgentTaskCenter(self._agent_controller.repository) if self._agent_controller and self._agent_controller.repository else None
+        task = center.get(session_id) if center else None
+        if task is not None:
+            self._inspector.show_details(task.title, task.last_summary)
+            self._set_inspector_button_state(opened=True)
+
+    def _restart_agent_task(self, session_id: str) -> None:
+        controller = self._agent_controller
+        current = controller.session if controller else None
+        if controller is None or current is None or current.session_id != session_id:
+            self._set_status("Bu geçmiş görev gizlilik nedeniyle otomatik yeniden kurulmadı; şablonu açıp bilgileri yeniden doğrula.")
+            return
+        try:
+            controller.safe_restart(session_id)
+        except AgentError as error:
+            self._set_status(str(error))
+            return
+        self._update_agent_ui()
+        self._set_status("Görev güvenli bir kopya olarak yeniden hazırlandı.")
+        if self._agent_task_center_dialog is not None:
+            self._agent_task_center_dialog.reload()
 
     def _show_vision_inspector(self) -> None:
         snapshot = self._live_vision_controller.snapshot if self._live_vision_controller else None
@@ -630,6 +739,12 @@ class LinaMainWindow(QMainWindow):
         agent_action = menu.addAction("Agent ile çalış")
         agent_action.setEnabled(self._agent_controller is not None)
         agent_action.triggered.connect(self._show_agent_inspector)
+        templates_action = menu.addAction("Hazır görevler")
+        templates_action.setEnabled(self._template_registry() is not None)
+        templates_action.triggered.connect(self._show_task_templates)
+        task_center_action = menu.addAction("Agent Görev Merkezi")
+        task_center_action.setEnabled(self._agent_controller is not None)
+        task_center_action.triggered.connect(self._show_agent_task_center)
         conversations = menu.addMenu("Sohbet görünümü")
         for label, view in (("Sohbetler", "chats"), ("Sabitlenenler", "pinned"), ("Arşiv", "archive")):
             action = conversations.addAction(label)
@@ -999,10 +1114,49 @@ class LinaMainWindow(QMainWindow):
                 return
         if self._agent_controller is not None and self._agent_controller.active_session is not None:
             agent_session = self._agent_controller.active_session
+            if agent_session.status is AgentSessionStatus.AWAITING_INPUT:
+                try:
+                    plan = self._agent_controller.provide_input(
+                        agent_session.session_id,
+                        message,
+                        self._routing_session_key,
+                        agent_session.generation_id,
+                    )
+                    response = f"{plan.title} hazır. {len(plan.steps)} adımı inceleyip başlatabilirsin."
+                except AgentError as error:
+                    response = str(error)
+                self._update_agent_ui()
+                self._finish_routed_intent(message, response, request_created_at)
+                return
             decision = parse_approval(message)
             if agent_session.status is AgentSessionStatus.AWAITING_PLAN_APPROVAL and decision is ApprovalDecision.APPROVE:
                 self._start_agent_plan()
                 self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
+                return
+        if self._agent_enabled and self._agent_controller is not None and self._agent_controller.active_session is None:
+            capabilities = self._agent_controller.policy.capability_snapshot(self._agent_controller.executor.registry)
+            match = self._agent_controller.planner.match_template(
+                AgentContext.bounded(message, capabilities=capabilities)
+            )
+            if match is not None and (match.template_id is not None or match.ambiguous):
+                try:
+                    session = self._agent_controller.create_session(
+                        message, self._routing_session_key, self._active_request_id
+                    )
+                    plan = self._agent_controller.plan(capabilities=capabilities)
+                    response = f"{plan.title} hazır. {len(plan.steps)} adımı inceleyip başlatabilirsin."
+                except AgentError as error:
+                    response = str(error)
+                self._update_agent_ui()
+                active = self._agent_controller.session
+                if active is not None:
+                    self._speak_agent_event(
+                        active.session_id,
+                        active.status.value,
+                        response,
+                        approval=active.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL},
+                    )
+                self._finish_routed_intent(message, response, request_created_at)
                 return
             if agent_session.status is AgentSessionStatus.AWAITING_STEP_APPROVAL and decision is not ApprovalDecision.AMBIGUOUS:
                 self._decide_agent_step(decision)
@@ -1138,6 +1292,77 @@ class LinaMainWindow(QMainWindow):
             current = self._user_settings_service.current
             self._user_settings_service.update(replace(current, agent=replace(current.agent, agent_mode_enabled=self._agent_enabled)))
         self._update_agent_ui()
+
+    def _show_plan_review(self) -> None:
+        controller = self._agent_controller
+        session = controller.session if controller else None
+        if controller is None or session is None or session.plan is None:
+            return
+        dialog = QDialog(self)
+        dialog.setObjectName("agentPlanReviewDialog")
+        dialog.setWindowTitle("Agent Planını İncele")
+        dialog.setMinimumSize(700, 520)
+        layout = QVBoxLayout(dialog)
+        review = PlanReviewWidget(dialog)
+        review.render(session.plan)
+        layout.addWidget(review)
+        definitions = controller.executor.registry.definitions()
+        editor = AgentPlanEditor(
+            controller.policy,
+            {item.name for item in definitions if item.available()},
+            {item.name: dict(item.input_schema) for item in definitions},
+        )
+
+        def apply_edit(callback) -> None:
+            current = controller.session
+            if current is None or current.plan is None:
+                return
+            try:
+                edited, difference = callback(current.plan)
+                controller.apply_edited_plan(current.session_id, edited, current.generation_id)
+            except AgentError as error:
+                self._set_status(str(error))
+                return
+            review.render(edited)
+            self._set_status(render_plan_diff(difference))
+            self._update_agent_ui()
+
+        def move_step(step_id: str, direction: int) -> None:
+            current = controller.session
+            if current is None or current.plan is None:
+                return
+            order = [step.step_id for step in current.plan.steps]
+            index = order.index(step_id)
+            target = index + direction
+            if target < 0 or target >= len(order):
+                return
+            order[index], order[target] = order[target], order[index]
+            apply_edit(lambda plan: editor.reorder(plan, order))
+
+        review.skip_requested.connect(lambda step_id: apply_edit(lambda plan: editor.skip_step(plan, step_id)))
+        review.remove_requested.connect(lambda step_id: apply_edit(lambda plan: editor.remove_optional_step(plan, step_id)))
+        review.move_requested.connect(move_step)
+
+        def regenerate() -> None:
+            current = controller.session
+            if current is None:
+                return
+            try:
+                difference = controller.regenerate_plan(current.session_id, current.generation_id)
+            except AgentError as error:
+                self._set_status(str(error))
+                return
+            review.render(controller.session.plan)
+            self._set_status(render_plan_diff(difference))
+            self._update_agent_ui()
+
+        review.regenerate_requested.connect(regenerate)
+        review.cancel_requested.connect(lambda: (self._cancel_agent(), dialog.reject()))
+        review.start_requested.connect(lambda: (self._start_agent_plan(), dialog.accept()))
+        dialog.finished.connect(lambda _result: setattr(self, "_plan_review_dialog", None))
+        self._plan_review_dialog = dialog
+        dialog.show()
+        dialog.raise_()
 
     def _start_agent_plan(self) -> None:
         if not self._agent_controller or not self._agent_controller.active_session:

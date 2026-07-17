@@ -16,6 +16,7 @@ from lina.agent.models import (
     VerificationStatus,
 )
 from lina.agent.persistence import AgentSessionRepository
+from lina.agent.plan_editing import AgentPlanDiff, diff_plans
 from lina.agent.planner import AgentPlanner
 from lina.agent.policy import AgentPolicy
 from lina.agent.reliability import (
@@ -159,6 +160,106 @@ class AgentController:
             session.touch()
             self._persist()
             return self.plan(capabilities=self._capabilities)
+
+    def create_from_template(
+        self,
+        template_id: str,
+        parameters: dict[str, object],
+        conversation_id: int | None,
+        generation_id: int = 0,
+    ) -> AgentSession:
+        with self._lock:
+            registry = self.planner.template_registry
+            if registry is None:
+                raise AgentStateError("Hazır Agent görevleri şu anda kullanılamıyor.")
+            template = registry.get(template_id)
+            if template is None or not template.enabled:
+                raise AgentStateError("Seçilen hazır görev kullanılamıyor.")
+            capabilities = tuple(self.policy.capability_snapshot(self.executor.registry))
+            available = {item.name for item in capabilities if item.available}
+            if not template.supports(available):
+                raise AgentStateError("Bu görev için gerekli araç şu anda kullanılamıyor.")
+            session = self.create_session(f"Template request: {template_id}", conversation_id, generation_id)
+            try:
+                session.plan = template.create_plan(parameters)
+                self.policy.validate_plan(session.plan, available)
+            except Exception as error:
+                session.status = AgentSessionStatus.FAILED
+                session.error_code = AgentErrorCode.INVALID_ARGUMENTS.value
+                session.last_summary = user_error_message(session.error_code)
+                self._record_event(AgentEventType.SESSION_FAILED, session.last_summary, severity=AgentEventSeverity.ERROR, technical_code=session.error_code)
+                session.touch()
+                self._persist()
+                raise AgentStateError("Hazır görev bilgileri doğrulanamadı.") from error
+            self._capabilities = capabilities
+            session.metrics.planned_step_count = len(session.plan.steps)
+            session.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL
+            session.last_summary = "Hazır görev planı oluşturuldu; otomatik olarak başlatılmadı."
+            self._record_event(AgentEventType.PLAN_CREATED, "Hazır görev planı oluşturuldu.")
+            session.touch()
+            self._persist()
+            return session
+
+    def apply_edited_plan(
+        self,
+        session_id: str,
+        edited_plan: AgentPlan,
+        generation_id: int | None = None,
+    ) -> AgentPlanDiff:
+        with self._lock:
+            session = self._matching(session_id, generation_id)
+            if session.plan is None or session.status not in {
+                AgentSessionStatus.AWAITING_PLAN_APPROVAL,
+                AgentSessionStatus.AWAITING_STEP_APPROVAL,
+                AgentSessionStatus.READY,
+            }:
+                raise AgentStateError("Agent planı bu durumda düzenlenemez.")
+            available = {item.name for item in self._capabilities if item.available}
+            if not available:
+                available = {item.name for item in self.policy.capability_snapshot(self.executor.registry) if item.available}
+            self.policy.validate_plan(edited_plan, available)
+            difference = diff_plans(session.plan, edited_plan)
+            session.plan = edited_plan
+            session.current_step_index = next(
+                (index for index, step in enumerate(edited_plan.steps) if step.status not in {AgentStepStatus.SUCCEEDED, AgentStepStatus.SKIPPED}),
+                len(edited_plan.steps),
+            )
+            session.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL
+            session.approval_state = "plan_modified"
+            session.last_summary = "Plan güncellendi; yeniden onay bekliyor."
+            self._record_event(AgentEventType.PLAN_MODIFIED, session.last_summary)
+            session.touch()
+            self._persist()
+            return difference
+
+    def regenerate_plan(self, session_id: str, generation_id: int | None = None) -> AgentPlanDiff:
+        with self._lock:
+            session = self._matching(session_id, generation_id)
+            if session.plan is None:
+                raise AgentStateError("Yeniden üretilecek Agent planı yok.")
+            previous = session.plan
+            available = {item.name for item in self._capabilities if item.available}
+            if previous.template_id and self.planner.template_registry is not None:
+                template = self.planner.template_registry.require(previous.template_id)
+                replacement = template.create_plan(_template_parameters(previous))
+            else:
+                context = AgentContext.bounded(session.user_request, capabilities=self._capabilities)
+                replacement = self.planner.plan(context)
+            completed = [deepcopy(step) for step in previous.steps if step.status is AgentStepStatus.SUCCEEDED]
+            completed_ids = {step.step_id for step in completed}
+            replacement.steps = completed + [step for step in replacement.steps if step.step_id not in completed_ids]
+            replacement.revision = previous.revision + 1
+            self.policy.validate_plan(replacement, available)
+            difference = diff_plans(previous, replacement)
+            session.plan = replacement
+            session.current_step_index = len(completed)
+            session.status = AgentSessionStatus.AWAITING_PLAN_APPROVAL
+            session.approval_state = "plan_regenerated"
+            session.last_summary = "Plan yeniden üretildi; çalıştırılmadan önce onay bekliyor."
+            self._record_event(AgentEventType.PLAN_MODIFIED, session.last_summary)
+            session.touch()
+            self._persist()
+            return difference
 
     def approve_plan(self, session_id: str, generation_id: int | None = None) -> AgentSession:
         with self._lock:
@@ -561,3 +662,15 @@ class AgentController:
             except (OSError, ValueError, TypeError):
                 return False
         return True
+
+
+def _template_parameters(plan: AgentPlan) -> dict[str, object]:
+    step = next((item for item in plan.steps if item.status is not AgentStepStatus.SUCCEEDED), plan.steps[0])
+    values = dict(step.typed_arguments)
+    if plan.template_id in {"reminders.summary", "reminders.conflicts"}:
+        return {"range": "upcoming"}
+    if plan.template_id == "memory.store":
+        values.setdefault("category", "conversation_note")
+    if plan.template_id == "files.summarize":
+        values.setdefault("summary_length", "short")
+    return values

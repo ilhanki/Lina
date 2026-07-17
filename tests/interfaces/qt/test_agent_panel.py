@@ -21,7 +21,7 @@ def test_agent_panel_plan_card_and_accessible_statuses(qtbot):
     assert panel.mode_label.text() == "Agent Mode · Açık"
     assert "1/2" in panel.progress_label.text()
     assert "▶ Çalışıyor" in panel.steps_label.text()
-    assert "persistent" in panel.steps_label.text()
+    assert "Kalıcı" in panel.steps_label.text()
     assert panel.start_button.isEnabled()
 
 

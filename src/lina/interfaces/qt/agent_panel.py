@@ -19,6 +19,31 @@ STATUS_LABELS = {
     AgentStepStatus.CANCELLED: "■ İptal edildi",
     AgentStepStatus.BLOCKED: "! Engellendi",
 }
+SESSION_STATUS_LABELS = {
+    AgentSessionStatus.IDLE: "Hazırlanıyor",
+    AgentSessionStatus.PLANNING: "Planlanıyor",
+    AgentSessionStatus.AWAITING_INPUT: "Bilgi bekliyor",
+    AgentSessionStatus.AWAITING_PLAN_APPROVAL: "Plan onayı bekliyor",
+    AgentSessionStatus.READY: "Başlamaya hazır",
+    AgentSessionStatus.RUNNING: "Çalışıyor",
+    AgentSessionStatus.PAUSED: "Duraklatıldı",
+    AgentSessionStatus.AWAITING_STEP_APPROVAL: "Adım onayı bekliyor",
+    AgentSessionStatus.REPLANNING: "Plan güncelleniyor",
+    AgentSessionStatus.COMPLETED: "Tamamlandı",
+    AgentSessionStatus.PARTIALLY_COMPLETED: "Kısmen tamamlandı",
+    AgentSessionStatus.FAILED: "Başarısız",
+    AgentSessionStatus.CANCELLED: "İptal edildi",
+    AgentSessionStatus.BLOCKED: "Engellendi",
+    AgentSessionStatus.INTERRUPTED: "Yarım kaldı",
+    AgentSessionStatus.UNCERTAIN: "Sonuç belirsiz",
+}
+RISK_LABELS = {
+    "read_only": "Salt okunur",
+    "low": "Düşük",
+    "persistent": "Kalıcı",
+    "sensitive": "Hassas",
+    "prohibited": "Yasak",
+}
 
 
 class AgentPanel(QWidget):
@@ -47,7 +72,9 @@ class AgentPanel(QWidget):
         header.addWidget(self.mode_label)
         header.addWidget(self.progress_label, 1)
         self.details_button = QPushButton("Ayrıntıları Göster", self)
-        self.details_button.clicked.connect(self.details_requested)
+        self._details_expanded = False
+        self.details_button.clicked.connect(self._toggle_details)
+        self.details_button.clicked.connect(self.details_requested.emit)
         header.addWidget(self.details_button)
         root.addLayout(header)
         self.summary_label = QLabel("", self)
@@ -95,11 +122,17 @@ class AgentPanel(QWidget):
         current = min(session.current_step_index + (0 if session.terminal else 1), total)
         self.progress_bar.setRange(0, max(1, total))
         self.progress_bar.setValue(current)
-        self.progress_label.setText(f"{session.status.value} · {current}/{total}")
-        self.summary_label.setText(plan.summary if plan else "Plan hazırlanıyor…")
+        self.progress_label.setText(f"{SESSION_STATUS_LABELS[session.status]} · {current}/{total}")
+        if plan:
+            persistent = any(step.risk_level.value in {"persistent", "sensitive"} for step in plan.steps)
+            self.summary_label.setText(
+                f"{plan.summary} · {total} adım · Kalıcı işlem: {'Var; ayrı onay gerekir' if persistent else 'Yok'}"
+            )
+        else:
+            self.summary_label.setText(session.last_summary or "Plan hazırlanıyor…")
         if plan:
             self.steps_label.setText("\n".join(
-                f"{index}. {STATUS_LABELS[step.status]} · {step.title} · {step.tool_name} · {step.risk_level.value}"
+                f"{index}. {STATUS_LABELS[step.status]} · {step.title} · Araç: {step.tool_name} · Risk: {RISK_LABELS[step.risk_level.value]}"
                 for index, step in enumerate(plan.steps, 1)
             ))
         self._set_actions(session.status)
@@ -115,6 +148,7 @@ class AgentPanel(QWidget):
         self.cancel_button.setEnabled(status is not None and status not in {
             AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
             AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED, AgentSessionStatus.BLOCKED,
+            AgentSessionStatus.INTERRUPTED, AgentSessionStatus.UNCERTAIN,
         })
         visibility = {
             self.start_button: status is AgentSessionStatus.AWAITING_PLAN_APPROVAL,
@@ -126,7 +160,13 @@ class AgentPanel(QWidget):
             self.cancel_button: status is not None and not (status in {
                 AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
                 AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED, AgentSessionStatus.BLOCKED,
+                AgentSessionStatus.INTERRUPTED, AgentSessionStatus.UNCERTAIN,
             }),
         }
         for button, visible in visibility.items():
             button.setVisible(visible)
+
+    def _toggle_details(self) -> None:
+        self._details_expanded = not self._details_expanded
+        self.steps_label.setVisible(self._details_expanded and bool(self.steps_label.text()))
+        self.details_button.setText("Ayrıntıları Gizle" if self._details_expanded else "Ayrıntıları Göster")

@@ -53,9 +53,26 @@ class DetailsInspector(QWidget):
         self.close_button.clicked.connect(self.closed)
 
     def show_details(self, title: str, summary: str) -> None:
+        self._clear_content()
         self.title.setText(title)
+        self.summary.show()
         self.summary.setText(summary)
         self.show()
+
+    def show_widget(self, title: str, widget: QWidget) -> None:
+        self._clear_content()
+        self.title.setText(title)
+        self.summary.hide()
+        widget.setParent(self)
+        self.content.addWidget(widget)
+        self.show()
+
+    def _clear_content(self) -> None:
+        while self.content.count():
+            item = self.content.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
 
 class CommandPalette(QDialog):
