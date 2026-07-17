@@ -18,11 +18,15 @@ Timeline viewport’a göre en fazla 880 px readable width hesaplar ve her messa
 
 ## Agent, Voice ve Vision
 
-Agent paneli typed session render eder; plan onayı, ilgili step eylemleri ve progress dışındaki kontrolleri gizler. Voice ayrı büyük panel yerine unified status ve composer mic action’ıyla görünür. Vision kapalıyken yer kaplamaz; aktif kaynak, privacy metni ve minimum kontroller kompakt kartta, ayrıntılar inspector’dadır.
+Agent paneli typed session render eder; plan onayı, ilgili step eylemleri ve progress dışındaki kontrolleri gizler. Composer Araçlar menüsü ve command palette, Hazır Görevler ile Agent Görev Merkezi’ni açar. Template Browser capability snapshot’a göre filtrelenir; Parameter Dialog typed değerleri toplar fakat yürütme yapmaz. Plan Review yeniden sıralama, optional kaldırma/atlama, regenerate ve başlatma sinyallerini controller’a yollar; her değişiklik policy ve dependency doğrulamasından geçer.
+
+Task Center V2 persisted safe metadata’dan durum sekmeleri ve bağlamsal eylemler üretir. Aktif session açıldığında Inspector V2’ye gider. Uygulama yeniden başlatıldıktan sonra raw argümanlar gizlilik nedeniyle saklanmadığından geçmiş görev sessizce kurulmaz; kullanıcı ilgili şablonu yeniden açıp parametreleri doğrular. Başlangıç recovery bildirimi yalnız yarım görev sayısını söyler.
+
+Voice ayrı büyük panel yerine unified status ve composer mic action’ıyla görünür. Agent onay, önemli olay ve sonuç sesleri ayrı ayarlara bağlıdır; aynı session/event iki kez seslendirilmez. Vision kapalıyken yer kaplamaz; aktif kaynak, privacy metni ve minimum kontroller kompakt kartta, ayrıntılar inspector’dadır.
 
 ## Settings
 
-Settings dialog arama + sabit navigasyon + scroll edilebilir stacked page yapısı kullanır. Yedi ana bölüm Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Hands-Free Ses altında; Agent, Gizlilik, Sistem ve Hakkında/Tanılama Gelişmiş altında gruplandırılır. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
+Settings dialog arama + sabit navigasyon + scroll edilebilir stacked page yapısı kullanır. Yedi ana bölüm Genel, Görünüm, Modeller, Ses, Vision, Hatırlatıcılar ve Gelişmiş’tir. Hands-Free Ses altında; Agent, Gizlilik, Sistem ve Hakkında/Tanılama Gelişmiş altında gruplandırılır. Agent alanında şablon önerisi, başlangıç recovery bildirimi, geçmiş saklama, ses/bildirim tercihleri ve değiştirilemez persistent-approval güvenlik açıklaması bulunur. Dialog local draft üzerinde çalışır; Apply/Save servis katmanına typed UserSettings gönderir.
 
 ## State ve lifecycle
 

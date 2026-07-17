@@ -2,6 +2,23 @@
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
+## v0.12.1-alpha Agent Reliability, Task Templates & Recovery
+
+- Agent Mode kapalıyken doğal “yarın sporu hatırlat” isteğinin normal routing davranışını koruduğunu; açıkken güvenli şablona eşlenip eksik yalnız saat bilgisini sorduğunu doğrula.
+- “Hatırlatıcı nedir?”, “Agent neden hata yapar?” ve düşük güvenli belirsiz isteklerin hazır göreve dönüşmeden normal sohbette kaldığını doğrula.
+- Hazır Görevler’i composer, command palette ve menüden aç; yalnız available reminders, Memory, Files ve explicit Vision capability’lerinin listelendiğini doğrula.
+- Hatırlatıcı oluşturma formunda tarih/saat/tekrar alanlarını doldur; plan görünmeden ve plan+step onayı verilmeden kayıt oluşmadığını doğrula.
+- Bu hafta hatırlatıcı özeti ile yarın çakışma kontrolünü çalıştır; tarih filtresini ve aynı saate denk gelen kayıtların sabit sırasını doğrula.
+- Plan Review’da salt-okunur optional adımı atla/kaldır, güvenli sırayı değiştir ve regenerate et; invalid dependency ile persistent risk düşürmenin reddedildiğini doğrula.
+- Değiştirilen planın added/removed/moved/changed farklarını incele; eski plan onayının yeni revision için geçerli olmadığını doğrula.
+- Task Center V2’de aktif, onay bekleyen, duraklatılmış, yarım, tamamlanan, başarısız ve iptal edilen sekmeleri; boş durumları ve klavye erişimini doğrula.
+- Çalışan veya onay bekleyen görev sırasında uygulamayı gerçek exit ile kapatıp yeniden aç; görevin bir kez `interrupted` görünmesini, hiçbir tool’un otomatik çalışmamasını ve tek genel recovery bildirimi gelmesini doğrula.
+- Yarım görevin geçmiş kopyasını seç; raw parametre saklanmadığından şablonu yeniden açıp değerleri doğrulama mesajını gör. Canlı terminal görevi safe clone edildiğinde yeni session kimliği ve yeni plan onayı oluşmalı.
+- Read-only araçta yapay timeout/transient hata oluştur; yalnız bir retry olmalı. Persistent timeout/uncertain sonucunda retry olmamalı ve “mevcut kaydı kontrol et” recovery eylemi görünmeli.
+- Aynı Agent onay/tamamlanma olayının tray ve TTS’te yalnız bir kez üretildiğini; “Sesi Durdur”un Agent görevini iptal etmediğini doğrula.
+- Ayarlar’da hazır görev önerisi, başlangıç recovery bildirimi ve 7/30/90 gün/sınırsız geçmiş seçeneklerini değiştir; restart persistence ve terminal geçmiş temizliğini doğrula.
+- Task Center/Inspector teknik görünümünde raw kullanıcı isteği, reminder/Memory içeriği, dosya içeriği, typed argüman, prompt, exception veya reasoning görünmediğini doğrula.
+
 ## v0.12.0-alpha Complete Product Experience Redesign
 
 - İlk açılışta sohbet ana odak, inspector kapalı, Agent/Vision büyük panelleri gizli, composer odakta ve header minimal olmalı.

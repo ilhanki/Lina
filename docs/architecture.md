@@ -16,6 +16,22 @@ Settings schema v8; görünüm yoğunluğu ve güvenli pencere geometry persiste
 
 Response Quality V2, yabancı phrase ve Türkçe ek almış yabancı stem sızıntısını kabul öncesi yakalar. Repair bağlamı stale/cancel kontrolünden geçer; geçersiz draft history, persistence veya TTS’ye ulaşmaz. Kamera capture, inference ve lifecycle iş mantığı bu yeniden tasarımda değiştirilmemiştir.
 
+## Agent Reliability, Task Templates & Recovery (v0.12.1-alpha)
+
+`lina.agent.templates` framework bağımsız bir `TaskTemplate` sözleşmesi, registry, conservative matcher, typed parametre normalizasyonu ve preflight renderer sağlar. Şablonlar yalnız `AgentPolicy.capability_snapshot()` içinde gerçekten available görünen araçlarla listelenir. Doğal dil eşlemesi explanation sorularını ve düşük güvenli sonuçları normal sohbette bırakır; explicit şablon seçimi capability filtresini atlayamaz.
+
+Yerleşik katalog; hatırlatıcı oluşturma, tarih aralıklı hatırlatıcı özeti, deterministik aynı-zaman çakışma kontrolü, Memory store/recall, allowlist dosya okuma ve explicit tek-kare Vision akışlarıyla sınırlıdır. `system.status` ve `conversation.search` registry capability’si olmadığı için şablon olarak sunulmaz. Şablon factory’si yalnız typed `AgentPlan` üretir; tool çalıştırmaz.
+
+`AgentPlanEditor`, tool schema, dependency graph ve risk politikasını yeniden doğrulayarak sıralama, optional kaldırma/atlama ve typed argüman değişikliğini uygular. Persistent risk read-only’ye düşürülemez; tamamlanmış adımlar regenerate sırasında korunur. Eski/yeni plan farkı eklenen, kaldırılan, taşınan ve değişen adımları kullanıcı onayından önce gösterir. `AgentPlanQualityValidator` belirsiz açıklama, duplicate operation, gereksiz persistent adım ve dependency sorunlarını tek bounded repair sınırı içinde yakalar.
+
+Yürütme öncesi capability availability yeniden kontrol edilir. Hatalar sabit `AgentErrorCode` taxonomy’sine normalize edilir. Yalnız read-only `timeout` ve `transient_failure` en fazla bir kez retry alır; persistent/sensitive adımlar ve `uncertain` sonuçlar otomatik tekrarlanmaz. Normalize operation hash, session+step idempotency key, replay guard ve duplicate read-before-write denetimi çift kalıcı işlem riskini sınırlar. Loop detector tekrarlanan tool+argüman, açıklama ve ilerlemesiz replan döngülerini durdurur.
+
+Her session bounded user-visible event ve step checkpoint geçmişi üretir. Repository yalnız güvenli başlık, durum, risk, sayaç, teknik kod ve kısa sabit özetleri saklar; raw istek, typed argüman, tool payload, dosya/Memory/reminder içeriği veya model reasoning saklanmaz. Başlangıçta yarım durumlar bir kez `interrupted` olarak persist edilir ve hiçbir tool otomatik sürdürülmez. Geçmişten yeniden başlatma ham parametre gerektiriyorsa kullanıcı şablonu yeniden açıp doğrular; canlı terminal görev safe clone ile yeni session/generation kimliği ve yeni plan onayı alır.
+
+Task Center V2 aktif, onay bekleyen, duraklatılmış, yarım, tamamlanan, başarısız ve iptal edilen projection’ları repository metadata’sından üretir. Settings schema v9; şablon önerisi, başlangıç recovery bildirimi ve 7/30/90 gün veya sınırsız Agent geçmiş saklama tercihlerini ekler. Temizlik interrupted/active metadata’yı korur ve yalnız terminal geçmişi siler; tool-created veri bu işlemden etkilenmez.
+
+Agent metinleri modelden bağımsız kısa Türkçe kalite kapısından geçer. Voice event kimliği session içinde deduplicate edilir; TTS durdurma veya barge-in Agent session’ını iptal etmez. Tray bildirimi yalnız genel görev başlığı/durumu taşır ve aynı olay ikinci kez gösterilmez.
+
 ## Agent Mode Foundation (v0.12.0-alpha)
 
 ### Tag öncesi interaction quality ve voice stabilization

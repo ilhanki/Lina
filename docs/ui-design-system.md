@@ -35,6 +35,15 @@ icons.py Qt standard pixmap’lerini anlamlı adlarla sunar. İkonlar theme-awar
 - Layout testi için pixel-perfect screenshot yerine structural assertion kullan.
 - Dark/light/system, 720 px ve %135 font etkisini birlikte düşün.
 
+## Agent görev yüzeyleri
+
+- Hazır Görevler yalnız available capability’lerle desteklenen şablonları kategori bazında gösterir; unavailable özelliği sahte veya disabled kart olarak çoğaltmaz.
+- Typed parametre formu aracı çalıştırmaz. Birincil eylem yalnız plan hazırlar; kalıcı iş plan ve adım onayından sonra yürür.
+- Plan Review başlık, adım sırası, risk, araç, onay ve bağımlılığı metinle gösterir. Risk yalnız renkle anlatılmaz.
+- Task Center V2 durumları ayrı sekmelere böler; boş durumlar, ilerleme yüzdesi ve bağlamsal eylemler klavye ve screen reader ile erişilebilir kalır.
+- Inspector V2 Özet, Plan, Geçmiş ve Teknik Durum katmanlarıyla progressive disclosure uygular. Raw payload veya özel içerik teknik sekmeye taşınmaz.
+- `uncertain` ve `interrupted`, başarısızlıktan ayrı metin/ikon durumlarıdır; kullanıcıya otomatik tekrar yapılmayacağı açıkça söylenir.
+
 ## Görsel regresyon stratejisi
 
 Offscreen render fake/demo veriyle new chat, active chat, settings ve compact durumlarını kontrol eder. Screenshot’lar geçici geliştirme artefact’ıdır ve repository’ye eklenmez. CI; token, selector, visibility, geometry, accessible name, focus ve state assertion’larına dayanır. Gerçek Windows font/DPI ve native tray/media davranışı manuel smoke ile tamamlanır.

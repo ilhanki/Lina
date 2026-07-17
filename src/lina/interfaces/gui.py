@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
-APP_VERSION = "v0.12.0-alpha"
+APP_VERSION = "v0.12.1-alpha"
 
 COLOR_BG = COLOR_APP_BG
 COLOR_SIDEBAR = COLOR_SIDEBAR_BG

@@ -12,15 +12,15 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.11.2-alpha`: Realtime Camera Conversation tamamlandı.
 - `v0.12.0-alpha`: Agent Mode Foundation tamamlandı.
 - `v0.12.0-alpha` tag öncesi Interaction Quality & Voice Stabilization tamamlandı; Windows gerçek mikrofon/TTS ve realtime kamera doğrulaması manuel smoke testtedir.
-- `v0.12.1-alpha`: Agent Reliability & Task Templates.
+- `v0.12.1-alpha`: Agent Reliability, Task Templates & Recovery tamamlandı.
 - `v0.13.0-alpha`: Codex Bridge.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
 
-## Mevcut Durum: v0.12.0-alpha Product Experience Redesign
+## Mevcut Durum: v0.12.1-alpha Agent Reliability, Task Templates & Recovery
 
-Complete Product Experience Redesign tamamlandı: typed design system, yeni app shell, conversation workspace, command palette, inspector, progresif Agent/Voice/Vision, aranabilir Settings ve Response Quality V2 hazırdır. Tag kararından önce Windows’ta gerçek %125/%135 DPI, çoklu monitör geometry restore, sistem temasını canlı değiştirme, gerçek mikrofon/WinRT TTS, kamera privacy göstergesi ve tray shutdown smoke turu yapılmalıdır. v0.12.0-alpha tag’i bu sprintte oluşturulmaz.
+Agent Reliability, Task Templates & Recovery tamamlandı: gerçek capability’lere bağlı typed şablonlar, conservative matcher, eksik parametre clarification’ı, editable plan review/diff, Task Center V2, error taxonomy, checkpoint/event geçmişi, bounded read-only retry, idempotency ve no-auto-resume recovery hazırdır. Settings schema v9 ve Agent Türkçe/voice/notification entegrasyonu tamamlandı. `v0.12.1-alpha` tag’i bu sprintte oluşturulmaz.
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 
@@ -34,9 +34,10 @@ Complete Product Experience Redesign tamamlandı: typed design system, yeni app 
 
 Manual realtime camera validation deferred.
 
-`v0.12.0-alpha` Agent Mode Foundation tamamlandı: typed planning, sanitized capability snapshot, independent risk policy, görünür plan ve kalıcı step onayı, verified execution, bounded retry/replan, cancellation, interrupted recovery, voice intent, panel, tray ve settings entegrasyonu eklendi. Kamera altyapısı değiştirilmedi. Sonraki hedefler:
+`v0.12.0-alpha` Agent Mode Foundation tamamlandı: typed planning, sanitized capability snapshot, independent risk policy, görünür plan ve kalıcı step onayı, verified execution, bounded retry/replan, cancellation, interrupted recovery, voice intent, panel, tray ve settings entegrasyonu eklendi. Kamera altyapısı değiştirilmedi.
 
-- `v0.12.1-alpha`: Agent Reliability & Task Templates.
+`v0.12.1-alpha` Agent Reliability, Task Templates & Recovery tamamlandı. Şablon kataloğu yalnız gerçek local capability’leri kullanır; system status, conversation search, browser/desktop automation veya yeni yetki eklenmedi. Sonraki hedefler:
+
 - `v0.13.0-alpha`: Codex Bridge.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
 

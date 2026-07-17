@@ -2508,3 +2508,16 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Türkçe quality gate genel selamlama/yardım kalıpları, yabancı kelime kırıntıları ve bozuk teknik ekler için güçlendirildi; İngilizce istenen yanıtlara müdahale edilmez.
 - Dark/light/720 px compact ve Settings/Gelişmiş ekranları fake veriyle offscreen render edildi; geçici artefact’lar temizlendi.
 - Başlangıçtaki 949 test finalde 955 teste yükseldi; tam paket, compileall, PySide6 import ve diff check başarılıdır.
+
+## 2026-07-17 - Agent Reliability, Task Templates & Recovery
+
+- Temiz ve `origin/main` ile senkron `main`, mevcut `v0.12.0-alpha` local/remote tag’i, 955 test ve compileall başlangıç kapıları doğrulandı.
+- Framework bağımsız typed görev şablonu registry/matcher/validator/renderer katmanı ve yalnız gerçek capability’lere bağlı yedi yerleşik görev eklendi.
+- Hatırlatıcı özet aracı tarih aralığını gerçekten filtreleyecek, çakışma aracı aynı `due_at` kayıtlarını deterministik gruplayacak biçimde SafeToolRegistry’ye eklendi.
+- Plan editor, revision-aware diff, dependency/risk koruması ve plan kalite/loop denetimi eklendi.
+- Error taxonomy, read-only tek retry, persistent no-retry, idempotency key, replay guard, duplicate read-before-write, event ve checkpoint altyapısı tamamlandı.
+- Startup recovery yarım session’ları bir kez `interrupted` olarak persist eder; auto-resume veya tool yürütmez. Privacy-safe Task Center V2 ve safe clone davranışı eklendi.
+- Template Browser, typed parametre formu, Plan Review ve Inspector V2; composer, command palette, tray ve doğal dil akışlarıyla bağlandı.
+- Agent yanıt kalite kapısı, event bazlı TTS/bildirim deduplication, recovery bildirimi ve Settings schema v9 entegrasyonu tamamlandı.
+- `pyproject.toml` sürümü `0.12.1a0`, uygulama etiketi `v0.12.1-alpha` oldu; yeni dependency veya tag eklenmedi.
+- Sprint boyunca yedi doğal yerel commit oluşturuldu. Final tam paket 1.039 test, compileall ve diff check kapılarından geçti.

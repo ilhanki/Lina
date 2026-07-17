@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.0--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.1--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Model çalıştırma" src="https://img.shields.io/badge/LLM-Ollama-local-111111">
@@ -25,6 +25,8 @@ Lina; sohbeti, hafızayı, görsel analizi, konuşma etkileşimini, hatırlatıc
 `v0.11.2-alpha` aynalı kamera preview’ü, yeni ve anlamlı kamera değişiklikleri için kısa semantik yorumları ve kamera açıkken güncel kareyle yerel sesli soru-cevap akışını ekler. Her kare vision modeline gönderilmez; tek inference + tek pending frame ve yaklaşık 3 saniyelik minimum kamera analiz aralığı düşük VRAM’i korur.
 
 `v0.12.0-alpha`, yalnızca açık kullanıcı isteğiyle çalışan Agent Mode Foundation’ı ekler. Typed planlar kullanıcıya gösterilir; kalıcı adımlar ayrı onay ister, her araç sonucu deterministic kurallarla doğrulanır ve görevler duraklatılabilir, sürdürülebilir veya iptal edilebilir. Shell, browser, dosya yazma/silme, süreç başlatma ve gizli kamera/mikrofon erişimi Agent Mode dışında kalır.
+
+`v0.12.1-alpha`, Agent Mode’u typed hazır görevler, güvenli doğal dil eşleme, düzenlenebilir plan incelemesi, plan farkı, Task Center V2, privacy-safe checkpoint geçmişi ve kontrollü restart recovery ile güçlendirir. Read-only timeout/transient hataları en fazla bir kez tekrar edilir; kalıcı ve sonucu belirsiz işlemler otomatik tekrarlanmaz. Görev geçmişi ham istek, araç argümanı veya içerik saklamaz.
 
 Tag öncesi stabilizasyon geçişi; Türkçe yanıt kalite denetimi ve tek repair sınırı, bağlam hijyeni, tekrarlı stream chunk koruması, normalize edilen mikrofon/STT hattı, adaptive VAD ve wake cooldown, TTS generation deduplication, Agent onay/sonuç sesleri, mikrofon kalibrasyonu ve birleşik durum göstergesi ekler. Ham ses, tam prompt veya reddedilen model cevabı saklanmaz.
 
@@ -77,6 +79,10 @@ Lina, genel amaçlı bir “bilgisayarı kendi başına yöneten agent” olmaya
 - Typed başarı kanıtı olmadan model metnini başarı saymaz; sonuç `verified`, `failed` veya `uncertain` olur.
 - Read-only adım en fazla bir kez otomatik retry; en fazla bir bounded replan; persistent adım otomatik tekrar edilmez.
 - Tek aktif session, pause/resume/cancel, stale-result guard, interrupted restart recovery ve privacy-safe metadata persistence sağlar.
+- Yalnız gerçek capability’lere bağlı typed görev şablonları; eksik alan için tek ve bağlama özel açıklama sorusu sunar.
+- Plan adımlarını, argümanlarını ve bağımlılıklarını politika sınırları içinde düzenler; değişiklikleri onay öncesi diff olarak gösterir.
+- Task Center V2 aktif, onay bekleyen, yarım, tamamlanan ve başarısız görevleri ayırır; restart her zaman yeni session kimliğiyle ve yeniden onayla başlar.
+- Her adım için bounded event/checkpoint geçmişi, error taxonomy, recovery action ve idempotency koruması tutar.
 - Panel ve tray; durum, ilerleme, risk, onay, adım sonuçları ve iptal kontrollerini yalnızca renge dayanmadan gösterir.
 
 ### Yerel sohbet ve inference
@@ -452,7 +458,7 @@ python -m pytest tests/voice -q
 Son yerel doğrulama sonucu:
 
 ```text
-774 passed
+1039 passed
 ```
 
 Testler dış sistemleri mümkün olduğunca fake provider ve geçici repository’lerle izole eder. Gerçek mikrofon, Windows voice, audio device, Ollama modeli, VRAM davranışı ve GUI görsel kalitesi için manuel smoke test gerekir. Ayrıntılı kontrol listesi: [docs/smoke-test-checklist.md](docs/smoke-test-checklist.md).
@@ -480,7 +486,7 @@ Katkı ayrıntıları için [contributing.md](contributing.md) dosyasına bakın
 - Files capability genel dosya yöneticisi değildir; yalnız sabit proje dokümanlarını okuyabilir.
 - Hatırlatıcı bildirimi için uygulamanın açık veya tray’de olması gerekir.
 - Autostart/Windows registry entegrasyonu uygulanmamıştır.
-- Agent mode, genel bilgisayar kontrolü ve Codex bridge mevcut sürüm kapsamı dışındadır.
+- Codex bridge ve genel bilgisayar kontrolü mevcut sürüm kapsamı dışındadır; Agent Mode yalnız allowlist içindeki yerel capability’lerle çalışır.
 
 ## Yol haritası
 
@@ -498,8 +504,9 @@ Tamamlanan ana hat:
 - `v0.11.1-alpha` — Live Preview & Monitoring Overlays.
 - `v0.11.2-alpha` — Realtime Camera Conversation.
 - `v0.12.0-alpha` — Agent Mode Foundation.
+- `v0.12.1-alpha` — Agent Reliability, Task Templates & Recovery.
 
-Planlanan sonraki alanlar `v0.12.1-alpha` Agent Reliability & Task Templates, `v0.13.0-alpha` Codex Bridge ve `v0.14.0-alpha` Safe Desktop Capabilities’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
+Planlanan sonraki alanlar `v0.13.0-alpha` Codex Bridge ve `v0.14.0-alpha` Safe Desktop Capabilities’dir. Güncel ve ayrıntılı plan için [docs/roadmap.md](docs/roadmap.md) kaynak kabul edilmelidir.
 
 ## Dokümantasyon
 
@@ -513,6 +520,9 @@ Planlanan sonraki alanlar `v0.12.1-alpha` Agent Reliability & Task Templates, `v
 - [v0.11.1-alpha sürüm notları](docs/release-notes-v0.11.1-alpha.md)
 - [v0.11.2-alpha sürüm notları](docs/release-notes-v0.11.2-alpha.md)
 - [v0.12.0-alpha sürüm notları](docs/release-notes-v0.12.0-alpha.md)
+- [v0.12.1-alpha sürüm notları](docs/release-notes-v0.12.1-alpha.md)
+- [Agent görev şablonları](docs/agent-task-templates.md)
+- [Agent kurtarma ve güvenilirlik](docs/agent-recovery.md)
 - [Speech Architecture v1](docs/speech-architecture-v1.md)
 - [Brain Specification v1](docs/brain-specification-v1.md)
 - [Conversation Flow v1](docs/conversation-flow-v1.md)
