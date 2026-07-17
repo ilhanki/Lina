@@ -189,7 +189,12 @@ class VoiceController:
         if not spoken:
             self._set_state(VoiceState.IDLE)
             return False
-        dedupe_key = (request.source.value, request.generation_id, " ".join(spoken.casefold().split()))
+        normalized_text = " ".join(spoken.casefold().split())
+        dedupe_key = (
+            request.source.value,
+            request.agent_session_id or request.conversation_id or "",
+            request.generation_id or normalized_text,
+        )
         if dedupe_key in self._spoken_generations:
             return False
         self._spoken_generations.add(dedupe_key)

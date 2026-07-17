@@ -55,7 +55,7 @@ class AgentTaskCenter:
 
     def list(self, section: TaskCenterSection | str | None = None) -> tuple[AgentTaskSummary, ...]:
         resolved = TaskCenterSection(section) if section is not None else None
-        summaries = tuple(_summary(item) for item in self.repository.load_all())
+        summaries = tuple(_summary(item) for item in self.repository.load_all(recover_interrupted=False))
         if resolved is not None:
             summaries = tuple(item for item in summaries if item.section is resolved)
         return tuple(sorted(summaries, key=lambda item: _sort_value(item.started_at), reverse=True))

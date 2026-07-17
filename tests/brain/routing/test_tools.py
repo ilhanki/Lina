@@ -22,7 +22,7 @@ def _services(tmp_path):
 def test_registry_contains_only_supported_safe_tools(tmp_path) -> None:
     registry = build_safe_tool_registry(*_services(tmp_path))
     assert set(registry.names()) == {
-        "files.read", "memory.recall", "memory.store", "reminder.create", "reminder.list",
+        "files.read", "memory.recall", "memory.store", "reminder.conflicts", "reminder.create", "reminder.list", "reminder.summary",
         "vision.image", "vision.region", "vision.screen",
         "live_vision.camera_open", "live_vision.camera_analyze", "live_vision.camera_monitor",
         "live_vision.screen_monitor", "live_vision.region_monitor", "live_vision.live_vision_pause",
@@ -92,3 +92,25 @@ def test_reminder_list_is_capped_and_duplicate_create_is_safe(tmp_path) -> None:
     assert router.execute(first, RequestContext(None, confirmed=True)).success
     assert "zaten mevcut" in router.execute(second, RequestContext(None, confirmed=True)).user_message
     assert len([item for item in reminders.list() if item.title == "Aynı"]) == 1
+
+
+def test_reminder_summary_filters_range_and_conflicts_are_deterministic(tmp_path) -> None:
+    reminders, files, memory = _services(tmp_path)
+    router = IntentRouter(build_safe_tool_registry(reminders, files, memory))
+    tomorrow = datetime.now().astimezone() + timedelta(days=1)
+    same_time = tomorrow.replace(hour=14, minute=0, second=0, microsecond=0)
+    reminders.create("B görevi", same_time)
+    reminders.create("A görevi", same_time)
+    reminders.create("Sonraki", datetime.now().astimezone() + timedelta(days=10))
+
+    summary = router.execute(
+        IntentRequest(IntentType.SUMMARIZE_REMINDERS, 1, "", {"range": "tomorrow"}),
+        RequestContext(None),
+    )
+    assert summary.success and len(summary.data) == 2
+    conflicts = router.execute(
+        IntentRequest(IntentType.CHECK_REMINDER_CONFLICTS, 1, "", {"range": "week"}),
+        RequestContext(None),
+    )
+    assert conflicts.success and len(conflicts.data) == 1
+    assert [item.title for item in conflicts.data[0]] == ["A görevi", "B görevi"]

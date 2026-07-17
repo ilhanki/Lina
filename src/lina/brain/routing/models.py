@@ -11,6 +11,8 @@ class IntentType(str, Enum):
     CHAT = "chat"
     CREATE_REMINDER = "create_reminder"
     LIST_REMINDERS = "list_reminders"
+    SUMMARIZE_REMINDERS = "summarize_reminders"
+    CHECK_REMINDER_CONFLICTS = "check_reminder_conflicts"
     ANALYZE_SCREEN = "analyze_screen"
     ANALYZE_REGION = "analyze_region"
     ANALYZE_IMAGE = "analyze_image"
@@ -36,6 +38,15 @@ class IntentType(str, Enum):
     AGENT_CANCEL = "agent_cancel"
     AGENT_STATUS = "agent_status"
     AGENT_MODIFY_PLAN = "agent_modify_plan"
+    AGENT_TEMPLATE_LIST = "agent_template_list"
+    AGENT_TEMPLATE_USE = "agent_template_use"
+    AGENT_TASK_HISTORY = "agent_task_history"
+    AGENT_TASK_RESTART = "agent_task_restart"
+    AGENT_TASK_RECOVERY = "agent_task_recovery"
+    AGENT_PLAN_EDIT = "agent_plan_edit"
+    AGENT_STEP_SKIP = "agent_step_skip"
+    AGENT_RETRY_READ_ONLY = "agent_retry_read_only"
+    AGENT_CHECK_UNCERTAIN_RESULT = "agent_check_uncertain_result"
 
 
 class ToolStatus(str, Enum):

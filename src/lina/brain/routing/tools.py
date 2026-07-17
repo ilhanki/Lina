@@ -1,6 +1,6 @@
 """Bindings from safe routing tools to existing application services."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from lina.brain.routing.models import IntentType, ToolResult
 from lina.brain.routing.registry import SafeToolRegistry, ToolDefinition
@@ -32,6 +32,51 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
         if len(upcoming) > 10:
             lines.append(f"...ve {len(upcoming) - 10} hatırlatıcı daha")
         return ToolResult(True, "\n".join(lines), tuple(upcoming))
+
+    def reminder_summary(request, _context):
+        selected = reminders_in_range(str(request.extracted_arguments.get("range", "upcoming")))
+        if not selected:
+            return ToolResult(True, "Seçilen aralıkta yaklaşan hatırlatıcın yok.", ())
+        lines = [f"Seçilen aralıkta {len(selected)} hatırlatıcın var:"]
+        lines.extend(f"- {item.due_at.astimezone().strftime('%d.%m %H:%M')} · {item.title}" for item in selected[:10])
+        if len(selected) > 10:
+            lines.append(f"...ve {len(selected) - 10} hatırlatıcı daha")
+        return ToolResult(True, "\n".join(lines), selected)
+
+    def reminder_conflicts(request, _context):
+        selected = reminders_in_range(str(request.extracted_arguments.get("range", "upcoming")))
+        by_time = {}
+        for reminder in selected:
+            by_time.setdefault(reminder.due_at, []).append(reminder)
+        conflicts = tuple(
+            tuple(sorted(group, key=lambda item: (item.title.casefold(), item.id or 0)))
+            for _due_at, group in sorted(by_time.items(), key=lambda item: item[0])
+            if len(group) > 1
+        )
+        if not conflicts:
+            return ToolResult(True, "Seçilen aralıkta aynı zamana denk gelen hatırlatıcı yok.", ())
+        lines = [f"{len(conflicts)} zaman çakışması buldum:"]
+        lines.extend(
+            f"- {group[0].due_at.astimezone().strftime('%d.%m %H:%M')} · "
+            + ", ".join(item.title for item in group)
+            for group in conflicts
+        )
+        return ToolResult(True, "\n".join(lines), conflicts)
+
+    def reminders_in_range(range_name: str):
+        now = datetime.now().astimezone()
+        active = [
+            item for item in reminders.list()
+            if item.status.value == "active" and item.due_at > now
+        ]
+        normalized = range_name.casefold().strip()
+        if normalized == "tomorrow":
+            tomorrow = (now + timedelta(days=1)).date()
+            active = [item for item in active if item.due_at.astimezone().date() == tomorrow]
+        elif normalized == "week":
+            end = now + timedelta(days=7)
+            active = [item for item in active if item.due_at <= end]
+        return tuple(sorted(active, key=lambda item: (item.due_at, item.id or 0)))
 
     def read_file(request, _context):
         try:
@@ -65,6 +110,8 @@ def build_safe_tool_registry(reminders=None, files=None, memory=None) -> SafeToo
     definitions = (
         ToolDefinition("reminder.create", IntentType.CREATE_REMINDER, "Yerel hatırlatıcı oluştur", {"title": str, "due_at": datetime, "recurrence": (ReminderRecurrence, str)}, True, create_reminder, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
         ToolDefinition("reminder.list", IntentType.LIST_REMINDERS, "Yaklaşan hatırlatıcıları listele", {}, False, list_reminders, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
+        ToolDefinition("reminder.summary", IntentType.SUMMARIZE_REMINDERS, "Seçilen aralıktaki hatırlatıcıları özetle", {"range": str}, False, reminder_summary, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
+        ToolDefinition("reminder.conflicts", IntentType.CHECK_REMINDER_CONFLICTS, "Aynı zamana denk gelen hatırlatıcıları deterministik olarak bul", {"range": str}, False, reminder_conflicts, lambda: reminders is not None, "Hatırlatıcılar şu anda kullanılamıyor."),
         ToolDefinition("files.read", IntentType.READ_FILE, "Allowlist içindeki dosyayı oku", {"target": str}, False, read_file, lambda: files is not None, "Dosya okuma şu anda kullanılamıyor."),
         ToolDefinition("memory.store", IntentType.MEMORY_STORE, "Açık kullanıcı isteğini hafızaya kaydet", {"content": str}, True, store_memory, lambda: memory is not None, "Memory şu anda kullanılamıyor."),
         ToolDefinition("memory.recall", IntentType.MEMORY_RECALL, "Yerel hafızayı getir", {"query": str}, False, recall_memory, lambda: memory is not None, "Memory şu anda kullanılamıyor."),

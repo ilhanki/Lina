@@ -7,7 +7,7 @@ from lina.agent.models import AgentPlan, AgentStep, CapabilitySnapshot, RiskLeve
 
 
 READ_ONLY_TOOLS = frozenset({
-    "reminder.list", "memory.recall", "files.read", "vision.image",
+    "reminder.list", "reminder.summary", "reminder.conflicts", "memory.recall", "files.read", "vision.image",
     "vision.screen", "vision.region", "live_vision.live_vision_status",
     "system.status", "model.status", "datetime.now", "notification.list",
     "conversation.search",

@@ -37,7 +37,7 @@ class AgentSessionRepository:
             ordered = sorted(by_id.values(), key=lambda item: str(item.get("updated_at", "")), reverse=True)
             self._write(ordered)
 
-    def load_all(self) -> tuple[dict, ...]:
+    def load_all(self, *, recover_interrupted: bool = True) -> tuple[dict, ...]:
         safe: list[dict] = []
         with self._lock:
             sessions = self._read_raw()
@@ -45,7 +45,7 @@ class AgentSessionRepository:
             if not isinstance(source, dict):
                 continue
             item = dict(source)
-            if item.get("status") in _INTERRUPTED_ON_LOAD:
+            if recover_interrupted and item.get("status") in _INTERRUPTED_ON_LOAD:
                 item["status"] = AgentSessionStatus.INTERRUPTED.value
                 item["error_code"] = "interrupted"
                 item["last_summary"] = "Yarım kalan görev otomatik olarak devam ettirilmedi."
@@ -54,6 +54,21 @@ class AgentSessionRepository:
 
     def interrupted(self) -> tuple[dict, ...]:
         return tuple(item for item in self.load_all() if item.get("status") == AgentSessionStatus.INTERRUPTED.value)
+
+    def recover_interrupted(self) -> int:
+        """Persist restart recovery once; no tool or session execution is resumed."""
+        with self._lock:
+            sessions = list(self._read_raw())
+            changed = 0
+            for item in sessions:
+                if item.get("status") in _INTERRUPTED_ON_LOAD:
+                    item["status"] = AgentSessionStatus.INTERRUPTED.value
+                    item["error_code"] = "interrupted"
+                    item["last_summary"] = "Yarım kalan görev otomatik olarak devam ettirilmedi."
+                    changed += 1
+            if changed:
+                self._write(sessions)
+            return changed
 
     def remove(self, session_id: str) -> bool:
         """Remove only Agent metadata; tool-created data is stored elsewhere."""

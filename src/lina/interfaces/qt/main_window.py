@@ -32,6 +32,8 @@ from lina.agent import (
     AgentContext,
     AgentController,
     AgentPlanEditor,
+    AgentMessageKind,
+    AgentResponseQuality,
     AgentSessionStatus,
     AgentTaskCenter,
     ApprovalDecision,
@@ -193,6 +195,8 @@ class LinaMainWindow(QMainWindow):
             user_settings_service and user_settings_service.current.agent.agent_mode_enabled
         )
         self._agent_notified_sessions: set[str] = set()
+        self._agent_notification_events: set[str] = set()
+        self._agent_response_quality = AgentResponseQuality()
         self._agent_task_center_dialog: AgentTaskCenterDialog | None = None
         self._task_template_dialog: TaskTemplateBrowserDialog | None = None
         self._plan_review_dialog: QDialog | None = None
@@ -294,6 +298,7 @@ class LinaMainWindow(QMainWindow):
             self._apply_user_settings(self._user_settings_service.current)
         self._setup_system_tray()
         self._setup_notifications()
+        self._setup_agent_recovery_notice()
         self._bind_shortcuts()
         self._restore_initial_conversation()
         self._composer.input.setFocus()
@@ -860,6 +865,28 @@ class LinaMainWindow(QMainWindow):
                 f"Bildirim merkezini aç ({count} okunmamış)" if count else "Bildirim merkezini aç"
             )
 
+    def _setup_agent_recovery_notice(self) -> None:
+        controller = self._agent_controller
+        settings = self._user_settings_service.current.agent if self._user_settings_service else None
+        if (
+            controller is None
+            or controller.repository is None
+            or settings is not None and not settings.notify_interrupted_tasks_on_startup
+        ):
+            return
+        notice = AgentTaskCenter(controller.repository).recovery_notice()
+        if notice is None:
+            return
+        self._notify_agent_event("recovery", "Yarım Agent görevi", notice.message)
+        self._set_status(notice.message)
+
+    def _notify_agent_event(self, event_id: str, title: str, message: str) -> None:
+        if event_id in self._agent_notification_events:
+            return
+        self._agent_notification_events.add(event_id)
+        if self._tray_icon is not None:
+            self._tray_icon.showMessage(title, message)
+
     def open_notifications(self) -> None:
         if self._notification_service is None:
             return
@@ -1020,6 +1047,13 @@ class LinaMainWindow(QMainWindow):
             self._agent_controller.always_show_plan = settings.agent.always_show_plan
             self._agent_controller.policy.max_steps = settings.agent.max_agent_steps
             self._agent_controller.policy.max_replans = settings.agent.max_agent_replans
+            if self._agent_controller.repository is not None:
+                try:
+                    self._agent_controller.repository.cleanup(settings.agent.agent_history_retention_days)
+                except (OSError, ValueError, TypeError):
+                    pass
+        if hasattr(self._composer, "task_templates_action"):
+            self._composer.task_templates_action.setVisible(settings.agent.show_task_template_suggestions)
         self._update_agent_ui()
         self._live_vision_enabled = settings.live_vision.enabled and settings.vision.enabled
         if self._camera_preview is not None:
@@ -1125,12 +1159,17 @@ class LinaMainWindow(QMainWindow):
                     response = f"{plan.title} hazır. {len(plan.steps)} adımı inceleyip başlatabilirsin."
                 except AgentError as error:
                     response = str(error)
+                response = self._prepare_agent_text(response, self._agent_controller.session)
                 self._update_agent_ui()
                 self._finish_routed_intent(message, response, request_created_at)
                 return
             decision = parse_approval(message)
             if agent_session.status is AgentSessionStatus.AWAITING_PLAN_APPROVAL and decision is ApprovalDecision.APPROVE:
                 self._start_agent_plan()
+                self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
+                return
+            if agent_session.status is AgentSessionStatus.AWAITING_STEP_APPROVAL and decision is not ApprovalDecision.AMBIGUOUS:
+                self._decide_agent_step(decision)
                 self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
                 return
         if self._agent_enabled and self._agent_controller is not None and self._agent_controller.active_session is None:
@@ -1147,6 +1186,7 @@ class LinaMainWindow(QMainWindow):
                     response = f"{plan.title} hazır. {len(plan.steps)} adımı inceleyip başlatabilirsin."
                 except AgentError as error:
                     response = str(error)
+                response = self._prepare_agent_text(response, self._agent_controller.session)
                 self._update_agent_ui()
                 active = self._agent_controller.session
                 if active is not None:
@@ -1157,10 +1197,6 @@ class LinaMainWindow(QMainWindow):
                         approval=active.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL},
                     )
                 self._finish_routed_intent(message, response, request_created_at)
-                return
-            if agent_session.status is AgentSessionStatus.AWAITING_STEP_APPROVAL and decision is not ApprovalDecision.AMBIGUOUS:
-                self._decide_agent_step(decision)
-                self._finish_routed_intent(message, self._agent_controller.result_summary(), request_created_at)
                 return
         if _is_camera_question(message) and not self._camera_is_active():
             self._finish_routed_intent(
@@ -1214,7 +1250,11 @@ class LinaMainWindow(QMainWindow):
             RoutingIntentType.AGENT_EXECUTE, RoutingIntentType.AGENT_PLAN,
             RoutingIntentType.AGENT_PAUSE, RoutingIntentType.AGENT_RESUME,
             RoutingIntentType.AGENT_CANCEL, RoutingIntentType.AGENT_STATUS,
-            RoutingIntentType.AGENT_MODIFY_PLAN,
+            RoutingIntentType.AGENT_MODIFY_PLAN, RoutingIntentType.AGENT_TEMPLATE_LIST,
+            RoutingIntentType.AGENT_TEMPLATE_USE, RoutingIntentType.AGENT_TASK_HISTORY,
+            RoutingIntentType.AGENT_TASK_RESTART, RoutingIntentType.AGENT_TASK_RECOVERY,
+            RoutingIntentType.AGENT_PLAN_EDIT, RoutingIntentType.AGENT_STEP_SKIP,
+            RoutingIntentType.AGENT_RETRY_READ_ONLY, RoutingIntentType.AGENT_CHECK_UNCERTAIN_RESULT,
         }:
             self._handle_agent_intent(request, user_text, created_at)
             return
@@ -1254,7 +1294,27 @@ class LinaMainWindow(QMainWindow):
         try:
             if request.intent is RoutingIntentType.AGENT_STATUS:
                 progress = controller.status()
-                message = "Aktif Agent görevi yok." if progress is None else f"Agent durumu: {progress.status.value}; ilerleme {progress.current}/{progress.total}. {progress.summary}"
+                message = "Aktif Agent görevi yok." if progress is None else f"Agent ilerlemesi {progress.current}/{progress.total}. {progress.summary}"
+            elif request.intent in {RoutingIntentType.AGENT_TEMPLATE_LIST, RoutingIntentType.AGENT_TEMPLATE_USE}:
+                self._show_task_templates()
+                message = "Kullanılabilir hazır Agent görevlerini açtım. Bir şablon seçtiğinde önce plan hazırlanacak."
+            elif request.intent in {RoutingIntentType.AGENT_TASK_HISTORY, RoutingIntentType.AGENT_TASK_RECOVERY}:
+                self._show_agent_task_center()
+                message = "Agent Görev Merkezi açıldı. Yarım görevler otomatik olarak devam ettirilmez."
+            elif request.intent in {RoutingIntentType.AGENT_PLAN_EDIT, RoutingIntentType.AGENT_MODIFY_PLAN, RoutingIntentType.AGENT_STEP_SKIP}:
+                self._show_plan_review()
+                message = "Plan incelemesini açtım. Değişiklikler yeniden doğrulanıp onay bekleyecek."
+            elif request.intent in {RoutingIntentType.AGENT_TASK_RESTART, RoutingIntentType.AGENT_RETRY_READ_ONLY}:
+                session = controller.session
+                if session is None:
+                    message = "Yeniden başlatılabilecek Agent görevi yok."
+                else:
+                    controller.safe_restart(session.session_id)
+                    self._update_agent_ui()
+                    message = "Görev güvenli bir kopya olarak yeniden hazırlandı. Eski onaylar kullanılmadı."
+            elif request.intent is RoutingIntentType.AGENT_CHECK_UNCERTAIN_RESULT:
+                self._show_agent_inspector()
+                message = "Belirsiz sonucu yeniden çalıştırmadan inceleme ekranını açtım."
             elif request.intent is RoutingIntentType.AGENT_PAUSE:
                 session = controller.active_session
                 message = "Aktif Agent görevi yok." if session is None else (controller.pause(session.session_id) and "Agent görevi duraklatıldı.")
@@ -1264,8 +1324,6 @@ class LinaMainWindow(QMainWindow):
             elif request.intent is RoutingIntentType.AGENT_CANCEL:
                 session = controller.active_session
                 message = "Aktif Agent görevi yok." if session is None else (controller.cancel(session.session_id) and "Agent görevi iptal edildi. Tamamlanan kalıcı işlemler geri alınmadı.")
-            elif request.intent is RoutingIntentType.AGENT_MODIFY_PLAN:
-                message = "Plan düzenleme isteği kaydedildi; mevcut plan çalıştırılmadı. Yeni isteğini Agent modunda açıkça yaz."
             else:
                 session = controller.create_session(user_text, self._routing_session_key, self._active_request_id)
                 plan = controller.plan()
@@ -1278,6 +1336,7 @@ class LinaMainWindow(QMainWindow):
             if active is not None:
                 approval = active.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL}
                 completion = active.status in {AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED, AgentSessionStatus.FAILED}
+                message = self._prepare_agent_text(message, active, approval=approval)
                 self._speak_agent_event(active.session_id, active.status.value, message, approval=approval, completion=completion)
             self._finish_routed_intent(user_text, message, created_at)
         except AgentError as error:
@@ -1432,10 +1491,36 @@ class LinaMainWindow(QMainWindow):
         )
         if not allowed:
             return
+        session = self._agent_controller.session if self._agent_controller else None
+        kind = self._agent_message_kind(session, approval=approval, completion=completion)
+        spoken = self._agent_response_quality.for_speech(text, kind)
         try:
-            self._voice_controller.speak_agent(text, session_id=session_id, event_id=f"{session_id}:{event_id}", approval=approval)
+            self._voice_controller.speak_agent(spoken, session_id=session_id, event_id=f"{session_id}:{event_id}", approval=approval)
         except Exception:
             return
+
+    def _prepare_agent_text(self, text: str, session=None, *, approval: bool = False) -> str:
+        kind = self._agent_message_kind(session, approval=approval, completion=bool(session and session.terminal))
+        return self._agent_response_quality.prepare(text, kind).text
+
+    @staticmethod
+    def _agent_message_kind(session=None, *, approval: bool = False, completion: bool = False) -> AgentMessageKind:
+        if approval:
+            return AgentMessageKind.APPROVAL
+        if session is not None:
+            if session.status is AgentSessionStatus.AWAITING_INPUT:
+                return AgentMessageKind.CLARIFICATION
+            if session.status is AgentSessionStatus.COMPLETED:
+                return AgentMessageKind.COMPLETION
+            if session.status is AgentSessionStatus.PARTIALLY_COMPLETED:
+                return AgentMessageKind.PARTIAL
+            if session.status in {AgentSessionStatus.FAILED, AgentSessionStatus.BLOCKED, AgentSessionStatus.UNCERTAIN}:
+                return AgentMessageKind.FAILURE
+            if session.status is AgentSessionStatus.INTERRUPTED:
+                return AgentMessageKind.RECOVERY
+            if session.status is AgentSessionStatus.AWAITING_PLAN_APPROVAL:
+                return AgentMessageKind.PLAN_READY
+        return AgentMessageKind.COMPLETION if completion else AgentMessageKind.PROGRESS
 
     def _toggle_agent_pause(self) -> None:
         session = self._agent_controller.active_session if self._agent_controller else None
@@ -1467,6 +1552,11 @@ class LinaMainWindow(QMainWindow):
             progress = self._agent_controller.status()
             if progress.status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL}:
                 self._tray_icon.setToolTip("Lina — Agent onay bekliyor")
+                self._notify_agent_event(
+                    f"{progress.session_id}:{progress.status.value}:{progress.current}",
+                    "Agent onay bekliyor",
+                    "Bir Agent planı veya kalıcı adım açık onayını bekliyor.",
+                )
             elif progress.status is AgentSessionStatus.PAUSED:
                 self._tray_icon.setToolTip("Lina — Agent duraklatıldı")
             else:
@@ -1475,7 +1565,11 @@ class LinaMainWindow(QMainWindow):
             settings = self._user_settings_service.current.agent if self._user_settings_service else None
             if settings is None or settings.notify_agent_completion:
                 title = "Agent görevi tamamlandı" if session.status in {AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED} else "Agent görevi sona erdi"
-                self._tray_icon.showMessage(title, self._agent_controller.result_summary())
+                self._notify_agent_event(
+                    f"{session.session_id}:{session.status.value}",
+                    title,
+                    self._agent_controller.result_summary(),
+                )
             self._agent_notified_sessions.add(session.session_id)
 
     def _execute_routed_tool(self, request: IntentRequest, user_text: str, created_at: datetime, confirmed: bool, card: ToolActivityCard | None = None) -> None:

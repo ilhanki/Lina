@@ -9,17 +9,35 @@ from lina.brain.routing.validation import extract_file_target, extract_memory_co
 class DeterministicIntentClassifier:
     def classify(self, text: str) -> IntentRequest:
         original = text.strip()
-        normalized = " ".join(original.casefold().split())
+        normalized = " ".join(original.casefold().replace("i\u0307", "i").split())
         if not normalized:
             return self._request(IntentType.CHAT, original, 0.0)
         agent_discussion = (
             "yapay zekâ ajanı nedir", "yapay zeka ajani nedir", "agent mode güvenli mi",
             "agent mode guvenli mi", "bir plan nasıl hazırlanır", "bir plan nasil hazirlanir",
+            "görev şablonu nedir", "gorev sablonu nedir", "agent neden hata yapar",
+            "retry ne demek",
         )
         if any(phrase in normalized for phrase in agent_discussion):
             return self._request(IntentType.CHAT, original, 0.99)
         if any(phrase in normalized for phrase in ("agent görevini iptal et", "agent gorevini iptal et", "görevi iptal et", "gorevi iptal et")):
             return self._request(IntentType.AGENT_CANCEL, original, 1.0)
+        if any(phrase in normalized for phrase in ("hazır agent görevlerini göster", "hazir agent gorevlerini goster", "hazır görevleri göster", "hazir gorevleri goster")):
+            return self._request(IntentType.AGENT_TEMPLATE_LIST, original, 1.0)
+        if "şablonunu kullan" in normalized or "sablonunu kullan" in normalized:
+            return self._request(IntentType.AGENT_TEMPLATE_USE, original, 0.99, {"request": original})
+        if any(phrase in normalized for phrase in ("agent görev geçmişi", "agent gorev gecmisi", "agent görevlerimi göster", "agent gorevlerimi goster")):
+            return self._request(IntentType.AGENT_TASK_HISTORY, original, 0.99)
+        if any(phrase in normalized for phrase in ("yarım kalan görevimi göster", "yarim kalan gorevimi goster", "yarım görev", "yarim gorev")):
+            return self._request(IntentType.AGENT_TASK_RECOVERY, original, 0.99)
+        if any(phrase in normalized for phrase in ("güvenli şekilde yeniden başlat", "guvenli sekilde yeniden baslat", "güvenli kopya olarak yeniden başlat", "guvenli kopya olarak yeniden baslat")):
+            return self._request(IntentType.AGENT_TASK_RESTART, original, 1.0)
+        if any(phrase in normalized for phrase in ("ikinci adımı kaldır", "ikinci adimi kaldir", "adımı atla", "adimi atla")):
+            return self._request(IntentType.AGENT_STEP_SKIP, original, 0.99)
+        if any(phrase in normalized for phrase in ("salt okunur adımı tekrar dene", "salt okunur adimi tekrar dene", "tekrar dene")) and "agent" in normalized:
+            return self._request(IntentType.AGENT_RETRY_READ_ONLY, original, 0.98)
+        if any(phrase in normalized for phrase in ("belirsiz sonucu kontrol et", "sonucun oluşup oluşmadığını kontrol et", "sonucun olusup olmadigini kontrol et")):
+            return self._request(IntentType.AGENT_CHECK_UNCERTAIN_RESULT, original, 0.99)
         if any(phrase in normalized for phrase in ("görevi duraklat", "gorevi duraklat", "agentı duraklat", "agenti duraklat")):
             return self._request(IntentType.AGENT_PAUSE, original, 1.0)
         if any(phrase in normalized for phrase in ("agent görevine devam et", "agent gorevine devam et", "göreve devam et", "goreve devam et")):
@@ -27,7 +45,7 @@ class DeterministicIntentClassifier:
         if any(phrase in normalized for phrase in ("şu anda hangi adımdasın", "su anda hangi adimdasin", "agent durumu", "durum ne")):
             return self._request(IntentType.AGENT_STATUS, original, 0.99)
         if any(phrase in normalized for phrase in ("agent planını düzenle", "agent planini duzenle", "planı değiştir", "plani degistir")):
-            return self._request(IntentType.AGENT_MODIFY_PLAN, original, 0.99)
+            return self._request(IntentType.AGENT_PLAN_EDIT, original, 0.99)
         if any(phrase in normalized for phrase in ("önce plan çıkar", "once plan cikar", "agent planı hazırla", "agent plani hazirla")):
             return self._request(IntentType.AGENT_PLAN, original, 0.99, {"request": original})
         explicit_agent = any(phrase in normalized for phrase in ("agent modunda", "agent mode ile", "bunu adım adım yap", "bunu adim adim yap"))

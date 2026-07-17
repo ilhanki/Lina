@@ -14,6 +14,7 @@ from lina.notifications.service import NotificationService
 from lina.services.conversation_models import ConversationResult
 from lina.services.model_diagnostics_service import VisionDiagnosticsResult, VisionStatus
 from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentVerifier
+from lina.agent.templates import build_builtin_template_registry
 
 
 class _Conversation:
@@ -156,4 +157,58 @@ def test_agent_plan_is_visible_approved_and_executed_once(qtbot, tmp_path) -> No
     qtbot.mouseClick(window._agent_panel.start_button, Qt.MouseButton.LeftButton)
     assert controller.session.status.value == "completed"
     assert controller.session.metrics.executed_step_count == 1
+    window._force_exit = True; window.close()
+
+
+def test_agent_enabled_natural_template_match_asks_only_missing_time_then_builds_plan(qtbot, tmp_path) -> None:
+    reminders = NotificationService(NotificationRepository(tmp_path / "notifications.sqlite3"))
+    memory = MemoryService(MemoryRepository(tmp_path / "memory.sqlite3"))
+    files = FileAccessService(tmp_path, allowed_paths=())
+    registry = build_safe_tool_registry(reminders, files, memory)
+    policy = AgentPolicy()
+    controller = AgentController(
+        AgentPlanner(policy, template_registry=build_builtin_template_registry()),
+        AgentExecutor(registry), AgentVerifier(), policy,
+    )
+    conversation = _Conversation()
+    window = LinaMainWindow(conversation, intent_router=IntentRouter(registry), agent_controller=controller, thread_pool=_ImmediatePool())
+    qtbot.addWidget(window)
+    window._agent_enabled = True
+    window.show()
+
+    _send(window, "Yarın sporu hatırlat.")
+    assert controller.session.status.value == "awaiting_input"
+    assert window._last_response_text == "Saat kaçta hatırlatayım?"
+    assert conversation.calls == []
+
+    _send(window, "10'da.")
+    assert controller.session.status.value == "awaiting_plan_approval"
+    assert controller.session.plan.template_id == "reminders.create"
+    assert controller.session.plan.steps[0].approval_required
+    window._force_exit = True; window.close()
+
+
+def test_agent_template_clarification_is_conversation_isolated_and_explanations_stay_chat(qtbot, tmp_path) -> None:
+    reminders = NotificationService(NotificationRepository(tmp_path / "notifications.sqlite3"))
+    memory = MemoryService(MemoryRepository(tmp_path / "memory.sqlite3"))
+    registry = build_safe_tool_registry(reminders, None, memory)
+    policy = AgentPolicy()
+    controller = AgentController(
+        AgentPlanner(policy, template_registry=build_builtin_template_registry()),
+        AgentExecutor(registry), AgentVerifier(), policy,
+    )
+    conversation = _Conversation()
+    window = LinaMainWindow(conversation, intent_router=IntentRouter(registry), agent_controller=controller, thread_pool=_ImmediatePool())
+    qtbot.addWidget(window)
+    window._agent_enabled = True
+    _send(window, "Yarın sporu hatırlat.")
+    original_conversation = controller.session.conversation_id
+    window._routing_session_key = original_conversation + 1
+    _send(window, "10'da.")
+    assert controller.session.status.value == "awaiting_input"
+    assert controller.session.conversation_id == original_conversation
+
+    controller.cancel(controller.session.session_id)
+    _send(window, "Hatırlatıcı nedir?")
+    assert conversation.calls[-1].text == "Hatırlatıcı nedir?"
     window._force_exit = True; window.close()

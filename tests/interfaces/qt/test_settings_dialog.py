@@ -18,8 +18,11 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     assert dialog._navigation.item(6).text() == "Gelişmiş"
     assert dialog._agent_max_steps.minimum() == 3
     assert dialog._agent_max_steps.maximum() == 12
-    assert dialog._agent_confirm_persistent.isChecked()
-    assert not dialog._agent_confirm_persistent.isEnabled()
+    assert "kalıcı işlem onayı" in dialog._agent_security_note.text()
+    assert dialog._agent_security_note.accessibleName()
+    assert dialog._agent_template_suggestions.isChecked()
+    assert dialog._agent_interrupted_notice.isChecked()
+    assert dialog._agent_history_retention.currentData() == 30
     dialog._font_scale.setValue(120)
     dialog._apply()
 

@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -124,6 +124,9 @@ class AgentUserSettings:
     speak_important_agent_events: bool = True
     speak_agent_completion: bool = True
     speak_agent_approvals: bool = True
+    show_task_template_suggestions: bool = True
+    notify_interrupted_tasks_on_startup: bool = True
+    agent_history_retention_days: int | None = 30
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,6 +187,8 @@ class UserSettings:
             raise ValueError("Agent maximum replans must be between 0 and 1")
         if not self.agent.always_confirm_persistent_steps:
             raise ValueError("Persistent Agent approval cannot be disabled")
+        if self.agent.agent_history_retention_days not in {7, 30, 90, None}:
+            raise ValueError("Unsupported Agent history retention")
         if not 0.5 <= self.live_vision.capture_interval_seconds <= 60:
             raise ValueError("Live vision capture interval must be between 0.5 and 60")
         if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
@@ -291,6 +296,9 @@ class UserSettings:
                 "speak_important_agent_events": self.agent.speak_important_agent_events,
                 "speak_agent_completion": self.agent.speak_agent_completion,
                 "speak_agent_approvals": self.agent.speak_agent_approvals,
+                "show_task_template_suggestions": self.agent.show_task_template_suggestions,
+                "notify_interrupted_tasks_on_startup": self.agent.notify_interrupted_tasks_on_startup,
+                "agent_history_retention_days": self.agent.agent_history_retention_days,
             },
         }
 
@@ -299,7 +307,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, 8, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -408,6 +416,9 @@ class UserSettings:
                 speak_important_agent_events=_bool(agent, "speak_important_agent_events", defaults.agent.speak_important_agent_events),
                 speak_agent_completion=_bool(agent, "speak_agent_completion", defaults.agent.speak_agent_completion),
                 speak_agent_approvals=_bool(agent, "speak_agent_approvals", defaults.agent.speak_agent_approvals),
+                show_task_template_suggestions=_bool(agent, "show_task_template_suggestions", defaults.agent.show_task_template_suggestions),
+                notify_interrupted_tasks_on_startup=_bool(agent, "notify_interrupted_tasks_on_startup", defaults.agent.notify_interrupted_tasks_on_startup),
+                agent_history_retention_days=_history_retention(agent, defaults.agent.agent_history_retention_days),
             ),
         )
 
@@ -420,6 +431,11 @@ def _section(raw: dict[str, Any], name: str) -> dict[str, Any]:
 def _bool(section: dict[str, Any], key: str, default: bool) -> bool:
     value = section.get(key)
     return value if isinstance(value, bool) else default
+
+
+def _history_retention(section: dict[str, Any], default: int | None) -> int | None:
+    value = section.get("agent_history_retention_days", default)
+    return value if value in {7, 30, 90, None} else default
 
 
 def _choice(section: dict[str, Any], key: str, default: str, choices: set[str] | frozenset[str]) -> str:

@@ -36,8 +36,10 @@ def test_task_center_sections_status_progress_and_contextual_actions(tmp_path):
     cancelled = _save(repository, AgentSessionStatus.CANCELLED, conversation=7)
     center = AgentTaskCenter(repository)
     sections = center.sections()
-    # Active states are deliberately loaded as interrupted after restart.
-    assert {item.session_id for item in sections[TaskCenterSection.INTERRUPTED]} >= {active.session_id, waiting.session_id, paused.session_id, interrupted.session_id}
+    assert sections[TaskCenterSection.ACTIVE][0].session_id == active.session_id
+    assert sections[TaskCenterSection.WAITING_APPROVAL][0].session_id == waiting.session_id
+    assert sections[TaskCenterSection.PAUSED][0].session_id == paused.session_id
+    assert sections[TaskCenterSection.INTERRUPTED][0].session_id == interrupted.session_id
     assert sections[TaskCenterSection.COMPLETED][0].session_id == completed.session_id
     assert sections[TaskCenterSection.FAILED][0].session_id == failed.session_id
     assert sections[TaskCenterSection.CANCELLED][0].session_id == cancelled.session_id

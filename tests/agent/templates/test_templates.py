@@ -66,7 +66,7 @@ def test_template_registry_duplicate_filtering_and_deterministic_order():
 
 def test_builtin_registry_only_lists_templates_supported_by_real_capabilities():
     registry = build_builtin_template_registry()
-    ids = {item.template_id for item in registry.list(available_capabilities={"reminder.list"})}
+    ids = {item.template_id for item in registry.list(available_capabilities={"reminder.summary", "reminder.conflicts"})}
     assert ids == {"reminders.summary", "reminders.conflicts"}
     assert "system.status" not in registry.ids()
     assert "conversation.search" not in registry.ids()
@@ -138,6 +138,18 @@ def test_planner_uses_template_factory_and_asks_only_for_missing_time():
     with pytest.raises(AgentClarificationRequired, match="Saat kaçta") as error:
         planner.plan(AgentContext("Yarın sporu hatırlat.", capabilities=capabilities))
     assert error.value.missing_parameters == ("time",)
+
+
+def test_reminder_read_only_templates_use_purpose_built_tools_and_typed_ranges():
+    registry = build_builtin_template_registry()
+    summary = registry.require("reminders.summary").create_plan({"range": "week"})
+    conflicts = registry.require("reminders.conflicts").create_plan({"range": "tomorrow"})
+    assert (summary.steps[0].tool_name, summary.steps[0].typed_arguments) == (
+        "reminder.summary", {"range": "week"},
+    )
+    assert (conflicts.steps[0].tool_name, conflicts.steps[0].typed_arguments) == (
+        "reminder.conflicts", {"range": "tomorrow"},
+    )
 
 
 def test_reminder_template_rejects_past_time():

@@ -530,10 +530,13 @@ class SettingsDialog(QDialog):
         self._agent_max_replans.setRange(0, 1)
         self._agent_auto_read_only = QCheckBox("Basit salt-okunur görevleri otomatik başlat", page)
         self._agent_show_plan = QCheckBox("Her planı başlamadan önce göster", page)
-        self._agent_confirm_persistent = QCheckBox("Kalıcı adımlarda her zaman onay iste", page)
-        self._agent_confirm_persistent.setChecked(True)
-        self._agent_confirm_persistent.setEnabled(False)
-        self._agent_confirm_persistent.setToolTip("Bu güvenlik ayarı kapatılamaz.")
+        self._agent_template_suggestions = QCheckBox("Hazır görev önerilerini göster", page)
+        self._agent_interrupted_notice = QCheckBox("Yarım görevleri başlangıçta bildir", page)
+        self._agent_history_retention = QComboBox(page)
+        self._agent_history_retention.addItem("7 gün", 7)
+        self._agent_history_retention.addItem("30 gün", 30)
+        self._agent_history_retention.addItem("90 gün", 90)
+        self._agent_history_retention.addItem("Süresiz", None)
         self._agent_speak_progress = QCheckBox("Agent ilerlemesini seslendir", page)
         self._agent_speak_important = QCheckBox("Yalnız önemli Agent durumlarını seslendir", page)
         self._agent_speak_completion = QCheckBox("Agent tamamlanınca konuş", page)
@@ -544,15 +547,24 @@ class SettingsDialog(QDialog):
         form.addRow("Maksimum yeniden planlama", self._agent_max_replans)
         form.addRow(self._agent_auto_read_only)
         form.addRow(self._agent_show_plan)
-        form.addRow(self._agent_confirm_persistent)
+        form.addRow(self._agent_template_suggestions)
+        form.addRow(self._agent_interrupted_notice)
+        form.addRow("Görev geçmişi", self._agent_history_retention)
         form.addRow(self._agent_speak_progress)
         form.addRow(self._agent_speak_important)
         form.addRow(self._agent_speak_completion)
         form.addRow(self._agent_speak_approvals)
         form.addRow(self._agent_notify_completion)
-        note = QLabel("Agent Mode varsayılan olarak kapalıdır; shell, browser, dosya yazma ve gizli cihaz erişimi yasaktır.", page)
-        note.setWordWrap(True)
-        form.addRow(note)
+        self._agent_security_note = QLabel(
+            "Güvenlik sınırları her zaman etkindir: kalıcı işlem onayı, yasak araç filtresi, "
+            "katı adım sınırı, kalıcı işlemlerde otomatik yeniden deneme yasağı, eski sonuç koruması, "
+            "iptal ve restart sonrası otomatik devam etmeme kapatılamaz.",
+            page,
+        )
+        self._agent_security_note.setAccessibleName("Değiştirilemez Agent güvenlik ilkeleri")
+        self._agent_security_note.setWordWrap(True)
+        self._agent_security_note.setObjectName("settingsDescription")
+        form.addRow(self._agent_security_note)
         return page
 
     def _about_page(self) -> QWidget:
@@ -640,7 +652,9 @@ class SettingsDialog(QDialog):
         self._agent_max_replans.setValue(settings.agent.max_agent_replans)
         self._agent_auto_read_only.setChecked(settings.agent.auto_start_read_only_plans)
         self._agent_show_plan.setChecked(settings.agent.always_show_plan)
-        self._agent_confirm_persistent.setChecked(True)
+        self._agent_template_suggestions.setChecked(settings.agent.show_task_template_suggestions)
+        self._agent_interrupted_notice.setChecked(settings.agent.notify_interrupted_tasks_on_startup)
+        _select_data(self._agent_history_retention, settings.agent.agent_history_retention_days)
         self._agent_speak_progress.setChecked(settings.agent.speak_agent_progress)
         self._agent_speak_important.setChecked(settings.agent.speak_important_agent_events)
         self._agent_speak_completion.setChecked(settings.agent.speak_agent_completion)
@@ -737,6 +751,9 @@ class SettingsDialog(QDialog):
                 auto_start_read_only_plans=self._agent_auto_read_only.isChecked(),
                 always_show_plan=self._agent_show_plan.isChecked(),
                 always_confirm_persistent_steps=True,
+                show_task_template_suggestions=self._agent_template_suggestions.isChecked(),
+                notify_interrupted_tasks_on_startup=self._agent_interrupted_notice.isChecked(),
+                agent_history_retention_days=self._agent_history_retention.currentData(),
                 speak_agent_progress=self._agent_speak_progress.isChecked(),
                 speak_important_agent_events=self._agent_speak_important.isChecked(),
                 speak_agent_completion=self._agent_speak_completion.isChecked(),

@@ -37,7 +37,9 @@ def _session(status=AgentSessionStatus.AWAITING_PLAN_APPROVAL):
 
 
 def test_template_browser_filters_real_capabilities_and_emits_selection(qtbot):
-    dialog = TaskTemplateBrowserDialog(build_builtin_template_registry(), {"reminder.list"})
+    dialog = TaskTemplateBrowserDialog(
+        build_builtin_template_registry(), {"reminder.summary", "reminder.conflicts"}
+    )
     qtbot.addWidget(dialog)
     assert dialog.items.count() == 2
     assert "Hatırlatıcı" in dialog.items.item(0).text()

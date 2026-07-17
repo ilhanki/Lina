@@ -263,12 +263,18 @@ def create_application_services(
         max_steps=user_preferences.agent.max_agent_steps,
         max_replans=user_preferences.agent.max_agent_replans,
     )
+    agent_repository = AgentSessionRepository(project_root / "data" / "agent-sessions.json")
+    try:
+        agent_repository.recover_interrupted()
+        agent_repository.cleanup(user_preferences.agent.agent_history_retention_days)
+    except (OSError, ValueError, TypeError):
+        pass
     agent_controller = AgentController(
         AgentPlanner(agent_policy, template_registry=build_builtin_template_registry()),
         AgentExecutor(safe_tool_registry),
         AgentVerifier(),
         agent_policy,
-        AgentSessionRepository(project_root / "data" / "agent-sessions.json"),
+        agent_repository,
         auto_start_read_only_plans=user_preferences.agent.auto_start_read_only_plans,
         always_show_plan=user_preferences.agent.always_show_plan,
     )

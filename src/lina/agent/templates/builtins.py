@@ -30,12 +30,12 @@ def _templates() -> tuple[TaskTemplate, ...]:
         TaskTemplate(
             "reminders.summary", "Hatırlatıcıları özetle", "Yaklaşan hatırlatıcıları salt okunur biçimde getirir.",
             TaskTemplateCategory.REMINDERS, ("Bu haftaki hatırlatıcılarımı özetle.",),
-            frozenset({"reminder.list"}), frozenset(), {"range": str}, _reminder_list,
+            frozenset({"reminder.summary"}), frozenset(), {"range": str}, _reminder_list,
         ),
         TaskTemplate(
             "reminders.conflicts", "Hatırlatıcı çakışmalarını kontrol et", "Hatırlatıcıları okuyup aynı zamana denk gelen kayıtları incelemeye hazırlar.",
             TaskTemplateCategory.REMINDERS, ("Yarınki hatırlatıcılarım çakışıyor mu?",),
-            frozenset({"reminder.list"}), frozenset(), {"range": str}, _reminder_conflicts,
+            frozenset({"reminder.conflicts"}), frozenset(), {"range": str}, _reminder_conflicts,
         ),
         TaskTemplate(
             "memory.store", "Hafızaya kaydet", "Açıkça belirtilen tercihi onaydan sonra yerel hafızaya kaydeder.",
@@ -76,12 +76,12 @@ def _reminder_create(values: Mapping[str, object]) -> AgentPlan:
 
 
 def _reminder_list(values: Mapping[str, object]) -> AgentPlan:
-    step = AgentStep("list-reminders", "Hatırlatıcıları getir", "İlgili hatırlatıcıları salt okunur listele.", "reminder.list", {}, verification_rule="typed_success")
+    step = AgentStep("summarize-reminders", "Hatırlatıcıları özetle", "İlgili hatırlatıcıları salt okunur getir ve özetle.", "reminder.summary", {"range": values["range"]}, verification_rule="typed_success")
     return _plan("reminders.summary", f"Hatırlatıcı özeti ({values['range']})", [step])
 
 
 def _reminder_conflicts(values: Mapping[str, object]) -> AgentPlan:
-    step = AgentStep("check-reminders", "Çakışmaları kontrol et", "Hatırlatıcı kayıtlarını salt okunur getir ve zamanlarını karşılaştır.", "reminder.list", {}, verification_rule="typed_success")
+    step = AgentStep("check-reminders", "Çakışmaları kontrol et", "Hatırlatıcı kayıtlarını salt okunur getir ve zamanlarını deterministik olarak karşılaştır.", "reminder.conflicts", {"range": values["range"]}, verification_rule="typed_success")
     return _plan("reminders.conflicts", f"Hatırlatıcı çakışma kontrolü ({values['range']})", [step])
 
 

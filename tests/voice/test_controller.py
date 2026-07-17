@@ -106,6 +106,15 @@ def test_agent_approval_can_speak_when_normal_responses_are_disabled():
     provider.release.set()
 
 
+def test_same_agent_event_is_not_spoken_twice_even_if_text_changes():
+    controller, provider = make_controller()
+    assert controller.speak_agent("Plan onay bekliyor.", session_id="s1", event_id="approval-1", approval=True)
+    assert provider.started.wait(1)
+    assert not controller.speak_agent("Bu planı onaylıyor musun?", session_id="s1", event_id="approval-1", approval=True)
+    assert provider.texts == ["Plan onay bekliyor."]
+    provider.release.set()
+
+
 def test_valid_listen_transcribe_think_flow():
     controller, _ = make_controller()
     assert controller.begin_listening()
