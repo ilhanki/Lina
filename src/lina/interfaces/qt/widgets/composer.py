@@ -19,9 +19,9 @@ from lina.interfaces.qt.theme import SPACE_SM
 from lina.ui.design import standard_icon
 
 
-COMPOSER_INPUT_MIN_HEIGHT = 54
-COMPOSER_INPUT_MAX_HEIGHT = 140
-COMPOSER_BUTTON_HEIGHT = 36
+COMPOSER_INPUT_MIN_HEIGHT = 58
+COMPOSER_INPUT_MAX_HEIGHT = 160
+COMPOSER_BUTTON_HEIGHT = 38
 
 
 class ComposerInput(QPlainTextEdit):
@@ -75,13 +75,14 @@ class ComposerWidget(QWidget):
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("composerPanel")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._initial_resize_done = False
         self._waiting = False
         self._compact = False
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(SPACE_SM)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(10)
 
         self.screen_context_chip = QWidget(self)
         self.screen_context_chip.setObjectName("screenContextChip")
@@ -124,7 +125,7 @@ class ComposerWidget(QWidget):
         layout.addWidget(self.screen_context_chip)
 
         self.input = ComposerInput(self)
-        self.input.setPlaceholderText("Lina’ya bir mesaj yaz…")
+        self.input.setPlaceholderText("Mesaj yaz…")
         self.input.setMinimumHeight(COMPOSER_INPUT_MIN_HEIGHT)
         self.input.setMaximumHeight(COMPOSER_INPUT_MAX_HEIGHT)
         self.input.setFixedHeight(COMPOSER_INPUT_MIN_HEIGHT)
@@ -145,6 +146,7 @@ class ComposerWidget(QWidget):
         self.attachment_button = QPushButton("Ekle", self)
         self.attachment_button.setIcon(standard_icon(self, "add"))
         self._configure_action_button(self.attachment_button, tooltip="Görsel veya dosya ekle", accessible_name="Ekle")
+        self.attachment_button.setObjectName("composerUtilityButton")
         action_layout.addWidget(self.attachment_button)
 
         self.mic_button = QPushButton("Mikrofon", self)
@@ -181,6 +183,7 @@ class ComposerWidget(QWidget):
             tooltip="Mikrofon, ekran ve Agent araçlarını aç",
             accessible_name="Araçlar menüsü",
         )
+        self.tools_button.setObjectName("composerUtilityButton")
         self.tools_menu = QMenu(self.tools_button)
         self.tools_menu.setAccessibleName("Mesaj araçları")
         self.mic_action = self.tools_menu.addAction("Mikrofon")
@@ -194,17 +197,18 @@ class ComposerWidget(QWidget):
         action_layout.addWidget(self.tools_button)
         self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)
         self.input_hint.setObjectName("composerHint")
+        self.input_hint.hide()
         action_layout.addStretch(1)
         action_layout.addWidget(self.input_hint)
 
-        self.send_button = QPushButton("Gönder", self)
+        self.send_button = QPushButton("", self)
         self.send_button.setIcon(standard_icon(self, "send"))
         self._configure_action_button(
             self.send_button,
             tooltip="Mesajı gönder",
             accessible_name="Mesajı gönder",
         )
-        self.send_button.setObjectName("accentButton")
+        self.send_button.setObjectName("composerSendButton")
         self.send_button.setEnabled(False)
         action_layout.addWidget(self.send_button)
 
@@ -282,7 +286,8 @@ class ComposerWidget(QWidget):
     def set_waiting(self, waiting: bool) -> None:
         self._waiting = waiting
         self.input.setEnabled(True)
-        self.send_button.setText("Durdur" if waiting else "Gönder")
+        self.send_button.setText("")
+        self.send_button.setIcon(standard_icon(self, "stop" if waiting else "send"))
         self.send_button.setToolTip(
             "Yanıtı durdur" if waiting else "Mesajı gönder"
         )
@@ -298,7 +303,7 @@ class ComposerWidget(QWidget):
 
     def set_compact(self, compact: bool) -> None:
         self._compact = compact
-        self.input_hint.setVisible(not compact)
+        self.input_hint.hide()
         labels = (
             (self.attachment_button, "+", "Ekle"),
             (self.tools_button, "", "Araçlar"),

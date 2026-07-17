@@ -13,10 +13,11 @@ def test_confirmation_card_accessibility_keyboard_and_statuses(qtbot) -> None:
     assert card.accessibleName() == "Araç işlemi: Hatırlatıcı oluştur"
     assert card.confirm_button.accessibleName()
     assert card.details_button.accessibleName()
-    qtbot.mouseClick(card.details_button, Qt.MouseButton.LeftButton)
     assert card._arguments.isHidden()
     qtbot.mouseClick(card.details_button, Qt.MouseButton.LeftButton)
     assert not card._arguments.isHidden()
+    qtbot.mouseClick(card.details_button, Qt.MouseButton.LeftButton)
+    assert card._arguments.isHidden()
     qtbot.keyPress(card, Qt.Key.Key_Return)
     assert confirmed == [True]
     qtbot.keyPress(card, Qt.Key.Key_Escape)

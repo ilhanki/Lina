@@ -6,20 +6,20 @@ from PySide6.QtGui import QFontDatabase
 from lina.ui.design import resolve_palette
 
 
-APP_BG = "#0e1117"
-SIDEBAR_BG = "#0b0e14"
-PANEL_BG = "#171b23"
-ELEVATED_BG = "#1c222d"
-COMPOSER_BG = "#151a22"
-ASSISTANT_BUBBLE = "#202631"
-USER_BUBBLE = "#2f5fd7"
-TEXT_PRIMARY = "#f4f7fb"
-TEXT_SECONDARY = "#d7dde7"
-TEXT_MUTED = "#9faabc"
-ACCENT = "#6f8fff"
-ACCENT_HOVER = "#7f9cff"
-BORDER = "#2b3340"
-SOFT_BORDER = "#394252"
+APP_BG = "#0b111a"
+SIDEBAR_BG = "#0d151f"
+PANEL_BG = "#111925"
+ELEVATED_BG = "#172231"
+COMPOSER_BG = "#111925"
+ASSISTANT_BUBBLE = "#111925"
+USER_BUBBLE = "#1d3d66"
+TEXT_PRIMARY = "#edf3fb"
+TEXT_SECONDARY = "#c7d1df"
+TEXT_MUTED = "#8795a8"
+ACCENT = "#4f9cff"
+ACCENT_HOVER = "#63adff"
+BORDER = "#1d2a3a"
+SOFT_BORDER = "#2a3a4f"
 SUCCESS = "#69d79b"
 WARNING = "#f0c76e"
 ERROR = "#ff7d88"
@@ -91,14 +91,17 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {app_bg};
         }}
         QDialog#notificationCenter, QDialog#reminderDialog {{ background: {app_bg}; }}
-        QStackedWidget#settingsPages {{ background: {panel_bg}; border: none; border-radius: 12px; }}
+        QStackedWidget#settingsPages {{ background: transparent; border: none; }}
         QListWidget#settingsNavigation {{ background: transparent; border: none; }}
-        QListWidget#settingsNavigation::item {{ margin: 2px; padding: 9px; }}
-        QListWidget#settingsNavigation::item:selected {{ background: {selected}; color: {text_primary}; border-left: 3px solid {accent}; }}
-        QLineEdit#settingsSearch {{ min-height: 38px; border-radius: 10px; padding: 0 12px; }}
-        QLabel#settingsPageTitle {{ font-size: 16pt; font-weight: 650; color: {text_primary}; }}
+        QListWidget#settingsNavigation::item {{ margin: 2px 0; padding: 10px 12px; border-radius: 9px; }}
+        QListWidget#settingsNavigation::item:selected {{ background: {selected}; color: {text_primary}; border-left: 2px solid {accent}; }}
+        QLineEdit#settingsSearch {{ min-height: 40px; border-radius: 10px; padding: 0 12px; }}
+        QLabel#settingsDialogTitle {{ font-size: 20pt; font-weight: 650; color: {text_primary}; }}
+        QLabel#settingsPageTitle {{ font-size: 18pt; font-weight: 650; color: {text_primary}; }}
         QLabel#settingsDescription {{ color: {text_muted}; padding: 5px 0; }}
-        QLabel#settingsSectionTitle {{ font-size: 11pt; font-weight: 650; color: {text_primary}; padding-top: 10px; }}
+        QLabel#settingsSectionTitle {{ font-size: 11pt; font-weight: 650; color: {text_primary}; padding: 0; }}
+        QFrame#settingsSectionCard {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 14px; }}
+        QFrame#settingsSectionCard QLabel, QFrame#settingsSectionCard QCheckBox {{ background: transparent; }}
         QScrollArea#settingsPageScroll, QScrollArea#settingsPageScroll > QWidget > QWidget {{
             background: {panel_bg}; border: none;
         }}
@@ -106,12 +109,14 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {elevated_bg}; border: none; border-radius: 3px; min-height: 6px; max-height: 6px;
         }}
         QProgressBar#agentProgress::chunk {{ background: {accent}; border-radius: 3px; }}
+        QWidget#agentPanel {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 14px; }}
+        QWidget#agentPanel QLabel {{ background: transparent; border: none; }}
         QComboBox#notificationFilter {{ background: {panel_bg}; font-weight: 600; }}
         QListWidget#notificationItems {{ background: {panel_bg}; }}
         QPushButton#notificationButton {{ min-width: 42px; border-color: {accent}; }}
         QWidget#sidebar {{
             background: {sidebar_bg};
-            border-right: 1px solid {border};
+            border-right: 1px solid {soft_border};
         }}
         QWidget#sidebarSessionPanel, QWidget#sidebarStatusPanel,
         QWidget#sidebarConversationViewport, QWidget#sidebarConversationList,
@@ -124,16 +129,16 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: none;
         }}
         QWidget#header {{
-            background: transparent;
+            background: {app_bg};
             border: none;
-            border-bottom: 1px solid {soft_border};
+            border-bottom: 1px solid {border};
         }}
         QLabel#conversationTitle, QLabel#inspectorTitle, QLabel#sidebarTitle {{
             color: {text_primary}; font-size: 14pt; font-weight: 650;
         }}
         QLabel#conversationSubtitle {{ color: {text_muted}; font-size: 9pt; }}
         QWidget#detailsInspector {{
-            background: {panel_bg}; border-left: 1px solid {soft_border};
+            background: {sidebar_bg}; border-left: 1px solid {soft_border};
         }}
         QDialog#commandPalette {{ background: {panel_bg}; }}
         QPushButton#unifiedStatusButton {{
@@ -159,8 +164,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QPushButton#sidebarShortcut:hover {{ background: {elevated_bg}; border-color: {soft_border}; }}
         QWidget#composerPanel {{
             background: {panel_bg};
-            border: 1px solid {border};
-            border-radius: 12px;
+            border: 1px solid {soft_border};
+            border-radius: 18px;
         }}
         QWidget#composerRow, QWidget#composerToolbar, QWidget#messageActions {{ background: transparent; border: none; }}
         QLabel#composerHint {{ color: {text_muted}; font-size: 9pt; }}
@@ -177,9 +182,9 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: transparent;
             color: {text_secondary};
             border: 1px solid transparent;
-            border-radius: 8px;
+            border-radius: 10px;
             text-align: left;
-            padding: 7px 12px;
+            padding: 8px 12px;
             font-size: 10pt;
         }}
         QPushButton#sessionButton:hover {{
@@ -187,18 +192,18 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-color: transparent;
         }}
         QPushButton#sessionButton:checked {{
-            background: {elevated_bg};
+            background: {selected};
             color: {text_primary};
-            border-color: transparent;
+            border-color: {soft_border};
             font-weight: 600;
         }}
         QLineEdit#conversationSearchInput {{
             background: {composer_bg};
             color: {text_primary};
             border: 1px solid {border};
-            border-radius: 8px;
-            min-height: 36px;
-            padding: 0 10px;
+            border-radius: 10px;
+            min-height: 40px;
+            padding: 0 12px;
         }}
         QLineEdit#conversationSearchInput:focus {{ border-color: {accent}; }}
         QComboBox#conversationFilter {{
@@ -231,14 +236,14 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-color: {border};
         }}
         QWidget#assistantBubble {{
-            background: transparent;
-            border: none;
-            border-radius: 0;
+            background: {assistant_bubble};
+            border: 1px solid {border};
+            border-radius: 16px;
         }}
         QWidget#userBubble {{
             background: {user_bubble};
             border: 1px solid {user_border};
-            border-radius: 14px;
+            border-radius: 16px;
         }}
         QWidget#userBubble QLabel {{ color: {user_text}; }}
         QLabel#bubbleText {{
@@ -260,8 +265,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QWidget#welcomeState {{ background: transparent; }}
         QLabel#welcomeGreeting {{
             color: {text_primary};
-            font-size: 20pt;
-            font-weight: 700;
+            font-size: 19pt;
+            font-weight: 650;
         }}
         QLabel#welcomeSubtitle {{
             color: {text_muted};
@@ -269,7 +274,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#suggestionButton {{
             background: {panel_bg}; color: {text_secondary}; border: 1px solid {soft_border};
-            border-radius: 10px; min-height: 38px; padding: 0 12px;
+            border-radius: 12px; min-height: 44px; padding: 0 14px;
         }}
         QLabel#welcomeFallbackLogo {{
             color: {accent};
@@ -297,6 +302,13 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             padding: 8px 10px;
             selection-background-color: {selected};
         }}
+        QWidget#composerPanel QPlainTextEdit {{
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 4px 2px;
+        }}
+        QWidget#composerPanel QPlainTextEdit:focus {{ border: none; }}
         QPlainTextEdit:focus, QLineEdit:focus, QComboBox:focus, QListWidget:focus {{ border: 2px solid {focus}; }}
         QPushButton {{
             background: {elevated_bg};
@@ -317,11 +329,28 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             font-weight: 600;
         }}
         QPushButton#accentButton:hover {{ background: {accent_hover}; }}
+        QPushButton#primaryNavigationButton {{
+            background: {selected}; color: {text_primary}; border: 1px solid {soft_border};
+            border-radius: 10px; min-height: 40px; font-weight: 600;
+        }}
+        QPushButton#primaryNavigationButton:hover {{ background: {elevated_bg}; border-color: {accent}; }}
         QPushButton#composerActionButton {{
             min-height: 38px;
             max-height: 38px;
             padding: 0 13px;
         }}
+        QPushButton#composerUtilityButton {{
+            background: transparent; color: {text_secondary}; border: 1px solid transparent;
+            border-radius: 9px; min-height: 36px; padding: 0 9px;
+        }}
+        QPushButton#composerUtilityButton:hover {{ background: {elevated_bg}; border-color: {border}; }}
+        QPushButton#composerSendButton {{
+            background: {accent}; color: {user_text}; border: 1px solid {accent};
+            border-radius: 19px; min-width: 38px; max-width: 38px;
+            min-height: 38px; max-height: 38px; padding: 0;
+        }}
+        QPushButton#composerSendButton:hover {{ background: {accent_hover}; border-color: {accent_hover}; }}
+        QPushButton#composerSendButton:disabled {{ background: {elevated_bg}; border-color: {border}; color: {disabled}; }}
         QPushButton#copyButton {{
             background: transparent;
             color: {text_muted};
@@ -372,12 +401,14 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QSlider::groove:horizontal {{ height: 5px; background: {border}; border-radius: 2px; }}
         QSlider::sub-page:horizontal {{ background: {accent}; border-radius: 2px; }}
         QSlider::handle:horizontal {{ width: 16px; margin: -6px 0; background: {panel_bg}; border: 2px solid {accent}; border-radius: 8px; }}
-        QMenu {{ background: {panel_bg}; color: {text_primary}; border: 1px solid {border}; padding: 5px; }}
-        QMenu::item {{ padding: 7px 22px 7px 10px; border-radius: 5px; }}
+        QMenu {{ background: {panel_bg}; color: {text_primary}; border: 1px solid {soft_border}; padding: 7px; }}
+        QMenu::item {{ padding: 8px 24px 8px 11px; border-radius: 7px; }}
         QMenu::item:selected {{ background: {selected}; color: {text_primary}; }}
         QMenu::item:disabled {{ color: {disabled}; }}
-        QFrame#toolActivityCard {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 10px; }}
+        QFrame#toolActivityCard {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 14px; }}
         QFrame#toolActivityCard QLabel {{ background: transparent; border: none; }}
+        QLabel#toolActivityTitle {{ color: {text_primary}; font-weight: 650; font-size: 11pt; }}
+        QLabel#toolActivityRisk, QLabel#toolActivityDetails {{ color: {text_muted}; }}
         QLabel#toolStatusSuccess {{ color: {success}; font-weight: 600; }}
         QLabel#toolStatusFailure {{ color: {error}; font-weight: 600; }}
         QLabel#toolStatusWarning {{ color: {warning}; font-weight: 600; }}

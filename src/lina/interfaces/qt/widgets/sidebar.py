@@ -55,8 +55,8 @@ class SidebarWidget(QWidget):
     settings_requested = Signal()
     local_status_requested = Signal()
 
-    WIDTH = 264
-    COLLAPSED_WIDTH = 64
+    WIDTH = 280
+    COLLAPSED_WIDTH = 60
 
     def __init__(
         self,
@@ -71,8 +71,8 @@ class SidebarWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 20, 16, 16)
+        layout.setSpacing(12)
 
         self._collapsed = False
         brand_row = QWidget(self)
@@ -86,8 +86,8 @@ class SidebarWidget(QWidget):
         if not pixmap.isNull():
             self.logo_label.setPixmap(
                 pixmap.scaled(
-                    32,
-                    32,
+                    34,
+                    34,
                     Qt.AspectRatioMode.KeepAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
@@ -99,11 +99,12 @@ class SidebarWidget(QWidget):
         self.title_label = QLabel("Lina", brand_row)
         self.title_label.setObjectName("sidebarTitle")
         brand_layout.addWidget(self.title_label, 1)
-        self.collapse_button = QPushButton("‹", brand_row)
+        self.collapse_button = QPushButton("", brand_row)
         self.collapse_button.setObjectName("sidebarCollapseButton")
         self.collapse_button.setAccessibleName("Sol navigasyonu daralt")
         self.collapse_button.setToolTip("Sol navigasyonu daralt")
         self.collapse_button.setFixedSize(32, 32)
+        self.collapse_button.setIcon(standard_icon(self, "collapse"))
         brand_layout.addWidget(self.collapse_button)
         layout.addWidget(brand_row)
 
@@ -116,7 +117,7 @@ class SidebarWidget(QWidget):
         self.version_label.hide()
 
         self.new_chat_button = QPushButton("Yeni Sohbet", self)
-        self.new_chat_button.setObjectName("accentButton")
+        self.new_chat_button.setObjectName("primaryNavigationButton")
         self.new_chat_button.setAccessibleName("Yeni sohbet")
         self.new_chat_button.setIcon(standard_icon(self, "add"))
         layout.addWidget(self.new_chat_button)
@@ -124,13 +125,15 @@ class SidebarWidget(QWidget):
         self.session_panel = QWidget(self)
         self.session_panel.setObjectName("sidebarSessionPanel")
         session_layout = QVBoxLayout(self.session_panel)
-        session_layout.setContentsMargins(0, 12, 0, 0)
-        session_layout.setSpacing(6)
+        session_layout.setContentsMargins(0, 6, 0, 0)
+        session_layout.setSpacing(4)
         section = QLabel("BU OTURUM", self.session_panel)
         section.setObjectName("mutedLabel")
+        section.hide()
         session_layout.addWidget(section)
         self.session_title = QLabel("Yeni Sohbet", self.session_panel)
         self.session_title.setWordWrap(True)
+        self.session_title.hide()
         session_layout.addWidget(self.session_title)
         self.session_note = QLabel("Henüz kayıtlı sohbet yok.", self.session_panel)
         self.session_note.setWordWrap(True)
@@ -203,8 +206,13 @@ class SidebarWidget(QWidget):
 
         self.search_input = ConversationSearchInput(self)
         self.search_input.setObjectName("conversationSearchInput")
-        self.search_input.setPlaceholderText("Sohbetlerde ara...")
+        self.search_input.setPlaceholderText("Ara")
         self.search_input.setAccessibleName("Sohbetlerde ara")
+        self.search_input.setClearButtonEnabled(True)
+        self.search_input.addAction(
+            standard_icon(self, "search"),
+            QLineEdit.ActionPosition.LeadingPosition,
+        )
         layout.insertWidget(3, self.search_input)
         self.filter_combo = QComboBox(self)
         self.filter_combo.setObjectName("conversationFilter")
@@ -259,7 +267,6 @@ class SidebarWidget(QWidget):
         self.logo_label.setVisible(not collapsed)
         self.new_chat_button.setText("" if collapsed else "Yeni Sohbet")
         self.new_chat_button.setToolTip("Yeni sohbet")
-        self.collapse_button.setText("›" if collapsed else "‹")
         self.collapse_button.setToolTip("Sol navigasyonu genişlet" if collapsed else "Sol navigasyonu daralt")
         self.collapse_button.setAccessibleName(self.collapse_button.toolTip())
         for button in (self.agent_tasks_button, self.notification_button, self.settings_button):
@@ -301,35 +308,36 @@ class SidebarWidget(QWidget):
         session: ConversationSession,
         active_id: int | None,
     ) -> None:
-            button = QPushButton(session.title, self.session_list)
-            button.setObjectName("sessionButton")
-            button.setToolTip(session.title)
-            button.setMinimumHeight(56)
-            button.setMaximumHeight(56)
-            button.setSizePolicy(
-                QSizePolicy.Policy.Expanding,
-                QSizePolicy.Policy.Fixed,
+        button = QPushButton(session.title, self.session_list)
+        button.setObjectName("sessionButton")
+        button.setToolTip(session.title)
+        button.setMinimumHeight(60)
+        button.setMaximumHeight(60)
+        button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        button._full_title = session.title  # type: ignore[attr-defined]
+        button._activity_text = format_conversation_datetime(  # type: ignore[attr-defined]
+            session.last_message_at or session.created_at
+        )
+        button._session = session  # type: ignore[attr-defined]
+        button._is_pinned = session.is_pinned  # type: ignore[attr-defined]
+        button.setCheckable(True)
+        button.setChecked(session.id == active_id)
+        button.setAccessibleName(f"Sohbet: {session.title}")
+        button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        button.customContextMenuRequested.connect(
+            lambda position, conversation=session: self._show_session_menu(
+                conversation, button, position
             )
-            button._full_title = session.title  # type: ignore[attr-defined]
-            button._activity_text = format_conversation_datetime(  # type: ignore[attr-defined]
-                session.last_message_at or session.created_at
+        )
+        button.clicked.connect(
+            lambda _checked=False, conversation_id=session.id: self.session_selected.emit(
+                conversation_id or 0
             )
-            button._session = session  # type: ignore[attr-defined]
-            button._is_pinned = session.is_pinned  # type: ignore[attr-defined]
-            button.setCheckable(True)
-            button.setChecked(session.id == active_id)
-            button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            button.customContextMenuRequested.connect(
-                lambda position, conversation=session: self._show_session_menu(
-                    conversation, button, position
-                )
-            )
-            button.clicked.connect(
-                lambda _checked=False, conversation_id=session.id: self.session_selected.emit(
-                    conversation_id or 0
-                )
-            )
-            self.session_list_layout.addWidget(button)
+        )
+        self.session_list_layout.addWidget(button)
 
     def set_search_results(
         self,
@@ -407,7 +415,7 @@ class SidebarWidget(QWidget):
                 available_width,
             )
             activity = getattr(button, "_activity_text", "")
-            prefix = "● " if getattr(button, "_is_pinned", False) else ""
+            prefix = "• " if getattr(button, "_is_pinned", False) else ""
             button.setText(f"{prefix}{elided_title}\n{activity}")
             if getattr(button, "_is_pinned", False):
                 button.setToolTip(f"Sabitlenmiş sohbet\n{title}")

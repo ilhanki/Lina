@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDoubleSpinBox,
+    QFrame,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -75,6 +76,14 @@ class SettingsDialog(QDialog):
         self.setMinimumSize(680, 540)
         self.resize(900, 680)
         root = QVBoxLayout(self)
+        root.setContentsMargins(22, 20, 22, 18)
+        root.setSpacing(14)
+        dialog_title = QLabel("Ayarlar", self)
+        dialog_title.setObjectName("settingsDialogTitle")
+        dialog_note = QLabel("Lina'yı çalışma biçimine göre düzenle.", self)
+        dialog_note.setObjectName("settingsDescription")
+        root.addWidget(dialog_title)
+        root.addWidget(dialog_note)
         self._settings_search = QLineEdit(self)
         self._settings_search.setObjectName("settingsSearch")
         self._settings_search.setPlaceholderText("Ayarlarda ara…")
@@ -83,12 +92,13 @@ class SettingsDialog(QDialog):
         content = QHBoxLayout()
         self._navigation = QListWidget(self)
         self._navigation.setObjectName("settingsNavigation")
-        self._navigation.setFixedWidth(190)
+        self._navigation.setFixedWidth(204)
         self._navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._navigation.addItems(
             ["Genel", "Görünüm", "Modeller", "Ses", "Vision", "Hatırlatıcılar", "Gelişmiş"]
         )
         content.addWidget(self._navigation)
+        content.setSpacing(18)
         self._pages = QStackedWidget(self)
         self._pages.setObjectName("settingsPages")
         general_section = self._general_page()
@@ -192,8 +202,8 @@ class SettingsDialog(QDialog):
         page = QWidget(scroll)
         page.setMinimumWidth(0)
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(12, 8, 12, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(4, 2, 10, 16)
+        layout.setSpacing(14)
         heading = QLabel(title, page)
         heading.setObjectName("settingsPageTitle")
         layout.addWidget(heading)
@@ -202,15 +212,22 @@ class SettingsDialog(QDialog):
         note.setWordWrap(True)
         layout.addWidget(note)
         for section_title, section in sections:
-            section_heading = QLabel(section_title, page)
+            card = QFrame(page)
+            card.setObjectName("settingsSectionCard")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(18, 16, 18, 18)
+            card_layout.setSpacing(12)
+            section_heading = QLabel(section_title, card)
             section_heading.setObjectName("settingsSectionTitle")
-            layout.addWidget(section_heading)
+            card_layout.addWidget(section_heading)
             section.setMinimumWidth(0)
             section.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             if isinstance(section.layout(), QFormLayout):
                 section.layout().setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
                 section.layout().setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-            layout.addWidget(section)
+            section.setParent(card)
+            card_layout.addWidget(section)
+            layout.addWidget(card)
         layout.addStretch(1)
         scroll.setWidget(page)
         return scroll

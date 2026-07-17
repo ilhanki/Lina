@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QPushButton
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
-from lina.interfaces.qt.widgets.chat_message import MIN_BUBBLE_WIDTH
+from lina.interfaces.qt.widgets.chat_message import MAX_ASSISTANT_WIDTH, MIN_ASSISTANT_WIDTH
 from lina.interfaces.qt.widgets.composer import (
     COMPOSER_BUTTON_HEIGHT,
     COMPOSER_INPUT_MAX_HEIGHT,
@@ -62,9 +62,9 @@ def test_chat_message_uses_natural_minimum_bubble_width(qtbot) -> None:
 
     widget.set_bubble_width(760)
 
-    assert widget.minimumWidth() == 760
-    assert widget.bubble.minimumWidth() == 760
-    assert widget.maximumWidth() == 760
+    assert widget.minimumWidth() == MIN_ASSISTANT_WIDTH
+    assert widget.bubble.minimumWidth() == MIN_ASSISTANT_WIDTH
+    assert widget.maximumWidth() == MAX_ASSISTANT_WIDTH
 
 
 def test_user_message_renders_image_preview_above_text(qtbot) -> None:
@@ -168,7 +168,9 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.tools_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.input.parent() is composer
-    assert composer.input_hint.text().startswith("Enter gönderir")
+    assert composer.input_hint.isHidden()
+    assert composer.send_button.text() == ""
+    assert composer.send_button.accessibleName() == "Mesajı gönder"
     assert composer.mic_button.isHidden()
     assert composer.screen_button.isHidden()
     assert composer.agent_button.isHidden()
@@ -283,7 +285,8 @@ def test_composer_waiting_state_keeps_input_enabled_and_shows_stop(qtbot) -> Non
     composer.set_waiting(True)
 
     assert composer.input.isEnabled() is True
-    assert composer.send_button.text() == "Durdur"
+    assert composer.send_button.text() == ""
+    assert composer.send_button.accessibleName() == "Yanıtı durdur"
     assert composer.send_button.isEnabled() is True
 
     with qtbot.waitSignal(composer.stop_requested, timeout=1000):
@@ -298,7 +301,8 @@ def test_composer_restores_send_button_after_waiting(qtbot) -> None:
     composer.set_waiting(True)
     composer.set_waiting(False)
 
-    assert composer.send_button.text() == "Gönder"
+    assert composer.send_button.text() == ""
+    assert composer.send_button.accessibleName() == "Mesajı gönder"
     assert composer.input.isEnabled() is True
     assert composer.send_button.isEnabled() is True
 
@@ -400,7 +404,7 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
     assert session_buttons[1].text() != ""
     assert session_buttons[1].isChecked() is True
-    assert all(button.minimumHeight() == 56 for button in session_buttons)
+    assert all(button.minimumHeight() == 60 for button in session_buttons)
     assert "·" in session_buttons[0].text()
 
 

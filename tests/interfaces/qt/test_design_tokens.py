@@ -10,8 +10,8 @@ def test_design_scales_and_layout_metrics_are_centralized():
     assert tuple(vars(tokens.spacing).values()) if hasattr(tokens.spacing, "__dict__") else tokens.spacing.max == 64
     assert tokens.spacing.xxs == 2 and tokens.spacing.max == 64
     assert tokens.radius.pill == 999
-    assert tokens.layout.navigation_expanded == 264
-    assert tokens.layout.navigation_collapsed == 64
+    assert tokens.layout.navigation_expanded == 280
+    assert tokens.layout.navigation_collapsed == 60
     assert 760 <= tokens.layout.chat_readable <= 920
 
 

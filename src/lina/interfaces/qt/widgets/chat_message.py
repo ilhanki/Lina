@@ -20,7 +20,10 @@ from lina.interfaces.qt.formatting import format_message_time
 from lina.screen.models import ScreenContext
 
 
-MIN_BUBBLE_WIDTH = 380
+MIN_ASSISTANT_WIDTH = 520
+MAX_ASSISTANT_WIDTH = 720
+MIN_USER_WIDTH = 320
+MAX_USER_WIDTH = 560
 MAX_PREVIEW_WIDTH = 560
 MAX_PREVIEW_HEIGHT = 320
 
@@ -62,13 +65,13 @@ class ChatMessageWidget(QWidget):
 
         self.sender_label = QLabel("Lina düşünüyor" if typing else "Lina", self)
         self.sender_label.setObjectName("senderLabel")
-        self.sender_label.setVisible(role == "assistant")
+        self.sender_label.setVisible(role == "assistant" and typing)
         layout.addWidget(self.sender_label)
 
         self.bubble = QWidget(self)
         self.bubble.setObjectName("userBubble" if role == "user" else "assistantBubble")
         bubble_layout = QVBoxLayout(self.bubble)
-        bubble_layout.setContentsMargins(6 if role == "assistant" else 16, 8 if role == "assistant" else 12, 6 if role == "assistant" else 16, 6)
+        bubble_layout.setContentsMargins(18, 14, 18, 11)
         bubble_layout.setSpacing(SPACE_MD)
         layout.addWidget(self.bubble)
 
@@ -185,8 +188,10 @@ class ChatMessageWidget(QWidget):
 
     def set_bubble_width(self, width: int) -> None:
         """Bound the bubble to a readable responsive width."""
-        bounded_width = max(320, width)
-        minimum_width = bounded_width if self.role == "assistant" else min(MIN_BUBBLE_WIDTH, bounded_width)
+        maximum = MAX_ASSISTANT_WIDTH if self.role == "assistant" else MAX_USER_WIDTH
+        minimum = MIN_ASSISTANT_WIDTH if self.role == "assistant" else MIN_USER_WIDTH
+        bounded_width = max(280, min(maximum, width))
+        minimum_width = min(minimum, bounded_width)
         self.setMaximumWidth(bounded_width)
         self.bubble.setMaximumWidth(bounded_width)
         self.setMinimumWidth(minimum_width)

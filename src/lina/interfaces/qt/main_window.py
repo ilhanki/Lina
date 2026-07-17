@@ -330,8 +330,8 @@ class LinaMainWindow(QMainWindow):
         panel = QWidget(self)
         panel.setObjectName("chatPanel")
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(16, 14, 16, 14)
-        panel_layout.setSpacing(8)
+        panel_layout.setContentsMargins(0, 0, 0, 0)
+        panel_layout.setSpacing(0)
         root_layout.addWidget(panel, 1)
 
         self._inspector = DetailsInspector(self)
@@ -363,15 +363,16 @@ class LinaMainWindow(QMainWindow):
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
         header.setObjectName("header")
+        header.setMinimumHeight(design_tokens("dark").layout.header_height)
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(12, 7, 12, 7)
-        layout.setSpacing(8)
+        layout.setContentsMargins(28, 10, 24, 10)
+        layout.setSpacing(10)
 
         titles = QVBoxLayout()
         self._session_title = QLabel(self._session_title_text, header)
         self._session_title.setObjectName("conversationTitle")
         titles.addWidget(self._session_title)
-        subtitle = QLabel("Yerel sohbet", header)
+        subtitle = QLabel("Yerel çalışma alanı", header)
         subtitle.setObjectName("conversationSubtitle")
         titles.addWidget(subtitle)
         self._session_date_label = QLabel("", header)
@@ -383,7 +384,6 @@ class LinaMainWindow(QMainWindow):
         self._status_button.setObjectName("unifiedStatusButton")
         self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
         self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
-        self._status_button.setIcon(standard_icon(self, "details"))
         self._status_button.clicked.connect(self._show_status_menu)
         layout.addWidget(self._status_button)
 
@@ -438,8 +438,8 @@ class LinaMainWindow(QMainWindow):
         self._message_container = QWidget(self._scroll)
         self._message_container.setObjectName("chatTimeline")
         self._message_layout = QVBoxLayout(self._message_container)
-        self._message_layout.setContentsMargins(24, 14, 24, 14)
-        self._message_layout.setSpacing(14)
+        self._message_layout.setContentsMargins(20, 22, 20, 20)
+        self._message_layout.setSpacing(design_tokens("dark").layout.message_spacing)
         self._message_layout.addStretch(1)
         self._scroll.setWidget(self._message_container)
         self._scroll.verticalScrollBar().valueChanged.connect(self._update_auto_scroll_state)
@@ -474,7 +474,8 @@ class LinaMainWindow(QMainWindow):
             button.setEnabled(False)
             layout.addWidget(button)
         panel.hide()
-        parent_layout.addWidget(panel)
+        panel.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
+        parent_layout.addWidget(panel, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _build_agent_panel(self, parent_layout: QVBoxLayout) -> None:
         self._agent_panel = AgentPanel(self)
@@ -489,7 +490,8 @@ class LinaMainWindow(QMainWindow):
         self._agent_panel.details_requested.connect(self._show_agent_inspector)
         self._agent_panel.render(self._agent_controller.session if self._agent_controller else None, enabled=self._agent_enabled)
         self._agent_panel.setVisible(bool(self._agent_controller and self._agent_controller.session))
-        parent_layout.addWidget(self._agent_panel)
+        self._agent_panel.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
+        parent_layout.addWidget(self._agent_panel, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _build_footer(self, parent_layout: QVBoxLayout) -> None:
         self._composer = ComposerWidget(
@@ -500,7 +502,7 @@ class LinaMainWindow(QMainWindow):
         composer_row = QWidget(self)
         composer_row.setObjectName("composerRow")
         composer_layout = QHBoxLayout(composer_row)
-        composer_layout.setContentsMargins(0, 0, 0, 0)
+        composer_layout.setContentsMargins(24, 12, 24, 18)
         composer_layout.addStretch(1)
         self._composer.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
         composer_layout.addWidget(self._composer, 8)
@@ -2946,6 +2948,7 @@ class LinaMainWindow(QMainWindow):
         created_at: datetime | None = None,
     ) -> ChatMessageWidget:
         should_scroll = self._auto_scroll_enabled or self._is_scroll_near_bottom()
+        preserved_scroll_value = self._scroll.verticalScrollBar().value()
         message = ChatMessageWidget(
             role=role,
             text=text,
@@ -2979,6 +2982,12 @@ class LinaMainWindow(QMainWindow):
         self._update_message_widths()
         if should_scroll:
             self._schedule_scroll_to_bottom()
+        else:
+            self._scroll.verticalScrollBar().setValue(preserved_scroll_value)
+            QTimer.singleShot(
+                0,
+                lambda value=preserved_scroll_value: self._restore_scroll_position(value),
+            )
         return message
 
     def _retry_last_response(self) -> None:
@@ -3179,6 +3188,10 @@ class LinaMainWindow(QMainWindow):
                 self._close_inspector()
         self._update_message_widths()
 
+    def showEvent(self, event: Any) -> None:
+        super().showEvent(event)
+        self._update_message_widths()
+
     def _is_scroll_near_bottom(self) -> bool:
         if not hasattr(self, "_scroll"):
             return True
@@ -3192,6 +3205,15 @@ class LinaMainWindow(QMainWindow):
         if not self._auto_scroll_enabled and not self._pending_scroll_to_top:
             self._pending_scroll_to_bottom = False
             self._scroll_retry_count = 0
+
+    def _restore_scroll_position(self, value: int) -> None:
+        if self._auto_scroll_enabled or self._pending_scroll_to_bottom:
+            return
+        self._is_programmatic_scroll = True
+        try:
+            self._scroll.verticalScrollBar().setValue(value)
+        finally:
+            self._is_programmatic_scroll = False
 
     def _handle_scroll_range_changed(self, _minimum: int, _maximum: int) -> None:
         if self._pending_scroll_to_top:

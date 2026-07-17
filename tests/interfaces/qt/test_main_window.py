@@ -8,7 +8,13 @@ from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from lina.brain.model_provider import EmptyModelResponseError, ModelProviderError, ModelResponse
-from lina.interfaces.qt.main_window import LinaMainWindow, _classify_voice_confirmation, _friendly_vision_error_message, clamp_window_geometry
+from lina.interfaces.qt.main_window import (
+    AUTO_SCROLL_THRESHOLD_PX,
+    LinaMainWindow,
+    _classify_voice_confirmation,
+    _friendly_vision_error_message,
+    clamp_window_geometry,
+)
 from lina.interfaces.qt.image_loader import ImageLoadError
 from lina.services.conversation_models import ConversationResult
 from lina.screen.models import LOCAL_FILE, ScreenCaptureError, ScreenContext
@@ -499,7 +505,8 @@ def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
     assert _assistant_texts(window)[-1] == "Selam İlhan"
     assert window._is_waiting is False
     assert window._composer.input.isEnabled() is True
-    assert window._composer.send_button.text() == "Gönder"
+    assert window._composer.send_button.text() == ""
+    assert window._composer.send_button.accessibleName() == "Mesajı gönder"
 
 
 def test_send_message_error_resets_ui(qtbot) -> None:
@@ -519,7 +526,8 @@ def test_send_message_error_resets_ui(qtbot) -> None:
     assert window._is_waiting is False
     assert "Modele ulaşılamadı" in _assistant_texts(window)[-1]
     assert window._composer.input.isEnabled() is True
-    assert window._composer.send_button.text() == "Gönder"
+    assert window._composer.send_button.text() == ""
+    assert window._composer.send_button.accessibleName() == "Mesajı gönder"
 
 
 def test_waiting_response_keeps_input_enabled_and_send_button_becomes_stop(qtbot) -> None:
@@ -537,7 +545,8 @@ def test_waiting_response_keeps_input_enabled_and_send_button_becomes_stop(qtbot
 
     assert window._is_waiting is True
     assert window._composer.input.isEnabled() is True
-    assert window._composer.send_button.text() == "Durdur"
+    assert window._composer.send_button.text() == ""
+    assert window._composer.send_button.accessibleName() == "Yanıtı durdur"
     assert window._composer.text() == ""
 
 
@@ -558,7 +567,8 @@ def test_stop_button_ignores_late_conversation_result(qtbot) -> None:
     assert window._is_waiting is False
     assert window._typing_message is None
     assert window._composer.input.isEnabled() is True
-    assert window._composer.send_button.text() == "Gönder"
+    assert window._composer.send_button.text() == ""
+    assert window._composer.send_button.accessibleName() == "Mesajı gönder"
     assert "Yanıt durduruldu" in window._status_label.text()
 
     pool.run_next()
@@ -629,7 +639,9 @@ def test_clear_chat_scrolls_to_top(qtbot) -> None:
 
     for index in range(30):
         window._append_assistant_message(f"Uzun mesaj {index}\n" * 5)
-    qtbot.waitUntil(lambda: window._scroll.verticalScrollBar().maximum() > 0)
+    qtbot.waitUntil(
+        lambda: window._scroll.verticalScrollBar().maximum() > AUTO_SCROLL_THRESHOLD_PX
+    )
     window._scroll.verticalScrollBar().setValue(window._scroll.verticalScrollBar().maximum())
 
     window.clear_chat()
@@ -1160,7 +1172,9 @@ def test_auto_scroll_preserves_position_when_user_reads_old_messages(qtbot) -> N
 
     for index in range(30):
         window._append_assistant_message(f"Uzun mesaj {index}\n" * 5)
-    qtbot.waitUntil(lambda: window._scroll.verticalScrollBar().maximum() > 0)
+    qtbot.waitUntil(
+        lambda: window._scroll.verticalScrollBar().maximum() > AUTO_SCROLL_THRESHOLD_PX
+    )
 
     bar = window._scroll.verticalScrollBar()
     bar.setValue(0)

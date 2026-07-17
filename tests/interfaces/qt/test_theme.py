@@ -27,8 +27,8 @@ def test_dark_palette_regression_and_system_resolution() -> None:
     dark = theme_palette("dark")
     assert theme_palette("system", system_lightness=40) == dark
     assert theme_palette("system", system_lightness=220) == theme_palette("light")
-    assert dark["app_bg"] == "#111318"
-    assert dark["user_bubble"] == "#315cc8"
+    assert dark["app_bg"] == "#0b111a"
+    assert dark["user_bubble"] == "#1d3d66"
 
 
 def test_stylesheet_uses_theme_specific_component_states() -> None:
@@ -48,6 +48,9 @@ def test_stylesheet_uses_theme_specific_component_states() -> None:
     assert "QWidget#sidebarConversationViewport" in light
     assert "QWidget#detailsInspector" in light
     assert "QPushButton#unifiedStatusButton" in light
+    assert "QPushButton#primaryNavigationButton" in light
+    assert "QPushButton#composerSendButton" in light
+    assert "QFrame#settingsSectionCard" in light
 
 
 def test_font_scale_bounds_are_reflected_without_component_changes() -> None:

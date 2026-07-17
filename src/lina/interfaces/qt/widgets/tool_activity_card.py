@@ -37,16 +37,18 @@ class ToolActivityCard(QFrame):
         self.setAccessibleName(f"Araç işlemi: {title}")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         layout = QVBoxLayout(self)
-        self._title = QLabel(title, self); self._title.setStyleSheet("font-weight: 700;"); layout.addWidget(self._title)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(9)
+        self._title = QLabel(title, self); self._title.setObjectName("toolActivityTitle"); layout.addWidget(self._title)
         self._status = QLabel("", self); self._status.setAccessibleName("İşlem durumu"); layout.addWidget(self._status)
         self._description = QLabel(description, self); self._description.setWordWrap(True); layout.addWidget(self._description)
-        self._arguments = QLabel(arguments, self); self._arguments.setWordWrap(True); self._arguments.setVisible(bool(arguments)); layout.addWidget(self._arguments)
-        self._risk = QLabel(f"Risk: {risk}", self); layout.addWidget(self._risk)
+        self._arguments = QLabel(arguments, self); self._arguments.setObjectName("toolActivityDetails"); self._arguments.setWordWrap(True); self._arguments.hide(); layout.addWidget(self._arguments)
+        self._risk = QLabel(f"Risk: {risk}", self); self._risk.setObjectName("toolActivityRisk"); layout.addWidget(self._risk)
         actions = QHBoxLayout()
         self.confirm_button = QPushButton("Onayla", self); self.confirm_button.setAccessibleName("İşlemi onayla"); self.confirm_button.clicked.connect(self.confirmed); actions.addWidget(self.confirm_button)
         self.cancel_button = QPushButton("Vazgeç", self); self.cancel_button.setAccessibleName("İşlemden vazgeç"); self.cancel_button.clicked.connect(self.cancelled); actions.addWidget(self.cancel_button)
         self.retry_button = QPushButton("Tekrar Dene", self); self.retry_button.setAccessibleName("İşlemi tekrar dene"); self.retry_button.clicked.connect(self.retry_requested); self.retry_button.hide(); actions.addWidget(self.retry_button)
-        self.details_button = QPushButton("Detayları Gizle", self); self.details_button.setAccessibleName("Araç ayrıntılarını göster veya gizle"); self.details_button.clicked.connect(self._toggle_details); self.details_button.setVisible(bool(arguments)); actions.addWidget(self.details_button)
+        self.details_button = QPushButton("Ayrıntıları Göster", self); self.details_button.setObjectName("secondaryButton"); self.details_button.setAccessibleName("Araç ayrıntılarını göster veya gizle"); self.details_button.clicked.connect(self._toggle_details); self.details_button.setVisible(bool(arguments)); actions.addWidget(self.details_button)
         layout.addLayout(actions)
         self.confirm_button.setVisible(confirmation); self.cancel_button.setVisible(confirmation)
         self.set_status(ToolStatus.AWAITING_CONFIRMATION if confirmation else ToolStatus.PREPARING)
@@ -73,7 +75,7 @@ class ToolActivityCard(QFrame):
     def _toggle_details(self) -> None:
         visible = not self._arguments.isVisible()
         self._arguments.setVisible(visible)
-        self.details_button.setText("Detayları Gizle" if visible else "Detayları Göster")
+        self.details_button.setText("Ayrıntıları Gizle" if visible else "Ayrıntıları Göster")
 
     def keyPressEvent(self, event) -> None:
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self.confirm_button.isVisible():

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget
 
 from lina.agent.models import AgentSession, AgentSessionStatus, AgentStepStatus
@@ -60,9 +60,11 @@ class AgentPanel(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("agentPanel")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAccessibleName("Agent Mode görev paneli")
         root = QVBoxLayout(self)
-        root.setContentsMargins(10, 7, 10, 7)
+        root.setContentsMargins(16, 14, 16, 14)
+        root.setSpacing(10)
         header = QHBoxLayout()
         self.mode_label = QPushButton("Agent Mode · Kapalı", self)
         self.mode_label.setObjectName("statusChip")
@@ -72,6 +74,7 @@ class AgentPanel(QWidget):
         header.addWidget(self.mode_label)
         header.addWidget(self.progress_label, 1)
         self.details_button = QPushButton("Ayrıntıları Göster", self)
+        self.details_button.setObjectName("secondaryButton")
         self._details_expanded = False
         self.details_button.clicked.connect(self._toggle_details)
         self.details_button.clicked.connect(self.details_requested.emit)

@@ -109,16 +109,16 @@ class ControlMetrics:
 
 @dataclass(frozen=True, slots=True)
 class LayoutMetrics:
-    navigation_expanded: int = 264
-    navigation_collapsed: int = 64
+    navigation_expanded: int = 280
+    navigation_collapsed: int = 60
     content_maximum: int = 1180
-    chat_readable: int = 880
-    inspector_width: int = 340
-    composer_maximum: int = 920
-    message_spacing: int = 18
-    header_height: int = 58
-    compact_breakpoint: int = 760
-    medium_breakpoint: int = 1080
+    chat_readable: int = 820
+    inspector_width: int = 320
+    composer_maximum: int = 860
+    message_spacing: int = 20
+    header_height: int = 68
+    compact_breakpoint: int = 800
+    medium_breakpoint: int = 1120
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,25 +140,25 @@ class DesignTokens:
 
 
 _DARK = ColorPalette(
-    canvas="#111318", surface_primary="#171a20", surface_secondary="#14171c",
-    surface_elevated="#20242c", surface_hover="#272c35", surface_pressed="#303640",
-    surface_selected="#252c3a", border_subtle="#292e37", border_default="#343b46",
-    border_focus="#8ba3ff", text_primary="#f1f3f7", text_secondary="#c8ced8",
-    text_tertiary="#98a2b2", text_disabled="#737d8c", accent="#738cff",
-    accent_hover="#869cff", accent_pressed="#5d74df", success="#67cf95",
-    warning="#e7bd68", danger="#f17b86", information="#7da4ff",
-    overlay="#171a20", scrim="#00000099", user_surface="#315cc8", user_text="#ffffff",
+    canvas="#0b111a", surface_primary="#111925", surface_secondary="#0d151f",
+    surface_elevated="#172231", surface_hover="#1b293b", surface_pressed="#223247",
+    surface_selected="#192c45", border_subtle="#1d2a3a", border_default="#2a3a4f",
+    border_focus="#63adff", text_primary="#edf3fb", text_secondary="#c2ccda",
+    text_tertiary="#8492a5", text_disabled="#607084", accent="#4f9cff",
+    accent_hover="#68acff", accent_pressed="#347fda", success="#55d990",
+    warning="#e7bd68", danger="#f17b86", information="#6caeff",
+    overlay="#111925", scrim="#02060db3", user_surface="#1d3d66", user_text="#f7fbff",
 )
 
 _LIGHT = ColorPalette(
-    canvas="#f6f7f9", surface_primary="#ffffff", surface_secondary="#f0f2f5",
-    surface_elevated="#e9edf2", surface_hover="#e4e9f0", surface_pressed="#d9e0e9",
-    surface_selected="#e2e9fb", border_subtle="#d5dbe3", border_default="#b9c3cf",
-    border_focus="#2858c7", text_primary="#17202b", text_secondary="#344457",
-    text_tertiary="#59697a", text_disabled="#748191", accent="#2858c7",
-    accent_hover="#214ead", accent_pressed="#193f92", success="#176b3a",
+    canvas="#f4f7fb", surface_primary="#ffffff", surface_secondary="#edf2f7",
+    surface_elevated="#e7eef6", surface_hover="#dfe8f2", surface_pressed="#d4dfeb",
+    surface_selected="#dcecff", border_subtle="#d9e2ec", border_default="#b9c8d8",
+    border_focus="#1671d9", text_primary="#142033", text_secondary="#34475e",
+    text_tertiary="#66788d", text_disabled="#8795a6", accent="#1671d9",
+    accent_hover="#0e62c2", accent_pressed="#0a4f9e", success="#14713d",
     warning="#7a4b00", danger="#a8202a", information="#2858c7",
-    overlay="#ffffff", scrim="#10182055", user_surface="#2858c7", user_text="#ffffff",
+    overlay="#ffffff", scrim="#10182055", user_surface="#176bc5", user_text="#ffffff",
 )
 
 
