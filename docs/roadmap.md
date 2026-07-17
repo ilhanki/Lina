@@ -22,7 +22,7 @@ v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutula
 
 ## Mevcut Durum: v0.12.2-alpha Reference-Driven Premium Desktop Experience
 
-Referans odaklı premium deneyim tamamlandı: geniş üç kolon, orta/kompakt sağ çekmece, sohbet önizlemeli sidebar, güvenli Markdown subset’i, birleşik composer, gerçek tool/memory/storage inspector’ı, Design System V3, Settings schema v10 ve Response Quality/Repair V3 hazırdır. `v0.12.2-alpha` tag’i bu sprintte oluşturulmaz.
+Referans odaklı premium deneyim tamamlandı: geniş üç kolon, orta/kompakt sağ çekmece, sohbet önizlemeli sidebar, güvenli Markdown subset’i, birleşik composer, gerçek tool/memory/storage inspector’ı, Design System V3, Settings schema v10 ve Response Quality/Repair V3 hazırdır. Release tag/push işlemleri açık kullanıcı iznine bağlıdır.
 
 `v0.10.0-alpha` Voice Interaction & Inference Performance Foundation tamamlandı ve tag’lendi.
 

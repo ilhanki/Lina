@@ -2545,4 +2545,4 @@ Hotfix ve image upload akışı tamamlandı. `v0.7.1-alpha` tag oluşturulmadı;
 - Settings schema v10 sidebar/right panel/message genişliği/son settings bölümü state’ini migrate edip persist eder hale geldi.
 - Response Quality V3 teknik allowlist ve kullanıcı terimi farkındalığıyla; Repair V3 exact prompt, tek non-streaming deneme ve sabit güvenli fallback ile tamamlandı.
 - Dark/light, large/medium/compact, tools/memory/system/voice/vision/agent ve settings dahil 18 offscreen yüzey incelendi. Stale Memory widget çakışması yakalanıp lifecycle düzeltmesi uygulandı; geçici PNG’ler temizlendi.
-- Sürüm `0.12.2a0` / `v0.12.2-alpha` olarak güncellendi. Yeni ağır dependency veya tag eklenmedi; push açık kullanıcı izni bekler.
+- Sürüm `0.12.2a0` / `v0.12.2-alpha` olarak güncellendi. Yeni ağır dependency eklenmedi; tag ve push release sonunda açık kullanıcı izniyle yapılır.

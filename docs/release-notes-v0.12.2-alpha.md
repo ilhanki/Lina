@@ -34,4 +34,4 @@ Teknik allowlist framework, Git, GitHub, Python, PySide6, Ollama, model adları 
 
 Narrator/NVDA, gerçek DPI/multi-monitor, tray exit, mikrofon/TTS ve kamera lifecycle’ı gerçek Windows oturumunda manuel smoke gerektirir. Native title bar referanstaki özel chrome’u birebir kopyalamaz. Desteklenmeyen belge türleri araç panelinde vaat edilmez.
 
-Bu sprint `v0.12.2-alpha` tag’i oluşturmaz ve açık kullanıcı izni olmadan push yapmaz.
+`v0.12.2-alpha` tag ve push işlemleri yalnız açık kullanıcı izniyle yapılır.

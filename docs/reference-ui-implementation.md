@@ -42,4 +42,4 @@ Ana kontroller accessible name, tooltip ve klavye odağı taşır. Ctrl+N, Ctrl+
 - Native title bar referanstaki özel pencere düğmelerini birebir kopyalamaz; snap, DPI, taskbar ve accessibility güvenilirliği için bilinçli olarak korunur.
 - Yerel dosya action’ı mevcut image/file akışının desteklediği türlerle sınırlıdır; PDF/DOCX/XLSX için sahte destek etiketi yoktur.
 - Gerçek Narrator/NVDA, %125/%150 DPI, multi-monitor, system theme değişimi, tray shutdown, gerçek mikrofon/TTS ve kamera lifecycle’ı Windows üzerinde manuel smoke gerektirir.
-- `v0.12.2-alpha` tag’i bu sprintte oluşturulmaz. Sonraki mimari hedef `v0.13.0-alpha` Codex Bridge’dir.
+- Sonraki mimari hedef `v0.13.0-alpha` Codex Bridge’dir; release tag/push yalnız açık kullanıcı izniyle yapılır.
