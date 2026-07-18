@@ -55,17 +55,26 @@ class Brain:
         )
         return self._model_provider.generate(request)
 
-    def repair_response(self, user_question: str, draft: str) -> str:
+    def repair_response(self, user_question: str, draft: str,
+                        rejection_reasons: tuple[str, ...] = ()) -> str:
         """Run one low-temperature, non-streaming repair without full history."""
         messages = (
             ModelMessage(
                 role="system",
                 content=(
-                    "Aşağıdaki yanıtı kullanıcı sorusuna doğrudan cevap veren doğal Türkçeyle "
-                    "yeniden yaz. Yabancı dil kırıntılarını, bozuk ekleri, alakasız "
-                    "selamlamaları ve tekrarları kaldır. Yeni bilgi ekleme."
+                    "Kullanıcının aşağıdaki isteğine doğrudan cevap veren, doğal ve doğru "
+                    "Türkçe bir yanıt oluştur. Reddedilen cevaptaki bozuk kelimeleri, yabancı "
+                    "dil kırıntılarını, iç sistem açıklamalarını, alakasız görev aşamalarını "
+                    "ve tekrarları kullanma. Kullanıcının istemediği yeni bilgi ekleme. "
+                    "Python, tuple, list, API, Git, GitHub, PySide6, Codex ve Ollama gibi "
+                    "gerekli teknik terimleri doğru biçimde koru."
                 ),
             ),
-            ModelMessage(role="user", content=f"Soru: {user_question}\n\nCevap: {draft}"),
+            ModelMessage(
+                role="user",
+                content=(f"Orijinal kullanıcı isteği:\n{user_question}\n\n"
+                         f"Reddedilme nedenleri: {', '.join(rejection_reasons) or 'quality'}\n\n"
+                         f"Reddedilen cevap:\n{draft}"),
+            ),
         )
         return self._model_provider.generate(ModelRequest(messages=messages, temperature=0.1, top_p=0.8, repeat_penalty=1.05, stream=False)).text

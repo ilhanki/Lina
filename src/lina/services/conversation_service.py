@@ -29,6 +29,7 @@ from lina.vision.models import VisionRequestError
 from lina.vision.live.policy import build_camera_question_prompt
 from lina.inference.service import ModelLifecycleService
 from lina.quality import ResponseRepairService
+from lina.codex.intent import OperationalCodexIntentError, classify_codex_intent
 
 
 class ConversationService:
@@ -73,7 +74,7 @@ class ConversationService:
         self._conversation_history_service = conversation_history_service
         self._model_lifecycle_service = model_lifecycle_service
         self._response_repair_service = response_repair_service or ResponseRepairService(
-            lambda question, draft: self._brain.repair_response(question, draft)
+            lambda question, draft, reasons: self._brain.repair_response(question, draft, reasons)
         )
         if conversation_history_service is not None:
             conversation_history_service.start()
@@ -114,6 +115,8 @@ class ConversationService:
         user_message = conversation_input.text.strip()
         if not user_message:
             raise ValueError("Conversation input text must not be empty")
+        if classify_codex_intent(user_message).operational:
+            raise OperationalCodexIntentError("Operational Codex request requires bridge routing.")
         intent = self._intent_analyzer.analyze(user_message)
         attachment_consumed = False
         if self._conversation_history_service is not None:
@@ -180,23 +183,27 @@ class ConversationService:
 
         accepted = self._response_repair_service.accept(user_message, response.text)
         response = ModelResponse(accepted.text)
-        self._history.append(
-            ConversationTurn(
-                user_message=user_message,
-                assistant_response=response.text,
+        assistant_created_at = None
+        if not accepted.rejected:
+            self._history.append(
+                ConversationTurn(
+                    user_message=user_message,
+                    assistant_response=response.text,
+                )
             )
-        )
-        self._history = self._history[-self._history_limit :]
-        assistant_created_at = datetime.now(timezone.utc)
-        if self._conversation_history_service is not None:
-            self._conversation_history_service.record_assistant_message(
-                response.text,
-                created_at=assistant_created_at,
-            )
+            self._history = self._history[-self._history_limit :]
+            assistant_created_at = datetime.now(timezone.utc)
+            if self._conversation_history_service is not None:
+                self._conversation_history_service.record_assistant_message(
+                    response.text,
+                    created_at=assistant_created_at,
+                )
         return ConversationResult(
             response=response,
             attachment_consumed=attachment_consumed,
             assistant_created_at=assistant_created_at,
+            quality_rejected=accepted.rejected,
+            response_safe_for_speech=not accepted.rejected,
         )
 
     def _ensure_vision_ready(self) -> None:

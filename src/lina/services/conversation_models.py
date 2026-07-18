@@ -25,3 +25,5 @@ class ConversationResult:
     response: ModelResponse
     attachment_consumed: bool = False
     assistant_created_at: datetime | None = None
+    quality_rejected: bool = False
+    response_safe_for_speech: bool = True

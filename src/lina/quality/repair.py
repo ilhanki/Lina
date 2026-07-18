@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 import logging
+import inspect
 from typing import Callable
 
 from lina.quality.models import ResponseRepairResult
 from lina.quality.validator import ResponseQualityValidator
 
 
-SAFE_FALLBACK = "Bu yanıtı güvenilir biçimde oluşturamadım. Daha kısa bir şekilde yeniden deneyebiliriz."
+SAFE_FALLBACK = "Bu yanıtı güvenilir biçimde oluşturamadım. Sorunu farklı bir ifadeyle tekrar deneyebilirsin."
 _logger = logging.getLogger("lina.response_quality")
 
 
 class ResponseRepairService:
-    def __init__(self, repair: Callable[[str, str], str] | None = None, validator: ResponseQualityValidator | None = None) -> None:
+    def __init__(self, repair: Callable[..., str] | None = None, validator: ResponseQualityValidator | None = None) -> None:
         self._repair = repair
         self.validator = validator or ResponseQualityValidator()
         self.repair_count = 0
@@ -32,7 +33,13 @@ class ResponseRepairService:
             return ResponseRepairResult(SAFE_FALLBACK, False, True, first)
         self.repair_count += 1
         try:
-            repaired_text = self._repair(user_text[:1000], first.normalized_text[:4000])
+            parameters = inspect.signature(self._repair).parameters
+            if len(parameters) >= 3:
+                repaired_text = self._repair(
+                    user_text[:1000], first.normalized_text[:4000], first.rejection_reasons
+                )
+            else:
+                repaired_text = self._repair(user_text[:1000], first.normalized_text[:4000])
         except Exception:
             repaired_text = ""
         second = self.validator.validate(repaired_text, user_text=user_text, expected_language=expected_language)
