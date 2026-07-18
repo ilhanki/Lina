@@ -1,5 +1,6 @@
 """Turn verified Codex output into concise, user-facing Lina language."""
 
+from pathlib import Path
 import re
 
 from lina.codex.models import CodexResult, VerificationReport
@@ -13,5 +14,16 @@ class CodexResponseQuality:
             text = text[:1597].rstrip() + "…"
         prefix = ("Analiz tamamlandı." if report.outcome.value == "success"
                   else "Sonuç kesin olarak doğrulanamadı.")
-        return f"{prefix}\n\n{text}" if text else prefix
-
+        changed = tuple(dict.fromkeys(Path(item).name for item in result.changed_files))
+        change_summary = (
+            f"Değişen dosyalar ({len(changed)}): {', '.join(changed[:12])}"
+            if changed else "Herhangi bir dosya değiştirilmedi."
+        )
+        evidence = result.evidence
+        if evidence is None or evidence.tests_passed is None:
+            tests = "Test sonucu: CLI tarafından doğrulanabilir test kanıtı sunulmadı."
+        else:
+            tests = "Test sonucu: Başarılı." if evidence.tests_passed else "Test sonucu: Başarısız."
+        verification = f"Doğrulama: {report.summary}"
+        findings = f"Bulunanlar:\n{text}" if text else "Bulunanlar: Ayrıntılı bulgu sunulmadı."
+        return "\n\n".join((prefix, findings, change_summary, tests, verification))

@@ -26,3 +26,6 @@ def test_response_quality_removes_terminal_spam_and_bounds_output():
     text = CodexResponseQuality().prepare(CodexResult("INFO raw log\nÜç bulgu var."), report)
     assert "INFO" not in text
     assert text.startswith("Analiz tamamlandı.")
+    assert "Bulunanlar:" in text
+    assert "Herhangi bir dosya değiştirilmedi." in text
+    assert "Doğrulama:" in text
