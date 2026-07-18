@@ -28,3 +28,12 @@ def test_codex_approval_card_has_approve_deny_and_edit(qtbot, tmp_path: Path):
     assert panel.deny_button.text() == "Reddet"
     assert panel.edit_button.text() == "Düzenle"
 
+
+def test_codex_workspace_card_has_select_and_cancel(qtbot):
+    panel = CodexInspector()
+    qtbot.addWidget(panel)
+    panel.render_workspace_required("Codex ile bu projeyi analiz et")
+    panel.show()
+    assert panel.workspace_card.isVisible()
+    assert panel.workspace_select_button.text() == "Klasör Seç"
+    assert panel.workspace_cancel_button.text() == "İptal"

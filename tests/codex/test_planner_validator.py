@@ -7,7 +7,7 @@ from lina.codex.validator import CodexOutputValidator
 
 def test_analysis_plan_is_non_modifying(tmp_path: Path):
     task = CodexPlanner().plan("Bu projeyi analiz et", tmp_path)
-    assert task.risk_level is CodexRiskLevel.ANALYSIS
+    assert task.risk_level is CodexRiskLevel.READ_ONLY
     assert task.approval_required is False
 
 
@@ -42,4 +42,3 @@ def test_changed_file_outside_workspace_fails(tmp_path: Path):
     report = CodexOutputValidator().verify(
         task, CodexResult("Tamamlandı", changed_files=(str(tmp_path / "other.py"),)))
     assert report.outcome is VerificationOutcome.FAILED
-

@@ -10,7 +10,7 @@ def test_prompt_builder_creates_system_and_user_messages() -> None:
 
     assert messages[0].role == "system"
     assert "You are Lina." in messages[0].content
-    assert "Yalnız son user mesajına" in messages[0].content
+    assert "Yalnız son kullanıcı mesajına" in messages[0].content
     assert messages[-1] == ModelMessage(role="user", content="Hello")
 
 
@@ -95,7 +95,7 @@ def test_prompt_builder_includes_project_context_in_system_message() -> None:
         project_context="Sprint 5 completed.",
     )
 
-    assert "Project context:" in messages[0].content
+    assert "İzinli proje bilgileri:" in messages[0].content
     assert "Sprint 5 completed." in messages[0].content
     assert messages[-1].content == "What happened in the project?"
 
@@ -108,7 +108,7 @@ def test_prompt_builder_includes_memory_context_in_system_message() -> None:
         memory_context="Hatırlanan bilgiler:\n- kısa cevapları seviyorum",
     )
 
-    assert "Memory context:" in messages[0].content
+    assert "Hatırlanan güvenli bilgiler:" in messages[0].content
     assert "yalnızca yardımcı bağlam olarak kullan" in messages[0].content
     assert "- kısa cevapları seviyorum" in messages[0].content
 
@@ -118,7 +118,7 @@ def test_prompt_builder_skips_empty_memory_context() -> None:
 
     messages = builder.build(user_message="Hello", memory_context=" ")
 
-    assert "Memory context:" not in messages[0].content
+    assert "Hatırlanan güvenli bilgiler:" not in messages[0].content
 
 
 def test_prompt_builder_includes_project_and_memory_context() -> None:
@@ -130,8 +130,8 @@ def test_prompt_builder_includes_project_and_memory_context() -> None:
         memory_context="Memory context",
     )
 
-    assert "Memory context:" in messages[0].content
-    assert "Project context:" in messages[0].content
+    assert "Hatırlanan güvenli bilgiler:" in messages[0].content
+    assert "İzinli proje bilgileri:" in messages[0].content
 
 
 def test_file_context_uses_system_and_current_user_only() -> None:

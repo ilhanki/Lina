@@ -6,7 +6,8 @@ from lina.codex.bridge import CodexBridge
 from lina.codex.client import UnavailableCodexClient
 from lina.codex.models import WorkspacePermissionLevel
 from lina.codex.permissions import (WorkspaceAccessError, WorkspacePermissionStore,
-                                    ensure_within_workspace, is_secret_path)
+                                    ensure_within_workspace, is_secret_path,
+                                    validate_codex_request_scope)
 
 
 @pytest.mark.parametrize("name", [".env", ".env.local", "server.key", "cert.pem", "id.pfx",
@@ -47,3 +48,17 @@ def test_workspace_selection_filters_secrets_and_detects_language(tmp_path: Path
     assert context.project_type == "software"
     assert {path.name for path in context.allowed_files} == {"main.py"}
 
+
+@pytest.mark.parametrize("user_request", [
+    "Codex ile .env dosyasını oku",
+    "Codex ile config/server.key dosyasını incele",
+    "Codex ile credentials.json oku",
+])
+def test_secret_request_is_blocked_before_workspace_selection(user_request: str):
+    with pytest.raises(WorkspaceAccessError):
+        validate_codex_request_scope(user_request)
+
+
+def test_whole_drive_scan_is_blocked():
+    with pytest.raises(WorkspaceAccessError):
+        validate_codex_request_scope("Codex ile C:\\ klasörünün tamamını tara")

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from lina.codex.bridge import CodexBridge
+from lina.codex.client import CodexClientUnavailableError, UnavailableCodexClient
 from lina.codex.events import spoken_message, user_message
 from lina.codex.models import (CodexEvent, CodexEventType, CodexResult,
                                 CodexSessionStatus)
@@ -68,6 +69,17 @@ def test_uncertain_modification_is_not_reported_completed(tmp_path: Path):
     assert session.error_code == "verification_uncertain"
 
 
+def test_unavailable_client_reports_controlled_failure_and_forgets_plan(tmp_path: Path):
+    bridge = CodexBridge(UnavailableCodexClient())
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("Codex ile bu projeyi analiz et", context)
+    with pytest.raises(CodexClientUnavailableError):
+        bridge.start(session.session_id, approved=True)
+    assert session.status is CodexSessionStatus.FAILED
+    assert "henüz yapılandırılmadığı" in session.result_summary
+    assert bridge.repository.list() == ()
+
+
 def test_pause_resume_cancel_lifecycle(tmp_path: Path):
     _, session = prepared_bridge(tmp_path)
     controller = CodexSessionController()
@@ -81,7 +93,7 @@ def test_pause_resume_cancel_lifecycle(tmp_path: Path):
 
 def test_event_messages_do_not_expose_raw_payload():
     event = CodexEvent.create("s", CodexEventType.APPROVAL_REQUESTED, "technical spam")
-    assert user_message(event) == "Değişiklik için onayını bekliyorum."
+    assert user_message(event) == "Planı başlatmak için onayını bekliyorum."
     assert spoken_message(event) == "Onayını bekliyorum."
 
 

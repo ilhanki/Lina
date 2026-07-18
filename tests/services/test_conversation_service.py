@@ -10,6 +10,7 @@ from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
 from lina.services.conversation_models import ConversationInput
+from lina.codex.intent import OperationalCodexIntentError
 from lina.services.model_diagnostics_service import (
     VisionDiagnosticsResult,
     VisionStatus,
@@ -113,6 +114,39 @@ class SequenceIntentAnalyzer:
         from lina.brain.intent import Intent
 
         return Intent(type=self._intent_types.pop(0))
+
+
+def test_operational_codex_request_never_reaches_normal_chat_brain() -> None:
+    provider = CapturingModelProvider(["Bu cevap kullanılmamalı."])
+    service = ConversationService(brain=Brain(model_provider=provider))
+    with pytest.raises(OperationalCodexIntentError):
+        service.handle_message("Lina, Codex ile bu projeyi analiz et.")
+    assert provider.requests == []
+
+
+def test_rejected_response_is_not_reused_by_next_request() -> None:
+    from lina.brain.intent import IntentType
+
+    leaked = "Kodex, kullanıcının mesajını analiz eder ve corresponding response üretir."
+    provider = CapturingModelProvider([
+        leaked,
+        leaked,
+        "Bugün hava hakkında kesin bilgiye erişimim yok.",
+    ])
+    service = ConversationService(
+        brain=Brain(model_provider=provider),
+        intent_analyzer=SequenceIntentAnalyzer([IntentType.CHAT, IntentType.CHAT]),
+    )
+    first = service.handle_input(ConversationInput(text="Kendini tanıt."))
+    assert first.quality_rejected
+    assert not first.response_safe_for_speech
+    assert service._history == []
+
+    second = service.handle_message("Bugün hava nasıl?")
+    assert second.text == "Bugün hava hakkında kesin bilgiye erişimim yok."
+    second_request_text = "\n".join(message.content for message in provider.requests[-1].messages)
+    assert "corresponding response" not in second_request_text
+    assert "kullanıcının mesajını analiz eder" not in second_request_text
 
 
 class FakeDeterministicResponseService:
@@ -290,7 +324,7 @@ def test_chat_after_greeting_answers_latest_message_without_repeating_history() 
     assert messages[-1].content == (
         "bir proje fikri düşünüyorum, bana birkaç soru sor"
     )
-    assert "Yalnız son user mesajına" in messages[0].content
+    assert "Yalnız son kullanıcı mesajına" in messages[0].content
 
 
 def test_malformed_speech_text_is_not_used_as_user_name_in_next_model_request() -> None:
@@ -322,7 +356,8 @@ def test_malformed_speech_text_is_not_used_as_user_name_in_next_model_request() 
     assert messages[-1].content == (
         "bir şeyler yapmayı düşünüyorum senin aklındaki fikir nedir"
     )
-    assert "bilinen adı yalnızca İlhan'dır" in messages[0].content
+    assert "Kullanıcıya İlhan diye hitap edebilirsin" in messages[0].content
+    assert "sistem tarafından bilinen" not in messages[0].content
     assert "Kullanıcı mesajından isim türetme" in messages[0].content
 
 

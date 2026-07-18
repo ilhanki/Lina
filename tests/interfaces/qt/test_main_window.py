@@ -32,6 +32,7 @@ from lina.voice.models import VoiceState
 from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 from lina.interfaces.qt.theme import theme_palette
+from lina.codex import CodexBridge, UnavailableCodexClient
 
 
 def test_direct_camera_question_empty_response_has_friendly_retry_message() -> None:
@@ -311,6 +312,86 @@ def _user_messages(window: LinaMainWindow) -> list[object]:
         if getattr(message, "role", None) == "user":
             messages.append(message)
     return messages
+
+
+def test_explicit_codex_command_opens_workspace_flow_without_normal_chat(qtbot) -> None:
+    conversation = FakeConversationService("Normal chat should not run")
+    window = LinaMainWindow(
+        conversation,
+        codex_bridge=CodexBridge(UnavailableCodexClient()),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    command = "Lina, Codex ile bu projeyi analiz et."
+    window._composer.input.setPlainText(command)
+    window.send_message()
+    assert conversation.inputs == []
+    assert window._pending_codex_request == command
+    assert len(_user_messages(window)) == 1
+    assert _assistant_texts(window) == [
+        "Codex ile analiz yapabilmem için önce çalışma klasörünü seçmelisin."
+    ]
+
+
+def test_repeated_codex_command_uses_same_flow_without_duplicate_dispatch(qtbot) -> None:
+    conversation = FakeConversationService("Normal chat should not run")
+    window = LinaMainWindow(
+        conversation,
+        codex_bridge=CodexBridge(UnavailableCodexClient()),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    command = "Lina, Codex ile bu projeyi analiz et."
+    for _ in range(2):
+        window._composer.input.setPlainText(command)
+        window.send_message()
+    assert conversation.inputs == []
+    assert len(_user_messages(window)) == 2
+    assert len(_assistant_texts(window)) == 2
+
+
+def test_quality_rejected_fallback_is_visible_but_not_spoken(qtbot) -> None:
+    voice = FakeVoiceController()
+    voice.settings = type("Settings", (), {"responses_enabled": True})()
+    window = LinaMainWindow(
+        FakeConversationService(), voice_controller=voice, thread_pool=ImmediateThreadPool()
+    )
+    qtbot.addWidget(window)
+    result = ConversationResult(
+        response=ModelResponse("Güvenli fallback"),
+        quality_rejected=True,
+        response_safe_for_speech=False,
+    )
+    window._handle_conversation_result(result)
+    assert _assistant_texts(window)[-1] == "Güvenli fallback"
+    assert voice.spoken == []
+
+
+def test_codex_selected_workspace_plan_and_unavailable_notice(
+    qtbot, monkeypatch, tmp_path
+) -> None:
+    conversation = FakeConversationService("Normal chat should not run")
+    bridge = CodexBridge(UnavailableCodexClient())
+    window = LinaMainWindow(
+        conversation, codex_bridge=bridge, thread_pool=ImmediateThreadPool()
+    )
+    qtbot.addWidget(window)
+    monkeypatch.setattr(
+        "lina.interfaces.qt.main_window.QFileDialog.getExistingDirectory",
+        lambda *_args, **_kwargs: str(tmp_path),
+    )
+    command = "Lina, Codex ile bu projeyi analiz et."
+    window._composer.input.setPlainText(command)
+    window.send_message()
+    window._select_codex_workspace()
+    assert bridge.session is not None
+    assert bridge.session.status.value == "waiting_approval"
+    assert bridge.session.task is not None
+    assert bridge.session.task.risk_level.value == "read_only"
+    window._approve_codex_task()
+    assert "henüz yapılandırılmadığı" in _assistant_texts(window)[-1]
+    assert bridge.repository.list() == ()
+    assert conversation.inputs == []
 
 
 def test_final_normal_chat_response_uses_common_voice_path(qtbot, tmp_path) -> None:

@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone
 
-from lina.brain.model_provider import ModelProviderError, ModelResponse
+from lina.brain.model_provider import ModelProviderError, ModelRequest, ModelResponse
 from lina.conversations.repository import ConversationRepository
 from lina.conversations.service import ConversationHistoryService
 from lina.services.conversation_models import ConversationInput
 from lina.services.conversation_service import ConversationService
+from lina.brain.brain import Brain
 from lina.vision.models import ImageAttachment, PNG_SIGNATURE
 
 
@@ -105,3 +106,26 @@ def test_vision_user_message_persists_metadata_without_attachment_bytes(tmp_path
     assert message.had_image is True
     assert message.image_source == "screen_region"
     assert not hasattr(message, "data")
+
+
+def test_rejected_assistant_response_is_not_persisted(tmp_path) -> None:
+    class LeakingProvider:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, request: ModelRequest) -> ModelResponse:
+            self.calls += 1
+            return ModelResponse(
+                "Sistem tarafından bilinen persona corresponding response üretir."
+            )
+
+    repository = ConversationRepository(tmp_path / "rejected.sqlite3")
+    history = ConversationHistoryService(repository)
+    service = ConversationService(
+        brain=Brain(LeakingProvider()), conversation_history_service=history
+    )
+    result = service.handle_input(ConversationInput(text="Bana özgün bir açıklama yaz."))
+    messages = repository.list_messages(history.active_session.id or 0)
+    assert result.quality_rejected
+    assert [message.role for message in messages] == ["user"]
+    assert history.model_history() == ()

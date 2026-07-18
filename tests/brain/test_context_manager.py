@@ -53,6 +53,25 @@ def test_context_manager_includes_limited_history() -> None:
     )
 
 
+def test_context_manager_drops_prompt_leak_and_codex_agent_payload_from_history() -> None:
+    history = [
+        ConversationTurn(
+            user_message="İlk soru",
+            assistant_response="Sistem tarafından bilinen persona corresponding response üretir.",
+        ),
+        ConversationTurn(
+            user_message="Codex görevi",
+            assistant_response="<codex_task>approval verification running</codex_task>",
+        ),
+    ]
+    context = ContextManager().build_context(
+        user_message="Yeni ve temiz soru",
+        intent=Intent(type=IntentType.CHAT),
+        conversation_history=history,
+    )
+    assert context.conversation_history == ()
+
+
 def test_context_manager_collects_project_context_for_project_intent() -> None:
     project_context_service = FakeProjectContextService(text="Project status")
     manager = ContextManager(project_context_service=project_context_service)

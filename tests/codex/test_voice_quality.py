@@ -11,6 +11,14 @@ def test_voice_routes_explicit_codex_command_to_confirmation():
 
 def test_voice_ignores_normal_chat():
     assert not route_codex_voice("Bugün nasılsın?").matched
+    assert not route_codex_voice("Codex nedir?").matched
+
+
+def test_voice_routes_spelling_variant_without_technical_tts_leakage():
+    assert route_codex_voice("Lina, kodeksle bu projeyi incele").matched
+    prompt = confirmation_prompt()
+    assert "system" not in prompt.casefold()
+    assert "instruction" not in prompt.casefold()
 
 
 def test_response_quality_removes_terminal_spam_and_bounds_output():
@@ -18,4 +26,3 @@ def test_response_quality_removes_terminal_spam_and_bounds_output():
     text = CodexResponseQuality().prepare(CodexResult("INFO raw log\nÜç bulgu var."), report)
     assert "INFO" not in text
     assert text.startswith("Analiz tamamlandı.")
-

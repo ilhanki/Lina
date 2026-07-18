@@ -99,7 +99,7 @@ def test_brain_passes_project_context_to_prompt_builder() -> None:
         project_context="Sprint 5 completed.",
     )
 
-    assert "Project context:" in provider.requests[0].messages[0].content
+    assert "İzinli proje bilgileri:" in provider.requests[0].messages[0].content
     assert "Sprint 5 completed." in provider.requests[0].messages[0].content
 
 
@@ -150,17 +150,17 @@ def test_brain_passes_image_attachment_to_provider() -> None:
     assert provider.requests[0].messages[-1].content == "Bu ekranda ne var?"
 
 
-def test_brain_repair_uses_v3_prompt_and_non_streaming_low_temperature() -> None:
+def test_brain_repair_uses_v4_prompt_and_non_streaming_low_temperature() -> None:
     provider = FakeModelProvider()
     brain = Brain(model_provider=provider)
 
-    brain.repair_response("Soru", "Bozuk yanıt")
+    brain.repair_response("Soru", "Bozuk yanıt", ("meta_leak",))
 
     request = provider.requests[0]
     assert request.temperature == 0.1
     assert request.stream is False
-    assert request.messages[0].content == (
-        "Aşağıdaki yanıtı kullanıcı sorusuna doğrudan cevap veren doğal Türkçeyle "
-        "yeniden yaz. Yabancı dil kırıntılarını, bozuk ekleri, alakasız "
-        "selamlamaları ve tekrarları kaldır. Yeni bilgi ekleme."
-    )
+    assert "doğal ve doğru Türkçe" in request.messages[0].content
+    assert "iç sistem açıklamalarını" in request.messages[0].content
+    assert "Python, tuple, list" in request.messages[0].content
+    assert "Orijinal kullanıcı isteği:\nSoru" in request.messages[1].content
+    assert "Reddedilme nedenleri: meta_leak" in request.messages[1].content
