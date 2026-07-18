@@ -15,6 +15,7 @@ _ALLOWED_TECHNICAL = frozenset({
     "repository", "release", "tag", "stream", "token", "windows", "pyside",
     "stt", "tts", "microphone", "audio", "vision", "markdown", "unicode",
     "framework", "git", "github", "pyside6", "llama", "gemma", "mistral",
+    "codex", "tuple", "list", "immutable", "mutable",
 })
 _COMMON_ENGLISH = frozenset({
     "about", "things", "images", "today", "hello", "user", "assistant", "because",
@@ -40,10 +41,33 @@ _GENERIC_HELP = re.compile(
 )
 _GENERIC_CLOSING = re.compile(r"\b(?:umarım yardımcı olmuştur|başka bir sorun olursa sorabilirsin)\b", re.I)
 _META_LEAK = re.compile(
-    r"(?:<\|(?:system|assistant|user|end)_?\|>|\b(?:system prompt|developer message|"
-    r"as an ai language model|internal instruction|chain of thought)\s*:?)",
+    r"(?:<\|(?:system|assistant|user|developer|end)_?\|>|(?:^|\n)\s*(?:system|developer|"
+    r"assistant|user)\s*:)",
     re.I,
 )
+_META_EXPOSITION_ALWAYS = re.compile(
+    r"\b(?:as an ai(?: language model)?|sistem tarafından bilinen|"
+    r"kullanıcının mesajını analiz eder|corresponding response|"
+    r"yanıt üretmek için (?:gizli |iç )?talimat|iç sistem açıklaması)\b",
+    re.I,
+)
+_META_EXPOSITION_DISCUSSABLE = re.compile(
+    r"\b(?:system prompt|developer (?:message|instruction)|internal instruction|"
+    r"chain of thought|gizli yönerge|model persona(?:sı)?)\b",
+    re.I,
+)
+_KNOWN_CORRUPTION = re.compile(
+    r"\b(?:olmayıamedimyle|elementşini|yardımcı\s+olmayıamedimyle|"
+    r"corresponding|responseyi|instructionu)\b",
+    re.I,
+)
+_IMPOSSIBLE_SUFFIX = re.compile(
+    r"\b[\wçğıöşü]{4,}(?:yı|yi|yu|yü|mı|mi|mu|mü)(?:[a-zçğıöşü]{4,})(?:yle|yla)\b",
+    re.I,
+)
+_MIXED_SCRIPT = re.compile(r"[а-яёα-ω]", re.I)
+_REPEATED_FRAGMENT = re.compile(r"([a-zçğıöşü]{3,})\1", re.I)
+_LIFECYCLE_TERMS = frozenset({"özetleme", "geliştirme", "test", "yürütme", "doğrulama", "deployment"})
 
 
 class ResponseQualityValidator:
@@ -78,9 +102,20 @@ class ResponseQualityValidator:
             and (_GENERIC_HELP.search(normalized) or (len(sentences) >= 4 and _GENERIC_CLOSING.search(normalized)))
         )
         meta_leak = bool(_META_LEAK.search(normalized))
+        meta_exposition = bool(
+            _META_EXPOSITION_ALWAYS.search(normalized)
+            or (_META_EXPOSITION_DISCUSSABLE.search(normalized)
+                and not _prompt_discussion_requested(user_text))
+            or _instruction_block_leak(normalized, user_text)
+        )
+        suspicious_tokens = _suspicious_token_count(words, normalized)
+        mixed_script = bool(_MIXED_SCRIPT.search(normalized))
+        relevance_failure = _relevance_failure(user_text, normalized, words)
         punctuation_only = not any(character.isalnum() for character in normalized)
         incomplete = bool(normalized and len(words) > 5 and normalized.endswith(("…", "...", ",", ";", ":", "-")))
-        malformed = min(1.0, malformed_hits * 0.45 + persona * 0.7 + irrelevant_greeting * 0.35 + incomplete * 0.35 + foreign_phrase * 0.7)
+        malformed = min(1.0, malformed_hits * 0.45 + suspicious_tokens * 0.55
+                        + persona * 0.7 + irrelevant_greeting * 0.35
+                        + incomplete * 0.35 + foreign_phrase * 0.7 + mixed_script * 0.7)
         reasons = []
         if not normalized or punctuation_only:
             reasons.append("empty_or_punctuation")
@@ -94,8 +129,10 @@ class ResponseQualityValidator:
             reasons.append("foreign_word_leak")
         if irrelevant_greeting or generic_boilerplate:
             reasons.append("generic_boilerplate")
-        if meta_leak:
+        if meta_leak or meta_exposition:
             reasons.append("meta_leak")
+        if relevance_failure:
+            reasons.append("irrelevant_response")
         if malformed >= 0.45:
             reasons.append("malformed")
         detected = "tr" if expected_language == "tr" and mixing < 0.5 else "mixed" if expected_language == "tr" and mixing else expected_language
@@ -108,6 +145,7 @@ class ResponseQualityValidator:
             malformed_score=round(malformed, 3),
             repair_required=bool(reasons),
             rejection_reason=reasons[0] if reasons else None,
+            rejection_reasons=tuple(reasons),
             metrics={
                 "character_count": len(normalized), "sentence_count": len(sentences),
                 "repetition_detected": repetition >= 0.42,
@@ -115,7 +153,10 @@ class ResponseQualityValidator:
                 "foreign_phrase_detected": foreign_phrase,
                 "foreign_word_leak_detected": foreign_word_leak,
                 "generic_boilerplate_detected": irrelevant_greeting or generic_boilerplate,
-                "meta_leak_detected": meta_leak,
+                "meta_leak_detected": meta_leak or meta_exposition,
+                "suspicious_token_detected": suspicious_tokens > 0,
+                "mixed_script_detected": mixed_script,
+                "relevance_failure_detected": bool(relevance_failure),
             },
         )
 
@@ -156,6 +197,55 @@ def _language_mixing_score(words: list[str], user_words: frozenset[str] = frozen
 
 def _looks_mixed(word: str) -> bool:
     return bool(re.search(r"(?:images?|things?|about|today|progress|response|task|file|chat)(?:'?(?:ı|i|u|ü|lar|ler|da|de|dan|den))?$", word))
+
+
+def _suspicious_token_count(words: list[str], text: str) -> int:
+    count = len(_KNOWN_CORRUPTION.findall(text)) + len(_IMPOSSIBLE_SUFFIX.findall(text))
+    for word in words:
+        if len(word) >= 12 and _REPEATED_FRAGMENT.search(word):
+            count += 1
+    return count
+
+
+def _prompt_discussion_requested(user_text: str) -> bool:
+    normalized = " ".join(user_text.casefold().split())
+    return any(term in normalized for term in (
+        "prompt engineering", "system prompt", "sistem prompt", "sistem istemi",
+        "developer instruction", "geliştirici talimat", "rol belirteci", "persona nedir",
+    ))
+
+
+def _instruction_block_leak(text: str, user_text: str) -> bool:
+    if _prompt_discussion_requested(user_text):
+        return False
+    instruction_lines = re.findall(
+        r"(?im)^\s*(?:[-*]|\d+[.)])\s*(?:yalnız|asla|ignore|follow|do not|"
+        r"kullanıcının mesajını|model|assistant|system|developer)\b",
+        text,
+    )
+    return len(instruction_lines) >= 2
+
+
+def _relevance_failure(user_text: str, response: str, words: list[str]) -> str | None:
+    user = " ".join(user_text.casefold().split())
+    response_words = set(words)
+    if "çalışma plan" in user or "calisma plan" in user:
+        lifecycle_hits = len(response_words & _LIFECYCLE_TERMS)
+        daily_hits = sum(marker in response.casefold() for marker in (
+            "dakika", "saat", "ara", "mola", "çalışma bloğu", "calisma blogu",
+            "ana görev", "ana gorev", "tekrar", "öncelik", "oncelik",
+        ))
+        if lifecycle_hits >= 2 and daily_hits < 2:
+            return "daily_plan_lifecycle_drift"
+    if "liste" in user and "tuple" in user and any(term in user for term in ("fark", "açıkla", "acikla")):
+        has_both = "list" in response_words and "tuple" in response_words
+        has_distinction = any(term in response.casefold() for term in (
+            "değiştirilebilir", "degistirilebilir", "değişmez", "degismez",
+            "immutable", "mutable", "sabit",
+        ))
+        if not (has_both and has_distinction):
+            return "list_tuple_alignment"
+    return None
 
 
 def _is_substantive_user(text: str) -> bool:

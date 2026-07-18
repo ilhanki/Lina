@@ -14,6 +14,7 @@ class ResponseQualityResult:
     malformed_score: float
     repair_required: bool
     rejection_reason: str | None = None
+    rejection_reasons: tuple[str, ...] = ()
     metrics: dict[str, Any] = field(default_factory=dict)
 
 
