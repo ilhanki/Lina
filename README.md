@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.12.2--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.13.0--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Inference" src="https://img.shields.io/badge/inference-Ollama_local-111111">
@@ -49,7 +49,15 @@ Lina; yerel sohbet, kalıcı hafıza, sesli etkileşim, görsel analiz, hatırla
 
 ## Ürün deneyimi
 
-`v0.12.2-alpha`, Lina’nın referans odaklı premium masaüstü arayüzünü sunar:
+`v0.13.0-alpha`, premium arayüzü korurken güvenli Codex Bridge temelini sunar:
+
+- Typed session, task, project context, event, result ve verification modelleri.
+- Açık workspace seçimi; one-time varsayılan izin ve secret/path filtreleme.
+- Her görevde plan onayı, modification işlerinde zorunlu işlem onayı.
+- Ham çıktıyı göstermeyen kısa Lina mesajları ve metadata-only geçmiş.
+- Tools inspector, command palette, sesli confirmation ve kapatılamayan güvenlik ayarları.
+
+Önceki `v0.12.2-alpha` arayüz kazanımları korunur:
 
 - Geniş pencerelerde **sidebar + conversation workspace + contextual inspector** düzeni.
 - Orta genişlikte sağ drawer; kompakt görünümde icon sidebar ve overlay drawer.
@@ -364,6 +372,7 @@ Tamamlanan son sürüm hattı:
 - `v0.12.0-alpha` — Agent Mode Foundation.
 - `v0.12.1-alpha` — Agent Reliability, Task Templates & Recovery.
 - `v0.12.2-alpha` — Reference-Driven Premium Desktop Experience.
+- `v0.13.0-alpha` — Codex Bridge Foundation.
 
 Planlanan yön:
 
@@ -379,6 +388,7 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | --- | --- |
 | [Mimari](docs/architecture.md) | Katmanlar, servisler ve güvenlik sınırları |
 | [Referans UI uygulaması](docs/reference-ui-implementation.md) | v0.12.2 shell, responsive ve inspector kararları |
+| [Codex Bridge](docs/codex-bridge.md) | Mimari, workspace, approval, events, voice ve güvenlik sınırları |
 | [UI Design System](docs/ui-design-system.md) | Token, palette, tipografi ve ikon sistemi |
 | [User Interface Architecture](docs/user-interface-architecture.md) | App shell, conversation ve progressive disclosure |
 | [Accessibility](docs/accessibility.md) | Klavye, focus, status ve ekran okuyucu politikası |
@@ -387,6 +397,7 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | [Speech Architecture](docs/speech-architecture-v1.md) | STT/TTS ve hands-free lifecycle |
 | [Vision](docs/vision.md) | Image, capture, monitoring ve privacy modeli |
 | [v0.12.2 sürüm notları](docs/release-notes-v0.12.2-alpha.md) | Sürüm kapsamı ve bilinen sınırlar |
+| [v0.13.0 sürüm notları](docs/release-notes-v0.13.0-alpha.md) | Codex Bridge Foundation kapsamı ve doğrulama |
 | [Smoke Test Checklist](docs/smoke-test-checklist.md) | Windows manuel doğrulama listesi |
 | [Development Log](docs/development-log.md) | Kronolojik geliştirme kaydı |
 

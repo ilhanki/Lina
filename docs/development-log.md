@@ -1,5 +1,15 @@
 # Lina Geliştirme Günlüğü
 
+## 2026-07-18 - v0.13.0-alpha Codex Bridge Foundation
+
+- Typed `lina.codex` modeli, istemci protokolü ve açık session lifecycle eklendi.
+- Workspace izinleri `one_time` varsayılanıyla sınırlandı; env, key/cert, credentials ve secrets yolları engellendi.
+- Mevcut Agent approval kararları bridge'e bağlandı; plan onayı olmadan istemci çağrısı yapılmıyor.
+- Sonuçlar stale, boş çıktı, workspace taşması ve modification kanıtı açısından bağımsız doğrulanıyor.
+- Tools paneli, command palette, kompakt inspector, approval kartı, progress/history, ayarlar ve voice intent eklendi.
+- Geçmiş yalnız görev özeti, tarih, durum ve sonuç özeti saklıyor; prompt, dosya içeriği ve model reasoning saklanmıyor.
+- Sürüm `0.13.0a0` / `v0.13.0-alpha` olarak güncellendi. Tag ve push yapılmadı.
+
 Bu dosya önemli geliştirme kararlarını ve milestone ilerlemesini kısa notlar halinde takip etmek için kullanılır.
 
 ## 2026-07-15 - Empty Vision Response Reliability Fix

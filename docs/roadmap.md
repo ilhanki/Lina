@@ -2,6 +2,10 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
+## Mevcut Durum: v0.13.0-alpha Codex Bridge Foundation
+
+Typed bridge, workspace izinleri, secret filtreleme, explicit approval, event çevirisi, bağımsız verification, metadata-only history, Tools/command palette/settings ve voice routing temelleri tamamlandı. Sonraki sürüm gerçek Codex transport adaptörünü, kullanıcı tarafından seçilmiş provider yapılandırmasını ve daha zengin diff önizlemesini ele alabilir; güvenlik sınırları gevşetilmeyecektir.
+
 ## Voice ve Agent Roadmap
 
 - `v0.9.x`: tamamlandı.
@@ -14,7 +18,7 @@ Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşam
 - `v0.12.0-alpha` tag öncesi Interaction Quality & Voice Stabilization tamamlandı; Windows gerçek mikrofon/TTS ve realtime kamera doğrulaması manuel smoke testtedir.
 - `v0.12.1-alpha`: Agent Reliability, Task Templates & Recovery tamamlandı.
 - `v0.12.2-alpha`: Reference-Driven Premium Desktop Experience tamamlandı.
-- `v0.13.0-alpha`: Codex Bridge.
+- `v0.13.0-alpha`: Codex Bridge Foundation tamamlandı.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
 - `v0.15.0-alpha`: Packaging & Update Foundation.
 

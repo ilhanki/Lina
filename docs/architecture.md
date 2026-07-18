@@ -1,5 +1,9 @@
 # Lina Mimari Dokümanı
 
+## Codex Bridge Foundation (v0.13.0-alpha)
+
+`lina.codex` mevcut Agent Mode'u yeniden yazmadan onun açık approval kararlarını kullanan dar bir orkestrasyon katmanıdır. Akış `workspace grant -> typed project context -> deterministic task plan -> plan approval -> client contract -> independent verification -> Lina summary` sırasındadır. İstemci sözleşmesi shell, credential, browser automation veya gizli background agent yetkisi vermez. Ayrıntılar [codex-bridge.md](codex-bridge.md) belgesindedir.
+
 Bu doküman Lina'nın uzun vadeli mimari yönünü tanımlar. Amaç, projeyi hızlı prototip mantığıyla değil; sürdürülebilir, test edilebilir ve modüler bir masaüstü asistan platformu olarak büyütmektir.
 
 ## Reference-Driven Premium Desktop Experience (v0.12.2-alpha)

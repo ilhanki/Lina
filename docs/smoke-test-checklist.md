@@ -1,5 +1,19 @@
 # Lina Smoke Test Checklist
 
+## v0.13.0-alpha Codex Bridge Foundation
+
+- [ ] Tools içinde “Codex ile Çalış” görünür; aktif değilken inspector yer kaplamaz.
+- [ ] “Codex ile analiz et” komutu workspace seçimi ister ve tüm bilgisayarı taramaz.
+- [ ] Env, key/cert, credentials ve secrets dosyaları context dışında kalır.
+- [ ] Plan gösterilmeden ve kullanıcı onaylamadan client çağrılmaz.
+- [ ] Modification görevi Onayla / Reddet / Düzenle kartı gösterir.
+- [ ] Progress typed eventlerden güncellenir; ham event ve terminal logu kullanıcıya verilmez.
+- [ ] Sonuç verification sonrası tamamlanır; stale/kanıtsız sonuç başarı sayılmaz.
+- [ ] Geçmişte yalnız metadata bulunur; prompt, secret ve dosya içeriği bulunmaz.
+- [ ] “Lina Codex ile bu projeye bak” sesli komutu confirmation akışına gider.
+- [ ] Codex güvenlik ilkeleri ayarlardan kapatılamaz.
+- [ ] `python -m pytest`, compileall ve `git diff --check` geçer.
+
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
 ## v0.12.2-alpha Reference-Driven Premium Desktop Experience
