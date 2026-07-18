@@ -553,6 +553,13 @@ class SettingsDialog(QDialog):
         page = QWidget(self)
         form = QFormLayout(page)
         self._codex_enabled = QCheckBox("Codex Bridge aktif", page)
+        self._codex_cli_path = QLineEdit(page)
+        self._codex_cli_path.setPlaceholderText("Otomatik algıla veya codex.exe tam yolu")
+        self._codex_auto_detect = QCheckBox("Codex CLI'yi otomatik algıla", page)
+        self._codex_timeout = QSpinBox(page)
+        self._codex_timeout.setRange(15, 3600)
+        self._codex_timeout.setSuffix(" sn")
+        self._codex_read_only = QCheckBox("Yeni görevleri salt-okunur hazırla", page)
         self._codex_suggestions = QCheckBox("Otomatik Codex analiz önerileri", page)
         self._codex_history_retention = QComboBox(page)
         self._codex_history_retention.addItem("7 gün", 7)
@@ -560,6 +567,10 @@ class SettingsDialog(QDialog):
         self._codex_history_retention.addItem("90 gün", 90)
         self._codex_history_retention.addItem("Süresiz", None)
         form.addRow(self._codex_enabled)
+        form.addRow("Codex CLI executable", self._codex_cli_path)
+        form.addRow(self._codex_auto_detect)
+        form.addRow("Görev zaman aşımı", self._codex_timeout)
+        form.addRow(self._codex_read_only)
         form.addRow(self._codex_suggestions)
         form.addRow("Codex geçmişi", self._codex_history_retention)
         self._agent_enabled = QCheckBox("Agent Mode etkin", page)
@@ -716,6 +727,10 @@ class SettingsDialog(QDialog):
         self._agent_speak_approvals.setChecked(settings.agent.speak_agent_approvals)
         self._agent_notify_completion.setChecked(settings.agent.notify_agent_completion)
         self._codex_enabled.setChecked(settings.codex.bridge_enabled)
+        self._codex_cli_path.setText(settings.codex.cli_executable_path)
+        self._codex_auto_detect.setChecked(settings.codex.auto_detect_cli)
+        self._codex_timeout.setValue(settings.codex.default_task_timeout_seconds)
+        self._codex_read_only.setChecked(settings.codex.read_only_default)
         self._codex_suggestions.setChecked(settings.codex.automatic_analysis_suggestions)
         _select_data(self._codex_history_retention, settings.codex.history_retention_days)
 
@@ -826,6 +841,11 @@ class SettingsDialog(QDialog):
             codex=replace(
                 self._draft.codex,
                 bridge_enabled=self._codex_enabled.isChecked(),
+                cli_executable_path=self._codex_cli_path.text().strip(),
+                auto_detect_cli=self._codex_auto_detect.isChecked(),
+                default_task_timeout_seconds=self._codex_timeout.value(),
+                read_only_default=self._codex_read_only.isChecked(),
+                modification_confirmation=True,
                 automatic_analysis_suggestions=self._codex_suggestions.isChecked(),
                 history_retention_days=self._codex_history_retention.currentData(),
                 default_approval_behavior="always_ask",

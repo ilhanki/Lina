@@ -138,6 +138,11 @@ class AgentUserSettings:
 @dataclass(frozen=True, slots=True)
 class CodexUserSettings:
     bridge_enabled: bool = False
+    cli_executable_path: str = ""
+    auto_detect_cli: bool = True
+    default_task_timeout_seconds: int = 300
+    read_only_default: bool = True
+    modification_confirmation: bool = True
     remembered_workspaces: tuple[str, ...] = ()
     default_approval_behavior: str = "always_ask"
     automatic_analysis_suggestions: bool = True
@@ -222,6 +227,10 @@ class UserSettings:
             raise ValueError("Codex approval cannot be disabled")
         if self.codex.history_retention_days not in {7, 30, 90, None}:
             raise ValueError("Unsupported Codex history retention")
+        if not 15 <= self.codex.default_task_timeout_seconds <= 3600:
+            raise ValueError("Codex task timeout must be between 15 and 3600 seconds")
+        if not self.codex.modification_confirmation:
+            raise ValueError("Codex modification confirmation cannot be disabled")
         if self.codex.privacy_mode != "metadata_only":
             raise ValueError("Codex history must remain metadata-only")
         if not all((self.codex.approval_enforced, self.codex.workspace_restriction_enforced,
@@ -346,6 +355,11 @@ class UserSettings:
             },
             "codex": {
                 "bridge_enabled": self.codex.bridge_enabled,
+                "cli_executable_path": self.codex.cli_executable_path,
+                "auto_detect_cli": self.codex.auto_detect_cli,
+                "default_task_timeout_seconds": self.codex.default_task_timeout_seconds,
+                "read_only_default": self.codex.read_only_default,
+                "modification_confirmation": True,
                 "remembered_workspaces": list(self.codex.remembered_workspaces),
                 "default_approval_behavior": "always_ask",
                 "automatic_analysis_suggestions": self.codex.automatic_analysis_suggestions,
@@ -490,6 +504,14 @@ class UserSettings:
             ),
             codex=CodexUserSettings(
                 bridge_enabled=_bool(codex, "bridge_enabled", defaults.codex.bridge_enabled),
+                cli_executable_path=_safe_string(
+                    codex, "cli_executable_path", defaults.codex.cli_executable_path, 500),
+                auto_detect_cli=_bool(codex, "auto_detect_cli", defaults.codex.auto_detect_cli),
+                default_task_timeout_seconds=_bounded_int(
+                    codex, "default_task_timeout_seconds",
+                    defaults.codex.default_task_timeout_seconds, 15, 3600),
+                read_only_default=_bool(codex, "read_only_default", defaults.codex.read_only_default),
+                modification_confirmation=True,
                 remembered_workspaces=_safe_string_tuple(codex, "remembered_workspaces"),
                 default_approval_behavior="always_ask",
                 automatic_analysis_suggestions=_bool(

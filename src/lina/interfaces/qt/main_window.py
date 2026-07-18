@@ -6,6 +6,8 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
+import shutil
+import subprocess
 from typing import Any
 
 from PySide6.QtCore import QRect, QTimer, QThreadPool, Qt, Signal, QUrl
@@ -51,7 +53,7 @@ from lina.agent import (
     render_plan_diff,
 )
 from lina.agent.errors import AgentError
-from lina.codex import (CodexBridge, CodexClientUnavailableError, WorkspaceAccessError,
+from lina.codex import (CodexBridge, CodexClientUnavailableError, CodexTransportError, WorkspaceAccessError,
                          validate_codex_request_scope)
 from lina.codex.intent import classify_codex_intent
 from lina.codex.voice import confirmation_prompt
@@ -138,7 +140,7 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.13.0-alpha"
+APP_VERSION = "v0.13.1-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
@@ -177,6 +179,7 @@ class LinaMainWindow(QMainWindow):
     live_preview_frame_received = Signal(object)
     live_change_regions_received = Signal(object)
     live_session_stopped_received = Signal(object)
+    codex_event_received = Signal(object, str)
 
     def __init__(
         self,
@@ -215,6 +218,11 @@ class LinaMainWindow(QMainWindow):
         self._live_vision_controller = live_vision_controller
         self._agent_controller = agent_controller
         self._codex_bridge = codex_bridge
+        self.codex_event_received.connect(self._handle_codex_event_ui)
+        if self._codex_bridge is not None:
+            self._codex_bridge.subscribe(
+                lambda event, message: self.codex_event_received.emit(event, message)
+            )
         self._pending_codex_request: str | None = None
         self._memory_service = memory_service
         self._local_storage_service = local_storage_service
@@ -786,12 +794,20 @@ class LinaMainWindow(QMainWindow):
         inspector = CodexInspector(self._inspector)
         session = self._codex_bridge.session if self._codex_bridge else None
         history = self._codex_bridge.repository.list() if self._codex_bridge else ()
-        inspector.render(session, history)
+        inspector.render(session, history, self._codex_bridge.client_info if self._codex_bridge else None)
         inspector.approve_requested.connect(self._approve_codex_task)
         inspector.deny_requested.connect(self._deny_codex_task)
         inspector.edit_requested.connect(self._edit_codex_task)
         inspector.workspace_select_requested.connect(self._select_codex_workspace)
         inspector.workspace_cancel_requested.connect(self._cancel_codex_workspace)
+        inspector.refresh_requested.connect(self._refresh_codex_status)
+        inspector.login_requested.connect(lambda: self._login_codex(False))
+        inspector.device_login_requested.connect(lambda: self._login_codex(True))
+        inspector.logout_requested.connect(self._logout_codex)
+        inspector.stop_requested.connect(self._stop_codex_task)
+        inspector.diagnostics_requested.connect(self._show_codex_diagnostics)
+        inspector.installation_guide_requested.connect(self._open_codex_installation_guide)
+        inspector.terminal_requested.connect(self._open_codex_terminal)
         if self._pending_codex_request and (session is None or session.terminal):
             inspector.render_workspace_required(self._pending_codex_request)
         self._inspector.show_widget("Codex", inspector)
@@ -871,6 +887,7 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message(
             "Codex ile analiz yapabilmem için önce çalışma klasörünü seçmelisin."
         )
+        self._speak_codex_status("Codex görevi hazır. Çalışma alanını seçmeni bekliyorum.")
         self._show_codex_inspector()
 
     def _select_codex_workspace(self) -> None:
@@ -897,6 +914,7 @@ class LinaMainWindow(QMainWindow):
         ) if task else ""
         self._append_assistant_message(
             f"{confirmation_prompt()}\n\nPlan:\n{actions}\n\nWorkspace: {context.root_path.name}")
+        self._speak_codex_status("Codex görevi hazır. Onayını bekliyorum.")
         self._show_codex_inspector()
 
     def _cancel_codex_workspace(self) -> None:
@@ -910,15 +928,132 @@ class LinaMainWindow(QMainWindow):
         if self._codex_bridge is None or self._codex_bridge.session is None:
             return
         session = self._codex_bridge.session
-        try:
-            self._codex_bridge.start(session.session_id, approved=True)
-            text = session.result_summary or "Codex görevi tamamlandı."
-        except CodexClientUnavailableError:
-            text = session.result_summary
-        except Exception:
+        self._append_assistant_message("Codex çalışıyor. Sonuç tamamlandığında doğrulayacağım.")
+        self._speak_codex_status("Codex çalışıyor.")
+        worker = FunctionWorker(lambda: self._codex_bridge.start(session.session_id, approved=True))
+        worker.signals.result.connect(self._handle_codex_result)
+        worker.signals.error.connect(self._handle_codex_error)
+        self._start_worker(worker)
+        self._show_codex_inspector()
+
+    def _handle_codex_result(self, _result: object) -> None:
+        session = self._codex_bridge.session if self._codex_bridge else None
+        self._append_assistant_message(
+            session.result_summary if session and session.result_summary else "Codex görevi tamamlandı."
+        )
+        self._speak_codex_status(
+            "Analiz tamamlandı." if session and session.status.value == "completed"
+            else "Görev doğrulanamadı."
+        )
+        self._show_codex_inspector()
+
+    def _handle_codex_event_ui(self, _event: object, _message: str) -> None:
+        # The event originated in a worker thread; this Qt signal queues the UI refresh.
+        self._show_codex_inspector()
+
+    def _handle_codex_error(self, error: object) -> None:
+        session = self._codex_bridge.session if self._codex_bridge else None
+        if isinstance(error, (CodexClientUnavailableError, CodexTransportError)) and session:
+            text = session.result_summary or getattr(error, "user_message", "Codex görevi tamamlanamadı.")
+        else:
             text = "Codex görevi güvenli biçimde tamamlanamadı. Ayrıntılar kullanıcıya açılmadı."
         self._append_assistant_message(text)
+        self._speak_codex_status(
+            "Codex oturumu gerekli."
+            if session and session.error_code in {"login_required", "not_authenticated"}
+            else "Görev doğrulanamadı."
+        )
         self._show_codex_inspector()
+
+    def _speak_codex_status(self, text: str) -> None:
+        if self._voice_controller is None or not self._voice_controller.responses_enabled:
+            return
+        # Only fixed, short status phrases cross the TTS boundary. Never pass CLI output,
+        # paths, diffs, file names, diagnostics, or exception text here.
+        allowed = {
+            "Codex görevi hazır. Çalışma alanını seçmeni bekliyorum.",
+            "Codex görevi hazır. Onayını bekliyorum.",
+            "Codex çalışıyor.", "Analiz tamamlandı.",
+            "Codex oturumu gerekli.", "Görev doğrulanamadı.",
+        }
+        if text in allowed:
+            self._voice_controller.speak(text)
+
+    def _refresh_codex_status(self) -> None:
+        if self._codex_bridge is None:
+            return
+        worker = FunctionWorker(self._codex_bridge.refresh_client_info)
+        worker.signals.result.connect(lambda _info: self._show_codex_inspector())
+        worker.signals.error.connect(lambda _error: self._append_assistant_message(
+            "Codex CLI durumu kontrol edilemedi."))
+        self._start_worker(worker)
+
+    def _login_codex(self, device_auth: bool) -> None:
+        if self._codex_bridge is None:
+            return
+        answer = QMessageBox.question(
+            self, "Codex oturumu",
+            "Resmi Codex CLI giriş akışı ayrı bir terminalde başlatılacak. Devam edilsin mi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._codex_bridge.launch_login(device_auth=device_auth)
+            self._append_assistant_message("Resmi Codex CLI giriş akışı başlatıldı. Tamamlayınca durumu yenile.")
+        except (CodexClientUnavailableError, CodexTransportError):
+            self._append_assistant_message("Codex giriş akışı başlatılamadı.")
+
+    def _logout_codex(self) -> None:
+        if self._codex_bridge is None:
+            return
+        answer = QMessageBox.warning(
+            self, "Codex oturumunu kapat",
+            "Bu işlem Codex CLI oturumunu bu cihazda kapatacak.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        worker = FunctionWorker(lambda: self._codex_bridge.logout(confirmed=True))
+        worker.signals.result.connect(lambda _info: self._show_codex_inspector())
+        worker.signals.error.connect(lambda _error: self._append_assistant_message(
+            "Codex oturumu güvenli biçimde kapatılamadı."))
+        self._start_worker(worker)
+
+    def _stop_codex_task(self) -> None:
+        if self._codex_bridge is not None:
+            self._codex_bridge.cancel()
+            self._append_assistant_message("Codex görevi iptal edildi.")
+            self._show_codex_inspector()
+
+    def _show_codex_diagnostics(self) -> None:
+        if self._codex_bridge is None:
+            return
+        worker = FunctionWorker(self._codex_bridge.diagnostics_report)
+        worker.signals.result.connect(
+            lambda report: self._inspector.show_details("Codex CLI Ayrıntıları", str(report))
+        )
+        worker.signals.error.connect(
+            lambda _error: self._append_assistant_message("Codex CLI diagnostics alınamadı.")
+        )
+        self._start_worker(worker)
+
+    @staticmethod
+    def _open_codex_installation_guide() -> None:
+        QDesktopServices.openUrl(QUrl("https://developers.openai.com/codex/cli"))
+
+    def _open_codex_terminal(self) -> None:
+        workspace = (self._codex_bridge.session.project_context.root_path
+                     if self._codex_bridge and self._codex_bridge.session else Path.home())
+        terminal = shutil.which("wt.exe")
+        if terminal is None:
+            self._append_assistant_message(
+                "Windows Terminal bulunamadı. Terminali açıp çalışma klasörüne elle geçebilirsin."
+            )
+            return
+        subprocess.Popen((terminal, "-d", str(workspace)), shell=False)
 
     def _deny_codex_task(self) -> None:
         if self._codex_bridge is None or self._codex_bridge.session is None:
@@ -3665,6 +3800,8 @@ class LinaMainWindow(QMainWindow):
             self._live_vision_controller.shutdown()
         if self._agent_controller is not None:
             self._agent_controller.shutdown()
+        if self._codex_bridge is not None:
+            self._codex_bridge.shutdown()
         self._cleanup_live_visuals()
         if self._intent_router is not None:
             self._intent_router.cancel_pending()
