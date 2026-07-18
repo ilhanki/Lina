@@ -1,5 +1,13 @@
 # Lina Mimari Dokümanı
 
+## Real Codex CLI Transport (v0.13.1-alpha)
+
+Foundation akışı korunur ve yalnız `CodexClient` sınırının arkasına resmi CLI adapter eklenir. Bootstrap, açık ayar yolunu veya kontrollü PATH discovery sonucunu probe eder; çalıştırılabilir CLI bulunur ve version/help/status kontrolleri geçerse `CodexCliClient`, aksi halde neden kodu taşıyan `UnavailableCodexClient` seçilir.
+
+`transports/diagnostics.py` discovery, semantic version, auth özeti ve capability snapshot üretir. `process.py` argument listesiyle `shell=False` process group çalıştırır. `prompt.py` yalnız görev için gerekli minimum contexti üretir. `cli.py` promptu stdin’den `-` ile verir. `parser.py` partial-line toleranslı JSONL’yi typed bridge eventlerine çevirir. `verification.py` secret olmayan workspace dosyalarının ephemeral SHA-256 fingerprintlerini yalnız before/after karşılaştırması için bellekte tutar.
+
+Qt ana thread’i CLI beklemez: `FunctionWorker` bridge çağrısını yürütür, typed event Qt sinyaliyle inspector’a taşınır. Kapanış bridge’i iptal eder; runner önce process group’a kontrollü sinyal, ardından terminate ve son çare kill uygular. Credential cache, token, raw prompt, raw stderr ve model reasoning Lina persistence’ına girmez.
+
 ## Codex Bridge Foundation (v0.13.0-alpha)
 
 `lina.codex` mevcut Agent Mode'u yeniden yazmadan onun açık approval kararlarını kullanan dar bir orkestrasyon katmanıdır. Akış `workspace grant -> typed project context -> deterministic task plan -> plan approval -> client contract -> independent verification -> Lina summary` sırasındadır. İstemci sözleşmesi shell, credential, browser automation veya gizli background agent yetkisi vermez. Ayrıntılar [codex-bridge.md](codex-bridge.md) belgesindedir.

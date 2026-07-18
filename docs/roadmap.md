@@ -2,7 +2,17 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.13.0-alpha Codex Bridge Foundation
+## Mevcut Durum: v0.13.1-alpha Real Codex CLI Transport
+
+Tamamlandı:
+
+- `v0.13.0-alpha`: Codex Bridge Foundation.
+- `v0.13.1-alpha`: CLI discovery/diagnostics, resmi auth status/login/logout, JSONL exec transport, cancellation, verification, GUI/Voice/settings ve credential isolation.
+
+Sıradaki:
+
+- `v0.13.2-alpha`: Codex Session Resume & Diff Review.
+- `v0.14.0-alpha`: Safe Desktop Capabilities.
 
 Typed bridge, workspace izinleri, secret filtreleme, explicit approval, event çevirisi, bağımsız verification, metadata-only history, Tools/command palette/settings ve voice routing temelleri tamamlandı. Sonraki sürüm gerçek Codex transport adaptörünü, kullanıcı tarafından seçilmiş provider yapılandırmasını ve daha zengin diff önizlemesini ele alabilir; güvenlik sınırları gevşetilmeyecektir.
 

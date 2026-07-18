@@ -1,5 +1,18 @@
 # Lina Geliştirme Günlüğü
 
+## 2026-07-18 - v0.13.1-alpha Real Codex CLI Transport
+
+- Resmi CLI için explicit path/PATH discovery, semantic version ve gerçek help tabanlı capability snapshot eklendi.
+- `codex login status`, browser login, destekleniyorsa device auth ve açık onaylı logout entegre edildi; hiçbir credential dosyası okunmuyor.
+- `codex exec --json` promptu stdin’den alıyor; global/subcommand flag sırası help kapsamına göre kuruluyor.
+- JSONL partial buffering, typed events, unknown-event uyumluluğu, redaction ve runtime approval stop davranışı eklendi.
+- Windows process group, timeout, cancel, graceful terminate, kill fallback ve application shutdown cleanup tamamlandı.
+- Workspace fingerprint verification salt-okunur değişikliği, eksik modification diffini, workspace escape’i ve sensitive output’u reddediyor.
+- Inspector CLI missing/login required/ready durumlarını, version/auth, refresh/login/logout/doctor/terminal/guide eylemlerini gösteriyor.
+- Ayarlara executable, auto-detect, timeout ve read-only default eklendi; güvenlik kontrolleri kapatılamıyor.
+- 51 yeni regresyonla toplam 1180 test, compileall ve PySide6 import doğrulaması geçiyor.
+- Sürüm `0.13.1a0` / `v0.13.1-alpha` oldu. Push ve tag yapılmadı.
+
 ## 2026-07-18 - Codex routing ve Response Reliability Hotfix
 
 - `bridge_enabled=False` nedeniyle explicit Codex komutunun chat'e düşmesi düzeltildi; operational routing ayardan ve model classifier'dan önce çalışıyor.

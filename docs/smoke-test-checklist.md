@@ -1,5 +1,26 @@
 # Lina Smoke Test Checklist
 
+## v0.13.1-alpha Real Codex CLI Transport
+
+- [ ] Başlangıçta `codex --version` ve `codex login status` yalnız resmi CLI üzerinden çalışır; token veya credential içeriği görünmez.
+- [ ] Inspector CLI yok, oturum gerekli, güncelleme gerekli ve hazır durumlarını doğru gösterir.
+- [ ] ChatGPT login yalnız kullanıcı confirmation’ından sonra ayrı resmi CLI terminalinde başlar.
+- [ ] Device Code düğmesi yalnız `--device-auth` gerçek help çıktısında varsa görünür.
+- [ ] Logout uyarısı “Bu işlem Codex CLI oturumunu bu cihazda kapatacak.” der; Lina conversation/memory verisini silmez.
+- [ ] API key alanı yoktur; key clipboard, process argümanı, log veya GUI state içine alınmaz.
+- [ ] “Lina, Codex ile bu projeyi analiz et.” workspace → plan → approval → status → exec → verification akışını izler.
+- [ ] `codex exec` argument listesiyle ve `shell=False` çalışır; prompt command line yerine stdin’den verilir.
+- [ ] Read-only görevde sandbox `read-only`, modification görevinde `workspace-write` olur; `never`, `--yolo`, bypass ve `--add-dir` yoktur.
+- [ ] JSONL partial/unknown/malformed eventler GUI’yi bozmaz; ham terminal logu chat’e basılmaz.
+- [ ] Runtime approval event otomatik onaylanmaz; görev manual approval required sonucu ile durur.
+- [ ] Cancel ve uygulama shutdown sonrası Codex/child process kalmaz; timeout typed ve kısa kullanıcı mesajı üretir.
+- [ ] `.env`, `auth.json`, credentials/secrets, PEM/key/PFX/P12/CRT, SSH key ve workspace escape engellenir.
+- [ ] Secret benzeri output maskelenir, persistence’a girmez ve verification fail olur.
+- [ ] Read-only smoke öncesi/sonrası `git status` aynı; `git diff --check` temizdir.
+- [ ] TTS yalnız “Codex çalışıyor”, “Analiz tamamlandı”, “Codex oturumu gerekli” gibi kısa sabit durumları okur; path/diff/log okumaz.
+- [ ] `codex doctor --json` yalnız CLI help bunu doğrularsa çalışır; redacted rapor history’ye yazılmaz.
+- [ ] `python -m pytest`, compileall, PySide6 import ve `git diff --check` geçer.
+
 ## v0.13.0-alpha Reliability Hotfix
 
 - [ ] “Merhaba Lina, kendini tek cümlede tanıt.” doğal, tek cümlelik Türkçe yanıt verir.
