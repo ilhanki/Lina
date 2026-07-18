@@ -27,6 +27,10 @@ class CodexHistoryRepository:
     def list(self) -> tuple[CodexHistoryEntry, ...]:
         return tuple(sorted(self._entries, key=lambda item: item.created_at, reverse=True))
 
+    def delete(self, session_id: str) -> None:
+        self._entries = [item for item in self._entries if item.session_id != session_id]
+        self._flush()
+
     def cleanup(self, retention_days: int | None) -> None:
         if retention_days is not None:
             cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
@@ -52,4 +56,3 @@ class CodexHistoryRepository:
                     "created_at": item.created_at.isoformat(), "status": item.status.value,
                     "result_summary": item.result_summary} for item in self._entries]
         self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-

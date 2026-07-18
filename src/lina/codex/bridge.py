@@ -5,12 +5,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from lina.codex.client import CodexClient
+from lina.codex.client import CodexClient, CodexClientUnavailableError
 from lina.codex.events import user_message
 from lina.codex.models import (CodexEvent, CodexEventType, CodexExecutionMode, CodexResult,
                                 CodexRiskLevel, CodexSession, CodexSessionStatus, ProjectContext,
                                 VerificationOutcome, WorkspacePermissionLevel)
-from lina.codex.permissions import WorkspacePermissionStore, ensure_within_workspace, is_secret_path
+from lina.codex.permissions import (WorkspacePermissionStore, ensure_within_workspace,
+                                    is_secret_path, validate_codex_request_scope)
 from lina.codex.planner import CodexPlanner
 from lina.codex.quality import CodexResponseQuality
 from lina.codex.repository import CodexHistoryRepository
@@ -73,8 +74,14 @@ class CodexBridge:
     def prepare(self, request: str, context: ProjectContext, *, conversation_id: int | None = None,
                 agent_session_id: str | None = None,
                 permission_level: WorkspacePermissionLevel = WorkspacePermissionLevel.ONE_TIME) -> CodexSession:
+        validate_codex_request_scope(request)
         if not self.permissions.allows(context.root_path):
             raise PermissionError("Codex için önce çalışma klasörü izni gerekli.")
+        if self._session is not None and not self._session.terminal:
+            previous = self._session
+            previous.transition(CodexSessionStatus.CANCELLED)
+            self.permissions.consume_one_time(previous.project_context.root_path)
+            self.repository.delete(previous.session_id)
         for path in context.allowed_files:
             ensure_within_workspace(context.root_path, path)
         task = self.planner.plan(request, context.root_path)
@@ -84,9 +91,10 @@ class CodexBridge:
                                       permission_level, mode)
         session.task = task
         session.transition(CodexSessionStatus.PLANNING, 10)
-        if task.approval_required:
-            session.transition(CodexSessionStatus.WAITING_APPROVAL, 20)
-            self._emit(CodexEvent.create(session.session_id, CodexEventType.APPROVAL_REQUESTED, progress=20))
+        session.transition(CodexSessionStatus.WAITING_APPROVAL, 20)
+        self._emit(CodexEvent.create(
+            session.session_id, CodexEventType.APPROVAL_REQUESTED, progress=20
+        ))
         self._session = session
         self.repository.save(session)
         return session
@@ -104,6 +112,7 @@ class CodexBridge:
             return None
         session.transition(CodexSessionStatus.RUNNING, 30)
         self._emit(CodexEvent.create(session.session_id, CodexEventType.SESSION_STARTED, progress=30))
+        retain_history = True
         try:
             result = self.client.execute(task, session.project_context, self._handle_client_event)
             session.transition(CodexSessionStatus.ANALYZING, 80)
@@ -119,6 +128,17 @@ class CodexBridge:
                 session.transition(CodexSessionStatus.COMPLETED, 100)
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.COMPLETED, progress=100))
             return result
+        except CodexClientUnavailableError:
+            retain_history = False
+            session.error_code = "client_unavailable"
+            session.result_summary = (
+                "Codex bağlantısı henüz yapılandırılmadığı için görev başlatılamadı. "
+                "Çalışma alanı ve plan kaydedilmedi."
+            )
+            session.transition(CodexSessionStatus.FAILED, 100)
+            self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
+            self.repository.delete(session.session_id)
+            raise
         except Exception:
             session.error_code = "client_failure"
             session.result_summary = "Codex istemcisi görevi tamamlayamadı."
@@ -127,7 +147,8 @@ class CodexBridge:
             raise
         finally:
             self.permissions.consume_one_time(session.project_context.root_path)
-            self.repository.save(session)
+            if retain_history:
+                self.repository.save(session)
 
     def deny(self, session_id: str) -> None:
         session = self._matching(session_id)

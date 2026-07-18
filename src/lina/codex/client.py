@@ -13,8 +13,11 @@ class CodexClient(Protocol):
                 on_event: Callable[[CodexEvent], None]) -> CodexResult: ...
 
 
+class CodexClientUnavailableError(RuntimeError):
+    """Raised when no real transport has been explicitly configured."""
+
+
 class UnavailableCodexClient:
     def execute(self, task: CodexTask, context: ProjectContext,
                 on_event: Callable[[CodexEvent], None]) -> CodexResult:
-        raise RuntimeError("Codex istemcisi yapılandırılmadı.")
-
+        raise CodexClientUnavailableError("Codex istemcisi yapılandırılmadı.")

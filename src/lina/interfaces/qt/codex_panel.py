@@ -10,6 +10,8 @@ class CodexInspector(QWidget):
     approve_requested = Signal()
     deny_requested = Signal()
     edit_requested = Signal()
+    workspace_select_requested = Signal()
+    workspace_cancel_requested = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -22,6 +24,20 @@ class CodexInspector(QWidget):
         self.progress = QProgressBar(self)
         self.progress.setRange(0, 100)
         self.progress.setAccessibleName("Codex görev ilerlemesi")
+        self.workspace_card = QWidget(self)
+        self.workspace_card.setObjectName("codexWorkspaceCard")
+        workspace_layout = QVBoxLayout(self.workspace_card)
+        self.workspace_summary = QLabel(
+            "Codex ile çalışmak için önce çalışma klasörünü seçmelisin.", self.workspace_card
+        )
+        self.workspace_summary.setWordWrap(True)
+        self.workspace_select_button = QPushButton("Klasör Seç", self.workspace_card)
+        self.workspace_cancel_button = QPushButton("İptal", self.workspace_card)
+        workspace_layout.addWidget(self.workspace_summary)
+        workspace_layout.addWidget(self.workspace_select_button)
+        workspace_layout.addWidget(self.workspace_cancel_button)
+        self.workspace_select_button.clicked.connect(self.workspace_select_requested)
+        self.workspace_cancel_button.clicked.connect(self.workspace_cancel_requested)
         self.approval_card = QWidget(self)
         self.approval_card.setObjectName("codexApprovalCard")
         approval_layout = QVBoxLayout(self.approval_card)
@@ -40,14 +56,13 @@ class CodexInspector(QWidget):
         self.history_label.setObjectName("codexHistory")
         self.history_label.setWordWrap(True)
         for widget in (self.task_label, self.status_label, self.workspace_label,
-                       self.progress, self.approval_card, self.history_label):
+                       self.progress, self.workspace_card, self.approval_card, self.history_label):
             layout.addWidget(widget)
         self.render(None)
 
     def render(self, session: CodexSession | None,
                history: tuple[CodexHistoryEntry, ...] = ()) -> None:
-        active = session is not None and not session.terminal
-        self.setVisible(active or bool(history))
+        self.setVisible(session is not None or bool(history))
         if session is None:
             self.task_label.setText("Aktif Codex görevi yok.")
             self.status_label.setText("Durum · Hazır")
@@ -66,7 +81,21 @@ class CodexInspector(QWidget):
                     f"Amaç: {session.task.objective}\nRisk: {session.task.risk_level.value}"
                     + (f"\nDosya: {targets}" if targets else ""))
         self.approval_card.setVisible(waiting)
+        self.workspace_card.hide()
         summaries = [f"{item.created_at.date()} · {item.task_summary} · {item.status.value}"
                      for item in history[:5]]
         self.history_label.setText("Geçmiş\n" + "\n".join(summaries)
                                    if summaries else "Geçmiş · Henüz görev yok")
+
+    def render_workspace_required(self, request: str) -> None:
+        self.setVisible(True)
+        self.task_label.setText("Codex görevi hazırlanıyor")
+        self.status_label.setText("Durum · Workspace bekleniyor")
+        self.workspace_label.setText("Workspace · Seçilmedi")
+        self.progress.setValue(0)
+        self.workspace_summary.setText(
+            "Codex ile analiz yapabilmem için önce çalışma klasörünü seçmelisin.\n\n"
+            f"İstek: {request[:240]}"
+        )
+        self.workspace_card.show()
+        self.approval_card.hide()

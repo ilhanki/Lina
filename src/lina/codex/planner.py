@@ -19,11 +19,12 @@ class CodexPlanner:
         if not clean:
             raise ValueError("Codex görevi için açık bir istek gerekli.")
         modification = bool(_MODIFICATION_WORDS.search(clean))
-        risk = CodexRiskLevel.MODIFICATION if modification else CodexRiskLevel.ANALYSIS
+        risk = CodexRiskLevel.MODIFICATION if modification else CodexRiskLevel.READ_ONLY
         actions = (
-            RequestedAction("inspect_structure", purpose="Proje yapısını ve ana teknolojileri belirle"),
-            RequestedAction("analyze", purpose="Riskleri ve iyileştirme alanlarını bul"),
-            RequestedAction("prepare_summary", purpose="Kanıta dayalı kısa sonuç hazırla"),
+            RequestedAction("inspect_structure", purpose="Proje yapısını incele"),
+            RequestedAction("detect_technologies", purpose="Kullanılan teknolojileri belirle"),
+            RequestedAction("analyze", purpose="Olası hata ve riskleri tespit et"),
+            RequestedAction("prepare_summary", purpose="İyileştirme önerilerini hazırla"),
         )
         if modification:
             actions += (RequestedAction("propose_modification", purpose="Dosya bazında değişiklik öner"),)
@@ -34,4 +35,3 @@ class CodexPlanner:
             verification_rules=(CodexVerificationRule("non_empty_summary"),
                                 CodexVerificationRule("workspace_containment")),
         )
-

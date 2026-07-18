@@ -4,6 +4,7 @@ import re
 
 from lina.brain.routing.models import IntentRequest, IntentType
 from lina.brain.routing.validation import extract_file_target, extract_memory_content, parse_reminder_arguments
+from lina.codex.intent import CodexIntentKind, classify_codex_intent
 
 
 class DeterministicIntentClassifier:
@@ -12,6 +13,13 @@ class DeterministicIntentClassifier:
         normalized = " ".join(original.casefold().replace("i\u0307", "i").split())
         if not normalized:
             return self._request(IntentType.CHAT, original, 0.0)
+        codex_intent = classify_codex_intent(original)
+        if codex_intent.kind is CodexIntentKind.OPERATIONAL:
+            return self._request(
+                IntentType.CODEX_OPERATIONAL, original, 1.0, {"request": original}, True
+            )
+        if codex_intent.kind is CodexIntentKind.INFORMATIONAL:
+            return self._request(IntentType.CHAT, original, 1.0)
         agent_discussion = (
             "yapay zekâ ajanı nedir", "yapay zeka ajani nedir", "agent mode güvenli mi",
             "agent mode guvenli mi", "bir plan nasıl hazırlanır", "bir plan nasil hazirlanir",

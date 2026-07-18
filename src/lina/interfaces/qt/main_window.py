@@ -51,9 +51,10 @@ from lina.agent import (
     render_plan_diff,
 )
 from lina.agent.errors import AgentError
-from lina.codex import CodexBridge
-from lina.codex.models import CodexSessionStatus
-from lina.codex.voice import confirmation_prompt, route_codex_voice
+from lina.codex import (CodexBridge, CodexClientUnavailableError, WorkspaceAccessError,
+                         validate_codex_request_scope)
+from lina.codex.intent import classify_codex_intent
+from lina.codex.voice import confirmation_prompt
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
@@ -214,6 +215,7 @@ class LinaMainWindow(QMainWindow):
         self._live_vision_controller = live_vision_controller
         self._agent_controller = agent_controller
         self._codex_bridge = codex_bridge
+        self._pending_codex_request: str | None = None
         self._memory_service = memory_service
         self._local_storage_service = local_storage_service
         self._agent_enabled = bool(
@@ -788,6 +790,10 @@ class LinaMainWindow(QMainWindow):
         inspector.approve_requested.connect(self._approve_codex_task)
         inspector.deny_requested.connect(self._deny_codex_task)
         inspector.edit_requested.connect(self._edit_codex_task)
+        inspector.workspace_select_requested.connect(self._select_codex_workspace)
+        inspector.workspace_cancel_requested.connect(self._cancel_codex_workspace)
+        if self._pending_codex_request and (session is None or session.terminal):
+            inspector.render_workspace_required(self._pending_codex_request)
         self._inspector.show_widget("Codex", inspector)
         self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.CODEX)
         self._present_inspector()
@@ -833,10 +839,7 @@ class LinaMainWindow(QMainWindow):
     def _should_route_codex(self, message: str) -> bool:
         if self._codex_bridge is None:
             return False
-        if self._user_settings_service is not None and not self._user_settings_service.current.codex.bridge_enabled:
-            return False
-        intent = route_codex_voice(message)
-        if intent.matched:
+        if classify_codex_intent(message).operational:
             return True
         lowered = message.casefold()
         return bool(
@@ -859,23 +862,48 @@ class LinaMainWindow(QMainWindow):
         if self._codex_bridge is None:
             self._append_assistant_message("Codex Bridge şu anda yapılandırılmamış.")
             return
+        try:
+            validate_codex_request_scope(request)
+        except WorkspaceAccessError as error:
+            self._append_assistant_message(str(error))
+            return
+        self._pending_codex_request = request
+        self._append_assistant_message(
+            "Codex ile analiz yapabilmem için önce çalışma klasörünü seçmelisin."
+        )
+        self._show_codex_inspector()
+
+    def _select_codex_workspace(self) -> None:
+        request = self._pending_codex_request
+        if self._codex_bridge is None or not request:
+            return
         workspace = QFileDialog.getExistingDirectory(
             self, "Codex çalışma klasörünü seç", str(Path.home()))
         if not workspace:
-            self._append_assistant_message("Codex görevi için bir çalışma klasörü seçmen gerekiyor.")
             return
         try:
             context = self._codex_bridge.select_workspace(Path(workspace))
             session = self._codex_bridge.prepare(request, context)
         except (OSError, ValueError, PermissionError) as error:
-            self._append_assistant_message(f"Codex görevi hazırlanamadı: {error}")
+            self._append_assistant_message(
+                str(error) if isinstance(error, WorkspaceAccessError)
+                else "Codex görevi güvenli biçimde hazırlanamadı."
+            )
             return
+        self._pending_codex_request = None
         task = session.task
         actions = "\n".join(
             f"{index}. {action.purpose}" for index, action in enumerate(task.requested_actions, 1)
         ) if task else ""
         self._append_assistant_message(
             f"{confirmation_prompt()}\n\nPlan:\n{actions}\n\nWorkspace: {context.root_path.name}")
+        self._show_codex_inspector()
+
+    def _cancel_codex_workspace(self) -> None:
+        if self._pending_codex_request is None:
+            return
+        self._pending_codex_request = None
+        self._append_assistant_message("Codex görevi iptal edildi; çalışma alanı seçilmedi.")
         self._show_codex_inspector()
 
     def _approve_codex_task(self) -> None:
@@ -885,6 +913,8 @@ class LinaMainWindow(QMainWindow):
         try:
             self._codex_bridge.start(session.session_id, approved=True)
             text = session.result_summary or "Codex görevi tamamlandı."
+        except CodexClientUnavailableError:
+            text = session.result_summary
         except Exception:
             text = "Codex görevi güvenli biçimde tamamlanamadı. Ayrıntılar kullanıcıya açılmadı."
         self._append_assistant_message(text)
@@ -1586,6 +1616,9 @@ class LinaMainWindow(QMainWindow):
         self._start_worker(worker)
 
     def _handle_routed_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
+        if request.intent is RoutingIntentType.CODEX_OPERATIONAL:
+            self._prepare_codex_request(user_text)
+            return
         if request.intent in {
             RoutingIntentType.AGENT_EXECUTE, RoutingIntentType.AGENT_PLAN,
             RoutingIntentType.AGENT_PAUSE, RoutingIntentType.AGENT_RESUME,
@@ -3065,14 +3098,18 @@ class LinaMainWindow(QMainWindow):
             response: object = result.response
             consumed = result.attachment_consumed
             assistant_created_at = result.assistant_created_at
+            response_safe_for_speech = result.response_safe_for_speech
         else:
             response = result
             consumed = False
             assistant_created_at = None
+            response_safe_for_speech = True
         text = response.text if isinstance(response, ModelResponse) else str(response)
         self._auto_scroll_enabled = True
         self._append_assistant_message(text, created_at=assistant_created_at)
-        if request_screen_context is not None and request_screen_context.source == LIVE_CAMERA_CONTEXT:
+        if not response_safe_for_speech:
+            pass
+        elif request_screen_context is not None and request_screen_context.source == LIVE_CAMERA_CONTEXT:
             live_speaker = getattr(self._voice_controller, "speak_live_vision", None)
             if callable(live_speaker):
                 live_speaker(text)

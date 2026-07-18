@@ -47,6 +47,7 @@ class IntentType(str, Enum):
     AGENT_STEP_SKIP = "agent_step_skip"
     AGENT_RETRY_READ_ONLY = "agent_retry_read_only"
     AGENT_CHECK_UNCERTAIN_RESULT = "agent_check_uncertain_result"
+    CODEX_OPERATIONAL = "codex_operational"
 
 
 class ToolStatus(str, Enum):

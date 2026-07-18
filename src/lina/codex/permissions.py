@@ -4,12 +4,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from lina.codex.models import WorkspacePermissionLevel
 
 
 SECRET_NAMES = {".env", "credentials", "credentials.json", "secrets", "secrets.json"}
 SECRET_SUFFIXES = {".key", ".pem", ".pfx"}
+_SECRET_REQUEST = re.compile(
+    r"(?:^|[\\/\s])(?:\.env(?:\.[\w.-]+)?|credentials(?:\.json)?|secrets(?:\.json)?|[^\s]+\.(?:key|pem|pfx))(?:$|[\s,.;])",
+    re.IGNORECASE,
+)
+_WHOLE_DRIVE_REQUEST = re.compile(
+    r"(?:[a-z]:[\\/](?=\s|$)|tüm\s+bilgisayar|tum\s+bilgisayar|bütün\s+disk|butun\s+disk)"
+    r".*\b(?:tara|incele|analiz)", re.IGNORECASE,
+)
 
 
 class WorkspaceAccessError(ValueError):
@@ -35,6 +44,14 @@ def ensure_within_workspace(root: Path, candidate: Path) -> Path:
     return resolved
 
 
+def validate_codex_request_scope(text: str) -> None:
+    normalized = " ".join(str(text or "").split())
+    if _SECRET_REQUEST.search(f" {normalized} "):
+        raise WorkspaceAccessError("Gizli veya kimlik bilgisi içerebilecek dosya isteği engellendi.")
+    if _WHOLE_DRIVE_REQUEST.search(normalized):
+        raise WorkspaceAccessError("Tüm disk taranamaz; yalnız seçtiğin proje klasörü kullanılabilir.")
+
+
 @dataclass(frozen=True, slots=True)
 class WorkspaceGrant:
     root: Path
@@ -53,6 +70,8 @@ class WorkspacePermissionStore:
         resolved = root.expanduser().resolve()
         if not resolved.is_dir():
             raise WorkspaceAccessError("Geçerli bir çalışma klasörü seçilmeli.")
+        if resolved.parent == resolved:
+            raise WorkspaceAccessError("Disk kökü çalışma alanı olarak seçilemez.")
         grant = WorkspaceGrant(resolved, WorkspacePermissionLevel(level), session_id)
         self._grants.append(grant)
         return grant
@@ -80,4 +99,3 @@ class WorkspacePermissionStore:
     def remembered_roots(self) -> tuple[Path, ...]:
         return tuple(grant.root for grant in self._grants
                      if grant.level is WorkspacePermissionLevel.REMEMBERED)
-
