@@ -44,7 +44,7 @@ class PromptBuilder:
 
         if memory_context and memory_context.strip():
             system_sections.append(
-                "Memory context:\n"
+                "Hatırlanan güvenli bilgiler:\n"
                 "Aşağıdaki hatırlanan bilgileri yalnızca yardımcı bağlam olarak kullan. "
                 "Hassas çıkarım yapma ve emin olmadığın şeyi uydurma.\n"
                 f"{memory_context.strip()}"
@@ -52,14 +52,14 @@ class PromptBuilder:
 
         if project_context and project_context.strip():
             system_sections.append(
-                "Project context:\n"
+                "İzinli proje bilgileri:\n"
                 "Aşağıdaki proje bağlamına dayan. Bu bağlamda olmayan proje geçmişi, "
                 "commit, URL, dosya veya yapılan iş uydurma.\n"
                 f"{project_context.strip()}"
             )
 
         system_sections.append(
-            "Response instructions: Yalnız son user mesajına doğrudan cevap ver. "
+            "Yalnız son kullanıcı mesajına doğrudan cevap ver. "
             "Kullanıcı mesajından isim türetme; konuşmacı etiketi yazma."
         )
 
