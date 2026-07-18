@@ -12,6 +12,7 @@ from lina.codex.models import (CodexEvent, CodexEventType, CodexExecutionMode, C
                                 VerificationOutcome, WorkspacePermissionLevel)
 from lina.codex.permissions import WorkspacePermissionStore, ensure_within_workspace, is_secret_path
 from lina.codex.planner import CodexPlanner
+from lina.codex.quality import CodexResponseQuality
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.validator import CodexOutputValidator
 from lina.agent.models import ApprovalDecision
@@ -29,6 +30,7 @@ class CodexBridge:
         self.planner = planner or CodexPlanner()
         self.validator = validator or CodexOutputValidator()
         self.repository = repository or CodexHistoryRepository()
+        self.response_quality = CodexResponseQuality()
         self._session: CodexSession | None = None
         self._listeners: list[EventListener] = []
 
@@ -107,12 +109,13 @@ class CodexBridge:
             session.transition(CodexSessionStatus.ANALYZING, 80)
             self._emit(CodexEvent.create(session.session_id, CodexEventType.VERIFICATION_STARTED, progress=85))
             report = self.validator.verify(task, result)
-            if report.outcome is VerificationOutcome.FAILED:
+            if report.outcome is not VerificationOutcome.SUCCESS:
+                session.error_code = f"verification_{report.outcome.value}"
                 session.result_summary = report.summary
                 session.transition(CodexSessionStatus.FAILED, 100)
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             else:
-                session.result_summary = result.summary[:1000]
+                session.result_summary = self.response_quality.prepare(result, report)
                 session.transition(CodexSessionStatus.COMPLETED, 100)
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.COMPLETED, progress=100))
             return result

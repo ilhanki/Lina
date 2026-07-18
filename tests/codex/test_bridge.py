@@ -59,6 +59,15 @@ def test_client_failure_marks_session_failed(tmp_path: Path):
     assert session.status is CodexSessionStatus.FAILED
 
 
+def test_uncertain_modification_is_not_reported_completed(tmp_path: Path):
+    bridge = CodexBridge(FakeClient(CodexResult("Uyguladım")))
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("main.py dosyasını değiştir", context)
+    bridge.start(session.session_id, approved=True)
+    assert session.status is CodexSessionStatus.FAILED
+    assert session.error_code == "verification_uncertain"
+
+
 def test_pause_resume_cancel_lifecycle(tmp_path: Path):
     _, session = prepared_bridge(tmp_path)
     controller = CodexSessionController()
