@@ -54,6 +54,7 @@ def run_qt_application(
         agent_controller=services.agent_controller,
         memory_service=services.memory_service,
         local_storage_service=services.local_storage_service,
+        codex_bridge=services.codex_bridge,
     )
     window.show()
     if (

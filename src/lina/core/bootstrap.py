@@ -13,6 +13,7 @@ from lina.brain.routing.router import IntentRouter
 from lina.brain.routing.tools import build_safe_tool_registry
 from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentSessionRepository, AgentVerifier
 from lina.agent.templates import build_builtin_template_registry
+from lina.codex import CodexBridge, CodexHistoryRepository, UnavailableCodexClient
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -77,6 +78,7 @@ class ApplicationServices:
     agent_controller: AgentController | None = None
     memory_service: MemoryService | None = None
     local_storage_service: LocalStorageService | None = None
+    codex_bridge: CodexBridge | None = None
 
 
 def create_application_services(
@@ -282,6 +284,12 @@ def create_application_services(
         auto_start_read_only_plans=user_preferences.agent.auto_start_read_only_plans,
         always_show_plan=user_preferences.agent.always_show_plan,
     )
+    codex_repository = CodexHistoryRepository(project_root / "data" / "codex-history.json")
+    try:
+        codex_repository.cleanup(user_preferences.codex.history_retention_days)
+    except (OSError, ValueError, TypeError):
+        pass
+    codex_bridge = CodexBridge(UnavailableCodexClient(), repository=codex_repository)
 
     return ApplicationServices(
         application=application,
@@ -301,6 +309,7 @@ def create_application_services(
         agent_controller=agent_controller,
         memory_service=memory_service,
         local_storage_service=local_storage_service,
+        codex_bridge=codex_bridge,
     )
 
 

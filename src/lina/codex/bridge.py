@@ -14,6 +14,7 @@ from lina.codex.permissions import WorkspacePermissionStore, ensure_within_works
 from lina.codex.planner import CodexPlanner
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.validator import CodexOutputValidator
+from lina.agent.models import ApprovalDecision
 
 
 EventListener = Callable[[CodexEvent, str], None]
@@ -130,6 +131,19 @@ class CodexBridge:
         session.transition(CodexSessionStatus.CANCELLED)
         self.permissions.consume_one_time(session.project_context.root_path)
         self.repository.save(session)
+
+    def decide(self, session_id: str, decision: ApprovalDecision) -> CodexResult | None:
+        """Reuse Agent Mode's unambiguous approval decisions."""
+        decision = ApprovalDecision(decision)
+        if decision is ApprovalDecision.APPROVE:
+            return self.start(session_id, approved=True)
+        if decision in {ApprovalDecision.SKIP, ApprovalDecision.CANCEL}:
+            self.deny(session_id)
+            return None
+        if decision is ApprovalDecision.MODIFY:
+            self._matching(session_id).transition(CodexSessionStatus.WAITING_APPROVAL, 20)
+            return None
+        raise ValueError("Codex onayı açık değil; onayla, reddet veya düzenle.")
 
     def _handle_client_event(self, event: CodexEvent) -> None:
         if self._session is None:

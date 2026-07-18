@@ -51,6 +51,9 @@ from lina.agent import (
     render_plan_diff,
 )
 from lina.agent.errors import AgentError
+from lina.codex import CodexBridge
+from lina.codex.models import CodexSessionStatus
+from lina.codex.voice import confirmation_prompt, route_codex_voice
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
@@ -71,6 +74,7 @@ from lina.interfaces.qt.theme import MESSAGE_FONT_DEFAULT, build_stylesheet, res
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
+from lina.interfaces.qt.codex_panel import CodexInspector
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
     AgentStepArgumentsDialog,
@@ -196,6 +200,7 @@ class LinaMainWindow(QMainWindow):
         | None = None,
         thread_pool: QThreadPool | None = None,
         parent: QWidget | None = None,
+        codex_bridge: CodexBridge | None = None,
     ) -> None:
         super().__init__(parent)
         self._conversation_service = conversation_service
@@ -208,6 +213,7 @@ class LinaMainWindow(QMainWindow):
         self._hands_free_service = hands_free_service
         self._live_vision_controller = live_vision_controller
         self._agent_controller = agent_controller
+        self._codex_bridge = codex_bridge
         self._memory_service = memory_service
         self._local_storage_service = local_storage_service
         self._agent_enabled = bool(
@@ -654,6 +660,11 @@ class LinaMainWindow(QMainWindow):
             PaletteAction("agent", "Agent görev ayrıntıları", "plan görev", self._show_agent_inspector, self._agent_controller is not None),
             PaletteAction("agent_templates", "Hazır Agent görevleri", "şablon template görev", self._show_task_templates, self._template_registry() is not None),
             PaletteAction("agent_tasks", "Agent Görev Merkezi", "geçmiş recovery yarım", self._show_agent_task_center, self._agent_controller is not None),
+            PaletteAction("codex_analyze", "Codex ile analiz et", "proje incele analiz", self._create_codex_task, self._codex_bridge is not None),
+            PaletteAction("codex_create", "Codex görevi oluştur", "plan görev", self._create_codex_task, self._codex_bridge is not None),
+            PaletteAction("codex_active", "Aktif Codex görevini göster", "durum progress", self._show_codex_inspector, self._codex_bridge is not None),
+            PaletteAction("codex_history", "Codex geçmişi", "görev sonuç", self._show_codex_inspector, self._codex_bridge is not None),
+            PaletteAction("codex_settings", "Codex ayarları", "güvenlik workspace", self.open_settings, self._user_settings_service is not None),
             PaletteAction("notifications", "Bildirimleri aç", "hatırlatıcı", self.open_notifications, self._notification_service is not None),
             PaletteAction("settings", "Ayarları aç", "tema ses model", self.open_settings, self._user_settings_service is not None),
             PaletteAction("inspector", "Ayrıntılar panelini aç", "durum sistem", self._show_system_inspector),
@@ -769,6 +780,18 @@ class LinaMainWindow(QMainWindow):
         self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.AGENT)
         self._present_inspector()
 
+    def _show_codex_inspector(self) -> None:
+        inspector = CodexInspector(self._inspector)
+        session = self._codex_bridge.session if self._codex_bridge else None
+        history = self._codex_bridge.repository.list() if self._codex_bridge else ()
+        inspector.render(session, history)
+        inspector.approve_requested.connect(self._approve_codex_task)
+        inspector.deny_requested.connect(self._deny_codex_task)
+        inspector.edit_requested.connect(self._edit_codex_task)
+        self._inspector.show_widget("Codex", inspector)
+        self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.CODEX)
+        self._present_inspector()
+
     def _show_memory_inspector(self) -> None:
         if self._memory_service is None:
             summary = "Bellek bu çalışma alanında etkin değil."
@@ -802,8 +825,85 @@ class LinaMainWindow(QMainWindow):
             self.handle_image_upload()
         elif tool_id == "agent":
             self._show_agent_inspector()
+        elif tool_id == "codex":
+            self._show_codex_inspector()
         elif tool_id == "memory":
             self._show_memory_inspector()
+
+    def _should_route_codex(self, message: str) -> bool:
+        if self._codex_bridge is None:
+            return False
+        if self._user_settings_service is not None and not self._user_settings_service.current.codex.bridge_enabled:
+            return False
+        intent = route_codex_voice(message)
+        if intent.matched:
+            return True
+        lowered = message.casefold()
+        return bool(
+            self._user_settings_service
+            and self._user_settings_service.current.codex.automatic_analysis_suggestions
+            and any(subject in lowered for subject in ("bu proje", "projeyi", "bu dosya"))
+            and any(action in lowered for action in ("incele", "analiz et", "optimize et", "hataları bul"))
+        )
+
+    def _create_codex_task(self) -> None:
+        request = self._composer.text()
+        if not request:
+            request, accepted = QInputDialog.getText(
+                self, "Codex görevi", "Codex ile ne yapmak istiyorsun?")
+            if not accepted or not request.strip():
+                return
+        self._prepare_codex_request(request)
+
+    def _prepare_codex_request(self, request: str) -> None:
+        if self._codex_bridge is None:
+            self._append_assistant_message("Codex Bridge şu anda yapılandırılmamış.")
+            return
+        workspace = QFileDialog.getExistingDirectory(
+            self, "Codex çalışma klasörünü seç", str(Path.home()))
+        if not workspace:
+            self._append_assistant_message("Codex görevi için bir çalışma klasörü seçmen gerekiyor.")
+            return
+        try:
+            context = self._codex_bridge.select_workspace(Path(workspace))
+            session = self._codex_bridge.prepare(request, context)
+        except (OSError, ValueError, PermissionError) as error:
+            self._append_assistant_message(f"Codex görevi hazırlanamadı: {error}")
+            return
+        task = session.task
+        actions = "\n".join(
+            f"{index}. {action.purpose}" for index, action in enumerate(task.requested_actions, 1)
+        ) if task else ""
+        self._append_assistant_message(
+            f"{confirmation_prompt()}\n\nPlan:\n{actions}\n\nWorkspace: {context.root_path.name}")
+        self._show_codex_inspector()
+
+    def _approve_codex_task(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        session = self._codex_bridge.session
+        try:
+            self._codex_bridge.start(session.session_id, approved=True)
+            text = session.result_summary or "Codex görevi tamamlandı."
+        except Exception:
+            text = "Codex görevi güvenli biçimde tamamlanamadı. Ayrıntılar kullanıcıya açılmadı."
+        self._append_assistant_message(text)
+        self._show_codex_inspector()
+
+    def _deny_codex_task(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        self._codex_bridge.deny(self._codex_bridge.session.session_id)
+        self._append_assistant_message("Codex görevi iptal edildi; hiçbir değişiklik uygulanmadı.")
+        self._show_codex_inspector()
+
+    def _edit_codex_task(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        task = self._codex_bridge.session.task
+        if task is not None:
+            self._composer.input.setPlainText(task.objective)
+            self._composer.input.setFocus()
 
     def _refresh_local_storage(self) -> None:
         if self._local_storage_service is None:
@@ -1369,6 +1469,9 @@ class LinaMainWindow(QMainWindow):
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
+        if self._should_route_codex(message):
+            self._prepare_codex_request(message)
+            return
         if self._active_confirmation_cancel is not None:
             confirmation = _classify_voice_confirmation(message)
             if confirmation == "yes" and self._active_confirmation_confirm is not None:

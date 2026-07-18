@@ -18,6 +18,7 @@ class RightPanelSection(Enum):
     TOOLS = "tools"
     MEMORY = "memory"
     AGENT = "agent"
+    CODEX = "codex"
     VOICE = "voice"
     VISION = "vision"
     SYSTEM = "system"

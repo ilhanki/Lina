@@ -2,6 +2,7 @@
 
 from lina.settings.models import (
     AgentUserSettings,
+    CodexUserSettings,
     AppearanceSettings,
     GeneralSettings,
     ModelSettings,
@@ -15,6 +16,7 @@ from lina.settings.service import UserSettingsService
 
 __all__ = [
     "AgentUserSettings",
+    "CodexUserSettings",
     "AppearanceSettings",
     "GeneralSettings",
     "ModelSettings",

@@ -136,6 +136,20 @@ class AgentUserSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class CodexUserSettings:
+    bridge_enabled: bool = False
+    remembered_workspaces: tuple[str, ...] = ()
+    default_approval_behavior: str = "always_ask"
+    automatic_analysis_suggestions: bool = True
+    history_retention_days: int | None = 30
+    privacy_mode: str = "metadata_only"
+    approval_enforced: bool = True
+    workspace_restriction_enforced: bool = True
+    secret_filtering_enforced: bool = True
+    audit_logging_enforced: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class UserSettings:
     """Validated, serializable user preferences."""
 
@@ -148,6 +162,7 @@ class UserSettings:
     live_vision: LiveVisionUserSettings = LiveVisionUserSettings()
     system: SystemSettings = SystemSettings()
     agent: AgentUserSettings = AgentUserSettings()
+    codex: CodexUserSettings = CodexUserSettings()
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -158,7 +173,7 @@ class UserSettings:
             raise ValueError("Appearance font scale must be between 0.85 and 1.35")
         if self.appearance.density not in SUPPORTED_DENSITIES:
             raise ValueError("Unsupported interface density")
-        if self.appearance.right_panel_section not in {"tools", "memory", "agent", "voice", "vision", "system"}:
+        if self.appearance.right_panel_section not in {"tools", "memory", "agent", "codex", "voice", "vision", "system"}:
             raise ValueError("Unsupported right panel section")
         if not 300 <= self.appearance.right_panel_width <= 360:
             raise ValueError("Right panel width must be between 300 and 360")
@@ -203,6 +218,15 @@ class UserSettings:
             raise ValueError("Persistent Agent approval cannot be disabled")
         if self.agent.agent_history_retention_days not in {7, 30, 90, None}:
             raise ValueError("Unsupported Agent history retention")
+        if self.codex.default_approval_behavior != "always_ask":
+            raise ValueError("Codex approval cannot be disabled")
+        if self.codex.history_retention_days not in {7, 30, 90, None}:
+            raise ValueError("Unsupported Codex history retention")
+        if self.codex.privacy_mode != "metadata_only":
+            raise ValueError("Codex history must remain metadata-only")
+        if not all((self.codex.approval_enforced, self.codex.workspace_restriction_enforced,
+                    self.codex.secret_filtering_enforced, self.codex.audit_logging_enforced)):
+            raise ValueError("Codex safety controls cannot be disabled")
         if not 0.5 <= self.live_vision.capture_interval_seconds <= 60:
             raise ValueError("Live vision capture interval must be between 0.5 and 60")
         if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
@@ -320,6 +344,18 @@ class UserSettings:
                 "notify_interrupted_tasks_on_startup": self.agent.notify_interrupted_tasks_on_startup,
                 "agent_history_retention_days": self.agent.agent_history_retention_days,
             },
+            "codex": {
+                "bridge_enabled": self.codex.bridge_enabled,
+                "remembered_workspaces": list(self.codex.remembered_workspaces),
+                "default_approval_behavior": "always_ask",
+                "automatic_analysis_suggestions": self.codex.automatic_analysis_suggestions,
+                "history_retention_days": self.codex.history_retention_days,
+                "privacy_mode": "metadata_only",
+                "approval_enforced": True,
+                "workspace_restriction_enforced": True,
+                "secret_filtering_enforced": True,
+                "audit_logging_enforced": True,
+            },
         }
 
     @classmethod
@@ -338,6 +374,7 @@ class UserSettings:
         live_vision = _section(raw, "live_vision")
         system = _section(raw, "system")
         agent = _section(raw, "agent")
+        codex = _section(raw, "codex")
         return cls(
             appearance=AppearanceSettings(
                 theme=_choice(appearance, "theme", defaults.appearance.theme, SUPPORTED_THEMES),
@@ -351,7 +388,7 @@ class UserSettings:
                     appearance,
                     "right_panel_section",
                     defaults.appearance.right_panel_section,
-                    {"tools", "memory", "agent", "voice", "vision", "system"},
+                    {"tools", "memory", "agent", "codex", "voice", "vision", "system"},
                 ),
                 right_panel_width=_bounded_int(appearance, "right_panel_width", defaults.appearance.right_panel_width, 300, 360),
                 message_width=_bounded_int(appearance, "message_width", defaults.appearance.message_width, 720, 900),
@@ -451,6 +488,19 @@ class UserSettings:
                 notify_interrupted_tasks_on_startup=_bool(agent, "notify_interrupted_tasks_on_startup", defaults.agent.notify_interrupted_tasks_on_startup),
                 agent_history_retention_days=_history_retention(agent, defaults.agent.agent_history_retention_days),
             ),
+            codex=CodexUserSettings(
+                bridge_enabled=_bool(codex, "bridge_enabled", defaults.codex.bridge_enabled),
+                remembered_workspaces=_safe_string_tuple(codex, "remembered_workspaces"),
+                default_approval_behavior="always_ask",
+                automatic_analysis_suggestions=_bool(
+                    codex, "automatic_analysis_suggestions", defaults.codex.automatic_analysis_suggestions),
+                history_retention_days=_codex_history_retention(codex, defaults.codex.history_retention_days),
+                privacy_mode="metadata_only",
+                approval_enforced=True,
+                workspace_restriction_enforced=True,
+                secret_filtering_enforced=True,
+                audit_logging_enforced=True,
+            ),
         )
 
 
@@ -467,6 +517,19 @@ def _bool(section: dict[str, Any], key: str, default: bool) -> bool:
 def _history_retention(section: dict[str, Any], default: int | None) -> int | None:
     value = section.get("agent_history_retention_days", default)
     return value if value in {7, 30, 90, None} else default
+
+
+def _codex_history_retention(section: dict[str, Any], default: int | None) -> int | None:
+    value = section.get("history_retention_days", default)
+    return value if value in {7, 30, 90, None} else default
+
+
+def _safe_string_tuple(section: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = section.get(key, ())
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(item.strip()[:500] for item in value[:50]
+                 if isinstance(item, str) and item.strip())
 
 
 def _choice(section: dict[str, Any], key: str, default: str, choices: set[str] | frozenset[str]) -> str:

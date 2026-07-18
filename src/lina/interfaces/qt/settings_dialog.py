@@ -552,6 +552,16 @@ class SettingsDialog(QDialog):
     def _agent_page(self) -> QWidget:
         page = QWidget(self)
         form = QFormLayout(page)
+        self._codex_enabled = QCheckBox("Codex Bridge aktif", page)
+        self._codex_suggestions = QCheckBox("Otomatik Codex analiz önerileri", page)
+        self._codex_history_retention = QComboBox(page)
+        self._codex_history_retention.addItem("7 gün", 7)
+        self._codex_history_retention.addItem("30 gün", 30)
+        self._codex_history_retention.addItem("90 gün", 90)
+        self._codex_history_retention.addItem("Süresiz", None)
+        form.addRow(self._codex_enabled)
+        form.addRow(self._codex_suggestions)
+        form.addRow("Codex geçmişi", self._codex_history_retention)
         self._agent_enabled = QCheckBox("Agent Mode etkin", page)
         self._agent_max_steps = QSpinBox(page)
         self._agent_max_steps.setRange(3, 12)
@@ -594,6 +604,15 @@ class SettingsDialog(QDialog):
         self._agent_security_note.setWordWrap(True)
         self._agent_security_note.setObjectName("settingsDescription")
         form.addRow(self._agent_security_note)
+        self._codex_security_note = QLabel(
+            "Codex güvenliği kapatılamaz: her görevde plan onayı, değişikliklerde ayrıca işlem onayı, "
+            "workspace sınırı, secret filtresi, metadata-only geçmiş ve audit logging her zaman etkindir.",
+            page,
+        )
+        self._codex_security_note.setAccessibleName("Değiştirilemez Codex güvenlik ilkeleri")
+        self._codex_security_note.setWordWrap(True)
+        self._codex_security_note.setObjectName("settingsDescription")
+        form.addRow(self._codex_security_note)
         return page
 
     def _about_page(self) -> QWidget:
@@ -696,6 +715,9 @@ class SettingsDialog(QDialog):
         self._agent_speak_completion.setChecked(settings.agent.speak_agent_completion)
         self._agent_speak_approvals.setChecked(settings.agent.speak_agent_approvals)
         self._agent_notify_completion.setChecked(settings.agent.notify_agent_completion)
+        self._codex_enabled.setChecked(settings.codex.bridge_enabled)
+        self._codex_suggestions.setChecked(settings.codex.automatic_analysis_suggestions)
+        _select_data(self._codex_history_retention, settings.codex.history_retention_days)
 
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
@@ -800,6 +822,18 @@ class SettingsDialog(QDialog):
                 speak_agent_completion=self._agent_speak_completion.isChecked(),
                 speak_agent_approvals=self._agent_speak_approvals.isChecked(),
                 notify_agent_completion=self._agent_notify_completion.isChecked(),
+            ),
+            codex=replace(
+                self._draft.codex,
+                bridge_enabled=self._codex_enabled.isChecked(),
+                automatic_analysis_suggestions=self._codex_suggestions.isChecked(),
+                history_retention_days=self._codex_history_retention.currentData(),
+                default_approval_behavior="always_ask",
+                privacy_mode="metadata_only",
+                approval_enforced=True,
+                workspace_restriction_enforced=True,
+                secret_filtering_enforced=True,
+                audit_logging_enforced=True,
             ),
         )
 

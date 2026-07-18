@@ -36,6 +36,7 @@ CONTEXT_TOOLS = (
     ContextTool("vision", "Görsel Anlama", "Ekran, görsel ve diyagram analizi", "vision"),
     ContextTool("file", "Dosya Anlama", "Desteklenen yerel dosyaları incele", "file"),
     ContextTool("agent", "Agent", "Planla, uygula ve doğrula", "agent"),
+    ContextTool("codex", "Codex ile Çalış", "Güvenli, kontrollü proje çalışması", "agent"),
     ContextTool("memory", "Hafıza", "Önemli bilgileri hatırla", "memory"),
 )
 
