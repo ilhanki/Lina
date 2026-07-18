@@ -11,7 +11,9 @@ from lina.codex.permissions import (WorkspaceAccessError, WorkspacePermissionSto
 
 
 @pytest.mark.parametrize("name", [".env", ".env.local", "server.key", "cert.pem", "id.pfx",
-                                         "credentials", "secrets.json"])
+                                         "credentials", "secrets.json", "auth.json",
+                                         "credentials-prod.json", "secrets-backup", "client.p12",
+                                         "client.crt", "id_rsa", ".git-credentials"])
 def test_secret_names_are_blocked(name: str):
     assert is_secret_path(Path(name))
 
