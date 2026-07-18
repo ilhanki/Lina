@@ -1,5 +1,21 @@
 # Lina Smoke Test Checklist
 
+## v0.13.0-alpha Reliability Hotfix
+
+- [ ] “Merhaba Lina, kendini tek cümlede tanıt.” doğal, tek cümlelik Türkçe yanıt verir.
+- [ ] “Bugün için bana kısa bir çalışma planı hazırla.” süre, odak bloğu, ara ve tekrar içeren günlük plan verir; Agent lifecycle listesi vermez.
+- [ ] Liste/tuple açıklaması değiştirilebilirlik farkını doğal Türkçeyle anlatır.
+- [ ] Operational Codex komutu normal typing/model yoluna girmez; workspace kartını açar.
+- [ ] Aynı Codex komutunun tekrarı aynı workspace akışını üretir; duplicate dispatch oluşmaz.
+- [ ] “Codex nedir?” normal bilgi sorusu olarak kalır.
+- [ ] `.env`, credential, key/certificate istekleri workspace seçiminden önce engellenir.
+- [ ] `C:\` veya tüm disk taraması engellenir.
+- [ ] Workspace sonrası read-only plan ve approval kartı görünür.
+- [ ] Approval sonrası transport yoksa controlled unavailable mesajı görünür; sahte başarı ve ham exception yoktur.
+- [ ] Prompt/persona/role marker sızıntısı repair edilir veya güvenli fallback'e döner.
+- [ ] Rejected yanıt DB/history/TTS'ye girmez; sonraki cevap temiz context kullanır.
+- [ ] `python -m pytest`, compileall ve `git diff --check` geçer.
+
 ## v0.13.0-alpha Codex Bridge Foundation
 
 - [ ] Tools içinde “Codex ile Çalış” görünür; aktif değilken inspector yer kaplamaz.

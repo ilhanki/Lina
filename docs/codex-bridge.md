@@ -1,5 +1,13 @@
 # Codex Bridge
 
+## v0.13.0-alpha reliability hotfix
+
+Gerçek kullanıcı testinde açık “Codex ile…” komutunun varsayılan kapalı ayar nedeniyle normal chat modeline düştüğü görüldü. Routing artık ayardan bağımsız, modelden önce çalışan deterministic operational/informational sınıflandırıcıyı kullanır. `Codex`, `kodex`, `kodeks`, apostroflu ve bitişik ekli varyasyonlar desteklenir. “Codex nedir?” gibi bilgi soruları chat olarak kalırken analiz, inceleme, geliştirme, düzeltme, geçmiş ve ayar komutları bridge akışına gider.
+
+Workspace seçilmeden görev hazırlanmaz. Inspector “Klasör Seç / İptal” kartını, ardından read-only planı ve approval kartını gösterir. Gerçek transport yoksa kullanıcıya kontrollü unavailable mesajı verilir; hazırlanmış workspace/plan metadata'sı history'den silinir ve sahte tamamlanma üretilmez. Secret dosya istekleri ve disk kökü taraması workspace seçiminden önce engellenir.
+
+Normal chat system promptundan Codex/Agent görev dili ve sızıntıda yankılanan persona cümlesi çıkarıldı. Operational Codex isteği conversation servisine ulaşsa bile typed routing hatasıyla model çağrısı engellenir.
+
 ## Amaç
 
 Codex Bridge, Lina'nın kullanıcı isteğini güvenli bir proje görevine dönüştürmesini sağlar. Bu katman sınırsız otonom geliştirme veya bilgisayar kontrolü değildir. Shell çalıştırmaz, paket kurmaz, git commit/push yapmaz, browser ya da credential erişimi sunmaz.

@@ -1,5 +1,16 @@
 # Lina Geliştirme Günlüğü
 
+## 2026-07-18 - Codex routing ve Response Reliability Hotfix
+
+- `bridge_enabled=False` nedeniyle explicit Codex komutunun chat'e düşmesi düzeltildi; operational routing ayardan ve model classifier'dan önce çalışıyor.
+- Operational/informational ayrımı ve Codex/kodex/kodeks/apostrof varyasyonları eklendi.
+- Promptta gerçek sızıntıyla eşleşen “sistem tarafından bilinen” persona ifadesi kaldırıldı; Codex/Agent context normal chat history'sinden ayrıldı.
+- Validator V4 gerçek bozuk tokenları, prompt/persona sızıntısını, instruction bloklarını, mixed script'i ve günlük çalışma planındaki lifecycle sapmasını reddediyor.
+- Repair V4 orijinal kullanıcı isteğini, tüm rejection nedenlerini ve teknik allowlist'i kullanıyor; sonuç tam validator'dan yeniden geçiyor.
+- Rejected/leaked yanıt artık conversation DB, in-memory model history veya TTS yoluna girmiyor; yalnız güvenli fallback UI'da gösteriliyor.
+- Workspace kartı, read-only plan, approval ve controlled unavailable akışı tek deterministik GUI yolunda birleştirildi.
+- 41 yeni regression testiyle toplam 1129 test geçiyor.
+
 ## 2026-07-18 - v0.13.0-alpha Codex Bridge Foundation
 
 - Typed `lina.codex` modeli, istemci protokolü ve açık session lifecycle eklendi.
