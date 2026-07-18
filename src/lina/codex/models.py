@@ -54,6 +54,11 @@ class CodexEventType(str, Enum):
     APPROVAL_REQUESTED = "approval_requested"
     MODIFICATION_STARTED = "modification_started"
     MODIFICATION_COMPLETED = "modification_completed"
+    COMMAND_REQUESTED = "command_requested"
+    COMMAND_COMPLETED = "command_completed"
+    MESSAGE_DELTA = "message_delta"
+    MESSAGE_COMPLETED = "message_completed"
+    USAGE = "usage"
     VERIFICATION_STARTED = "verification_started"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -61,6 +66,9 @@ class CodexEventType(str, Enum):
 
 class VerificationOutcome(str, Enum):
     SUCCESS = "success"
+    VERIFIED = "verified"
+    PARTIALLY_VERIFIED = "partially_verified"
+    UNVERIFIED = "unverified"
     UNCERTAIN = "uncertain"
     FAILED = "failed"
 
@@ -146,6 +154,11 @@ class CodexSession:
     progress: int = 0
     result_summary: str = ""
     error_code: str | None = None
+    cli_version: str | None = None
+    approval_decision: str = "pending"
+    verification_outcome: str = "unverified"
+    duration_seconds: float = 0.0
+    exit_category: str = "not_started"
 
     @classmethod
     def create(
@@ -188,12 +201,22 @@ class CodexEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class CodexExecutionEvidence:
+    exit_code: int | None = None
+    before_fingerprints: tuple[tuple[str, str], ...] = ()
+    after_fingerprints: tuple[tuple[str, str], ...] = ()
+    tests_passed: bool | None = None
+    sensitive_output_detected: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class CodexResult:
     summary: str
     artifacts: tuple[str, ...] = ()
     changed_files: tuple[str, ...] = ()
     verification_notes: tuple[str, ...] = ()
     stale: bool = False
+    evidence: CodexExecutionEvidence | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,4 +233,11 @@ class CodexHistoryEntry:
     created_at: datetime
     status: CodexSessionStatus
     result_summary: str
-
+    workspace_hash: str = ""
+    operation_type: str = "unknown"
+    risk: str = "unknown"
+    approval_decision: str = "unknown"
+    cli_version: str | None = None
+    verification: str = "unverified"
+    duration_seconds: float = 0.0
+    exit_category: str = "unknown"
