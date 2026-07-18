@@ -9,10 +9,14 @@ import re
 from lina.codex.models import WorkspacePermissionLevel
 
 
-SECRET_NAMES = {".env", "credentials", "credentials.json", "secrets", "secrets.json"}
-SECRET_SUFFIXES = {".key", ".pem", ".pfx"}
+SECRET_NAMES = {
+    ".env", "auth.json", "credentials", "credentials.json", "secrets", "secrets.json",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", ".git-credentials", ".netrc",
+}
+SECRET_SUFFIXES = {".key", ".pem", ".pfx", ".p12", ".crt"}
 _SECRET_REQUEST = re.compile(
-    r"(?:^|[\\/\s])(?:\.env(?:\.[\w.-]+)?|credentials(?:\.json)?|secrets(?:\.json)?|[^\s]+\.(?:key|pem|pfx))(?:$|[\s,.;])",
+    r"(?:^|[\\/\s])(?:\.env(?:\.[\w.-]+)?|auth\.json|credentials[^\s]*|secrets[^\s]*|"
+    r"id_(?:rsa|dsa|ecdsa|ed25519)|[^\s]+\.(?:key|pem|pfx|p12|crt))(?:$|[\s,.;])",
     re.IGNORECASE,
 )
 _WHOLE_DRIVE_REQUEST = re.compile(
@@ -28,8 +32,11 @@ class WorkspaceAccessError(ValueError):
 def is_secret_path(path: Path) -> bool:
     name = path.name.casefold()
     return (name in SECRET_NAMES or name.startswith(".env.")
+            or name.startswith("credentials") or name.startswith("secrets")
             or path.suffix.casefold() in SECRET_SUFFIXES
-            or any(part.casefold() in {"credentials", "secrets"} for part in path.parts))
+            or any(part.casefold() in {
+                "credentials", "secrets", ".ssh", "browser", "user data", "windows credentials"
+            } for part in path.parts))
 
 
 def ensure_within_workspace(root: Path, candidate: Path) -> Path:

@@ -11,6 +11,8 @@ from lina.codex.planner import CodexPlanner
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.session import CodexSessionController
 from lina.codex.validator import CodexOutputValidator
+from lina.codex.transports import CodexCliClient, CodexCliInfo
+from lina.codex.transports.errors import CodexTransportError
 
 __all__ = [
     "CodexBridge", "CodexClient", "CodexClientUnavailableError", "UnavailableCodexClient", "CodexPlanner",
@@ -18,4 +20,5 @@ __all__ = [
     "WorkspaceAccessError", "WorkspacePermissionStore", "ensure_within_workspace",
     "is_secret_path", "spoken_message", "user_message",
     "validate_codex_request_scope",
+    "CodexCliClient", "CodexCliInfo", "CodexTransportError",
 ]

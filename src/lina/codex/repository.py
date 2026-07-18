@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -17,8 +18,16 @@ class CodexHistoryRepository:
             self._load()
 
     def save(self, session: CodexSession) -> CodexHistoryEntry:
+        workspace_hash = hashlib.sha256(
+            str(session.project_context.root_path).casefold().encode("utf-8")
+        ).hexdigest()[:16]
         entry = CodexHistoryEntry(session.session_id, session.task_summary[:160], session.created_at,
-                                  session.status, session.result_summary[:500])
+                                  session.status, session.result_summary[:500], workspace_hash,
+                                  session.execution_mode.value,
+                                  session.task.risk_level.value if session.task else "unknown",
+                                  session.approval_decision, session.cli_version,
+                                  session.verification_outcome, session.duration_seconds,
+                                  session.exit_category)
         self._entries = [item for item in self._entries if item.session_id != entry.session_id]
         self._entries.append(entry)
         self._flush()
@@ -44,6 +53,11 @@ class CodexHistoryRepository:
                 str(item["session_id"]), str(item["task_summary"]),
                 datetime.fromisoformat(item["created_at"]), CodexSessionStatus(item["status"]),
                 str(item.get("result_summary", "")),
+                str(item.get("workspace_hash", "")), str(item.get("operation_type", "unknown")),
+                str(item.get("risk", "unknown")), str(item.get("approval_decision", "unknown")),
+                str(item["cli_version"]) if item.get("cli_version") else None,
+                str(item.get("verification", "unverified")),
+                float(item.get("duration_seconds", 0.0)), str(item.get("exit_category", "unknown")),
             ) for item in payload if isinstance(item, dict)]
         except (OSError, ValueError, TypeError, KeyError):
             self._entries = []
@@ -54,5 +68,9 @@ class CodexHistoryRepository:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = [{"session_id": item.session_id, "task_summary": item.task_summary,
                     "created_at": item.created_at.isoformat(), "status": item.status.value,
-                    "result_summary": item.result_summary} for item in self._entries]
+                    "result_summary": item.result_summary, "workspace_hash": item.workspace_hash,
+                    "operation_type": item.operation_type, "risk": item.risk,
+                    "approval_decision": item.approval_decision, "cli_version": item.cli_version,
+                    "verification": item.verification, "duration_seconds": item.duration_seconds,
+                    "exit_category": item.exit_category} for item in self._entries]
         self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

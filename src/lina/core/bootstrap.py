@@ -14,6 +14,8 @@ from lina.brain.routing.tools import build_safe_tool_registry
 from lina.agent import AgentController, AgentExecutor, AgentPlanner, AgentPolicy, AgentSessionRepository, AgentVerifier
 from lina.agent.templates import build_builtin_template_registry
 from lina.codex import CodexBridge, CodexHistoryRepository, UnavailableCodexClient
+from lina.codex.transports import CodexCliClient
+from lina.codex.transports.errors import CodexTransportError
 from lina.core.application import LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.logging import configure_logging
@@ -289,7 +291,19 @@ def create_application_services(
         codex_repository.cleanup(user_preferences.codex.history_retention_days)
     except (OSError, ValueError, TypeError):
         pass
-    codex_bridge = CodexBridge(UnavailableCodexClient(), repository=codex_repository)
+    configured_codex_path = (user_preferences.codex.cli_executable_path or None)
+    if not user_preferences.codex.auto_detect_cli and configured_codex_path is None:
+        codex_client = UnavailableCodexClient(("automatic_discovery_disabled",))
+    else:
+        try:
+            codex_client = CodexCliClient.probe(
+                configured_codex_path,
+                timeout_seconds=user_preferences.codex.default_task_timeout_seconds,
+            )
+        except (CodexTransportError, OSError, ValueError) as error:
+            code = getattr(error, "code", "cli_probe_failed")
+            codex_client = UnavailableCodexClient((str(code),))
+    codex_bridge = CodexBridge(codex_client, repository=codex_repository)
 
     return ApplicationServices(
         application=application,

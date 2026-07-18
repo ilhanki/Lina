@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+import time
 
 from lina.codex.client import CodexClient, CodexClientUnavailableError
 from lina.codex.events import user_message
@@ -16,6 +17,7 @@ from lina.codex.planner import CodexPlanner
 from lina.codex.quality import CodexResponseQuality
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.validator import CodexOutputValidator
+from lina.codex.transports.errors import CodexTransportError
 from lina.agent.models import ApprovalDecision
 
 
@@ -38,6 +40,10 @@ class CodexBridge:
     @property
     def session(self) -> CodexSession | None:
         return self._session
+
+    @property
+    def client_info(self):
+        return getattr(self.client, "info", None)
 
     def subscribe(self, listener: EventListener) -> None:
         if listener not in self._listeners:
@@ -90,6 +96,8 @@ class CodexBridge:
         session = CodexSession.create(context, task.title, conversation_id, agent_session_id,
                                       permission_level, mode)
         session.task = task
+        info = self.client_info
+        session.cli_version = info.version if info is not None else None
         session.transition(CodexSessionStatus.PLANNING, 10)
         session.transition(CodexSessionStatus.WAITING_APPROVAL, 20)
         self._emit(CodexEvent.create(
@@ -110,7 +118,9 @@ class CodexBridge:
             session.transition(CodexSessionStatus.WAITING_APPROVAL, 20)
             self.repository.save(session)
             return None
+        session.approval_decision = "approved"
         session.transition(CodexSessionStatus.RUNNING, 30)
+        started = time.monotonic()
         self._emit(CodexEvent.create(session.session_id, CodexEventType.SESSION_STARTED, progress=30))
         retain_history = True
         try:
@@ -118,14 +128,17 @@ class CodexBridge:
             session.transition(CodexSessionStatus.ANALYZING, 80)
             self._emit(CodexEvent.create(session.session_id, CodexEventType.VERIFICATION_STARTED, progress=85))
             report = self.validator.verify(task, result)
+            session.verification_outcome = report.outcome.value
             if report.outcome is not VerificationOutcome.SUCCESS:
                 session.error_code = f"verification_{report.outcome.value}"
                 session.result_summary = report.summary
                 session.transition(CodexSessionStatus.FAILED, 100)
+                session.exit_category = "verification_failed"
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             else:
                 session.result_summary = self.response_quality.prepare(result, report)
                 session.transition(CodexSessionStatus.COMPLETED, 100)
+                session.exit_category = "success"
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.COMPLETED, progress=100))
             return result
         except CodexClientUnavailableError:
@@ -136,22 +149,70 @@ class CodexBridge:
                 "Çalışma alanı ve plan kaydedilmedi."
             )
             session.transition(CodexSessionStatus.FAILED, 100)
+            session.exit_category = "client_unavailable"
             self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             self.repository.delete(session.session_id)
+            raise
+        except CodexTransportError as error:
+            session.error_code = error.code
+            session.result_summary = error.user_message
+            status = (CodexSessionStatus.CANCELLED
+                      if error.code == "cancelled" else CodexSessionStatus.FAILED)
+            session.transition(status, 100)
+            session.exit_category = error.code
+            self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             raise
         except Exception:
             session.error_code = "client_failure"
             session.result_summary = "Codex istemcisi görevi tamamlayamadı."
             session.transition(CodexSessionStatus.FAILED, 100)
+            session.exit_category = "client_failure"
             self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             raise
         finally:
+            session.duration_seconds = max(0.0, time.monotonic() - started)
             self.permissions.consume_one_time(session.project_context.root_path)
             if retain_history:
                 self.repository.save(session)
 
+    def cancel(self) -> None:
+        if hasattr(self.client, "cancel"):
+            self.client.cancel()
+        if self._session is not None and not self._session.terminal:
+            self._session.transition(CodexSessionStatus.CANCELLED, 100)
+            self._session.error_code = "cancelled"
+            self._session.result_summary = "Codex görevi iptal edildi."
+            self.repository.save(self._session)
+
+    def refresh_client_info(self):
+        if hasattr(self.client, "refresh"):
+            return self.client.refresh()
+        return self.client_info
+
+    def launch_login(self, *, device_auth: bool = False) -> None:
+        if not hasattr(self.client, "launch_login"):
+            raise CodexClientUnavailableError("Codex CLI bulunamadı.")
+        self.client.launch_login(device_auth=device_auth)
+
+    def logout(self, *, confirmed: bool = False):
+        if not hasattr(self.client, "logout"):
+            raise CodexClientUnavailableError("Codex CLI bulunamadı.")
+        return self.client.logout(confirmed=confirmed)
+
+    def diagnostics_report(self) -> str:
+        if not hasattr(self.client, "diagnostics_report"):
+            return "Codex CLI diagnostics kullanılamıyor."
+        return self.client.diagnostics_report()
+
+    def shutdown(self) -> None:
+        self.cancel()
+        if hasattr(self.client, "shutdown"):
+            self.client.shutdown()
+
     def deny(self, session_id: str) -> None:
         session = self._matching(session_id)
+        session.approval_decision = "denied"
+        session.exit_category = "user_denied"
         session.transition(CodexSessionStatus.CANCELLED)
         self.permissions.consume_one_time(session.project_context.root_path)
         self.repository.save(session)
