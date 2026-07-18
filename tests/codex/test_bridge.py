@@ -109,3 +109,13 @@ def test_history_is_metadata_only(tmp_path: Path):
     payload = path.read_text(encoding="utf-8")
     assert "allowed_files" not in payload and "file_content" not in payload
     assert repository.list()[0].status is CodexSessionStatus.COMPLETED
+
+
+def test_shutdown_marks_active_session_interrupted(tmp_path: Path):
+    bridge = CodexBridge(FakeClient())
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("Codex ile projeyi analiz et", context)
+    bridge.shutdown()
+    assert session.status is CodexSessionStatus.INTERRUPTED
+    assert session.error_code == "app_shutdown"
+    assert bridge.repository.list()[0].exit_category == "app_shutdown"

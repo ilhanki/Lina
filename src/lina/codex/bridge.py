@@ -205,9 +205,14 @@ class CodexBridge:
         return self.client.diagnostics_report()
 
     def shutdown(self) -> None:
-        self.cancel()
         if hasattr(self.client, "shutdown"):
             self.client.shutdown()
+        if self._session is not None and not self._session.terminal:
+            self._session.transition(CodexSessionStatus.INTERRUPTED, 100)
+            self._session.error_code = "app_shutdown"
+            self._session.result_summary = "Codex görevi uygulama kapanırken kesintiye uğradı."
+            self._session.exit_category = "app_shutdown"
+            self.repository.save(self._session)
 
     def deny(self, session_id: str) -> None:
         session = self._matching(session_id)
