@@ -5,6 +5,25 @@ import pytest
 from lina.settings.models import UserSettings
 
 
+def test_codex_security_controls_cannot_be_disabled():
+    settings = UserSettings.from_dict({"codex": {
+        "bridge_enabled": True,
+        "approval_enforced": False,
+        "workspace_restriction_enforced": False,
+        "secret_filtering_enforced": False,
+        "audit_logging_enforced": False,
+        "privacy_mode": "full_prompts",
+        "default_approval_behavior": "automatic",
+    }})
+    assert settings.codex.bridge_enabled is True
+    assert settings.codex.approval_enforced is True
+    assert settings.codex.workspace_restriction_enforced is True
+    assert settings.codex.secret_filtering_enforced is True
+    assert settings.codex.audit_logging_enforced is True
+    assert settings.codex.privacy_mode == "metadata_only"
+    assert settings.codex.default_approval_behavior == "always_ask"
+
+
 def test_default_user_settings_are_turkish_and_local_first() -> None:
     settings = UserSettings()
 
