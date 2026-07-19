@@ -6,7 +6,9 @@ from lina.codex.bridge import CodexBridge
 from lina.codex.client import CodexClientUnavailableError, UnavailableCodexClient
 from lina.codex.events import spoken_message, user_message
 from lina.codex.models import (CodexEvent, CodexEventType, CodexResult,
-                                CodexSessionStatus)
+                                CodexExecutionEvidence, CodexSessionStatus)
+from lina.codex.changes import (CodexChangeSet, CodexFileChange,
+                                CodexReviewDecision)
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.session import CodexSessionController
 
@@ -119,3 +121,54 @@ def test_shutdown_marks_active_session_interrupted(tmp_path: Path):
     assert session.status is CodexSessionStatus.INTERRUPTED
     assert session.error_code == "app_shutdown"
     assert bridge.repository.list()[0].exit_category == "app_shutdown"
+
+
+def modification_result(tmp_path: Path) -> CodexResult:
+    changed = str(tmp_path / "app.py")
+    change_set = CodexChangeSet((CodexFileChange(
+        "app.py", "modified", 1, 1, False, False, False, 4, 4, True,
+    ),), 1, 1)
+    return CodexResult(
+        "Değişiklik hazır", changed_files=(changed,),
+        evidence=CodexExecutionEvidence(
+            exit_code=0, before_fingerprints=(("app.py", "one"),),
+            after_fingerprints=(("app.py", "two"),),
+        ),
+        change_set=change_set,
+    )
+
+
+def test_modification_result_waits_for_review(tmp_path: Path) -> None:
+    bridge = CodexBridge(FakeClient(modification_result(tmp_path)))
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("app.py dosyasını değiştir", context)
+    bridge.start(session.session_id, approved=True)
+    assert session.review_pending
+    assert session.changed_file_count == 1
+    assert (session.additions, session.deletions) == (1, 1)
+    assert bridge.review_summary(session.session_id).pending == 1
+
+
+def test_review_before_continue_requires_acceptance(tmp_path: Path) -> None:
+    bridge = CodexBridge(FakeClient(modification_result(tmp_path)))
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("app.py dosyasını değiştir", context)
+    bridge.start(session.session_id, approved=True)
+    with pytest.raises(PermissionError):
+        bridge.complete_review(session.session_id)
+    bridge.decide_review(session.session_id, CodexReviewDecision("accept", "app.py"))
+    bridge.complete_review(session.session_id)
+    assert not session.review_pending
+
+
+def test_rejected_review_blocks_continue_without_touching_file(tmp_path: Path) -> None:
+    source = tmp_path / "app.py"
+    source.write_text("user content", encoding="utf-8")
+    bridge = CodexBridge(FakeClient(modification_result(tmp_path)))
+    context = bridge.select_workspace(tmp_path)
+    session = bridge.prepare("app.py dosyasını değiştir", context)
+    bridge.start(session.session_id, approved=True)
+    bridge.decide_review(session.session_id, CodexReviewDecision("reject", "app.py"))
+    with pytest.raises(PermissionError):
+        bridge.complete_review(session.session_id)
+    assert source.read_text(encoding="utf-8") == "user content"

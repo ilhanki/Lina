@@ -19,6 +19,8 @@ from lina.codex.repository import CodexHistoryRepository
 from lina.codex.validator import CodexOutputValidator
 from lina.codex.transports.errors import CodexTransportError
 from lina.agent.models import ApprovalDecision
+from lina.codex.changes import (CodexChangeSet, CodexReviewDecision,
+                                CodexReviewSession, CodexReviewSummary)
 
 
 EventListener = Callable[[CodexEvent, str], None]
@@ -36,6 +38,7 @@ class CodexBridge:
         self.response_quality = CodexResponseQuality()
         self._session: CodexSession | None = None
         self._listeners: list[EventListener] = []
+        self._reviews: dict[str, CodexReviewSession] = {}
 
     @property
     def session(self) -> CodexSession | None:
@@ -136,6 +139,11 @@ class CodexBridge:
                 result = self.client.execute(task, session.project_context, self._handle_client_event)
             session.remote_session = result.remote_session
             session.changed_file_count = len(result.changed_files)
+            if isinstance(result.change_set, CodexChangeSet):
+                session.additions = result.change_set.additions
+                session.deletions = result.change_set.deletions
+                if result.change_set.files:
+                    self._reviews[session.session_id] = CodexReviewSession(result.change_set)
             session.transition(CodexSessionStatus.VERIFYING, 80)
             self._emit(CodexEvent.create(session.session_id, CodexEventType.VERIFICATION_STARTED, progress=85))
             report = self.validator.verify(task, result)
@@ -223,6 +231,36 @@ class CodexBridge:
         session.result_surfaced = True
         self.repository.save(session)
         self.repository.mark_surfaced(session_id)
+
+    def review_summary(self, session_id: str) -> CodexReviewSummary | None:
+        self._matching(session_id)
+        review = self._reviews.get(session_id)
+        return review.summary() if review is not None else None
+
+    def review_change_set(self, session_id: str) -> CodexChangeSet | None:
+        self._matching(session_id)
+        review = self._reviews.get(session_id)
+        return review.change_set if review is not None else None
+
+    def decide_review(self, session_id: str,
+                      decision: CodexReviewDecision) -> CodexReviewSummary:
+        session = self._matching(session_id)
+        review = self._reviews.get(session_id)
+        if review is None:
+            raise ValueError("İncelenecek Codex değişikliği yok.")
+        review.decide(decision)
+        summary = review.summary()
+        session.review_pending = not summary.approved_for_continue
+        self.repository.save(session)
+        return summary
+
+    def complete_review(self, session_id: str) -> None:
+        session = self._matching(session_id)
+        summary = self.review_summary(session_id)
+        if summary is None or not summary.approved_for_continue:
+            raise PermissionError("Codex değişiklikleri onaylanmadan devam edilemez.")
+        session.review_pending = False
+        self.repository.save(session)
 
     def shutdown(self) -> None:
         if hasattr(self.client, "shutdown"):
