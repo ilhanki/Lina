@@ -56,7 +56,8 @@ from lina.agent.errors import AgentError
 from lina.codex import (CodexBridge, CodexClientUnavailableError, CodexTransportError, WorkspaceAccessError,
                          validate_codex_request_scope)
 from lina.codex.intent import classify_codex_intent
-from lina.codex.voice import confirmation_prompt
+from lina.codex.voice import confirmation_prompt, route_codex_control
+from lina.codex.changes import CodexReviewDecision
 from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntentType, RequestContext, ToolResult
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
@@ -78,6 +79,7 @@ from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, Sideba
 from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.codex_panel import CodexInspector
+from lina.interfaces.qt.codex_diff_review import CodexDiffReviewDialog
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
     AgentStepArgumentsDialog,
@@ -674,6 +676,9 @@ class LinaMainWindow(QMainWindow):
             PaletteAction("codex_create", "Codex görevi oluştur", "plan görev", self._create_codex_task, self._codex_bridge is not None),
             PaletteAction("codex_active", "Aktif Codex görevini göster", "durum progress", self._show_codex_inspector, self._codex_bridge is not None),
             PaletteAction("codex_history", "Codex geçmişi", "görev sonuç", self._show_codex_inspector, self._codex_bridge is not None),
+            PaletteAction("codex_stop", "Codex görevini durdur", "iptal stop", self._stop_codex_task, self._codex_bridge is not None),
+            PaletteAction("codex_resume", "Codex görevini sürdür", "devam resume recovery", self._resume_codex_task, self._codex_bridge is not None),
+            PaletteAction("codex_changes", "Codex değişikliklerini göster", "diff inceleme review", self._show_codex_diff_review, self._codex_bridge is not None),
             PaletteAction("codex_settings", "Codex ayarları", "güvenlik workspace", self.open_settings, self._user_settings_service is not None),
             PaletteAction("notifications", "Bildirimleri aç", "hatırlatıcı", self.open_notifications, self._notification_service is not None),
             PaletteAction("settings", "Ayarları aç", "tema ses model", self.open_settings, self._user_settings_service is not None),
@@ -794,7 +799,13 @@ class LinaMainWindow(QMainWindow):
         inspector = CodexInspector(self._inspector)
         session = self._codex_bridge.session if self._codex_bridge else None
         history = self._codex_bridge.repository.list() if self._codex_bridge else ()
-        inspector.render(session, history, self._codex_bridge.client_info if self._codex_bridge else None)
+        change_set = (self._codex_bridge.review_change_set(session.session_id)
+                      if self._codex_bridge and session else None)
+        recovery = self._codex_bridge.repository.recovery_items() if self._codex_bridge else ()
+        inspector.render(
+            session, history, self._codex_bridge.client_info if self._codex_bridge else None,
+            change_set, recovery,
+        )
         inspector.approve_requested.connect(self._approve_codex_task)
         inspector.deny_requested.connect(self._deny_codex_task)
         inspector.edit_requested.connect(self._edit_codex_task)
@@ -808,6 +819,11 @@ class LinaMainWindow(QMainWindow):
         inspector.diagnostics_requested.connect(self._show_codex_diagnostics)
         inspector.installation_guide_requested.connect(self._open_codex_installation_guide)
         inspector.terminal_requested.connect(self._open_codex_terminal)
+        inspector.review_requested.connect(self._show_codex_diff_review)
+        inspector.resume_requested.connect(self._resume_codex_task)
+        inspector.recovery_inspect_requested.connect(self._inspect_codex_recovery)
+        inspector.recovery_restart_requested.connect(self._restart_codex_recovery)
+        inspector.recovery_remove_requested.connect(self._remove_codex_recovery)
         if self._pending_codex_request and (session is None or session.terminal):
             inspector.render_workspace_required(self._pending_codex_request)
         self._inspector.show_widget("Codex", inspector)
@@ -864,6 +880,30 @@ class LinaMainWindow(QMainWindow):
             and any(subject in lowered for subject in ("bu proje", "projeyi", "bu dosya"))
             and any(action in lowered for action in ("incele", "analiz et", "optimize et", "hataları bul"))
         )
+
+    def _handle_codex_control_message(self, message: str) -> bool:
+        control = route_codex_control(message)
+        if not control.matched:
+            return False
+        if self._codex_bridge is None:
+            self._append_assistant_message("Codex Bridge şu anda etkin değil.")
+            return True
+        if control.action.value == "stop":
+            self._stop_codex_task()
+        elif control.action.value == "resume":
+            self._resume_codex_task()
+        elif control.action.value == "show_changes":
+            self._show_codex_diff_review()
+        else:
+            session = self._codex_bridge.session
+            if session is None:
+                self._append_assistant_message("Aktif Codex görevi yok.")
+            else:
+                self._append_assistant_message(
+                    f"Codex görev durumu: {session.status.value}. İlerleme: %{session.progress}."
+                )
+            self._show_codex_inspector()
+        return True
 
     def _create_codex_task(self) -> None:
         request = self._composer.text()
@@ -938,11 +978,20 @@ class LinaMainWindow(QMainWindow):
 
     def _handle_codex_result(self, _result: object) -> None:
         session = self._codex_bridge.session if self._codex_bridge else None
-        self._append_assistant_message(
-            session.result_summary if session and session.result_summary else "Codex görevi tamamlandı."
-        )
+        if session and session.review_pending:
+            self._append_assistant_message(
+                f"Codex {session.changed_file_count} dosyada değişiklik yaptı. "
+                f"+{session.additions} / -{session.deletions}. Değişiklikler incelemeni bekliyor."
+            )
+        else:
+            self._append_assistant_message(
+                session.result_summary if session and session.result_summary else "Codex görevi tamamlandı."
+            )
+        if session and self._codex_bridge:
+            self._codex_bridge.mark_result_surfaced(session.session_id)
         self._speak_codex_status(
-            "Analiz tamamlandı." if session and session.status.value == "completed"
+            "Değişiklikler incelemeni bekliyor." if session and session.review_pending
+            else "Analiz tamamlandı." if session and session.status.value == "completed"
             else "Görev doğrulanamadı."
         )
         self._show_codex_inspector()
@@ -975,6 +1024,7 @@ class LinaMainWindow(QMainWindow):
             "Codex görevi hazır. Onayını bekliyorum.",
             "Codex çalışıyor.", "Analiz tamamlandı.",
             "Codex oturumu gerekli.", "Görev doğrulanamadı.",
+            "Değişiklikler incelemeni bekliyor.",
         }
         if text in allowed:
             self._voice_controller.speak(text)
@@ -1027,6 +1077,112 @@ class LinaMainWindow(QMainWindow):
             self._codex_bridge.cancel()
             self._append_assistant_message("Codex görevi iptal edildi.")
             self._show_codex_inspector()
+
+    def _show_codex_diff_review(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        session = self._codex_bridge.session
+        change_set = self._codex_bridge.review_change_set(session.session_id)
+        if change_set is None:
+            self._append_assistant_message("İncelenecek Codex değişikliği bulunmuyor.")
+            return
+        dialog = CodexDiffReviewDialog(
+            change_set, task_title=session.task_summary,
+            workspace_name=session.project_context.root_path.name, parent=self,
+        )
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.decision_requested.connect(self._handle_codex_review_decision)
+        dialog.review_completed.connect(self._complete_codex_review)
+        self._codex_diff_dialog = dialog
+        dialog.open()
+
+    def _handle_codex_review_decision(self, decision: CodexReviewDecision) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        session = self._codex_bridge.session
+        summary = self._codex_bridge.decide_review(session.session_id, decision)
+        dialog = getattr(self, "_codex_diff_dialog", None)
+        if dialog is not None:
+            change_set = self._codex_bridge.review_change_set(session.session_id)
+            if change_set is not None:
+                dialog.render(change_set)
+        if decision.action == "reject":
+            self._append_assistant_message(
+                "Reddetme kararı kaydedildi. Hiçbir dosya otomatik geri alınmadı veya silinmedi."
+            )
+        elif decision.action in {"request_explanation", "send_back"}:
+            self._append_assistant_message(
+                "İnceleme talebi kaydedildi; yeni Codex görevi ayrıca onay gerektirecek."
+            )
+        if summary.approved_for_continue:
+            self._complete_codex_review()
+        self._show_codex_inspector()
+
+    def _complete_codex_review(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            return
+        try:
+            self._codex_bridge.complete_review(self._codex_bridge.session.session_id)
+        except PermissionError:
+            return
+        self._append_assistant_message("Codex değişiklik incelemesi tamamlandı.")
+        self._show_codex_inspector()
+
+    def _resume_codex_task(self) -> None:
+        if self._codex_bridge is None or self._codex_bridge.session is None:
+            self._append_assistant_message(
+                "Önceki görevi sürdürmek için aynı workspace'i seçip açıkça onaylamalısın."
+            )
+            return
+        session = self._codex_bridge.session
+        reference = session.remote_session
+        if reference is None or not reference.resumable:
+            self._append_assistant_message(
+                "Bu görev güvenli resume metadata'sına sahip değil. Yeni görev olarak başlatabilirsin."
+            )
+            return
+        answer = QMessageBox.question(
+            self, "Codex görevini sürdür",
+            "Aynı workspace ve doğrulanmış CLI oturumuyla göreve devam edilsin mi?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        worker = FunctionWorker(lambda: self._codex_bridge.start(
+            session.session_id, approved=True, resume_reference=reference
+        ))
+        worker.signals.result.connect(self._handle_codex_result)
+        worker.signals.error.connect(self._handle_codex_error)
+        self._start_worker(worker)
+
+    def _inspect_codex_recovery(self, item: object) -> None:
+        if item is None:
+            return
+        details = (
+            f"Görev: {getattr(item, 'task_summary', 'Bilinmiyor')}\n"
+            f"Workspace: {getattr(item, 'workspace_display_name', 'Bilinmiyor')}\n"
+            f"Durum: {getattr(getattr(item, 'status', None), 'value', 'unknown')}\n"
+            f"Son olay: {getattr(item, 'last_event', 'unknown')}\n"
+            f"Doğrulama: {getattr(item, 'verification', 'unverified')}"
+        )
+        self._inspector.show_details("Codex Görev Kurtarma", details)
+
+    def _restart_codex_recovery(self, item: object) -> None:
+        if item is None:
+            return
+        self._composer.input.setPlainText(str(getattr(item, "task_summary", "")))
+        self._composer.input.setFocus()
+        self._append_assistant_message(
+            "Önceki görev özeti yeni görev taslağına alındı; workspace ve plan yeniden onaylanacak."
+        )
+
+    def _remove_codex_recovery(self, item: object) -> None:
+        if self._codex_bridge is None or item is None:
+            return
+        self._codex_bridge.repository.delete(str(getattr(item, "session_id", "")))
+        self._append_assistant_message("Codex görev kaydı geçmişten kaldırıldı; workspace dosyalarına dokunulmadı.")
+        self._show_codex_inspector()
 
     def _show_codex_diagnostics(self) -> None:
         if self._codex_bridge is None:
@@ -1634,6 +1790,8 @@ class LinaMainWindow(QMainWindow):
         )
         if request_screen_context is not None:
             user_message.set_visual_status("Analiz ediliyor")
+        if self._handle_codex_control_message(message):
+            return
         if self._should_route_codex(message):
             self._prepare_codex_request(message)
             return
@@ -1752,6 +1910,8 @@ class LinaMainWindow(QMainWindow):
 
     def _handle_routed_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
         if request.intent is RoutingIntentType.CODEX_OPERATIONAL:
+            if self._handle_codex_control_message(user_text):
+                return
             self._prepare_codex_request(user_text)
             return
         if request.intent in {

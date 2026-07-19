@@ -1,6 +1,7 @@
 from lina.codex.models import (CodexResult, VerificationOutcome, VerificationReport)
 from lina.codex.quality import CodexResponseQuality
-from lina.codex.voice import confirmation_prompt, route_codex_voice
+from lina.codex.voice import (CodexControlAction, confirmation_prompt,
+                              route_codex_control, route_codex_voice)
 
 
 def test_voice_routes_explicit_codex_command_to_confirmation():
@@ -29,3 +30,23 @@ def test_response_quality_removes_terminal_spam_and_bounds_output():
     assert "Bulunanlar:" in text
     assert "Herhangi bir dosya değiştirilmedi." in text
     assert "Doğrulama:" in text
+
+
+def test_voice_routes_codex_status_control() -> None:
+    assert route_codex_control("Codex görev durumu nedir?").action is CodexControlAction.STATUS
+
+
+def test_voice_routes_codex_stop_control() -> None:
+    assert route_codex_control("Codex görevini durdur").action is CodexControlAction.STOP
+
+
+def test_voice_routes_codex_resume_control() -> None:
+    assert route_codex_control("Codex görevine devam et").action is CodexControlAction.RESUME
+
+
+def test_voice_routes_codex_change_review_control() -> None:
+    assert route_codex_control("Codex değişiklikleri göster").action is CodexControlAction.SHOW_CHANGES
+
+
+def test_voice_control_does_not_capture_normal_chat() -> None:
+    assert not route_codex_control("Bugün ne yapıyorsun?").matched
