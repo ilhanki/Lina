@@ -12,8 +12,9 @@ from lina.codex.models import (CodexHistoryEntry, CodexSession, CodexSessionStat
 
 
 class CodexHistoryRepository:
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, *, max_entries: int = 500) -> None:
         self.path = path
+        self.max_entries = max(10, min(int(max_entries), 5000))
         self._entries: list[CodexHistoryEntry] = []
         if path is not None and path.exists():
             self._load()
@@ -38,6 +39,9 @@ class CodexHistoryRepository:
                                   session.remote_session.cli_session_id if session.remote_session else None)
         self._entries = [item for item in self._entries if item.session_id != entry.session_id]
         self._entries.append(entry)
+        self._entries = sorted(
+            self._entries, key=lambda item: item.created_at, reverse=True
+        )[:self.max_entries]
         self._flush()
         return entry
 
@@ -114,6 +118,9 @@ class CodexHistoryRepository:
                 bool(item.get("result_surfaced", False)),
                 str(item["remote_session_id"]) if item.get("remote_session_id") else None,
             ) for item in payload if isinstance(item, dict)]
+            self._entries = sorted(
+                self._entries, key=lambda item: item.created_at, reverse=True
+            )[:self.max_entries]
         except (OSError, ValueError, TypeError, KeyError):
             self._entries = []
 

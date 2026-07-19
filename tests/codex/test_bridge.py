@@ -11,6 +11,7 @@ from lina.codex.changes import (CodexChangeSet, CodexFileChange,
                                 CodexReviewDecision)
 from lina.codex.repository import CodexHistoryRepository
 from lina.codex.session import CodexSessionController
+from lina.codex.transports.errors import CodexApprovalRequired
 
 
 class FakeClient:
@@ -60,6 +61,14 @@ def test_client_failure_marks_session_failed(tmp_path: Path):
     with pytest.raises(RuntimeError):
         bridge.start(session.session_id, approved=True)
     assert session.status is CodexSessionStatus.FAILED
+
+
+def test_runtime_approval_pauses_without_auto_approval(tmp_path: Path) -> None:
+    bridge, session = prepared_bridge(tmp_path, FakeClient(failure=CodexApprovalRequired()))
+    with pytest.raises(CodexApprovalRequired):
+        bridge.start(session.session_id, approved=True)
+    assert session.status is CodexSessionStatus.PAUSED
+    assert session.error_code == "runtime_approval_required"
 
 
 def test_uncertain_modification_is_not_reported_completed(tmp_path: Path):

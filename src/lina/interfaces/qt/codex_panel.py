@@ -212,7 +212,10 @@ class CodexInspector(QWidget):
                 f"Önceki Codex görevi tamamlanmadan kapanmış.\n"
                 f"{item.task_summary} · {item.workspace_display_name or 'Workspace'} · {item.status.value}"
             )
-            self.recovery_resume_button.setEnabled(item.resumable)
+            can_resume = bool(
+                item.resumable and session is not None and session.remote_session is not None
+            )
+            self.recovery_resume_button.setEnabled(can_resume)
         summaries = [
             f"{item.created_at.date()} · {item.task_summary} · {item.status.value} · "
             f"{item.changed_file_count} dosya"

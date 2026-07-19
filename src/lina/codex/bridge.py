@@ -60,7 +60,9 @@ class CodexBridge:
         frameworks: set[str] = set()
         language_by_suffix = {".py": "Python", ".js": "JavaScript", ".ts": "TypeScript",
                               ".rs": "Rust", ".go": "Go", ".java": "Java", ".cs": "C#"}
-        for path in grant.root.rglob("*"):
+        for index, path in enumerate(grant.root.rglob("*")):
+            if index >= 5000:
+                break
             if not path.is_file() or is_secret_path(path) or any(
                     part in {".git", "__pycache__", "node_modules", ".venv"} for part in path.parts):
                 continue
@@ -178,11 +180,16 @@ class CodexBridge:
         except CodexTransportError as error:
             session.error_code = error.code
             session.result_summary = error.user_message
-            status = (CodexSessionStatus.CANCELLED
-                      if error.code == "cancelled" else CodexSessionStatus.FAILED)
+            status = (
+                CodexSessionStatus.CANCELLED if error.code == "cancelled"
+                else CodexSessionStatus.PAUSED if error.code == "runtime_approval_required"
+                else CodexSessionStatus.FAILED
+            )
             session.transition(status, 100)
             session.exit_category = error.code
-            self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
+            event_type = (CodexEventType.APPROVAL_REQUESTED
+                          if status is CodexSessionStatus.PAUSED else CodexEventType.FAILED)
+            self._emit(CodexEvent.create(session.session_id, event_type, progress=100))
             raise
         except Exception:
             session.error_code = "client_failure"
@@ -193,7 +200,8 @@ class CodexBridge:
             raise
         finally:
             session.duration_seconds = max(0.0, time.monotonic() - started)
-            self.permissions.consume_one_time(session.project_context.root_path)
+            if session.status is not CodexSessionStatus.PAUSED:
+                self.permissions.consume_one_time(session.project_context.root_path)
             if retain_history:
                 self.repository.save(session)
 

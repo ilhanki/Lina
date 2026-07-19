@@ -133,3 +133,13 @@ def test_mark_surfaced_removes_completed_item_from_recovery(tmp_path: Path) -> N
     repository.save(session)
     repository.mark_surfaced(session.session_id)
     assert repository.recovery_items() == ()
+
+
+def test_history_is_bounded_even_with_unlimited_day_retention(tmp_path: Path) -> None:
+    repository = CodexHistoryRepository(max_entries=10)
+    for index in range(15):
+        session = CodexSession.create(ProjectContext(tmp_path), f"Task {index}")
+        session.transition(CodexSessionStatus.COMPLETED)
+        repository.save(session)
+    repository.cleanup(None)
+    assert len(repository.list()) == 10

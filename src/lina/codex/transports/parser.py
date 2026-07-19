@@ -31,6 +31,7 @@ class CodexJsonlParser:
         self.remote_session_id: str | None = None
         self.final_event_seen = False
         self.usage: dict[str, int] = {}
+        self.git_action_signals: set[str] = set()
 
     def feed(self, chunk: str) -> tuple[CodexEvent, ...]:
         self._buffer += str(chunk or "")
@@ -108,6 +109,11 @@ class CodexJsonlParser:
                 self.remote_session_id = candidate_id
                 break
         text = self._extract_text(item)
+        if "command" in raw_type or "command" in str(item.get("type", "")).casefold():
+            command = item.get("command") or item.get("cmd") or text
+            if isinstance(command, list):
+                command = " ".join(str(part) for part in command[:100])
+            self._capture_git_signal(str(command or ""))
         path = self._extract_path(item)
         if path:
             self.changed_files.add(path)
@@ -147,6 +153,12 @@ class CodexJsonlParser:
             if isinstance(value, int) and 0 <= value <= 10**12:
                 self.usage[key] = value
 
+    def _capture_git_signal(self, command: str) -> None:
+        folded = " ".join(command.casefold().split())
+        for action in ("push", "fetch", "reset", "clean", "commit", "tag", "checkout", "switch"):
+            if re_search_git_action(folded, action):
+                self.git_action_signals.add(f"git_{action}_signal")
+
     @classmethod
     def _extract_text(cls, payload: dict[str, Any]) -> str:
         for key in ("text", "message", "content", "summary", "output_text"):
@@ -177,3 +189,8 @@ class CodexJsonlParser:
             if isinstance(value, str) and value.strip():
                 return value.strip()[:1000]
         return None
+
+
+def re_search_git_action(command: str, action: str) -> bool:
+    import re
+    return re.search(rf"(?:^|[;&|]\s*|\s)git\s+(?:-[^\s]+\s+)*{action}(?:\s|$)", command) is not None

@@ -85,11 +85,19 @@ class CodexCommandBuilder:
             raise CodexOutputInvalid("Codex resume capability is unavailable")
         if not _valid_session_id(session_id):
             raise ValueError("Invalid Codex session identifier")
-        base = list(self.execution(workspace, mode, ephemeral=False))
-        exec_index = base.index("exec")
-        base.insert(exec_index + 1, "resume")
-        dash_index = len(base) - 1
-        base.insert(dash_index, session_id)
+        if not self.info.resume_supports_json or not self.info.resume_supports_stdin:
+            raise CodexOutputInvalid("Codex resume JSON/stdin capability is unavailable")
+        if not (self.info.root_supports_cd and self.info.root_supports_sandbox):
+            raise CodexOutputInvalid("Codex resume workspace sandbox cannot be enforced")
+        sandbox = ("workspace-write" if mode is CodexExecutionMode.CONTROLLED_MODIFICATION
+                   else "read-only")
+        base = [str(self.info.executable_path), "--cd", str(workspace),
+                "--sandbox", sandbox]
+        if self.info.root_supports_approval:
+            base.extend(("--ask-for-approval", "on-request"))
+        elif mode is CodexExecutionMode.CONTROLLED_MODIFICATION:
+            raise CodexApprovalRequired("Codex resume approval policy is unavailable")
+        base.extend(("exec", "resume", "--json", session_id, "-"))
         return build_process_invocation(
             base[0], base[1:], kind=self.info.executable_kind
         )
@@ -212,7 +220,10 @@ class CodexCliClient:
                 rejection_reason=None,
             )
             checked.append(selected)
-            checked.extend(item for item in candidates if item not in checked and item != candidate)
+            checked.extend(
+                replace(item, rejection_reason=item.rejection_reason or "not_checked_lower_priority")
+                for item in candidates if item not in checked and item != candidate
+            )
             info = CodexCliInfo(
                 candidate.path, version, True, authenticated, method,
                 selected_candidate_source=candidate.source,
@@ -323,6 +334,13 @@ class CodexCliClient:
             change_set = build_change_set(before, after)
             evidence = build_evidence(before, after, result.exit_code,
                                       sensitive_output_detected=result.sensitive_output_detected)
+            if parser.git_action_signals:
+                evidence = replace(
+                    evidence,
+                    integrity_reasons=tuple(dict.fromkeys((
+                        *evidence.integrity_reasons, *sorted(parser.git_action_signals),
+                    ))),
+                )
             changed = changed_paths(evidence, context.root_path)
             now = datetime.now(timezone.utc)
             remote_id = parser.remote_session_id or (

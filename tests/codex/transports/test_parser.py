@@ -139,3 +139,16 @@ def test_non_object_json_is_rejected() -> None:
     parser = CodexJsonlParser("session")
     parser.feed('["event"]\n')
     assert parser.invalid_lines == 1
+
+
+def test_parser_records_dangerous_git_command_as_metadata_signal() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed('{"type":"command.started","item":{"command":"git push origin main"}}\n')
+    assert parser.git_action_signals == {"git_push_signal"}
+    assert "origin main" not in repr(parser.git_action_signals)
+
+
+def test_parser_ignores_safe_non_git_command_signal() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed('{"type":"command.started","item":{"command":"python -m pytest"}}\n')
+    assert parser.git_action_signals == set()

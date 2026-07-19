@@ -78,5 +78,5 @@ def test_panel_shows_recovery_actions_without_auto_resume(qtbot) -> None:
     panel.render(None, recovery=(entry,))
     panel.show()
     assert panel.recovery_card.isVisible()
-    assert panel.recovery_resume_button.isEnabled()
+    assert not panel.recovery_resume_button.isEnabled()
     assert "tamamlanmadan" in panel.recovery_label.text()

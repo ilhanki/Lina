@@ -220,6 +220,7 @@ class LinaMainWindow(QMainWindow):
         self._live_vision_controller = live_vision_controller
         self._agent_controller = agent_controller
         self._codex_bridge = codex_bridge
+        self._codex_refresh_pending = False
         self.codex_event_received.connect(self._handle_codex_event_ui)
         if self._codex_bridge is not None:
             self._codex_bridge.subscribe(
@@ -998,6 +999,13 @@ class LinaMainWindow(QMainWindow):
 
     def _handle_codex_event_ui(self, _event: object, _message: str) -> None:
         # The event originated in a worker thread; this Qt signal queues the UI refresh.
+        if self._codex_refresh_pending:
+            return
+        self._codex_refresh_pending = True
+        QTimer.singleShot(100, self._flush_codex_event_ui)
+
+    def _flush_codex_event_ui(self) -> None:
+        self._codex_refresh_pending = False
         self._show_codex_inspector()
 
     def _handle_codex_error(self, error: object) -> None:

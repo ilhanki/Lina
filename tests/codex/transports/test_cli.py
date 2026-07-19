@@ -27,7 +27,9 @@ def info(path: Path, **changes) -> CodexCliInfo:
         executable_path=path, version="1.2.3", available=True, authenticated=True,
         auth_method_summary="ChatGPT", supports_exec=True, supports_json=True,
         supports_approval_flags=True, supports_stdin=True, supports_cd=True,
-        supports_sandbox=True,
+        supports_sandbox=True, root_supports_cd=True, root_supports_sandbox=True,
+        root_supports_approval=True, resume_supports_json=True,
+        resume_supports_stdin=True,
     )
     values.update(changes)
     return CodexCliInfo(**values)
@@ -239,6 +241,9 @@ def test_resume_builder_places_validated_session_id_before_stdin(tmp_path: Path)
         tmp_path, "123e4567-e89b-42d3-a456-426614174000", CodexExecutionMode.READ_ONLY
     )
     assert invocation.display_args[-2:] == ("123e4567-e89b-42d3-a456-426614174000", "-")
+    resume_index = invocation.display_args.index("resume")
+    assert invocation.display_args.index("--cd") < resume_index
+    assert invocation.display_args.index("--sandbox") < resume_index
 
 
 @pytest.mark.parametrize("unsafe", ("../bad", "bad&id", "two words"))

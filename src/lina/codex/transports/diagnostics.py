@@ -66,6 +66,11 @@ class CodexCliInfo:
     supports_model: bool = False
     supports_reasoning_effort: bool = False
     supports_output_schema: bool = False
+    root_supports_cd: bool = False
+    root_supports_sandbox: bool = False
+    root_supports_approval: bool = False
+    resume_supports_json: bool = False
+    resume_supports_stdin: bool = False
     selected_candidate_source: str = "unknown"
     executable_kind: str = "unknown"
     candidates: tuple[CodexExecutableCandidate, ...] = ()
@@ -201,6 +206,11 @@ def capabilities_from_help(
         "supports_model": "--model" in execute or "--model" in root,
         "supports_reasoning_effort": "reasoning" in execute or "model_reasoning_effort" in execute,
         "supports_output_schema": "--output-schema" in execute or "--output-schema" in resume,
+        "root_supports_cd": "--cd" in root,
+        "root_supports_sandbox": "--sandbox" in root,
+        "root_supports_approval": "--ask-for-approval" in root,
+        "resume_supports_json": "--json" in resume,
+        "resume_supports_stdin": "stdin" in resume,
         "approval_flags_global": "--ask-for-approval" not in execute and "--ask-for-approval" in root,
         "sandbox_global": "--sandbox" not in execute and "--sandbox" in root,
         "cd_global": "--cd" not in execute and "--cd" in root,
