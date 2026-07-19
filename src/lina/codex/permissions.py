@@ -12,11 +12,14 @@ from lina.codex.models import WorkspacePermissionLevel
 SECRET_NAMES = {
     ".env", "auth.json", "credentials", "credentials.json", "secrets", "secrets.json",
     "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", ".git-credentials", ".netrc",
+    ".npmrc", ".pypirc", "pip.conf", "pip.ini", "login data", "cookies",
+    "web credentials", "local state", "known_hosts.old", "credentials.db",
 }
 SECRET_SUFFIXES = {".key", ".pem", ".pfx", ".p12", ".crt"}
 _SECRET_REQUEST = re.compile(
     r"(?:^|[\\/\s])(?:\.env(?:\.[\w.-]+)?|auth\.json|credentials[^\s]*|secrets[^\s]*|"
-    r"id_(?:rsa|dsa|ecdsa|ed25519)|[^\s]+\.(?:key|pem|pfx|p12|crt))(?:$|[\s,.;])",
+    r"id_(?:rsa|dsa|ecdsa|ed25519)|\.npmrc|\.pypirc|pip\.(?:conf|ini)|"
+    r"[^\s]+\.(?:key|pem|pfx|p12|crt))(?:$|[\s,.;])",
     re.IGNORECASE,
 )
 _WHOLE_DRIVE_REQUEST = re.compile(
@@ -35,7 +38,10 @@ def is_secret_path(path: Path) -> bool:
             or name.startswith("credentials") or name.startswith("secrets")
             or path.suffix.casefold() in SECRET_SUFFIXES
             or any(part.casefold() in {
-                "credentials", "secrets", ".ssh", "browser", "user data", "windows credentials"
+                "credentials", "secrets", ".ssh", ".aws", ".azure", ".gcloud",
+                "gcloud", "browser", "user data", "windows credentials",
+                "credential manager", "git credential manager", "password-store",
+                "keychains", "cookies", "login data",
             } for part in path.parts))
 
 

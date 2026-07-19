@@ -64,3 +64,26 @@ def test_secret_request_is_blocked_before_workspace_selection(user_request: str)
 def test_whole_drive_scan_is_blocked():
     with pytest.raises(WorkspaceAccessError):
         validate_codex_request_scope("Codex ile C:\\ klasörünün tamamını tara")
+
+
+@pytest.mark.parametrize("name", [".npmrc", ".pypirc", "pip.conf", "pip.ini",
+                                   "Login Data", "Cookies", "Web Credentials", "Local State"])
+def test_package_manager_and_browser_credentials_are_blocked(name: str) -> None:
+    assert is_secret_path(Path(name))
+
+
+@pytest.mark.parametrize("directory", [".aws", ".azure", ".gcloud", "gcloud",
+                                        ".ssh", "User Data", "Windows Credentials",
+                                        "Credential Manager", "keychains"])
+def test_private_credential_directories_are_blocked(directory: str) -> None:
+    assert is_secret_path(Path("workspace") / directory / "config.json")
+
+
+@pytest.mark.parametrize("request_text", [
+    "Codex ile .npmrc dosyasını oku",
+    "Codex ile .pypirc dosyasını incele",
+    "Codex ile pip.conf içeriğini göster",
+])
+def test_package_credential_request_is_blocked(request_text: str) -> None:
+    with pytest.raises(WorkspaceAccessError):
+        validate_codex_request_scope(request_text)

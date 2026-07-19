@@ -154,3 +154,27 @@ def test_extended_sensitive_diagnostics_are_redacted(text: str) -> None:
 )
 def test_redaction_preserves_safe_technical_examples(text: str) -> None:
     assert redact(text) == text
+
+
+@pytest.mark.parametrize("secret", [
+    "eyJabcdefghijk.abcdefghijklmnop.qrstuvwxyz1234",
+    "postgresql://user:verysecretpassword@localhost/db",
+    "mongodb://admin:supersecret123@localhost/data",
+    "email=user@example.com password=longpassword",
+])
+def test_redaction_covers_session_and_connection_secrets(secret: str) -> None:
+    safe = redact(secret)
+    assert safe != secret
+    assert "verysecretpassword" not in safe
+    assert "supersecret123" not in safe
+    assert "longpassword" not in safe
+
+
+@pytest.mark.parametrize("safe_text", [
+    "postgresql://localhost/database",
+    "email=user@example.com",
+    "Bearer example",
+    "JWT validation example",
+])
+def test_extended_redaction_preserves_safe_documentation(safe_text: str) -> None:
+    assert redact(safe_text) == safe_text

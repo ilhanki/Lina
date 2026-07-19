@@ -218,17 +218,36 @@ _SENSITIVE = re.compile(
     r"-----BEGIN\s+(?:RSA\s+|OPENSSH\s+|EC\s+)?PRIVATE\s+KEY-----"
     r")"
 )
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,}\b")
+_CONNECTION_SECRET = re.compile(
+    r"(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|redis|amqp)://"
+    r"([^\s:/@]{1,128}):([^\s@]{8,})@"
+)
+_EMAIL_PASSWORD = re.compile(
+    r"(?i)(email\s*[:=]\s*[^\s,;]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"
+    r"([\s,;]+password\s*[:=]\s*)([^\s,;]{8,})"
+)
 
 
 def redact(text: str) -> str:
     value = str(text or "")
-    return _SENSITIVE.sub(lambda match: (
+    value = _SENSITIVE.sub(lambda match: (
         match.group(0).replace(match.group(1), "[REDACTED]") if match.group(1) else "[REDACTED]"
     ), value)
+    value = _JWT.sub("[REDACTED]", value)
+    value = _CONNECTION_SECRET.sub(
+        lambda match: match.group(0).replace(match.group(2), "[REDACTED]"), value
+    )
+    return _EMAIL_PASSWORD.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", value
+    )
 
 
 def contains_sensitive_text(text: str) -> bool:
-    return _SENSITIVE.search(str(text or "")) is not None
+    value = str(text or "")
+    return any(pattern.search(value) is not None for pattern in (
+        _SENSITIVE, _JWT, _CONNECTION_SECRET, _EMAIL_PASSWORD,
+    ))
 
 
 def parse_auth_status(output: str, exit_code: int) -> tuple[bool, str]:
