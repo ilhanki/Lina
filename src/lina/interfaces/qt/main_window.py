@@ -142,7 +142,7 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.13.1-alpha"
+APP_VERSION = "v0.13.2-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"

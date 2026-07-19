@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.13.1--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.13.2--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Inference" src="https://img.shields.io/badge/inference-Ollama_local-111111">
