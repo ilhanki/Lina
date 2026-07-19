@@ -27,6 +27,12 @@ class CodexOutputValidator:
                                       tuple(checks + ["forbidden_file"]))
         evidence = result.evidence
         if evidence is not None:
+            if evidence.integrity_reasons:
+                return VerificationReport(
+                    VerificationOutcome.FAILED,
+                    "Codex görevi çalışma alanı veya Git bütünlüğünü koruyamadı.",
+                    tuple(checks + list(evidence.integrity_reasons)),
+                )
             if evidence.sensitive_output_detected:
                 return VerificationReport(VerificationOutcome.FAILED,
                                           "Codex çıktısında hassas veri olasılığı algılandı ve içerik maskelendi.",

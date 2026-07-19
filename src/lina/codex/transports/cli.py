@@ -26,6 +26,7 @@ from lina.codex.transports.invocation import (WindowsCommandInvocation,
                                               build_process_invocation)
 from lina.codex.transports.prompt import build_task_prompt
 from lina.codex.transports.verification import build_evidence, capture_workspace, changed_paths
+from lina.codex.snapshot import build_change_set
 from lina.codex.resume import assess_resume, workspace_fingerprint
 
 
@@ -318,6 +319,7 @@ class CodexCliClient:
             if not summary:
                 raise CodexOutputInvalid("Codex CLI returned no final message")
             after = capture_workspace(context)
+            change_set = build_change_set(before, after)
             evidence = build_evidence(before, after, result.exit_code,
                                       sensitive_output_detected=result.sensitive_output_detected)
             changed = changed_paths(evidence, context.root_path)
@@ -338,7 +340,8 @@ class CodexCliClient:
                 )
             return CodexResult(summary, changed_files=changed,
                                verification_notes=(f"cli_exit={result.exit_code}",),
-                               evidence=evidence, remote_session=remote)
+                               evidence=evidence, remote_session=remote,
+                               change_set=change_set)
         finally:
             with self._lock:
                 self._parser = None
