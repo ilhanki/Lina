@@ -1,5 +1,20 @@
 # Lina Geliştirme Günlüğü
 
+## 2026-07-19 - v0.13.2-alpha Codex Production Hardening
+
+- Windows discovery, launchable npm `codex.cmd` adayına ilerleyecek ve güvenli typed wrapper invocation kuracak biçimde düzeltildi.
+- Root, exec ve resume help kapsamları ayrıldı; session ID, workspace fingerprint, CLI minor sürümü, auth, retention ve kullanıcı onayı kapılı resume eklendi.
+- Unfinished metadata başlangıçta interrupted olarak recover ediliyor; restart'ta canlı reference yoksa otomatik veya sahte resume yapılmıyor.
+- Bounded Git/workspace snapshot, typed file/hunk change set, secret/binary/large-file kuralları ve zorunlu diff review eklendi.
+- Process lifecycle bounded stream, stdin writer, timeout, Ctrl-Break/terminate/PID-tree kill ve shutdown cleanup ile sertleştirildi.
+- JSONL parser BOM/CRLF/partial/malformed/unknown/usage/session olaylarını bounded ve redacted biçimde destekliyor.
+- Runtime approval paused durumuna çevrildi; Git push/fetch/reset/clean/commit/tag/checkout/switch sinyalleri verification reason oldu.
+- Settings schema v11, Task Center/recovery/diff dialog, command palette, event throttling ve güvenli Voice kontrolleri tamamlandı.
+- Secret sınırları npm/pip/cloud/browser/credential yolları ve token/private-key/JWT/connection-string redaction ile genişletildi.
+- 100'den fazla yeni regresyon, gerçek geçici Git/process fixture'ları, compileall ve PySide6 import doğrulamaları eklendi.
+- Tek gerçek read-only smoke npm CLI `0.144.6` ile başlatıldı; resmi auth `Not logged in` olduğu için `execution_failed` döndü. Önce/sonra çalışma ağacı ve HEAD aynı kaldı; deneme tekrarlanmadı.
+- Sürüm `0.13.2a0` / `v0.13.2-alpha` oldu. Paket, ACL, credential, push ve tag işlemi yapılmadı.
+
 ## 2026-07-18 - v0.13.1-alpha Real Codex CLI Transport
 
 - Resmi CLI için explicit path/PATH discovery, semantic version ve gerçek help tabanlı capability snapshot eklendi.

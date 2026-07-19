@@ -2,19 +2,19 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.13.1-alpha Real Codex CLI Transport
+## Mevcut Durum: v0.13.2-alpha Codex Production Hardening
 
 Tamamlandı:
 
 - `v0.13.0-alpha`: Codex Bridge Foundation.
 - `v0.13.1-alpha`: CLI discovery/diagnostics, resmi auth status/login/logout, JSONL exec transport, cancellation, verification, GUI/Voice/settings ve credential isolation.
+- `v0.13.2-alpha`: Windows npm CLI reliability, session resume kapıları, interrupted recovery, bounded snapshot/diff review, process/parser hardening ve developer workflow.
 
 Sıradaki:
 
-- `v0.13.2-alpha`: Codex Session Resume & Diff Review.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
 
-Typed bridge, workspace izinleri, secret filtreleme, explicit approval, event çevirisi, bağımsız verification, metadata-only history, Tools/command palette/settings ve voice routing temelleri tamamlandı. Sonraki sürüm gerçek Codex transport adaptörünü, kullanıcı tarafından seçilmiş provider yapılandırmasını ve daha zengin diff önizlemesini ele alabilir; güvenlik sınırları gevşetilmeyecektir.
+Typed bridge, gerçek CLI transportu, workspace izinleri, secret filtreleme, explicit approval, session resume, interrupted recovery, bounded diff review, bağımsız verification, metadata-only history, Tools/command palette/settings ve voice routing tamamlandı. Sonraki sürüm güvenlik sınırlarını gevşetmeden yeni masaüstü capability'lerini ele alabilir.
 
 ## Voice ve Agent Roadmap
 
@@ -29,6 +29,8 @@ Typed bridge, workspace izinleri, secret filtreleme, explicit approval, event ç
 - `v0.12.1-alpha`: Agent Reliability, Task Templates & Recovery tamamlandı.
 - `v0.12.2-alpha`: Reference-Driven Premium Desktop Experience tamamlandı.
 - `v0.13.0-alpha`: Codex Bridge Foundation tamamlandı.
+- `v0.13.1-alpha`: Real Codex CLI Transport tamamlandı.
+- `v0.13.2-alpha`: Codex Production Hardening tamamlandı; auth gerektiren gerçek başarılı exec/resume/modification smoke'u dış koşul olarak açık bırakıldı.
 - `v0.14.0-alpha`: Safe Desktop Capabilities.
 - `v0.15.0-alpha`: Packaging & Update Foundation.
 

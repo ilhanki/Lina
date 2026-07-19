@@ -1,5 +1,26 @@
 # Lina Smoke Test Checklist
 
+## v0.13.2-alpha Codex Production Hardening
+
+- [x] WindowsApps launch edilemezken sınırlı discovery npm `codex.cmd` adayını seçti; ACL/PATH/paket değişmedi.
+- [x] Seçilen CLI `codex-cli 0.144.6`; root/exec/resume help kapsamları ayrı capability snapshot'a dönüştü.
+- [x] `.cmd` invocation typed quoting, `%` koruması, filtered environment, stdin prompt ve `shell=False` sözleşmesini geçti.
+- [x] Session ID, workspace fingerprint, CLI minor sürümü, auth, retention ve kullanıcı onayı resume builder'da zorunlu.
+- [x] Restart recovery unfinished kaydı interrupted yapıyor; remote reference yoksa resume sunmuyor ve tool çalıştırmıyor.
+- [x] Git ve non-Git snapshot limitleri, add/modify/delete/rename/mode, hunk, binary, large, truncation ve secret değişiklikleri fixture'larda doğrulandı.
+- [x] Diff dialog dosya/özet/diff, arama, wrap, kopya ve kabul/ret kararlarını gösteriyor; ret rollback yapmıyor.
+- [x] Runtime approval otomatik kabul edilmiyor; görev paused oluyor.
+- [x] Timeout/cancel/shutdown cleanup ve gerçek yerel child-process sonlandırması orphan bırakmıyor.
+- [x] JSONL BOM, CRLF, partial, malformed, unknown, missing-final, Unicode, huge-line ve session ID regresyonları geçiyor.
+- [x] Token/private key/JWT/connection string ve hassas path redaction testleri geçiyor; sıradan teknik metin korunuyor.
+- [x] Tek gerçek read-only smoke öncesi/sonrası `git status` ve binary diff boş, HEAD aynı.
+- [ ] Gerçek read-only smoke başarılı sonuç üretti. Release makinesinde resmi auth `Not logged in`; tek deneme `execution_failed` oldu.
+- [ ] Gerçek session resume başarılı oldu. Auth olmadığı için çalıştırılmadı; help kapsamı ve command builder doğrulandı.
+- [ ] Gerçek ücretli modification/diff review tamamlandı. Auth olmadığı için yapılmadı; fake transport + gerçek geçici Git fixture'ı kullanıldı.
+- [ ] Windows GUI üzerinde son manuel görsel/erişilebilirlik turu ürün sahibi tarafından tamamlandı.
+
+Bu işaretlenmemiş maddeler otomatik test başarısızlığı değildir; auth/hizmet veya manuel kullanıcı doğrulaması gerektiren release sınırlarıdır.
+
 ## v0.13.1-alpha Real Codex CLI Transport
 
 - [ ] Başlangıçta `codex --version` ve `codex login status` yalnız resmi CLI üzerinden çalışır; token veya credential içeriği görünmez.

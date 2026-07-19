@@ -49,14 +49,17 @@ Lina; yerel sohbet, kalıcı hafıza, sesli etkileşim, görsel analiz, hatırla
 
 ## Ürün deneyimi
 
-`v0.13.1-alpha`, güvenli Codex Bridge temelini resmi Codex CLI transportuna bağlar:
+`v0.13.2-alpha`, Codex Bridge'i Windows ve uzun görevler için üretim sertleştirmesinden geçirir:
 
-- Windows öncelikli CLI discovery, semantic version ve gerçek help tabanlı capability detection.
-- Resmi `codex login`, `codex login --device-auth`, `codex login status` ve onaylı `codex logout` akışları; Lina credential dosyası okumaz.
-- `codex exec --json` üzerinden stdin prompt, typed JSONL event, timeout/cancel ve process-tree cleanup.
-- Salt-okunur veya workspace-write sandbox; tehlikeli bypass, otomatik approval, `--add-dir`, commit, push ve tag yoktur.
-- Before/after workspace fingerprint, exit-code ve sensitive-output tabanlı bağımsız verification.
-- Background Qt worker, CLI setup/diagnostics inspector’ı ve yalnız sabit kısa durumları okuyan Voice sınırı.
+- WindowsApps başarısız olsa bile npm `codex.cmd` adayına ilerleyen discovery ve güvenli `shell=False` wrapper invocation.
+- Root/exec/resume yardım kapsamını ayıran gerçek capability modeli; workspace/sürüm/auth/onay kapılı session resume.
+- Bounded workspace/Git snapshot, typed file/hunk değişiklikleri ve modification için zorunlu diff review.
+- Metadata-only interrupted task recovery; restart sonrası otomatik/fake resume veya gizli background çalışma yoktur.
+- Bounded JSONL/process lifecycle, event throttling, timeout/cancel/shutdown process-tree cleanup.
+- Genişletilmiş secret/path/Git-operation verification; runtime approval otomatik kabul edilmez.
+- Task Center, diff dialog, ayarlar, command palette ve kısa güvenli Voice kontrolleri.
+
+Resmi CLI auth, OpenAI hizmeti ve seçilen workspace erişimi birbirinden bağımsız kapılardır. Lina credential dosyası okumaz. Release makinesinde npm CLI `0.144.6` seçildi fakat `codex login status` sonucu `Not logged in` olduğu için tek gerçek read-only smoke güvenli biçimde başarısız oldu; çalışma ağacı değişmedi.
 
 Önceki `v0.12.2-alpha` arayüz kazanımları korunur:
 
@@ -375,12 +378,12 @@ Tamamlanan son sürüm hattı:
 - `v0.12.2-alpha` — Reference-Driven Premium Desktop Experience.
 - `v0.13.0-alpha` — Codex Bridge Foundation.
 - `v0.13.1-alpha` — Real Codex CLI Transport.
+- `v0.13.2-alpha` — Codex Production Hardening, Session Resume & Diff Review.
 
 Planlanan yön:
 
-1. `v0.13.2-alpha` — Codex Session Resume & Diff Review.
-2. `v0.14.0-alpha` — Safe Desktop Capabilities.
-3. `v0.15.0-alpha` — Packaging & Update Foundation.
+1. `v0.14.0-alpha` — Safe Desktop Capabilities.
+2. `v0.15.0-alpha` — Packaging & Update Foundation.
 
 Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 
@@ -394,6 +397,11 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | [Codex CLI Transport](docs/codex-cli-transport.md) | Discovery, capability, exec, JSONL ve process lifecycle |
 | [Codex Authentication](docs/codex-authentication.md) | Resmi login/status/logout ve credential izolasyonu |
 | [Codex Security Boundaries](docs/codex-security-boundaries.md) | Sandbox, path, secret, verification ve audit politikası |
+| [Codex Session Resume](docs/codex-session-resume.md) | Güvenli remote session devam kapıları ve recovery ayrımı |
+| [Codex Diff Review](docs/codex-diff-review.md) | Bounded snapshot, typed diff ve kullanıcı karar modeli |
+| [Codex Task Recovery](docs/codex-task-recovery.md) | Interrupted metadata, restart ve process cleanup |
+| [Windows Codex CLI](docs/windows-codex-cli.md) | npm wrapper discovery, invocation ve capability kapsamı |
+| [Codex Production Readiness](docs/codex-production-readiness.md) | Release kanıtı, go/no-go yorumu ve bilinen sınırlar |
 | [UI Design System](docs/ui-design-system.md) | Token, palette, tipografi ve ikon sistemi |
 | [User Interface Architecture](docs/user-interface-architecture.md) | App shell, conversation ve progressive disclosure |
 | [Accessibility](docs/accessibility.md) | Klavye, focus, status ve ekran okuyucu politikası |
@@ -404,6 +412,7 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | [v0.12.2 sürüm notları](docs/release-notes-v0.12.2-alpha.md) | Sürüm kapsamı ve bilinen sınırlar |
 | [v0.13.0 sürüm notları](docs/release-notes-v0.13.0-alpha.md) | Codex Bridge Foundation kapsamı ve doğrulama |
 | [v0.13.1 sürüm notları](docs/release-notes-v0.13.1-alpha.md) | Gerçek Codex CLI transport kapsamı ve sınırlamalar |
+| [v0.13.2 sürüm notları](docs/release-notes-v0.13.2-alpha.md) | Production hardening, resume, diff review ve doğrulama |
 | [Smoke Test Checklist](docs/smoke-test-checklist.md) | Windows manuel doğrulama listesi |
 | [Development Log](docs/development-log.md) | Kronolojik geliştirme kaydı |
 
