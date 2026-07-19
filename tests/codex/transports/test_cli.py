@@ -11,7 +11,7 @@ from lina.codex.models import (
     RequestedAction,
 )
 from lina.codex.transports.cli import CodexCliClient, CodexCommandBuilder
-from lina.codex.transports.diagnostics import CodexCliInfo
+from lina.codex.transports.diagnostics import CodexCliInfo, CodexExecutableCandidate
 from lina.codex.transports.errors import (
     CodexApprovalRequired,
     CodexCliTooOld,
@@ -159,7 +159,9 @@ def test_prompt_is_minimal_and_contains_security_boundaries(tmp_path: Path) -> N
 def test_probe_detects_version_auth_and_documented_capabilities(monkeypatch, tmp_path: Path) -> None:
     executable = tmp_path / "codex.exe"
     executable.write_bytes(b"fixture")
-    monkeypatch.setattr("lina.codex.transports.cli.discover_executable", lambda _path=None: executable)
+    monkeypatch.setattr("lina.codex.transports.cli.discover_candidates", lambda _path=None: (
+        CodexExecutableCandidate(executable, "test", "native_exe", True, True),
+    ))
     client = CodexCliClient.probe(runner=ProbeRunner())
     assert client.info.version == "1.2.3"
     assert client.info.authenticated
@@ -172,7 +174,9 @@ def test_probe_detects_version_auth_and_documented_capabilities(monkeypatch, tmp
 def test_probe_rejects_malformed_or_old_version(monkeypatch, tmp_path: Path, version: str) -> None:
     executable = tmp_path / "codex.exe"
     executable.write_bytes(b"fixture")
-    monkeypatch.setattr("lina.codex.transports.cli.discover_executable", lambda _path=None: executable)
+    monkeypatch.setattr("lina.codex.transports.cli.discover_candidates", lambda _path=None: (
+        CodexExecutableCandidate(executable, "test", "native_exe", True, True),
+    ))
     with pytest.raises(CodexCliTooOld):
         CodexCliClient.probe(runner=ProbeRunner(version=version))
 

@@ -6,12 +6,14 @@ from dataclasses import replace
 from pathlib import Path
 import subprocess
 import threading
+import time
 
 from lina.codex.models import (CodexEvent, CodexExecutionMode, CodexResult, CodexRiskLevel,
                                 CodexTask, ProjectContext)
 from lina.codex.permissions import ensure_within_workspace, is_secret_path
 from lina.codex.transports.diagnostics import (MINIMUM_CODEX_CLI_VERSION, CodexCliInfo,
-                                               capabilities_from_help, discover_executable,
+                                               CodexExecutableCandidate, capabilities_from_help,
+                                               discover_candidates,
                                                parse_auth_status, parse_version, redact)
 from lina.codex.transports.errors import (CodexApprovalRequired, CodexCancelled, CodexCliTooOld,
                                           CodexExecutionFailed, CodexLoginRequired,
@@ -19,6 +21,8 @@ from lina.codex.transports.errors import (CodexApprovalRequired, CodexCancelled,
                                           CodexProviderUnavailable, CodexRateLimited)
 from lina.codex.transports.parser import CodexJsonlParser
 from lina.codex.transports.process import CodexProcessRunner, ProcessResult
+from lina.codex.transports.invocation import (WindowsCommandInvocation,
+                                              build_process_invocation)
 from lina.codex.transports.prompt import build_task_prompt
 from lina.codex.transports.verification import build_evidence, capture_workspace, changed_paths
 
@@ -60,8 +64,37 @@ class CodexCommandBuilder:
             raise ValueError("Dangerous Codex CLI flag blocked")
         return tuple(args)
 
+    def execution_invocation(self, workspace: Path,
+                             mode: CodexExecutionMode) -> WindowsCommandInvocation:
+        command = self.execution(workspace, mode)
+        return build_process_invocation(
+            command[0], command[1:], kind=self.info.executable_kind
+        )
+
+    def resume_invocation(
+        self,
+        workspace: Path,
+        session_id: str,
+        mode: CodexExecutionMode,
+    ) -> WindowsCommandInvocation:
+        if not self.info.supports_resume or not self.info.supports_session_id:
+            raise CodexOutputInvalid("Codex resume capability is unavailable")
+        if not _valid_session_id(session_id):
+            raise ValueError("Invalid Codex session identifier")
+        base = list(self.execution(workspace, mode))
+        exec_index = base.index("exec")
+        base.insert(exec_index + 1, "resume")
+        dash_index = len(base) - 1
+        base.insert(dash_index, session_id)
+        return build_process_invocation(
+            base[0], base[1:], kind=self.info.executable_kind
+        )
+
 
 class CodexCliClient:
+    _failed_candidate_cache: dict[str, tuple[float, CodexExecutableCandidate]] = {}
+    _candidate_cache_ttl_seconds = 30.0
+
     def __init__(self, info: CodexCliInfo, *, runner: CodexProcessRunner | None = None,
                  timeout_seconds: int = 300) -> None:
         self.info = info
@@ -76,37 +109,117 @@ class CodexCliClient:
     def probe(cls, configured_path: str | Path | None = None, *, timeout_seconds: int = 300,
               runner: CodexProcessRunner | None = None) -> "CodexCliClient":
         process = runner or CodexProcessRunner()
-        executable = discover_executable(configured_path)
-        version_result = process.run((executable, "--version"), timeout=5)
-        version, parsed = parse_version(version_result.stdout + "\n" + version_result.stderr)
-        if version_result.exit_code != 0 or parsed is None:
+        candidates = list(discover_candidates(configured_path))
+        checked: list[CodexExecutableCandidate] = []
+        saw_old_version = False
+        now = time.monotonic()
+        for candidate in candidates:
+            cache_key = str(candidate.path).casefold()
+            cached = cls._failed_candidate_cache.get(cache_key)
+            if cached and cached[0] > now:
+                checked.append(cached[1])
+                continue
+            if candidate.rejection_reason:
+                checked.append(candidate)
+                cls._failed_candidate_cache[cache_key] = (
+                    now + cls._candidate_cache_ttl_seconds, candidate
+                )
+                continue
+            try:
+                version_result = process.run(
+                    _candidate_invocation(candidate, "--version"), timeout=5
+                )
+                version, parsed = parse_version(
+                    version_result.stdout + "\n" + version_result.stderr
+                )
+                if version_result.exit_code != 0 or parsed is None:
+                    saw_old_version = True
+                    rejected = replace(
+                        candidate, launchable=False, rejection_reason="version_probe_failed"
+                    )
+                    checked.append(rejected)
+                    cls._failed_candidate_cache[cache_key] = (
+                        now + cls._candidate_cache_ttl_seconds, rejected
+                    )
+                    continue
+                if parsed < MINIMUM_CODEX_CLI_VERSION:
+                    saw_old_version = True
+                    rejected = replace(
+                        candidate, launchable=True, version=version,
+                        rejection_reason="unsupported_version",
+                    )
+                    checked.append(rejected)
+                    cls._failed_candidate_cache[cache_key] = (
+                        now + cls._candidate_cache_ttl_seconds, rejected
+                    )
+                    continue
+                root_help = process.run(_candidate_invocation(candidate, "--help"), timeout=5)
+                exec_help = process.run(
+                    _candidate_invocation(candidate, "exec", "--help"), timeout=5
+                )
+                login_help = process.run(
+                    _candidate_invocation(candidate, "login", "--help"), timeout=5
+                )
+                resume_help_text = ""
+                if "resume" in (root_help.stdout + exec_help.stdout).casefold():
+                    resume_help = process.run(
+                        _candidate_invocation(candidate, "exec", "resume", "--help"),
+                        timeout=5,
+                    )
+                    resume_help_text = resume_help.stdout + "\n" + resume_help.stderr
+                doctor_help_text = ""
+                if "doctor" in root_help.stdout.casefold():
+                    doctor_help = process.run(
+                        _candidate_invocation(candidate, "doctor", "--help"), timeout=5
+                    )
+                    doctor_help_text = doctor_help.stdout
+                capabilities = capabilities_from_help(
+                    root_help.stdout, exec_help.stdout, login_help.stdout,
+                    doctor_help_text, resume_help_text,
+                )
+                auth = process.run(
+                    _candidate_invocation(candidate, "login", "status"), timeout=10
+                )
+            except (OSError, subprocess.SubprocessError, CodexCancelled):
+                rejected = replace(
+                    candidate, launchable=False, rejection_reason="launch_failed"
+                )
+                checked.append(rejected)
+                cls._failed_candidate_cache[cache_key] = (
+                    now + cls._candidate_cache_ttl_seconds, rejected
+                )
+                continue
+            authenticated, method = parse_auth_status(
+                auth.stdout + "\n" + auth.stderr, auth.exit_code
+            )
+            diagnostics = []
+            if not capabilities["supports_exec"]:
+                diagnostics.append("exec_not_supported")
+            if not capabilities["supports_json"]:
+                diagnostics.append("json_not_supported")
+            if not capabilities["supports_stdin"]:
+                diagnostics.append("stdin_not_documented")
+            selected = replace(
+                candidate, launchable=True, version=version,
+                capabilities=tuple(name for name, enabled in capabilities.items() if enabled),
+                rejection_reason=None,
+            )
+            checked.append(selected)
+            checked.extend(item for item in candidates if item not in checked and item != candidate)
+            info = CodexCliInfo(
+                candidate.path, version, True, authenticated, method,
+                selected_candidate_source=candidate.source,
+                executable_kind=candidate.kind,
+                candidates=tuple(checked), diagnostics=tuple(diagnostics), **capabilities,
+            )
+            return cls(info, runner=process, timeout_seconds=timeout_seconds)
+        if saw_old_version:
             raise CodexCliTooOld("Codex CLI version could not be verified")
-        if parsed < MINIMUM_CODEX_CLI_VERSION:
-            raise CodexCliTooOld(version)
-        root_help = process.run((executable, "--help"), timeout=5)
-        exec_help = process.run((executable, "exec", "--help"), timeout=5)
-        login_help = process.run((executable, "login", "--help"), timeout=5)
-        doctor_help_text = ""
-        if "doctor" in root_help.stdout.casefold():
-            doctor_help = process.run((executable, "doctor", "--help"), timeout=5)
-            doctor_help_text = doctor_help.stdout
-        capabilities = capabilities_from_help(
-            root_help.stdout, exec_help.stdout, login_help.stdout, doctor_help_text
-        )
-        auth = process.run((executable, "login", "status"), timeout=10)
-        authenticated, method = parse_auth_status(auth.stdout + "\n" + auth.stderr, auth.exit_code)
-        diagnostics = []
-        if not capabilities["supports_exec"]:
-            diagnostics.append("exec_not_supported")
-        if not capabilities["supports_json"]:
-            diagnostics.append("json_not_supported")
-        if not capabilities["supports_stdin"]:
-            diagnostics.append("stdin_not_documented")
-        info = CodexCliInfo(executable, version, True, authenticated, method,
-                            diagnostics=tuple(diagnostics), **capabilities)
-        return cls(info, runner=process, timeout_seconds=timeout_seconds)
+        from lina.codex.transports.errors import CodexCliNotFound
+        raise CodexCliNotFound("No launchable Codex CLI candidate was found")
 
     def refresh(self) -> CodexCliInfo:
+        type(self)._failed_candidate_cache.clear()
         refreshed = type(self).probe(self.info.executable_path, timeout_seconds=self.timeout_seconds)
         self.info = refreshed.info
         return self.info
@@ -119,7 +232,7 @@ class CodexCliClient:
             ensure_within_workspace(context.root_path, path)
         mode = (CodexExecutionMode.CONTROLLED_MODIFICATION
                 if task.risk_level is CodexRiskLevel.MODIFICATION else CodexExecutionMode.READ_ONLY)
-        command = CodexCommandBuilder(self.info).execution(context.root_path, mode)
+        command = CodexCommandBuilder(self.info).execution_invocation(context.root_path, mode)
         prompt = build_task_prompt(task, context, mode)
         parser = CodexJsonlParser(task.task_id)
         before = capture_workspace(context)
@@ -173,18 +286,25 @@ class CodexCliClient:
     def launch_login(self, *, device_auth: bool = False) -> None:
         if not self.info.executable_path:
             raise CodexExecutionFailed()
-        args = [str(self.info.executable_path), "login"]
+        args = ["login"]
         if device_auth:
             if not self.info.supports_device_auth:
                 raise CodexExecutionFailed("Device authentication is unsupported")
             args.append("--device-auth")
         flags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, "CREATE_NEW_CONSOLE") else 0
-        subprocess.Popen(args, shell=False, creationflags=flags)
+        invocation = build_process_invocation(
+            self.info.executable_path, args, kind=self.info.executable_kind
+        )
+        launch_args = invocation.command_line or list(invocation.argv)
+        subprocess.Popen(launch_args, shell=False, creationflags=flags,
+                         env=dict(invocation.environment))
 
     def logout(self, *, confirmed: bool = False) -> CodexCliInfo:
         if not confirmed or not self.info.executable_path:
             raise PermissionError("Codex logout açık kullanıcı onayı gerektirir.")
-        result = self.runner.run((self.info.executable_path, "logout"), timeout=30)
+        result = self.runner.run(build_process_invocation(
+            self.info.executable_path, ("logout",), kind=self.info.executable_kind
+        ), timeout=30)
         if result.exit_code != 0:
             raise CodexExecutionFailed()
         self.info = replace(self.info, authenticated=False, auth_method_summary="none")
@@ -194,7 +314,9 @@ class CodexCliClient:
         """Return only the CLI's documented redacted JSON support report."""
         if not self.info.executable_path or not self.info.supports_doctor_json:
             return "Codex CLI diagnostic JSON desteği bulunmuyor."
-        result = self.runner.run((self.info.executable_path, "doctor", "--json"), timeout=30)
+        result = self.runner.run(build_process_invocation(
+            self.info.executable_path, ("doctor", "--json"), kind=self.info.executable_kind
+        ), timeout=30)
         if result.exit_code != 0:
             raise CodexExecutionFailed()
         return redact(result.stdout)[:20_000]
@@ -227,3 +349,18 @@ class CodexCliClient:
         if any(item in safe for item in ("login", "not authenticated", "unauthorized")):
             return CodexLoginRequired()
         return CodexExecutionFailed()
+
+
+def _candidate_invocation(
+    candidate: CodexExecutableCandidate, *arguments: str
+) -> WindowsCommandInvocation:
+    return build_process_invocation(candidate.path, arguments, kind=candidate.kind)
+
+
+def _valid_session_id(value: str) -> bool:
+    import re
+    return re.fullmatch(
+        r"(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-"
+        r"[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|[A-Za-z0-9][A-Za-z0-9._-]{2,63})",
+        value,
+    ) is not None
