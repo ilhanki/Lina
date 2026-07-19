@@ -302,7 +302,8 @@ class CodexCliClient:
         try:
             try:
                 result = self.runner.run(command, cwd=context.root_path, stdin_text=prompt,
-                                         timeout=self.timeout_seconds, on_stdout=consume)
+                                         timeout=self.timeout_seconds, on_stdout=consume,
+                                         on_stderr=parser.feed_stderr)
             except CodexCancelled:
                 if parser.runtime_approval_requested:
                     raise CodexApprovalRequired() from None
@@ -338,8 +339,9 @@ class CodexCliClient:
                     created_at=reference.created_at if reference else now,
                     last_used_at=now, cli_version=self.info.version or "unknown",
                 )
+            notes = (f"cli_exit={result.exit_code}", *parser.diagnostics)
             return CodexResult(summary, changed_files=changed,
-                               verification_notes=(f"cli_exit={result.exit_code}",),
+                               verification_notes=notes,
                                evidence=evidence, remote_session=remote,
                                change_set=change_set)
         finally:
