@@ -4,7 +4,7 @@
 
 Lina explicit ayarı ve sınırlı adayları dener: PATH `codex.cmd`, native `codex.exe`, extensionless wrapper ve npm global/prefix yolları. Her aday absolute path, izinli ad, `--version`, help ve auth status ile probe edilir. Launchable ilk uyumlu aday seçilir; başarısız daha yüksek öncelikli aday tüm discovery'yi durdurmaz.
 
-Bu release makinesinde `where.exe codex` yalnız WindowsApps paketini gösterdi. Buna rağmen `Get-Command codex -All` ve sınırlı npm yolları `C:\Users\kilic\AppData\Roaming\npm\codex.cmd` adayını doğruladı. WindowsApps üzerinde ACL değiştirilmedi; seçilen npm wrapper `codex-cli 0.144.6` döndürdü.
+Bu release makinesinde `where.exe codex` yalnız WindowsApps paketini gösterdi. Buna rağmen `Get-Command codex -All` ve sınırlı npm yolları `%APPDATA%\npm\codex.cmd` adayını doğruladı. WindowsApps üzerinde ACL değiştirilmedi; seçilen npm wrapper `codex-cli 0.144.6` döndürdü.
 
 ## `.cmd` invocation
 

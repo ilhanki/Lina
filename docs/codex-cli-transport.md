@@ -31,7 +31,7 @@ Stdout/stderr ayrı reader thread’lerinde tüketilir; partial JSON satırı bu
 
 ## Diagnostics ve Windows
 
-CLI help `doctor --json` desteğini doğrularsa yalnız redacted JSON support report çalıştırılır ve persistence'a yazılmaz. Kurulum/güncelleme otomatik yapılmaz; inspector resmi [Codex CLI rehberini](https://developers.openai.com/codex/cli) açar. Release doğrulamasında WindowsApps paketi launchable bulunmadı, ancak `C:\Users\kilic\AppData\Roaming\npm\codex.cmd` güvenle seçildi ve `codex-cli 0.144.6` olarak probe edildi. O anda resmi `codex login status` sonucu `Not logged in` olduğundan tek gerçek read-only görev `execution_failed` ile sonuçlandı; çalışma ağacı, diff ve HEAD değişmedi.
+CLI help `doctor --json` desteğini doğrularsa yalnız redacted JSON support report çalıştırılır ve persistence'a yazılmaz. Kurulum/güncelleme otomatik yapılmaz; inspector resmi [Codex CLI rehberini](https://developers.openai.com/codex/cli) açar. Release doğrulamasında WindowsApps paketi launchable bulunmadı, ancak `%APPDATA%\npm\codex.cmd` güvenle seçildi ve `codex-cli 0.144.6` olarak probe edildi. O anda resmi `codex login status` sonucu `Not logged in` olduğundan tek gerçek read-only görev `execution_failed` ile sonuçlandı; çalışma ağacı, diff ve HEAD değişmedi.
 
 ## Bilinen sınırlamalar
 

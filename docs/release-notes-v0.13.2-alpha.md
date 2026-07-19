@@ -38,7 +38,7 @@ Bu alpha, gerçek Codex CLI transportunu Windows wrapper güvenilirliği, güven
 
 ## Doğrulama kanıtı
 
-Release hazırlığında seçilen CLI `C:\Users\kilic\AppData\Roaming\npm\codex.cmd`, sürüm `codex-cli 0.144.6` idi. Resmi `codex login status` sonucu `Not logged in` döndü. Kullanıcının istediği tek gerçek read-only görev denendi ve `execution_failed` oldu; öncesi/sonrası Git status ve binary diff boş, HEAD aynıydı. Tek-deneme sınırı nedeniyle tekrar çalıştırılmadı.
+Release hazırlığında seçilen CLI `%APPDATA%\npm\codex.cmd`, sürüm `codex-cli 0.144.6` idi. Resmi `codex login status` sonucu `Not logged in` döndü. Kullanıcının istediği tek gerçek read-only görev denendi ve `execution_failed` oldu; öncesi/sonrası Git status ve binary diff boş, HEAD aynıydı. Tek-deneme sınırı nedeniyle tekrar çalıştırılmadı.
 
 Başarılı gerçek resume ve gerçek ücretli modification smoke'u auth olmadığı için yapılmadı. Bu yollar fake transport, gerçek geçici Git/process fixture'ları ve gerçek CLI help/command-builder kanıtıyla test edildi. Release, dış koşula bağlı uçtan uca başarıyı iddia etmez.
 
