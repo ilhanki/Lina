@@ -288,6 +288,7 @@ def create_application_services(
     )
     codex_repository = CodexHistoryRepository(project_root / "data" / "codex-history.json")
     try:
+        codex_repository.recover_incomplete()
         codex_repository.cleanup(user_preferences.codex.history_retention_days)
     except (OSError, ValueError, TypeError):
         pass

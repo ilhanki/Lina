@@ -215,3 +215,36 @@ def test_shutdown_cancels_active_runner(tmp_path: Path) -> None:
     client = CodexCliClient(info(tmp_path / "codex.exe"), runner=runner)
     client.shutdown()
     assert runner.cancelled
+
+
+def test_execute_captures_resumable_remote_session_metadata(tmp_path: Path) -> None:
+    source = tmp_path / "app.py"
+    source.write_text("pass", encoding="utf-8")
+    output = (
+        '{"type":"thread.started","thread_id":"123e4567-e89b-42d3-a456-426614174000"}\n'
+        '{"type":"item.completed","item":{"type":"agent_message","text":"Done"}}\n'
+    )
+    client = CodexCliClient(info(
+        tmp_path / "codex.exe", supports_resume=True, supports_session_id=True
+    ), runner=FakeRunner(ProcessResult(("codex",), 0, output, "", 0.1)))
+    result = client.execute(task(tmp_path), ProjectContext(tmp_path, (source,)), lambda _event: None)
+    assert result.remote_session is not None
+    assert result.remote_session.cli_session_id.startswith("123e4567")
+    assert result.remote_session.task_summary == "Analiz"
+
+
+def test_resume_builder_places_validated_session_id_before_stdin(tmp_path: Path) -> None:
+    cli_info = info(tmp_path / "codex.exe", supports_resume=True, supports_session_id=True)
+    invocation = CodexCommandBuilder(cli_info).resume_invocation(
+        tmp_path, "123e4567-e89b-42d3-a456-426614174000", CodexExecutionMode.READ_ONLY
+    )
+    assert invocation.display_args[-2:] == ("123e4567-e89b-42d3-a456-426614174000", "-")
+
+
+@pytest.mark.parametrize("unsafe", ("../bad", "bad&id", "two words"))
+def test_resume_builder_rejects_unsafe_session_id(tmp_path: Path, unsafe: str) -> None:
+    cli_info = info(tmp_path / "codex.exe", supports_resume=True, supports_session_id=True)
+    with pytest.raises(ValueError):
+        CodexCommandBuilder(cli_info).resume_invocation(
+            tmp_path, unsafe, CodexExecutionMode.READ_ONLY
+        )

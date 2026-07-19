@@ -107,7 +107,8 @@ class CodexBridge:
         self.repository.save(session)
         return session
 
-    def start(self, session_id: str, *, approved: bool = False) -> CodexResult | None:
+    def start(self, session_id: str, *, approved: bool = False,
+              resume_reference=None) -> CodexResult | None:
         session = self._matching(session_id)
         task = session.task
         if task is None:
@@ -124,8 +125,18 @@ class CodexBridge:
         self._emit(CodexEvent.create(session.session_id, CodexEventType.SESSION_STARTED, progress=30))
         retain_history = True
         try:
-            result = self.client.execute(task, session.project_context, self._handle_client_event)
-            session.transition(CodexSessionStatus.ANALYZING, 80)
+            if resume_reference is not None:
+                if not hasattr(self.client, "resume"):
+                    raise CodexClientUnavailableError("Codex resume kullanılamıyor.")
+                result = self.client.resume(
+                    task, session.project_context, resume_reference,
+                    self._handle_client_event, approved=approved,
+                )
+            else:
+                result = self.client.execute(task, session.project_context, self._handle_client_event)
+            session.remote_session = result.remote_session
+            session.changed_file_count = len(result.changed_files)
+            session.transition(CodexSessionStatus.VERIFYING, 80)
             self._emit(CodexEvent.create(session.session_id, CodexEventType.VERIFICATION_STARTED, progress=85))
             report = self.validator.verify(task, result)
             session.verification_outcome = report.outcome.value
@@ -137,6 +148,9 @@ class CodexBridge:
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.FAILED, progress=100))
             else:
                 session.result_summary = self.response_quality.prepare(result, report)
+                session.review_pending = bool(
+                    task.risk_level is CodexRiskLevel.MODIFICATION and result.changed_files
+                )
                 session.transition(CodexSessionStatus.COMPLETED, 100)
                 session.exit_category = "success"
                 self._emit(CodexEvent.create(session.session_id, CodexEventType.COMPLETED, progress=100))
@@ -204,10 +218,17 @@ class CodexBridge:
             return "Codex CLI diagnostics kullanılamıyor."
         return self.client.diagnostics_report()
 
+    def mark_result_surfaced(self, session_id: str) -> None:
+        session = self._matching(session_id)
+        session.result_surfaced = True
+        self.repository.save(session)
+        self.repository.mark_surfaced(session_id)
+
     def shutdown(self) -> None:
         if hasattr(self.client, "shutdown"):
             self.client.shutdown()
         if self._session is not None and not self._session.terminal:
+            self._session.process_termination_status = "shutdown_requested"
             self._session.transition(CodexSessionStatus.INTERRUPTED, 100)
             self._session.error_code = "app_shutdown"
             self._session.result_summary = "Codex görevi uygulama kapanırken kesintiye uğradı."
@@ -239,6 +260,8 @@ class CodexBridge:
         if self._session is None:
             return
         session = self._session
+        session.last_event = event.event_type.value
+        session.last_activity_at = event.occurred_at
         if event.progress is not None:
             session.progress = max(session.progress, min(event.progress, 80))
         safe_event = CodexEvent.create(session.session_id, event.event_type, progress=event.progress,

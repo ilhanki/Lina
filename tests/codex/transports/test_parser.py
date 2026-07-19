@@ -38,3 +38,14 @@ def test_parser_redacts_secret_like_message() -> None:
     )[0]
     assert "sk-secret12345" not in event.message
 
+
+def test_parser_captures_valid_remote_thread_id() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed('{"type":"thread.started","thread_id":"123e4567-e89b-42d3-a456-426614174000"}\n')
+    assert parser.remote_session_id == "123e4567-e89b-42d3-a456-426614174000"
+
+
+def test_parser_rejects_unsafe_remote_thread_id() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed('{"type":"thread.started","thread_id":"bad&id"}\n')
+    assert parser.remote_session_id is None

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 import subprocess
 import threading
 import time
 
-from lina.codex.models import (CodexEvent, CodexExecutionMode, CodexResult, CodexRiskLevel,
-                                CodexTask, ProjectContext)
+from lina.codex.models import (CodexEvent, CodexExecutionMode, CodexRemoteSessionReference,
+                                CodexResult, CodexRiskLevel, CodexTask, ProjectContext)
 from lina.codex.permissions import ensure_within_workspace, is_secret_path
 from lina.codex.transports.diagnostics import (MINIMUM_CODEX_CLI_VERSION, CodexCliInfo,
                                                CodexExecutableCandidate, capabilities_from_help,
@@ -25,13 +26,15 @@ from lina.codex.transports.invocation import (WindowsCommandInvocation,
                                               build_process_invocation)
 from lina.codex.transports.prompt import build_task_prompt
 from lina.codex.transports.verification import build_evidence, capture_workspace, changed_paths
+from lina.codex.resume import assess_resume, workspace_fingerprint
 
 
 class CodexCommandBuilder:
     def __init__(self, info: CodexCliInfo) -> None:
         self.info = info
 
-    def execution(self, workspace: Path, mode: CodexExecutionMode) -> tuple[str, ...]:
+    def execution(self, workspace: Path, mode: CodexExecutionMode, *,
+                  ephemeral: bool = True) -> tuple[str, ...]:
         if not self.info.executable_path or not self.info.supports_exec or not self.info.supports_json:
             raise CodexOutputInvalid("Codex exec JSON capability is unavailable")
         if not self.info.supports_stdin:
@@ -52,7 +55,7 @@ class CodexCommandBuilder:
         if self.info.supports_cd and not self.info.cd_global:
             args.extend(("--cd", str(workspace)))
         args.append("--json")
-        if self.info.supports_ephemeral:
+        if ephemeral and self.info.supports_ephemeral:
             args.append("--ephemeral")
         if self.info.supports_sandbox and not self.info.sandbox_global:
             args.extend(("--sandbox", sandbox))
@@ -64,9 +67,9 @@ class CodexCommandBuilder:
             raise ValueError("Dangerous Codex CLI flag blocked")
         return tuple(args)
 
-    def execution_invocation(self, workspace: Path,
-                             mode: CodexExecutionMode) -> WindowsCommandInvocation:
-        command = self.execution(workspace, mode)
+    def execution_invocation(self, workspace: Path, mode: CodexExecutionMode, *,
+                             ephemeral: bool = True) -> WindowsCommandInvocation:
+        command = self.execution(workspace, mode, ephemeral=ephemeral)
         return build_process_invocation(
             command[0], command[1:], kind=self.info.executable_kind
         )
@@ -81,7 +84,7 @@ class CodexCommandBuilder:
             raise CodexOutputInvalid("Codex resume capability is unavailable")
         if not _valid_session_id(session_id):
             raise ValueError("Invalid Codex session identifier")
-        base = list(self.execution(workspace, mode))
+        base = list(self.execution(workspace, mode, ephemeral=False))
         exec_index = base.index("exec")
         base.insert(exec_index + 1, "resume")
         dash_index = len(base) - 1
@@ -96,10 +99,13 @@ class CodexCliClient:
     _candidate_cache_ttl_seconds = 30.0
 
     def __init__(self, info: CodexCliInfo, *, runner: CodexProcessRunner | None = None,
-                 timeout_seconds: int = 300) -> None:
+                 timeout_seconds: int = 300, resume_enabled: bool = True,
+                 session_retention_days: int = 30) -> None:
         self.info = info
         self.runner = runner or CodexProcessRunner()
         self.timeout_seconds = max(15, min(int(timeout_seconds), 3600))
+        self.resume_enabled = bool(resume_enabled)
+        self.session_retention_days = max(1, min(int(session_retention_days), 90))
         self._session_id = ""
         self._on_event = None
         self._parser: CodexJsonlParser | None = None
@@ -232,7 +238,52 @@ class CodexCliClient:
             ensure_within_workspace(context.root_path, path)
         mode = (CodexExecutionMode.CONTROLLED_MODIFICATION
                 if task.risk_level is CodexRiskLevel.MODIFICATION else CodexExecutionMode.READ_ONLY)
-        command = CodexCommandBuilder(self.info).execution_invocation(context.root_path, mode)
+        command = CodexCommandBuilder(self.info).execution_invocation(
+            context.root_path, mode,
+            ephemeral=not (self.resume_enabled and self.info.supports_resume),
+        )
+        return self._execute_invocation(command, task, context, on_event, mode=mode)
+
+    def resume(
+        self,
+        task: CodexTask,
+        context: ProjectContext,
+        reference: CodexRemoteSessionReference,
+        on_event,
+        *,
+        approved: bool = False,
+    ) -> CodexResult:
+        eligibility = assess_resume(
+            reference, context.root_path, cli_version=self.info.version,
+            authenticated=self.info.authenticated,
+            capability_supported=(self.info.supports_resume and self.info.supports_session_id),
+            user_approved=approved, maximum_age_days=self.session_retention_days,
+        )
+        if not eligibility.allowed:
+            if "authentication_required" in eligibility.reasons:
+                raise CodexLoginRequired()
+            if "user_approval_required" in eligibility.reasons:
+                raise CodexApprovalRequired("Codex resume requires explicit user approval")
+            raise CodexOutputInvalid(eligibility.primary_reason or "Codex resume is unavailable")
+        mode = (CodexExecutionMode.CONTROLLED_MODIFICATION
+                if task.risk_level is CodexRiskLevel.MODIFICATION else CodexExecutionMode.READ_ONLY)
+        command = CodexCommandBuilder(self.info).resume_invocation(
+            context.root_path, reference.cli_session_id, mode
+        )
+        return self._execute_invocation(
+            command, task, context, on_event, mode=mode, reference=reference
+        )
+
+    def _execute_invocation(
+        self,
+        command: WindowsCommandInvocation,
+        task: CodexTask,
+        context: ProjectContext,
+        on_event,
+        *,
+        mode: CodexExecutionMode,
+        reference: CodexRemoteSessionReference | None = None,
+    ) -> CodexResult:
         prompt = build_task_prompt(task, context, mode)
         parser = CodexJsonlParser(task.task_id)
         before = capture_workspace(context)
@@ -270,8 +321,24 @@ class CodexCliClient:
             evidence = build_evidence(before, after, result.exit_code,
                                       sensitive_output_detected=result.sensitive_output_detected)
             changed = changed_paths(evidence, context.root_path)
+            now = datetime.now(timezone.utc)
+            remote_id = parser.remote_session_id or (
+                reference.cli_session_id if reference is not None else None
+            )
+            remote = None
+            if remote_id and self.resume_enabled and self.info.supports_resume:
+                remote = CodexRemoteSessionReference(
+                    provider="openai-codex-cli", cli_session_id=remote_id,
+                    local_session_id=task.task_id, conversation_id=None,
+                    workspace_fingerprint=workspace_fingerprint(context.root_path),
+                    workspace_display_name=context.root_path.name[:120],
+                    task_summary=task.title[:160], mode=mode,
+                    created_at=reference.created_at if reference else now,
+                    last_used_at=now, cli_version=self.info.version or "unknown",
+                )
             return CodexResult(summary, changed_files=changed,
-                               verification_notes=(f"cli_exit={result.exit_code}",), evidence=evidence)
+                               verification_notes=(f"cli_exit={result.exit_code}",),
+                               evidence=evidence, remote_session=remote)
         finally:
             with self._lock:
                 self._parser = None

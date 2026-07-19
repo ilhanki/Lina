@@ -19,6 +19,7 @@ class CodexSessionStatus(str, Enum):
     PLANNING = "planning"
     WAITING_APPROVAL = "waiting_approval"
     RUNNING = "running"
+    VERIFYING = "verifying"
     PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -159,6 +160,15 @@ class CodexSession:
     verification_outcome: str = "unverified"
     duration_seconds: float = 0.0
     exit_category: str = "not_started"
+    remote_session: "CodexRemoteSessionReference | None" = None
+    last_event: str = "created"
+    last_activity_at: datetime | None = None
+    process_termination_status: str = "not_started"
+    result_surfaced: bool = False
+    review_pending: bool = False
+    changed_file_count: int = 0
+    additions: int = 0
+    deletions: int = 0
 
     @classmethod
     def create(
@@ -180,6 +190,8 @@ class CodexSession:
     def transition(self, status: CodexSessionStatus, progress: int | None = None) -> None:
         self.status = CodexSessionStatus(status)
         self.updated_at = utc_now()
+        self.last_activity_at = self.updated_at
+        self.last_event = status.value
         if progress is not None:
             self.progress = max(0, min(100, progress))
 
@@ -207,6 +219,7 @@ class CodexExecutionEvidence:
     after_fingerprints: tuple[tuple[str, str], ...] = ()
     tests_passed: bool | None = None
     sensitive_output_detected: bool = False
+    integrity_reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,6 +230,8 @@ class CodexResult:
     verification_notes: tuple[str, ...] = ()
     stale: bool = False
     evidence: CodexExecutionEvidence | None = None
+    remote_session: "CodexRemoteSessionReference | None" = None
+    change_set: object | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,3 +256,41 @@ class CodexHistoryEntry:
     verification: str = "unverified"
     duration_seconds: float = 0.0
     exit_category: str = "unknown"
+    updated_at: datetime | None = None
+    workspace_display_name: str = ""
+    last_event: str = "unknown"
+    last_activity_at: datetime | None = None
+    process_termination_status: str = "unknown"
+    changed_file_count: int = 0
+    additions: int = 0
+    deletions: int = 0
+    resumable: bool = False
+    review_pending: bool = False
+    failure_category: str = "none"
+    result_surfaced: bool = False
+    remote_session_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CodexRemoteSessionReference:
+    provider: str
+    cli_session_id: str
+    local_session_id: str
+    conversation_id: int | None
+    workspace_fingerprint: str
+    workspace_display_name: str
+    task_summary: str
+    mode: CodexExecutionMode
+    created_at: datetime
+    last_used_at: datetime
+    cli_version: str
+    resumable: bool = True
+    resume_block_reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.provider != "openai-codex-cli":
+            raise ValueError("Unsupported Codex session provider")
+        if not self.workspace_fingerprint or not self.local_session_id:
+            raise ValueError("Codex session reference is incomplete")
+        if len(self.task_summary) > 160 or len(self.workspace_display_name) > 120:
+            raise ValueError("Codex session metadata exceeds safe bounds")

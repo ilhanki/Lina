@@ -8,6 +8,7 @@ from typing import Any
 
 from lina.codex.models import CodexEvent, CodexEventType
 from lina.codex.transports.diagnostics import redact
+from lina.codex.resume import valid_cli_session_id
 
 
 class CodexJsonlParser:
@@ -19,6 +20,7 @@ class CodexJsonlParser:
         self.changed_files: set[str] = set()
         self.invalid_lines = 0
         self.runtime_approval_requested = False
+        self.remote_session_id: str | None = None
 
     def feed(self, chunk: str) -> tuple[CodexEvent, ...]:
         self._buffer += chunk
@@ -59,6 +61,11 @@ class CodexJsonlParser:
             return None
         raw_type = str(payload.get("type") or payload.get("event") or "unknown").casefold()
         item = payload.get("item") if isinstance(payload.get("item"), dict) else payload
+        for key in ("thread_id", "session_id", "conversation_id"):
+            candidate_id = payload.get(key)
+            if isinstance(candidate_id, str) and valid_cli_session_id(candidate_id):
+                self.remote_session_id = candidate_id
+                break
         text = self._extract_text(item)
         path = self._extract_path(item)
         if path:
@@ -98,4 +105,3 @@ class CodexJsonlParser:
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return None
-
