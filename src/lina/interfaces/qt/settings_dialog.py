@@ -566,6 +566,20 @@ class SettingsDialog(QDialog):
         self._codex_history_retention.addItem("30 gün", 30)
         self._codex_history_retention.addItem("90 gün", 90)
         self._codex_history_retention.addItem("Süresiz", None)
+        self._codex_session_retention = QComboBox(page)
+        self._codex_session_retention.addItem("7 gün", 7)
+        self._codex_session_retention.addItem("30 gün", 30)
+        self._codex_session_retention.addItem("90 gün", 90)
+        self._codex_resume = QCheckBox("Güvenli Codex oturumlarını sürdürmeye izin ver", page)
+        self._codex_diff_review = QCheckBox("Değişikliklerde inceleme zorunlu", page)
+        self._codex_diff_review.setChecked(True)
+        self._codex_diff_review.setEnabled(False)
+        self._codex_diff_max = QSpinBox(page)
+        self._codex_diff_max.setRange(64, 4096)
+        self._codex_diff_max.setSuffix(" KB")
+        self._codex_diagnostics = QComboBox(page)
+        self._codex_diagnostics.addItem("Standart", "standard")
+        self._codex_diagnostics.addItem("Ayrıntılı", "detailed")
         form.addRow(self._codex_enabled)
         form.addRow("Codex CLI executable", self._codex_cli_path)
         form.addRow(self._codex_auto_detect)
@@ -573,6 +587,11 @@ class SettingsDialog(QDialog):
         form.addRow(self._codex_read_only)
         form.addRow(self._codex_suggestions)
         form.addRow("Codex geçmişi", self._codex_history_retention)
+        form.addRow("Oturum saklama", self._codex_session_retention)
+        form.addRow(self._codex_resume)
+        form.addRow(self._codex_diff_review)
+        form.addRow("Maksimum diff", self._codex_diff_max)
+        form.addRow("Tanılama ayrıntısı", self._codex_diagnostics)
         self._agent_enabled = QCheckBox("Agent Mode etkin", page)
         self._agent_max_steps = QSpinBox(page)
         self._agent_max_steps.setRange(3, 12)
@@ -733,6 +752,11 @@ class SettingsDialog(QDialog):
         self._codex_read_only.setChecked(settings.codex.read_only_default)
         self._codex_suggestions.setChecked(settings.codex.automatic_analysis_suggestions)
         _select_data(self._codex_history_retention, settings.codex.history_retention_days)
+        _select_data(self._codex_session_retention, settings.codex.session_retention_days)
+        self._codex_resume.setChecked(settings.codex.resume_enabled)
+        self._codex_diff_review.setChecked(settings.codex.diff_review_required)
+        self._codex_diff_max.setValue(settings.codex.diff_max_size_kb)
+        _select_data(self._codex_diagnostics, settings.codex.diagnostics_verbosity)
 
     def _collect_settings(self) -> UserSettings:
         return UserSettings(
@@ -848,6 +872,11 @@ class SettingsDialog(QDialog):
                 modification_confirmation=True,
                 automatic_analysis_suggestions=self._codex_suggestions.isChecked(),
                 history_retention_days=self._codex_history_retention.currentData(),
+                session_retention_days=int(self._codex_session_retention.currentData()),
+                resume_enabled=self._codex_resume.isChecked(),
+                diff_review_required=True,
+                diff_max_size_kb=self._codex_diff_max.value(),
+                diagnostics_verbosity=str(self._codex_diagnostics.currentData()),
                 default_approval_behavior="always_ask",
                 privacy_mode="metadata_only",
                 approval_enforced=True,

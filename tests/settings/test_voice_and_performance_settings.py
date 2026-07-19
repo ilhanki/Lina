@@ -25,7 +25,7 @@ def test_schema_one_migrates_without_losing_old_values():
         "models": {"text_model": "old-text", "vision_model": "old-vision"},
         "speech": {"enabled": False, "language": "tr", "auto_insert_transcription": False},
     })
-    assert settings.schema_version == SCHEMA_VERSION == 10
+    assert settings.schema_version == SCHEMA_VERSION == 11
     assert settings.appearance.theme == "light"
     assert settings.models.text_model == "old-text"
     assert not settings.speech.enabled
@@ -61,7 +61,7 @@ def test_new_settings_restart_persistence(tmp_path):
     loaded = repository.load()
     assert loaded == settings
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 10
+    assert payload["schema_version"] == 11
     assert payload["speech"]["voice_responses_enabled"] is True
     assert payload["models"]["keep_alive"] == "15m"
 
@@ -90,7 +90,7 @@ def test_schema_two_migrates_and_preserves_voice_values():
             },
         }
     )
-    assert settings.schema_version == 10
+    assert settings.schema_version == 11
     assert not settings.speech.enabled
     assert settings.speech.voice_responses_enabled
     assert settings.speech.wake_phrase == "Hey Asistan"

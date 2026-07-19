@@ -292,19 +292,23 @@ def create_application_services(
         codex_repository.cleanup(user_preferences.codex.history_retention_days)
     except (OSError, ValueError, TypeError):
         pass
-    configured_codex_path = (user_preferences.codex.cli_executable_path or None)
-    if not user_preferences.codex.auto_detect_cli and configured_codex_path is None:
-        codex_client = UnavailableCodexClient(("automatic_discovery_disabled",))
-    else:
-        try:
-            codex_client = CodexCliClient.probe(
-                configured_codex_path,
-                timeout_seconds=user_preferences.codex.default_task_timeout_seconds,
-            )
-        except (CodexTransportError, OSError, ValueError) as error:
-            code = getattr(error, "code", "cli_probe_failed")
-            codex_client = UnavailableCodexClient((str(code),))
-    codex_bridge = CodexBridge(codex_client, repository=codex_repository)
+    codex_bridge = None
+    if user_preferences.codex.bridge_enabled:
+        configured_codex_path = (user_preferences.codex.cli_executable_path or None)
+        if not user_preferences.codex.auto_detect_cli and configured_codex_path is None:
+            codex_client = UnavailableCodexClient(("automatic_discovery_disabled",))
+        else:
+            try:
+                codex_client = CodexCliClient.probe(
+                    configured_codex_path,
+                    timeout_seconds=user_preferences.codex.default_task_timeout_seconds,
+                )
+                codex_client.resume_enabled = user_preferences.codex.resume_enabled
+                codex_client.session_retention_days = user_preferences.codex.session_retention_days
+            except (CodexTransportError, OSError, ValueError) as error:
+                code = getattr(error, "code", "cli_probe_failed")
+                codex_client = UnavailableCodexClient((str(code),))
+        codex_bridge = CodexBridge(codex_client, repository=codex_repository)
 
     return ApplicationServices(
         application=application,

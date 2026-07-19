@@ -23,6 +23,11 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     assert dialog._agent_template_suggestions.isChecked()
     assert dialog._agent_interrupted_notice.isChecked()
     assert dialog._agent_history_retention.currentData() == 30
+    assert dialog._codex_session_retention.currentData() == 30
+    assert dialog._codex_resume.isChecked()
+    assert dialog._codex_diff_review.isChecked()
+    assert not dialog._codex_diff_review.isEnabled()
+    assert dialog._codex_diff_max.value() == 1024
     dialog._font_scale.setValue(120)
     dialog._apply()
 

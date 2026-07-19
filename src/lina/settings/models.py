@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 SUPPORTED_THEMES = frozenset({"dark", "light", "system"})
 SUPPORTED_CLOSE_BEHAVIORS = frozenset({"exit", "tray", "ask"})
 SUPPORTED_TRANSCRIPTION_MODES = frozenset({"insert", "send"})
@@ -152,6 +152,13 @@ class CodexUserSettings:
     workspace_restriction_enforced: bool = True
     secret_filtering_enforced: bool = True
     audit_logging_enforced: bool = True
+    candidate_source: str = "unknown"
+    session_retention_days: int = 30
+    resume_enabled: bool = True
+    diff_review_required: bool = True
+    diff_max_size_kb: int = 1024
+    diagnostics_verbosity: str = "standard"
+    last_cli_health_check: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,6 +243,16 @@ class UserSettings:
         if not all((self.codex.approval_enforced, self.codex.workspace_restriction_enforced,
                     self.codex.secret_filtering_enforced, self.codex.audit_logging_enforced)):
             raise ValueError("Codex safety controls cannot be disabled")
+        if self.codex.session_retention_days not in {7, 30, 90}:
+            raise ValueError("Unsupported Codex session retention")
+        if not self.codex.diff_review_required:
+            raise ValueError("Codex diff review cannot be disabled")
+        if not 64 <= self.codex.diff_max_size_kb <= 4096:
+            raise ValueError("Codex diff size limit is outside safe bounds")
+        if self.codex.diagnostics_verbosity not in {"standard", "detailed"}:
+            raise ValueError("Unsupported Codex diagnostics verbosity")
+        if len(self.codex.candidate_source) > 80 or len(self.codex.last_cli_health_check) > 80:
+            raise ValueError("Codex health metadata exceeds safe bounds")
         if not 0.5 <= self.live_vision.capture_interval_seconds <= 60:
             raise ValueError("Live vision capture interval must be between 0.5 and 60")
         if not 1 <= self.live_vision.minimum_analysis_interval_seconds <= 3600:
@@ -369,6 +386,13 @@ class UserSettings:
                 "workspace_restriction_enforced": True,
                 "secret_filtering_enforced": True,
                 "audit_logging_enforced": True,
+                "candidate_source": self.codex.candidate_source,
+                "session_retention_days": self.codex.session_retention_days,
+                "resume_enabled": self.codex.resume_enabled,
+                "diff_review_required": True,
+                "diff_max_size_kb": self.codex.diff_max_size_kb,
+                "diagnostics_verbosity": self.codex.diagnostics_verbosity,
+                "last_cli_health_check": self.codex.last_cli_health_check,
             },
         }
 
@@ -377,7 +401,7 @@ class UserSettings:
         """Parse known fields and use safe defaults for missing or invalid values."""
         if not isinstance(raw, dict):
             return cls()
-        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA_VERSION):
+        if raw.get("schema_version") not in (None, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SCHEMA_VERSION):
             return cls()
         defaults = cls()
         appearance = _section(raw, "appearance")
@@ -522,6 +546,20 @@ class UserSettings:
                 workspace_restriction_enforced=True,
                 secret_filtering_enforced=True,
                 audit_logging_enforced=True,
+                candidate_source=_safe_string(
+                    codex, "candidate_source", defaults.codex.candidate_source, 80),
+                session_retention_days=_choice_int(
+                    codex, "session_retention_days", defaults.codex.session_retention_days,
+                    {7, 30, 90}),
+                resume_enabled=_bool(codex, "resume_enabled", defaults.codex.resume_enabled),
+                diff_review_required=True,
+                diff_max_size_kb=_bounded_int(
+                    codex, "diff_max_size_kb", defaults.codex.diff_max_size_kb, 64, 4096),
+                diagnostics_verbosity=_choice(
+                    codex, "diagnostics_verbosity", defaults.codex.diagnostics_verbosity,
+                    {"standard", "detailed"}),
+                last_cli_health_check=_safe_string(
+                    codex, "last_cli_health_check", defaults.codex.last_cli_health_check, 80),
             ),
         )
 

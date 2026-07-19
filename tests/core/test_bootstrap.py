@@ -1,9 +1,12 @@
 import pytest
+from dataclasses import replace
 from pathlib import Path
 from lina.core.bootstrap import create_application_services
 from lina.speech.models import SpeechState
 from lina.speech.audio_recorder import SoundDeviceAudioRecorder
 from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
+from lina.settings.models import UserSettings
+from lina.settings.repository import UserSettingsRepository
 
 def test_bootstrap_wires_services_correctly(tmp_path: Path) -> None:
     config_path = tmp_path / "settings.toml"
@@ -63,6 +66,7 @@ max_context_characters = 500
         assert services.conversation_service._context_manager._memory_context_max_characters == 500
         assert services.user_settings_service is not None
         assert services.live_vision_controller is not None
+        assert services.codex_bridge is None
         assert (tmp_path / "user-settings.json").exists() is False
     finally:
         services.conversation_service._memory_service.close()
@@ -150,3 +154,32 @@ auto_send = false
         FasterWhisperSTTProvider,
     )
     assert services.speech_service._stt_provider._model is None
+
+
+def test_bootstrap_codex_bridge_flag_is_effective(tmp_path: Path) -> None:
+    config_path = tmp_path / "settings.toml"
+    config_path.write_text("""
+[app]
+name = "Lina"
+environment = "test"
+[logging]
+level = "INFO"
+[paths]
+data = "data"
+logs = "logs"
+models = "models"
+cache = "cache"
+[ollama]
+base_url = "http://localhost:11434"
+default_model = "llama3"
+[memory]
+enabled = false
+    """, encoding="utf-8")
+    user_path = tmp_path / "user-settings.json"
+    defaults = UserSettings()
+    UserSettingsRepository(user_path).save(UserSettings(
+        codex=replace(defaults.codex, bridge_enabled=True, auto_detect_cli=False)
+    ))
+    services = create_application_services(config_path, tmp_path, user_settings_path=user_path)
+    assert services.codex_bridge is not None
+    assert "automatic_discovery_disabled" in services.codex_bridge.client.info.diagnostics
