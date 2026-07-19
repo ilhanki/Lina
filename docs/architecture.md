@@ -1,5 +1,15 @@
 # Lina Mimari Dokümanı
 
+## Codex Production Hardening (v0.13.2-alpha)
+
+Codex katmanı artık `discovery -> capability probe -> authenticated execution -> session reference -> workspace snapshot -> change review -> verification` zincirini typed sınırlarla uygular. Windows discovery, doğrudan başlatılamayan paketli WindowsApps adayının ardından launchable npm `codex.cmd` adayına ilerleyebilir. `.cmd` yalnız doğrulanmış argumentlerle `cmd.exe /d /s /c` üzerinden çağrılır; prompt her zaman stdin'dedir ve process `shell=False` kalır.
+
+CLI yardım çıktısı root, `exec` ve `exec resume` kapsamlarında ayrı ayrı parse edilir. Resume yalnız güvenli session kimliği, aynı workspace fingerprinti, uyumlu CLI minor sürümü, güncel auth, gerçek resume/JSON/stdin capability'leri ve kullanıcı onayı birlikte sağlanırsa kurulur. Persist edilen recovery kaydı prompt veya dosya içeriği değil, sınırlı metadata'dır; restart sonrası canlı remote reference bellekte yoksa otomatik devam edilmez.
+
+Snapshot katmanı Git metadata'sını ve bounded dosya manifestini before/after toplar. Değişiklikler typed file/hunk modeline çevrilir; binary, büyük, hassas, workspace dışı veya beklenmeyen Git işlemleri güvenli karar kapısına gider. Modification sonucu kullanıcı diff review kararı vermeden tamamlanmış sayılmaz. Reddetme otomatik rollback değildir ve hiçbir dosyayı değiştirmez; yalnız review metadata'sı üretir.
+
+Process state machine bounded stdout/stderr, timeout, cancellation, Ctrl-Break/terminate/kill fallback ve uygulama kapanış temizliğini yönetir. JSONL parser BOM, CRLF, partial, malformed, unknown future event, usage ve session kimliğini ham içerik persist etmeden işler. Qt yüzeyi eventleri sınırlı sıklıkta taşır; runtime approval otomatik kabul edilmez ve görev `paused` durumuna geçer.
+
 ## Real Codex CLI Transport (v0.13.1-alpha)
 
 Foundation akışı korunur ve yalnız `CodexClient` sınırının arkasına resmi CLI adapter eklenir. Bootstrap, açık ayar yolunu veya kontrollü PATH discovery sonucunu probe eder; çalıştırılabilir CLI bulunur ve version/help/status kontrolleri geçerse `CodexCliClient`, aksi halde neden kodu taşıyan `UnavailableCodexClient` seçilir.

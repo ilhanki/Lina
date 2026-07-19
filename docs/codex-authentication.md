@@ -20,3 +20,6 @@ Resmi referanslar: [Codex authentication](https://developers.openai.com/codex/au
 
 Login tamamlandıktan sonra kullanıcı “Durumu Yenile” ile tekrar probe eder. Logout yalnız CLI credential oturumunu etkiler; Lina conversation, memory, task history veya workspace ayarlarını silmez. Login process’i interactive olduğu için Lina stdout/token yakalamaz.
 
+## v0.13.2-alpha doğrulama notu
+
+Release hazırlığı sırasında seçilen npm CLI `codex-cli 0.144.6` idi ve resmi `codex login status` çıktısı `Not logged in` döndürdü. Önceki bir ortam gözleminin “Logged in using ChatGPT” olması güncel auth kanıtı sayılmadı. Lina auth dosyası okuyarak bu sonucu aşmaya çalışmadı; gerçek görev bir kez denendi, güvenli hata üretti ve tekrar edilmedi.
