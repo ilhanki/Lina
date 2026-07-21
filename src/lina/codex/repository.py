@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+import tempfile
+import threading
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -15,6 +18,7 @@ class CodexHistoryRepository:
     def __init__(self, path: Path | None = None, *, max_entries: int = 500) -> None:
         self.path = path
         self.max_entries = max(10, min(int(max_entries), 5000))
+        self._lock = threading.RLock()
         self._entries: list[CodexHistoryEntry] = []
         if path is not None and path.exists():
             self._load()
@@ -37,27 +41,31 @@ class CodexHistoryRepository:
                                   session.review_pending,
                                   session.error_code or "none", session.result_surfaced,
                                   session.remote_session.cli_session_id if session.remote_session else None)
-        self._entries = [item for item in self._entries if item.session_id != entry.session_id]
-        self._entries.append(entry)
-        self._entries = sorted(
-            self._entries, key=lambda item: item.created_at, reverse=True
-        )[:self.max_entries]
-        self._flush()
+        with self._lock:
+            self._entries = [item for item in self._entries if item.session_id != entry.session_id]
+            self._entries.append(entry)
+            self._entries = sorted(
+                self._entries, key=lambda item: item.created_at, reverse=True
+            )[:self.max_entries]
+            self._flush()
         return entry
 
     def list(self) -> tuple[CodexHistoryEntry, ...]:
-        return tuple(sorted(self._entries, key=lambda item: item.created_at, reverse=True))
+        with self._lock:
+            return tuple(sorted(self._entries, key=lambda item: item.created_at, reverse=True))
 
     def delete(self, session_id: str) -> None:
-        self._entries = [item for item in self._entries if item.session_id != session_id]
-        self._flush()
+        with self._lock:
+            self._entries = [item for item in self._entries if item.session_id != session_id]
+            self._flush()
 
     def mark_surfaced(self, session_id: str) -> None:
-        self._entries = [
-            replace(item, result_surfaced=True) if item.session_id == session_id else item
-            for item in self._entries
-        ]
-        self._flush()
+        with self._lock:
+            self._entries = [
+                replace(item, result_surfaced=True) if item.session_id == session_id else item
+                for item in self._entries
+            ]
+            self._flush()
 
     def recover_incomplete(self) -> tuple[CodexHistoryEntry, ...]:
         live_states = {
@@ -65,21 +73,22 @@ class CodexHistoryRepository:
             CodexSessionStatus.WAITING_APPROVAL, CodexSessionStatus.RUNNING,
             CodexSessionStatus.VERIFYING, CodexSessionStatus.PAUSED,
         }
-        recovered: list[CodexHistoryEntry] = []
-        updated: list[CodexHistoryEntry] = []
-        for item in self._entries:
-            if item.status in live_states:
-                item = replace(
-                    item, status=CodexSessionStatus.INTERRUPTED,
-                    exit_category="orphaned_process", failure_category="interrupted",
-                    process_termination_status="process_not_alive", last_event="interrupted",
-                )
-                recovered.append(item)
-            updated.append(item)
-        self._entries = updated
-        if recovered:
-            self._flush()
-        return tuple(recovered)
+        with self._lock:
+            recovered: list[CodexHistoryEntry] = []
+            updated: list[CodexHistoryEntry] = []
+            for item in self._entries:
+                if item.status in live_states:
+                    item = replace(
+                        item, status=CodexSessionStatus.INTERRUPTED,
+                        exit_category="orphaned_process", failure_category="interrupted",
+                        process_termination_status="process_not_alive", last_event="interrupted",
+                    )
+                    recovered.append(item)
+                updated.append(item)
+            self._entries = updated
+            if recovered:
+                self._flush()
+            return tuple(recovered)
 
     def recovery_items(self) -> tuple[CodexHistoryEntry, ...]:
         return tuple(item for item in self.list() if (
@@ -90,9 +99,10 @@ class CodexHistoryRepository:
 
     def cleanup(self, retention_days: int | None) -> None:
         if retention_days is not None:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-            self._entries = [item for item in self._entries if item.created_at >= cutoff]
-            self._flush()
+            with self._lock:
+                cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+                self._entries = [item for item in self._entries if item.created_at >= cutoff]
+                self._flush()
 
     def _load(self) -> None:
         try:
@@ -146,4 +156,19 @@ class CodexHistoryRepository:
                     "failure_category": item.failure_category,
                     "result_surfaced": item.result_surfaced,
                     "remote_session_id": item.remote_session_id} for item in self._entries]
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=self.path.parent,
+                prefix=f".{self.path.name}.", suffix=".tmp", delete=False,
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+                temporary_file.write(serialized)
+                temporary_file.flush()
+                os.fsync(temporary_file.fileno())
+            os.replace(temporary_path, self.path)
+            temporary_path = None
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)

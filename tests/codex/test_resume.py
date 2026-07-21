@@ -1,6 +1,8 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+import json
 
 import pytest
 
@@ -143,3 +145,21 @@ def test_history_is_bounded_even_with_unlimited_day_retention(tmp_path: Path) ->
         repository.save(session)
     repository.cleanup(None)
     assert len(repository.list()) == 10
+
+
+def test_history_concurrent_saves_leave_valid_bounded_json(tmp_path: Path) -> None:
+    path = tmp_path / "history.json"
+    repository = CodexHistoryRepository(path, max_entries=20)
+
+    def save(index: int) -> None:
+        session = CodexSession.create(ProjectContext(tmp_path), f"Task {index}")
+        session.transition(CodexSessionStatus.COMPLETED)
+        repository.save(session)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        tuple(pool.map(save, range(40)))
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert len(payload) == 20
+    assert len(repository.list()) == 20
+    assert not tuple(tmp_path.glob(".history.json.*.tmp"))
