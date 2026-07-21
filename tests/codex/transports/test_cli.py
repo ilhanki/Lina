@@ -6,6 +6,7 @@ from lina.codex.models import (
     CodexExecutionMode,
     CodexRiskLevel,
     CodexTask,
+    CodexVerificationRule,
     ExpectedOutput,
     ProjectContext,
     RequestedAction,
@@ -138,6 +139,26 @@ def test_client_uses_stdin_and_parses_typed_result(tmp_path: Path) -> None:
     assert runner.calls[0][1]["stdin_text"]
     assert "Projeyi analiz et" not in runner.calls[0][0]
     assert result.evidence and result.evidence.exit_code == 0
+
+
+def test_client_marks_cached_auth_signed_out_after_login_failure(tmp_path: Path) -> None:
+    output = '{"type":"error","message":"Not logged in"}\n'
+    runner = FakeRunner(ProcessResult(("codex",), 1, output, "", 0.1))
+    client = CodexCliClient(info(tmp_path / "codex.exe"), runner=runner)
+    with pytest.raises(CodexLoginRequired):
+        client.execute(task(tmp_path), ProjectContext(tmp_path), lambda _event: None)
+    assert not client.info.authenticated
+    assert client.info.auth_method_summary == "none"
+
+
+def test_prompt_requires_real_execution_when_task_requires_test_evidence(tmp_path: Path) -> None:
+    codex_task = task(tmp_path)
+    codex_task.verification_rules = (CodexVerificationRule("test_execution_succeeded"),)
+    prompt = build_task_prompt(
+        codex_task, ProjectContext(tmp_path), CodexExecutionMode.READ_ONLY
+    )
+    assert "test komutunu gerçekten çalıştır" in prompt
+    assert "başarı iddiasında bulunma" in prompt
 
 
 def test_client_blocks_execution_when_signed_out(tmp_path: Path) -> None:

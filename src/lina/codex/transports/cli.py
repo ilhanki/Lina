@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 
-from lina.codex.models import (CodexEvent, CodexExecutionMode, CodexRemoteSessionReference,
+from lina.codex.models import (CodexExecutionMode, CodexRemoteSessionReference,
                                 CodexResult, CodexRiskLevel, CodexTask, ProjectContext)
 from lina.codex.permissions import ensure_within_workspace, is_secret_path
 from lina.codex.transports.diagnostics import (MINIMUM_CODEX_CLI_VERSION, CodexCliInfo,
@@ -327,7 +327,12 @@ class CodexCliClient:
             if parser.runtime_approval_requested:
                 raise CodexApprovalRequired()
             if result.exit_code != 0:
-                raise self._map_failure(result)
+                error = self._map_failure(result)
+                if isinstance(error, CodexLoginRequired):
+                    self.info = replace(
+                        self.info, authenticated=False, auth_method_summary="none"
+                    )
+                raise error
             if parser.invalid_lines and not parser.events:
                 raise CodexOutputInvalid()
             summary = redact(parser.summary).strip()
@@ -441,7 +446,10 @@ class CodexCliClient:
             return CodexNetworkUnavailable()
         if any(item in safe for item in ("provider unavailable", "service unavailable")):
             return CodexProviderUnavailable()
-        if any(item in safe for item in ("login", "not authenticated", "unauthorized")):
+        if any(item in safe for item in (
+            "login", "not logged", "signed out", "not authenticated", "unauthorized",
+            "authentication required",
+        )):
             return CodexLoginRequired()
         return CodexExecutionFailed()
 

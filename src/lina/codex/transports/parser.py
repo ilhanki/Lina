@@ -35,6 +35,8 @@ class CodexJsonlParser:
         self.test_commands: set[str] = set()
         self._test_successes = 0
         self._test_failures = 0
+        self._commands_by_item_id: dict[str, str] = {}
+        self._completed_command_items: set[str] = set()
 
     def feed(self, chunk: str) -> tuple[CodexEvent, ...]:
         self._buffer += str(chunk or "")
@@ -120,21 +122,34 @@ class CodexJsonlParser:
                 self.remote_session_id = candidate_id
                 break
         text = self._extract_text(item)
-        if "command" in raw_type or "command" in str(item.get("type", "")).casefold():
-            command = item.get("command") or item.get("cmd") or text
+        item_type = str(item.get("type", "")).casefold()
+        if "command" in raw_type or "command" in item_type:
+            item_id = str(item.get("id") or payload.get("item_id") or "").strip()
+            command = item.get("command") or item.get("cmd") or ""
             if isinstance(command, list):
                 command = " ".join(str(part) for part in command[:100])
-            self._capture_git_signal(str(command or ""))
-            test_kind = classify_test_command(str(command or ""))
+            command_text = str(command or "").strip()
+            if command_text and item_id and len(self._commands_by_item_id) < 2_000:
+                self._commands_by_item_id[item_id] = command_text
+            if not command_text and item_id:
+                command_text = self._commands_by_item_id.get(item_id, "")
+            self._capture_git_signal(command_text)
+            test_kind = classify_test_command(command_text)
             if test_kind:
                 self.test_commands.add(test_kind)
-                exit_code = item.get("exit_code", payload.get("exit_code"))
+                exit_code = _command_exit_code(item, payload)
+                status = str(item.get("status") or payload.get("status") or "").casefold()
                 completed = ("completed" in raw_type
-                             or str(item.get("status", "")).casefold() == "completed")
-                if completed and isinstance(exit_code, int):
-                    if exit_code == 0:
-                        self._test_successes += 1
-                    else:
+                             or status in {"completed", "failed", "error", "cancelled"})
+                completion_key = item_id or f"{test_kind}:{command_text}"
+                if completed and completion_key not in self._completed_command_items:
+                    self._completed_command_items.add(completion_key)
+                    if exit_code is not None:
+                        if exit_code == 0 and status not in {"failed", "error", "cancelled"}:
+                            self._test_successes += 1
+                        else:
+                            self._test_failures += 1
+                    elif status in {"failed", "error", "cancelled"}:
                         self._test_failures += 1
         path = self._extract_path(item)
         if path:
@@ -221,14 +236,35 @@ def re_search_git_action(command: str, action: str) -> bool:
 def classify_test_command(command: str) -> str | None:
     import re
     folded = " ".join(command.casefold().split())
+    boundary = r"(?:^|[;&|]\s*|[\s\"'`(])"
+    python = (
+        r"(?:py(?:\.exe)?|python(?:3(?:\.\d+)?)?(?:\.exe)?|"
+        r"[^\s\"';&|]*[\\/]python(?:3(?:\.\d+)?)?(?:\.exe)?|"
+        r"\"[^\"]*[\\/]python(?:3(?:\.\d+)?)?(?:\.exe)?\"|"
+        r"'[^']*[\\/]python(?:3(?:\.\d+)?)?(?:\.exe)?')"
+    )
+    pytest = r"(?:pytest(?:\.exe)?|[^\s\"';&|]*[\\/]pytest(?:\.exe)?)"
     patterns = (
-        ("pytest", r"(?:^|[;&|]\s*|\s)(?:python(?:\.exe)?\s+-m\s+)?pytest(?:\s|$)"),
-        ("unittest", r"(?:^|[;&|]\s*|\s)python(?:\.exe)?\s+-m\s+unittest(?:\s|$)"),
-        ("npm-test", r"(?:^|[;&|]\s*|\s)npm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|$)"),
-        ("pnpm-test", r"(?:^|[;&|]\s*|\s)pnpm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|$)"),
-        ("yarn-test", r"(?:^|[;&|]\s*|\s)yarn(?:\.cmd)?\s+test(?:\s|$)"),
-        ("cargo-test", r"(?:^|[;&|]\s*|\s)cargo(?:\.exe)?\s+test(?:\s|$)"),
-        ("go-test", r"(?:^|[;&|]\s*|\s)go(?:\.exe)?\s+test(?:\s|$)"),
-        ("dotnet-test", r"(?:^|[;&|]\s*|\s)dotnet(?:\.exe)?\s+test(?:\s|$)"),
+        ("pytest", rf"{boundary}(?:(?:uv|poetry|pipenv)(?:\.exe)?\s+run\s+)?(?:{python}\s+-m\s+)?{pytest}(?:\s|[\"']|$)"),
+        ("unittest", rf"{boundary}{python}\s+-m\s+unittest(?:\s|[\"']|$)"),
+        ("npm-test", rf"{boundary}npm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|[\"']|$)"),
+        ("pnpm-test", rf"{boundary}pnpm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|[\"']|$)"),
+        ("yarn-test", rf"{boundary}yarn(?:\.cmd)?\s+test(?:\s|[\"']|$)"),
+        ("cargo-test", rf"{boundary}cargo(?:\.exe)?\s+test(?:\s|[\"']|$)"),
+        ("go-test", rf"{boundary}go(?:\.exe)?\s+test(?:\s|[\"']|$)"),
+        ("dotnet-test", rf"{boundary}dotnet(?:\.exe)?\s+test(?:\s|[\"']|$)"),
     )
     return next((name for name, pattern in patterns if re.search(pattern, folded)), None)
+
+
+def _command_exit_code(item: dict[str, Any], payload: dict[str, Any]) -> int | None:
+    sources = (item, payload)
+    result = item.get("result")
+    if isinstance(result, dict):
+        sources += (result,)
+    for source in sources:
+        for key in ("exit_code", "exitCode", "return_code", "returnCode"):
+            value = source.get(key)
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+    return None

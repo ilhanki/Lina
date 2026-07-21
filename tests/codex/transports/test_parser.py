@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from lina.codex.models import CodexEventType
 from lina.codex.transports.parser import CodexJsonlParser
 
@@ -172,3 +176,57 @@ def test_parser_records_failed_test_evidence() -> None:
         '"command":"pytest","exit_code":1}}\n'
     )
     assert parser.tests_passed is False
+
+
+def test_parser_correlates_started_command_with_sparse_completion() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.started","item":{"id":"cmd-1","type":"command_execution",'
+        '"command":"pytest -q","status":"in_progress"}}\n'
+        '{"type":"item.completed","item":{"id":"cmd-1","type":"command_execution",'
+        '"exit_code":0,"status":"completed"}}\n'
+    )
+    assert parser.tests_passed is True
+    assert parser.test_commands == {"pytest"}
+
+
+@pytest.mark.parametrize("exit_key", ("exitCode", "return_code", "returnCode"))
+def test_parser_accepts_forward_compatible_exit_code_keys(exit_key: str) -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.completed","item":{"id":"cmd-1","type":"command_execution",'
+        f'"command":"python -m pytest -q","{exit_key}":0,"status":"completed"}}}}\n'
+    )
+    assert parser.tests_passed is True
+
+
+@pytest.mark.parametrize("status", ("failed", "error", "cancelled"))
+def test_parser_treats_terminal_failure_without_exit_code_as_failed(status: str) -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.completed","item":{"type":"command_execution",'
+        f'"command":"pytest -q","status":"{status}"}}}}\n'
+    )
+    assert parser.tests_passed is False
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        'powershell.exe -Command "python -m pytest tests -q"',
+        'pwsh.exe -Command "C:\\work\\.venv\\Scripts\\python.exe -m pytest -q"',
+        "pwsh -Command & 'C:\\Program Files\\Python\\python.exe' -m pytest -q",
+        'cmd.exe /c ".venv\\Scripts\\pytest.exe -q"',
+        "uv run pytest -q",
+        "poetry run pytest -q",
+        "py -m pytest -q",
+    ),
+)
+def test_parser_recognizes_wrapped_windows_test_commands(command: str) -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.completed","item":{"type":"command_execution",'
+        f'"command":{json.dumps(command)},"exit_code":0,"status":"completed"}}}}\n'
+    )
+    assert parser.tests_passed is True
+    assert parser.test_commands == {"pytest"}

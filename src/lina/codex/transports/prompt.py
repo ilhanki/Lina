@@ -1,6 +1,5 @@
 """Minimal task-only prompt construction for Codex CLI execution."""
 
-from pathlib import Path
 
 from lina.codex.models import CodexExecutionMode, CodexTask, ProjectContext
 
@@ -15,6 +14,13 @@ def build_task_prompt(task: CodexTask, context: ProjectContext, mode: CodexExecu
         "kontrollü değişiklik; yalnız onaylanan amaç için gerekli dosyaları değiştir"
     )
     allowed_text = ", ".join(allowed) if allowed else "workspace içindeki secret olmayan proje dosyaları"
+    verification = (
+        "Bu görev test yürütme doğrulaması istiyor. Uygun test komutunu gerçekten çalıştır; "
+        "test komutu başarıyla tamamlanmadan başarı iddiasında bulunma. Testi çalıştıramazsan "
+        "bunu açıkça bildir."
+        if any(rule.kind == "test_execution_succeeded" for rule in task.verification_rules)
+        else "Sonucu doğrula; test çalıştırdıysan sonucu kısa biçimde bildir."
+    )
     return "\n".join((
         "Görev:", task.objective.strip(), "",
         f"Çalışma alanı: {context.root_path}",
@@ -24,7 +30,7 @@ def build_task_prompt(task: CodexTask, context: ProjectContext, mode: CodexExecu
         "Secret, credential, token, anahtar, sertifika veya auth dosyalarını okuma ve çıktıya taşıma.",
         "Git push, tag, force push, reset, clean, rebase veya commit yapma.",
         f"Beklenen çıktı: {task.expected_output.description}.",
-        "Doğrulama: sonucu ve varsa test kanıtını kısa biçimde bildir.",
+        f"Doğrulama: {verification}",
         "Yanıt dili: Türkçe.",
     ))
 

@@ -70,7 +70,8 @@ def test_capabilities_are_derived_from_help_and_scope() -> None:
     ("status", "code", "expected"),
     (("Logged in with ChatGPT", 0, (True, "ChatGPT")),
      ("Authenticated with API key", 0, (True, "API key")),
-     ("Not logged in", 1, (False, "none"))),
+     ("Not logged in", 1, (False, "none")),
+     ("Not logged in", 0, (False, "none"))),
 )
 def test_auth_status_parsing(status: str, code: int, expected: tuple[bool, str]) -> None:
     assert parse_auth_status(status, code) == expected

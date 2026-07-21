@@ -52,6 +52,7 @@ def test_requested_test_requires_successful_execution_evidence(tmp_path: Path) -
     )
     assert missing.outcome is VerificationOutcome.FAILED
     assert "test_execution_evidence_missing" in missing.checks
+    assert "Oturum durumunu yenileyip" in missing.summary
     verified = CodexOutputValidator().verify(
         task, CodexResult("Testler geçti", evidence=CodexExecutionEvidence(
             exit_code=0, tests_passed=True, test_commands=("pytest",),

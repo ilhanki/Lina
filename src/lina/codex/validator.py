@@ -51,7 +51,8 @@ class CodexOutputValidator:
             if evidence is None or evidence.tests_passed is not True or not evidence.test_commands:
                 return VerificationReport(
                     VerificationOutcome.FAILED,
-                    "İstenen testin başarıyla çalıştığına dair yürütme kanıtı yok.",
+                    "Codex istenen testi çalıştırmadı veya CLI test çalışmasının tamamlanma "
+                    "kanıtını üretmedi. Oturum durumunu yenileyip görevi yeniden deneyin.",
                     tuple(checks + ["test_execution_evidence_missing"]),
                 )
             checks.append("test_execution_succeeded")
