@@ -2,7 +2,10 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from lina.conversations.repository import ConversationRepository
+from lina.conversations.repository import ConversationRepositoryError
 from lina.conversations.service import ConversationHistoryService
 
 
@@ -130,3 +133,19 @@ def test_deleting_active_conversation_returns_to_empty_draft(tmp_path) -> None:
 
     assert service.active_session is None
     assert repository.get_conversation(second_id) is not None
+
+
+def test_missing_conversation_does_not_disable_other_persisted_sessions(tmp_path) -> None:
+    repository = ConversationRepository(tmp_path / "conversations.sqlite3")
+    service = ConversationHistoryService(repository)
+    service.start()
+    service.record_user_message("Korunacak sohbet")
+    valid_id = service.active_session.id or 0
+
+    with pytest.raises(ConversationRepositoryError, match="not found"):
+        service.load_session(valid_id + 10_000)
+
+    assert service.persistence_available is True
+    loaded = service.load_session(valid_id)
+    assert loaded.id == valid_id
+    assert service.loaded_messages()[0].content == "Korunacak sohbet"

@@ -156,18 +156,21 @@ class ConversationHistoryService:
             raise ConversationRepositoryError("Conversation persistence is unavailable")
         try:
             session = self._repository.get_conversation(conversation_id)  # type: ignore[union-attr]
-            if session is None:
-                raise ConversationRepositoryError("Conversation not found")
-            self._active_session = session
-            self._memory_messages = list(
-                self._repository.list_messages(  # type: ignore[union-attr]
-                    conversation_id, limit=self._max_loaded_messages
-                )
-            )
-            return session
         except ConversationRepositoryError:
             self._persistence_available = False
             raise
+        if session is None:
+            raise ConversationRepositoryError("Conversation not found")
+        try:
+            messages = self._repository.list_messages(  # type: ignore[union-attr]
+                conversation_id, limit=self._max_loaded_messages
+            )
+        except ConversationRepositoryError:
+            self._persistence_available = False
+            raise
+        self._active_session = session
+        self._memory_messages = list(messages)
+        return session
 
     def model_history(self) -> tuple[ConversationTurn, ...]:
         """Return only bounded text exchanges for Brain context."""
