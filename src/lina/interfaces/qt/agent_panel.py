@@ -61,12 +61,12 @@ class AgentPanel(QWidget):
         super().__init__(parent)
         self.setObjectName("agentPanel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setAccessibleName("Agent Mode görev paneli")
+        self.setAccessibleName("Agent modu görev paneli")
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 14, 16, 14)
         root.setSpacing(10)
         header = QHBoxLayout()
-        self.mode_label = QPushButton("Agent Mode · Kapalı", self)
+        self.mode_label = QPushButton("Agent modu · Kapalı", self)
         self.mode_label.setObjectName("statusChip")
         self.mode_label.clicked.connect(self.mode_toggle_requested.emit)
         self.progress_label = QLabel("Aktif görev yok", self)
@@ -111,10 +111,10 @@ class AgentPanel(QWidget):
         return button
 
     def render(self, session: AgentSession | None, *, enabled: bool) -> None:
-        self.mode_label.setText(f"Agent Mode · {'Açık' if enabled else 'Kapalı'}")
+        self.mode_label.setText(f"Agent modu · {'Açık' if enabled else 'Kapalı'}")
         if session is None:
             self.progress_label.setText("Aktif görev yok")
-            self.summary_label.setText("Agent Mode yalnızca açıkça istendiğinde plan hazırlar.")
+            self.summary_label.setText("Agent modu yalnızca açıkça istendiğinde plan hazırlar.")
             self.steps_label.setText("")
             self.progress_bar.setRange(0, 1)
             self.progress_bar.setValue(0)
@@ -135,7 +135,9 @@ class AgentPanel(QWidget):
             self.summary_label.setText(session.last_summary or "Plan hazırlanıyor…")
         if plan:
             self.steps_label.setText("\n".join(
-                f"{index}. {STATUS_LABELS[step.status]} · {step.title} · Araç: {step.tool_name} · Risk: {RISK_LABELS[step.risk_level.value]}"
+                f"{index}. {STATUS_LABELS[step.status]} · {step.title} · "
+                f"İşlem: {_tool_label(step.tool_name)} · "
+                f"Risk: {RISK_LABELS.get(step.risk_level.value, 'Bilinmiyor')}"
                 for index, step in enumerate(plan.steps, 1)
             ))
         self._set_actions(session.status)
@@ -173,3 +175,17 @@ class AgentPanel(QWidget):
         self._details_expanded = not self._details_expanded
         self.steps_label.setVisible(self._details_expanded and bool(self.steps_label.text()))
         self.details_button.setText("Ayrıntıları Gizle" if self._details_expanded else "Ayrıntıları Göster")
+
+
+def _tool_label(tool_name: str) -> str:
+    """Map internal tool identifiers to bounded user-facing labels."""
+    return {
+        "reminder.create": "Hatırlatıcı oluşturma",
+        "reminder.list": "Hatırlatıcıları listeleme",
+        "reminder.summary": "Hatırlatıcı özeti",
+        "reminder.conflicts": "Hatırlatıcı çakışma denetimi",
+        "memory.store": "Belleğe kaydetme",
+        "memory.recall": "Belleği arama",
+        "files.read": "Dosya okuma",
+        "vision.image": "Görsel analiz",
+    }.get(tool_name, "Gelişmiş işlem")

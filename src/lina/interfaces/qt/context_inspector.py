@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLayout,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
 )
 
 from lina.memory.service import MemoryService
@@ -31,14 +33,17 @@ class ContextTool:
 
 
 CORE_CONTEXT_TOOLS = (
-    ContextTool("voice", "Sesli Mod", "Doğal sesli sohbet", "voice"),
-    ContextTool("vision", "Görsel Anlama", "Ekran, görsel ve diyagram analizi", "vision"),
-    ContextTool("file", "Dosya Anlama", "Desteklenen yerel dosyaları incele", "file"),
+    ContextTool("chat", "Sohbet", "Hızlı ve doğal sohbet", "chat"),
+    ContextTool("voice", "Sesli sohbet", "Doğal sesli konuşma", "voice"),
+    ContextTool("vision", "Görsel anlama", "Ekran ve görselleri incele", "vision"),
+    ContextTool("file", "Dosya anlama", "Belgeleri ve dosyaları incele", "file"),
+    ContextTool("reminders", "Hatırlatıcılar", "Önemli anlarda haber ver", "notifications"),
+    ContextTool("memory", "Bellek", "Hatırlanan bilgileri yönet", "memory"),
 )
 
 ADVANCED_CONTEXT_TOOLS = (
     ContextTool("agent", "Agent", "Planla, uygula ve doğrula", "agent"),
-    ContextTool("codex", "Codex ile Çalış", "Güvenli, kontrollü proje çalışması", "agent"),
+    ContextTool("codex", "Codex ile çalış", "Kontrollü proje çalışması", "agent"),
 )
 
 
@@ -56,31 +61,75 @@ class DrawerScrim(QWidget):
         event.accept()
 
 
+class ContextToolCard(QPushButton):
+    """Large, accessible tool card with separately styled title and summary."""
+
+    def __init__(self, tool: ContextTool, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.tool = tool
+        self.setObjectName("contextToolCard")
+        self.setProperty("toolId", tool.id)
+        self.setText("")
+        self.setMinimumHeight(112)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(0)
+        self.setAccessibleName(tool.title)
+        self.setAccessibleDescription(tool.description)
+        self.setToolTip(f"{tool.title}: {tool.description}")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 11, 12, 11)
+        layout.setSpacing(7)
+        self.icon_label = QLabel(self)
+        self.icon_label.setObjectName("contextToolIcon")
+        self.icon_label.setFixedSize(34, 34)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_label.setPixmap(standard_icon(self, tool.icon, 24).pixmap(24, 24))
+        layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignLeft)
+        self.title_label = QLabel(tool.title, self)
+        self.title_label.setObjectName("contextToolTitle")
+        self.title_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self.title_label)
+        self.description_label = QLabel(tool.description, self)
+        self.description_label.setObjectName("contextToolDescription")
+        self.description_label.setWordWrap(True)
+        self.description_label.setFixedHeight(32)
+        self.description_label.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Fixed,
+        )
+        layout.addWidget(self.description_label)
+        for label in (self.icon_label, self.title_label, self.description_label):
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+
 class ToolsPanel(QFrame):
     tool_requested = Signal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("contextSection")
-        self.setMinimumHeight(410)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(8)
         heading = QLabel("Araçlar", self)
         heading.setObjectName("inspectorSectionTitle")
         layout.addWidget(heading)
-        self.rows: dict[str, QPushButton] = {}
-        for tool in (*CORE_CONTEXT_TOOLS, *ADVANCED_CONTEXT_TOOLS):
-            button = QPushButton(f"{tool.title}\n{tool.description}", self)
-            button.setObjectName("contextToolRow")
-            button.setIcon(standard_icon(self, tool.icon, 20))
-            button.setAccessibleName(tool.title)
-            button.setAccessibleDescription(tool.description)
-            button.setToolTip(f"{tool.title}: {tool.description}")
+        self.grid = QGridLayout()
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(9)
+        self.grid.setVerticalSpacing(9)
+        self.grid.setColumnStretch(0, 1)
+        self.grid.setColumnStretch(1, 1)
+        layout.addLayout(self.grid)
+        self.rows: dict[str, ContextToolCard] = {}
+        for index, tool in enumerate((*CORE_CONTEXT_TOOLS, *ADVANCED_CONTEXT_TOOLS)):
+            button = ContextToolCard(tool, self)
+            button._grid_position = (index // 2, index % 2)  # type: ignore[attr-defined]
             button.clicked.connect(
                 lambda _checked=False, tool_id=tool.id: self.tool_requested.emit(tool_id)
             )
-            layout.addWidget(button)
+            self.grid.addWidget(button, index // 2, index % 2)
             self.rows[tool.id] = button
         self.set_advanced_tools_visible(agent=False, codex=False)
 
@@ -95,8 +144,8 @@ class MemoryPanel(QFrame):
 
     def __init__(self, memory_service: MemoryService | None = None, parent=None) -> None:
         super().__init__(parent)
-        self.setObjectName("contextSection")
-        self.setMinimumHeight(132)
+        self.setObjectName("contextSummarySection")
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self._memory_service = memory_service
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -105,7 +154,7 @@ class MemoryPanel(QFrame):
         title = QLabel("Bellek", self)
         title.setObjectName("inspectorSectionTitle")
         header.addWidget(title, 1)
-        self.show_all_button = QPushButton("Tümünü Gör", self)
+        self.show_all_button = QPushButton("Tümünü gör", self)
         self.show_all_button.setObjectName("inspectorLinkButton")
         self.show_all_button.setAccessibleName("Tüm bellek kayıtlarını göster")
         self.show_all_button.clicked.connect(self.memory_requested)
@@ -161,22 +210,23 @@ class LocalStatusPanel(QFrame):
 
     def __init__(self, model_name: str, parent=None) -> None:
         super().__init__(parent)
-        self.setObjectName("contextSection")
-        self.setMinimumHeight(152)
+        self.setObjectName("contextSummarySection")
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(7)
-        title = QLabel("Yerel çalışma", self)
+        title = QLabel("Bu cihazda", self)
         title.setObjectName("inspectorSectionTitle")
         layout.addWidget(title)
-        self.model_label = QLabel(f"Model · {model_name}", self)
+        self.model_label = QLabel("Sohbet geçmişi ve tercihler yerel olarak saklanır.", self)
         self.model_label.setObjectName("inspectorDescription")
         self.model_label.setWordWrap(True)
         layout.addWidget(self.model_label)
         self.storage_label = QLabel("Yerel depolama hesaplanıyor…", self)
         self.storage_label.setObjectName("inspectorDescription")
+        self.storage_label.setWordWrap(True)
         layout.addWidget(self.storage_label)
-        self.open_button = QPushButton("Veri Klasörünü Aç", self)
+        self.open_button = QPushButton("Veri klasörünü aç", self)
         self.open_button.setObjectName("secondaryButton")
         self.open_button.setAccessibleName("Yerel veri klasörünü aç")
         self.open_button.clicked.connect(self.data_folder_requested)
@@ -208,8 +258,8 @@ class ContextInspector(QWidget):
         self.setAccessibleName("Bağlamsal araçlar paneli")
         self.display_mode = "docked"
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(14)
         header = QHBoxLayout()
         self.title = QLabel("Araçlar", self)
         self.title.setObjectName("inspectorTitle")
@@ -227,12 +277,15 @@ class ContextInspector(QWidget):
         self.home_scroll = QScrollArea(self.pages)
         self.home_scroll.setObjectName("inspectorScroll")
         self.home_scroll.setWidgetResizable(True)
+        self.home_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         home = QWidget(self.home_scroll)
         home.setObjectName("inspectorHome")
+        home.setMinimumWidth(0)
+        home.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         home_layout = QVBoxLayout(home)
         home_layout.setContentsMargins(0, 0, 0, 0)
-        home_layout.setSpacing(20)
-        home_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        home_layout.setSpacing(16)
+        home_layout.setSizeConstraint(QLayout.SizeConstraint.SetDefaultConstraint)
         self.tools_panel = ToolsPanel(home)
         self.memory_panel = MemoryPanel(memory_service, home)
         self.local_panel = LocalStatusPanel(model_name, home)

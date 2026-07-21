@@ -69,7 +69,7 @@ class WelcomeStateWidget(QWidget):
         self._suggestions_compact: bool | None = None
         for text in (
             "Bugün neye odaklanmalıyım?",
-            "Yapay zekâ ajanını açıkla",
+            "Yarın için bir hatırlatıcı oluştur",
             "Bir ekran görüntüsünü incele",
         ):
             button = QPushButton(text, self)

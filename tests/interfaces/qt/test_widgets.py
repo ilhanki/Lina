@@ -1,9 +1,10 @@
 """Tests for PySide6 GUI widgets."""
 
 from datetime import datetime, timezone
+from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
-from PySide6.QtGui import QImage
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QPointF, Qt
+from PySide6.QtGui import QEnterEvent, QImage
 from PySide6.QtWidgets import QPushButton
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
@@ -15,6 +16,7 @@ from lina.interfaces.qt.widgets.composer import (
     COMPOSER_INPUT_MIN_HEIGHT,
 )
 from lina.interfaces.qt.widgets.welcome_state import WelcomeStateWidget
+from lina.ui.design import design_tokens, standard_icon
 from lina.screen.models import ScreenContext
 from lina.conversations.models import ConversationSession
 from lina.conversations.models import ConversationSearchResult
@@ -125,7 +127,9 @@ def test_visual_message_exposes_preview_and_reanalyze_actions(qtbot) -> None:
     qtbot.addWidget(widget)
     widget.show()
 
-    assert widget.reanalyze_button.isVisible() is True
+    assert widget.reanalyze_button.isHidden()
+    widget.enterEvent(QEnterEvent(QPointF(), QPointF(), QPointF()))
+    assert widget.reanalyze_button.isVisible()
     with qtbot.waitSignal(widget.reanalyze_requested, timeout=1000) as signal:
         widget.reanalyze_button.click()
     assert signal.args == [context]
@@ -156,6 +160,17 @@ def test_composer_appends_transcription_to_existing_draft(qtbot) -> None:
     assert composer.text() == "yarın şunu yap roadmap dosyasını aç"
 
 
+def test_composer_focus_updates_premium_shell_state(qtbot) -> None:
+    composer = ComposerWidget("Arial", 11)
+    qtbot.addWidget(composer)
+    composer.show()
+
+    composer.input.setFocus()
+    qtbot.waitUntil(lambda: composer.property("active") is True)
+    composer.input.clearFocus()
+    qtbot.waitUntil(lambda: composer.property("active") is False)
+
+
 def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)
@@ -168,7 +183,7 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.tools_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.send_button.minimumHeight() == COMPOSER_BUTTON_HEIGHT
     assert composer.input.parent() is composer
-    assert composer.input_hint.isHidden()
+    assert composer.input_hint.isHidden() is False
     assert composer.send_button.text() == ""
     assert composer.send_button.accessibleName() == "Mesajı gönder"
     assert composer.mic_button.isHidden() is False
@@ -176,7 +191,7 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.agent_button.isHidden()
     assert composer.tools_button.isHidden()
     assert [action.text() for action in composer.tools_menu.actions()] == [
-        "Mikrofon", "Ekran görüntüsü", "Agent modu", "Hazır görevler"
+        "Mikrofon", "Ekran görüntüsü", "Gelişmiş görev modu", "Hazır görevler"
     ]
 
 
@@ -213,13 +228,32 @@ def test_composer_tools_menu_preserves_context_actions(qtbot) -> None:
 def test_assistant_message_progressive_actions(qtbot) -> None:
     widget = ChatMessageWidget("assistant", "Yanıt", "Arial", 11)
     qtbot.addWidget(widget)
-    assert widget.action_bar.isHidden()
-    widget.action_bar.show()
+    widget.show()
+    initial_height = widget.sizeHint().height()
+    assert widget.action_bar.isHidden() is False
+    assert widget.read_aloud_button.isHidden()
+    widget.enterEvent(QEnterEvent(QPointF(), QPointF(), QPointF()))
+    assert widget.read_aloud_button.isVisible()
+    assert widget.sizeHint().height() == initial_height
     with qtbot.waitSignal(widget.read_aloud_requested, timeout=1000) as signal:
         widget.read_aloud_button.click()
     assert signal.args == ["Yanıt"]
     with qtbot.waitSignal(widget.retry_requested, timeout=1000):
         widget.retry_button.click()
+
+
+def test_message_actions_are_revealed_by_keyboard_focus(qtbot) -> None:
+    widget = ChatMessageWidget("assistant", "Klavye yanıtı", "Arial", 11)
+    qtbot.addWidget(widget)
+    widget.show()
+
+    widget.setFocus(Qt.FocusReason.TabFocusReason)
+    qtbot.waitUntil(widget.hasFocus)
+
+    assert widget.focusPolicy() is Qt.FocusPolicy.StrongFocus
+    assert widget.copy_button.isVisible()
+    assert widget.retry_button.isVisible()
+    assert widget.read_aloud_button.isVisible()
 
 
 def test_stream_preview_finalizes_one_message_widget(qtbot) -> None:
@@ -230,6 +264,7 @@ def test_stream_preview_finalizes_one_message_widget(qtbot) -> None:
     widget.finalize_stream("Kabul edilen final")
     assert widget.text_label.text() == "Kabul edilen final"
     assert not widget.typing
+    assert widget.action_bar.isHidden() is False
 
 
 def test_welcome_state_has_non_persistent_prompt_suggestions(qtbot, tmp_path) -> None:
@@ -239,7 +274,7 @@ def test_welcome_state_has_non_persistent_prompt_suggestions(qtbot, tmp_path) ->
     assert len(suggestions) == 3
     with qtbot.waitSignal(welcome.prompt_selected, timeout=1000) as signal:
         suggestions[1].click()
-    assert "ajan" in signal.args[0]
+    assert "hatırlatıcı" in signal.args[0]
 
 
 def test_welcome_suggestions_stack_without_horizontal_overflow(qtbot, tmp_path) -> None:
@@ -393,6 +428,10 @@ def test_sidebar_has_collapsible_product_navigation_without_font_controls(qtbot,
     assert sidebar.width() == SidebarWidget.COLLAPSED_WIDTH
     assert sidebar.session_panel.isHidden()
     assert sidebar.new_chat_button.toolTip() == "Yeni sohbet"
+    assert sidebar.logo_label.isHidden() is False
+    assert sidebar.collapse_button.icon().cacheKey() == standard_icon(
+        sidebar, "expand", 16
+    ).cacheKey()
     assert sidebar.settings_button.isHidden() is False
     assert sidebar.settings_button.text() == ""
 
@@ -414,11 +453,28 @@ def test_sidebar_renders_persisted_sessions_and_active_state(qtbot, tmp_path) ->
     buttons = sidebar.session_list.findChildren(type(sidebar.new_chat_button))
     session_buttons = [button for button in buttons if button.objectName() == "sessionButton"]
     assert [button.toolTip() for button in session_buttons] == ["İlk Sohbet", "İkinci Sohbet"]
-    assert session_buttons[1].text() != ""
+    assert session_buttons[1].title_label.text() != ""
     assert session_buttons[1].isChecked() is True
-    assert all(button.minimumHeight() == 72 for button in session_buttons)
+    assert all(
+        button.minimumHeight() == design_tokens("dark").controls.sidebar_item
+        for button in session_buttons
+    )
     assert session_buttons[1]._preview_text == "İkinci önizleme"
-    assert "·" in session_buttons[0].text()
+    assert session_buttons[0].activity_label.text()
+    assert session_buttons[0].preview_label.text().startswith("İlk")
+
+
+def test_sidebar_uses_transparent_brand_mark_in_expanded_and_compact_modes(qtbot) -> None:
+    mark = Path(__file__).resolve().parents[3] / "assets" / "branding" / "lina-mark.svg"
+    sidebar = SidebarWidget(mark, "v0.test", "llama3")
+    qtbot.addWidget(sidebar)
+
+    assert mark.exists()
+    assert sidebar.logo_label.pixmap().isNull() is False
+    assert sidebar.logo_label.pixmap().hasAlphaChannel()
+    sidebar.set_collapsed(True)
+    assert sidebar.logo_label.isHidden() is False
+    assert sidebar.logo_label.width() == 24
 
 
 def test_sidebar_search_and_filter_controls_are_accessible(qtbot, tmp_path) -> None:

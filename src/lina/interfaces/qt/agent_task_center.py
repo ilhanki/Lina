@@ -83,7 +83,7 @@ class TaskTemplateBrowserDialog(QDialog):
             (TaskTemplateCategory.MEMORY, "Hafıza"),
             (TaskTemplateCategory.CONVERSATION, "Sohbet"),
             (TaskTemplateCategory.FILES_READ_ONLY, "Dosyalar"),
-            (TaskTemplateCategory.VISION, "Vision"),
+            (TaskTemplateCategory.VISION, "Görsel Anlama"),
             (TaskTemplateCategory.SYSTEM_STATUS, "Sistem"),
         ):
             self.category.addItem(label, value.value)
@@ -175,6 +175,7 @@ class TaskTemplateParameterDialog(QDialog):
         layout.addWidget(risk)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok, self)
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Planı Hazırla")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Vazgeç")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -233,7 +234,7 @@ class AgentStepArgumentsDialog(QDialog):
         self.setObjectName("agentStepArguments")
         self.setWindowTitle(f"{title} · Girdileri Düzenle")
         layout = QVBoxLayout(self)
-        explanation = QLabel("Değişiklik yeni bir plan revision’ı oluşturur ve yeniden onaylanır.", self)
+        explanation = QLabel("Değişiklik yeni bir plan sürümü oluşturur ve yeniden onaylanır.", self)
         explanation.setWordWrap(True)
         layout.addWidget(explanation)
         self.form = QFormLayout()
@@ -245,6 +246,7 @@ class AgentStepArgumentsDialog(QDialog):
             self.form.addRow(_field_label(name), field)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok, self)
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Planı Güncelle")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Vazgeç")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -362,10 +364,20 @@ class PlanReviewWidget(QWidget):
         step = self._current_step()
         if step is None:
             return
-        dependencies = ", ".join(step.dependencies) if step.dependencies else "Yok"
+        step_titles = {
+            item.step_id: item.title
+            for item in self._plan.steps
+        } if self._plan else {}
+        dependencies = (
+            ", ".join(step_titles.get(item, "Önceki adım") for item in step.dependencies)
+            if step.dependencies
+            else "Yok"
+        )
         approval = "Gerekli" if step.approval_required or step.risk_level in {RiskLevel.PERSISTENT, RiskLevel.SENSITIVE} else "Gerekli değil"
         self.details.setText(
-            f"{step.description}\nAraç: {step.tool_name}\nRisk: {_risk_label(step.risk_level)}\nOnay: {approval}\nBağımlılıklar: {dependencies}"
+            f"{step.description}\nİşlem: {_tool_label(step.tool_name)}\n"
+            f"Risk: {_risk_label(step.risk_level)}\nOnay: {approval}\n"
+            f"Bağımlılıklar: {dependencies}"
         )
         self.remove_button.setEnabled(step.optional)
         self.arguments_button.setEnabled(bool(step.typed_arguments) and step.status.value == "pending")
@@ -426,14 +438,16 @@ class AgentInspectorV2(QWidget):
         current = min(session.current_step_index, total)
         self.summary.setText(
             f"Amaç: {plan.title if plan else 'Plan hazırlanıyor'}\n"
-            f"Durum: {_STATUS_LABELS.get(session.status.value, session.status.value)}\n"
+            f"Durum: {_STATUS_LABELS.get(session.status.value, 'Durum bilinmiyor')}\n"
             f"İlerleme: {current}/{total}\n"
-            f"Şablon: {plan.template_id if plan and plan.template_id else 'Genel plan'}\n"
+            f"Şablon: {'Hazır görev' if plan and plan.template_id else 'Genel plan'}\n"
             f"Başlangıç: {session.created_at.astimezone().strftime('%d.%m.%Y %H:%M')}\n"
             f"Son işlem: {session.last_summary or 'Görev oluşturuldu.'}"
         )
         self.plan.setText("\n\n".join(
-            f"{index}. {step.title}\nRisk: {_risk_label(step.risk_level)} · Doğrulama: {step.verification_rule.kind} · Onay: {'Gerekli' if step.approval_required else 'Gerekli değil'}"
+            f"{index}. {step.title}\nRisk: {_risk_label(step.risk_level)} · "
+            f"Doğrulama: {_verification_label(step.verification_rule.kind)} · "
+            f"Onay: {'Gerekli' if step.approval_required else 'Gerekli değil'}"
             for index, step in enumerate(plan.steps, 1)
         ) if plan else "Plan hazırlanıyor…")
         visible_events = [event for event in session.events if event.user_visible]
@@ -443,9 +457,9 @@ class AgentInspectorV2(QWidget):
         ) or "Henüz görev olayı yok.")
         self.technical.setText(
             f"Oturum: {session.session_id[:8]}…\n"
-            f"Hata kodu: {session.error_code or 'Yok'}\n"
-            f"Retry: {session.metrics.retry_count}\n"
-            f"Replan: {session.metrics.replan_count}\n"
+            f"Hata: {_error_label(session.error_code)}\n"
+            f"Yeniden deneme: {session.metrics.retry_count}\n"
+            f"Yeniden planlama: {session.metrics.replan_count}\n"
             f"Belirsiz sonuç: {session.metrics.uncertain_outcome_count}"
         )
         self.tabs.setCurrentIndex(0)
@@ -498,7 +512,7 @@ class AgentTaskCenterDialog(QDialog):
             widget.clear()
             for task in sections[section]:
                 item = QListWidgetItem(
-                    f"{task.title} · {_STATUS_LABELS.get(task.status, task.status)} · {task.progress_percent}%"
+                    f"{task.title} · {_STATUS_LABELS.get(task.status, 'Durum bilinmiyor')} · {task.progress_percent}%"
                 )
                 item.setData(Qt.ItemDataRole.UserRole, task.session_id)
                 item.setToolTip(task.last_summary)
@@ -562,7 +576,7 @@ def _field_label(name: str) -> str:
         "target": "Dosya",
         "summary_length": "Özet uzunluğu",
         "range": "Tarih aralığı",
-    }.get(name, name)
+    }.get(name, "Ek bilgi")
 
 
 def _risk_label(risk: RiskLevel) -> str:
@@ -573,6 +587,55 @@ def _risk_label(risk: RiskLevel) -> str:
         RiskLevel.SENSITIVE: "Hassas",
         RiskLevel.PROHIBITED: "Yasak",
     }[risk]
+
+
+def _tool_label(tool_name: str) -> str:
+    return {
+        "reminder.create": "Hatırlatıcı oluşturma",
+        "reminder.list": "Hatırlatıcıları listeleme",
+        "reminder.summary": "Hatırlatıcı özeti",
+        "reminder.conflicts": "Hatırlatıcı çakışma denetimi",
+        "memory.store": "Belleğe kaydetme",
+        "memory.recall": "Belleği arama",
+        "files.read": "Dosya okuma",
+        "vision.image": "Görsel analiz",
+    }.get(tool_name, "Gelişmiş işlem")
+
+
+def _verification_label(kind: str) -> str:
+    return {
+        "typed_success": "Başarılı sonuç",
+        "success": "Başarılı sonuç",
+        "non_empty": "Boş olmayan sonuç",
+        "created_id": "Oluşturma kaydı",
+    }.get(kind, "Güvenli sonuç denetimi")
+
+
+def _error_label(code: str | None) -> str:
+    if not code:
+        return "Yok"
+    return {
+        "tool_unavailable": "Araç kullanılamıyor",
+        "invalid_arguments": "Geçersiz bilgiler",
+        "permission_denied": "İzin verilmedi",
+        "approval_required": "Onay gerekiyor",
+        "user_cancelled": "Kullanıcı iptal etti",
+        "timeout": "Zaman aşımı",
+        "transient_failure": "Geçici hata",
+        "persistent_outcome_uncertain": "Kalıcı işlemin sonucu belirsiz",
+        "verification_failed": "Doğrulama başarısız",
+        "verification_uncertain": "Doğrulama sonucu belirsiz",
+        "dependency_failed": "Bağlı adım başarısız",
+        "loop_detected": "Döngü algılandı",
+        "step_limit_reached": "Adım sınırına ulaşıldı",
+        "replan_limit_reached": "Yeniden planlama sınırına ulaşıldı",
+        "stale_result": "Eski sonuç yoksayıldı",
+        "interrupted": "Görev yarım kaldı",
+        "prohibited": "İşleme izin verilmiyor",
+        "unsupported_request": "İstek desteklenmiyor",
+        "storage_failure": "Kayıt hatası",
+        "internal_error": "İç hata",
+    }.get(code, "Bilinmeyen hata")
 
 
 def _button(text: str, layout: QHBoxLayout, callback, parent: QWidget) -> QPushButton:

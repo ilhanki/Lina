@@ -18,7 +18,7 @@ def test_agent_panel_plan_card_and_accessible_statuses(qtbot):
     value = session()
     value.plan.steps[0].status = AgentStepStatus.RUNNING
     panel.render(value, enabled=True)
-    assert panel.mode_label.text() == "Agent Mode · Açık"
+    assert panel.mode_label.text() == "Agent modu · Açık"
     assert "1/2" in panel.progress_label.text()
     assert "▶ Çalışıyor" in panel.steps_label.text()
     assert "Kalıcı" in panel.steps_label.text()

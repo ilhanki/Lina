@@ -82,10 +82,10 @@ def test_plan_review_shows_tool_risk_approval_dependencies_and_edit_signals(qtbo
     widget.render(session.plan)
     assert widget.steps.count() == 2
     widget.steps.setCurrentRow(1)
-    assert "reminder.create" in widget.details.text()
+    assert "İşlem: Hatırlatıcı oluşturma" in widget.details.text()
     assert "Kalıcı" in widget.details.text()
     assert "Gerekli" in widget.details.text()
-    assert "one" in widget.details.text()
+    assert "Hatırlatıcıları getir" in widget.details.text()
     assert widget.remove_button.isEnabled()
     assert widget.arguments_button.isEnabled()
     with qtbot.waitSignal(widget.arguments_requested) as arguments_signal:

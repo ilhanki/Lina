@@ -133,13 +133,14 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QListWidget#notificationItems {{ background: {panel_bg}; }}
         QPushButton#notificationButton {{ min-width: 42px; border-color: {accent}; }}
         QWidget#sidebar {{
-            background: {sidebar_bg};
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 {sidebar_bg}, stop:1 {app_bg});
             border-right: 1px solid {soft_border};
         }}
         QWidget#sidebarSessionPanel, QWidget#sidebarStatusPanel,
         QWidget#sidebarConversationViewport, QWidget#sidebarConversationList,
         QScrollArea#sidebarConversationScroll {{
-            background: {sidebar_bg};
+            background: transparent;
             border: none;
         }}
         QScrollArea#chatTimelineScroll, QWidget#chatTimelineViewport, QWidget#chatTimeline {{
@@ -149,15 +150,20 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QWidget#header {{
             background: {app_bg};
             border: none;
-            border-bottom: 1px solid {border};
+            border-bottom: 1px solid {soft_border};
         }}
-        QLabel#conversationTitle, QLabel#inspectorTitle, QLabel#sidebarTitle {{
-            color: {text_primary}; font-size: 14pt; font-weight: 650;
-        }}
+        QLabel#sidebarTitle {{ color: {text_primary}; font-size: 19pt; font-weight: 700; }}
+        QLabel#conversationTitle {{ color: {text_primary}; font-size: 15pt; font-weight: 650; }}
+        QLabel#inspectorTitle {{ color: {text_primary}; font-size: 13pt; font-weight: 650; }}
         QLabel#conversationSubtitle {{ color: {text_muted}; font-size: 9pt; }}
         QLabel#readyStatusDot {{ color: {success}; font-size: 8pt; }}
+        QLabel#readyStatusDot[state="active"] {{ color: {accent}; }}
+        QLabel#readyStatusDot[state="warning"] {{ color: {warning}; }}
+        QLabel#readyStatusDot[state="error"] {{ color: {error}; }}
         QWidget#detailsInspector {{
-            background: {sidebar_bg}; border-left: 1px solid {soft_border};
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 {sidebar_bg}, stop:1 {app_bg});
+            border-left: 1px solid {soft_border};
         }}
         QWidget#drawerScrim {{ background: rgba(4, 9, 18, 118); }}
         QStackedWidget#inspectorPages, QWidget#inspectorHome,
@@ -165,17 +171,31 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             background: {sidebar_bg}; border: none;
         }}
         QFrame#contextSection {{ background: transparent; border: none; }}
+        QFrame#contextSummarySection {{
+            background: {panel_bg}; border: 1px solid {soft_border};
+            border-radius: 14px; padding: 12px;
+        }}
         QLabel#inspectorSectionTitle {{
             color: {text_secondary}; font-size: 10pt; font-weight: 650; padding: 2px 2px 6px;
         }}
         QLabel#inspectorDescription, QLabel#inspectorEmptyState {{
             color: {text_muted}; font-size: 9pt; padding: 2px;
         }}
-        QPushButton#contextToolRow {{
-            background: transparent; color: {text_primary}; border: 1px solid transparent;
-            border-radius: 11px; min-height: 58px; text-align: left; padding: 5px 10px;
+        QPushButton#contextToolCard {{
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 {panel_bg}, stop:1 {elevated_bg});
+            border: 1px solid {soft_border}; border-radius: 14px; padding: 0;
+            min-height: 112px; max-height: 112px;
+            text-align: left;
         }}
-        QPushButton#contextToolRow:hover {{ background: {elevated_bg}; border-color: {soft_border}; }}
+        QPushButton#contextToolCard:hover {{ background: {selected}; border-color: {accent}; }}
+        QPushButton#contextToolCard:pressed {{ background: {pressed}; }}
+        QPushButton#contextToolCard:focus {{ border: 2px solid {focus}; }}
+        QLabel#contextToolIcon {{
+            background: {selected}; border: 1px solid {soft_border}; border-radius: 10px;
+        }}
+        QLabel#contextToolTitle {{ color: {text_primary}; font-size: 10pt; font-weight: 650; }}
+        QLabel#contextToolDescription {{ color: {text_muted}; font-size: 8pt; }}
         QPushButton#memoryCard {{
             background: {elevated_bg}; color: {text_secondary}; border: 1px solid {soft_border};
             border-radius: 8px; text-align: left; padding: 7px 9px;
@@ -209,10 +229,12 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#sidebarShortcut:hover {{ background: {elevated_bg}; border-color: {soft_border}; }}
         QWidget#composerPanel {{
-            background: {panel_bg};
-            border: 1px solid {soft_border};
-            border-radius: 18px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 {panel_bg}, stop:1 {elevated_bg});
+            border: 1px solid {border};
+            border-radius: 20px;
         }}
+        QWidget#composerPanel[active="true"] {{ border: 1px solid {focus}; background: {panel_bg}; }}
         QWidget#composerRow, QWidget#composerToolbar, QWidget#messageActions {{ background: transparent; border: none; }}
         QLabel#composerHint {{ color: {text_muted}; font-size: 9pt; }}
         QWidget#screenContextChip {{
@@ -225,27 +247,28 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border: none;
         }}
         QLabel#composerDisclaimer, QLabel#composerModelLabel {{
-            color: {text_muted}; font-size: 8pt; padding: 0 12px;
+            color: {text_muted}; font-size: 8pt; padding: 0 8px;
         }}
         QPushButton#sessionButton {{
-            background: transparent;
-            color: {text_secondary};
+            background: transparent; color: {text_secondary};
             border: 1px solid transparent;
-            border-radius: 10px;
-            text-align: left;
-            padding: 8px 12px;
-            font-size: 10pt;
+            border-radius: 12px; text-align: left; padding: 0;
+            min-height: 68px; max-height: 68px;
         }}
         QPushButton#sessionButton:hover {{
-            background: {elevated_bg};
-            border-color: transparent;
+            background: {elevated_bg}; border-color: {soft_border};
         }}
         QPushButton#sessionButton:checked {{
-            background: {selected};
-            color: {text_primary};
-            border-color: {soft_border};
-            font-weight: 600;
+            background: {selected}; color: {text_primary}; border-color: {border};
         }}
+        QPushButton#sessionButton QLabel {{ background: transparent; border: none; }}
+        QLabel#sessionCardTitle {{ color: {text_secondary}; font-size: 10pt; font-weight: 600; }}
+        QLabel#sessionCardPreview, QLabel#sessionCardTime {{ color: {text_muted}; font-size: 8pt; }}
+        QLabel#sessionCardIcon {{ background: {panel_bg}; border: 1px solid {soft_border}; border-radius: 7px; }}
+        QFrame#sessionAccent {{ background: transparent; border: none; border-radius: 1px; }}
+        QPushButton#sessionButton:checked QLabel#sessionCardTitle {{ color: {text_primary}; }}
+        QPushButton#sessionButton:checked QLabel#sessionCardIcon {{ background: {elevated_bg}; border-color: {accent}; }}
+        QFrame#sessionAccent[active="true"] {{ background: {accent}; }}
         QLineEdit#conversationSearchInput {{
             background: {composer_bg};
             color: {text_primary};
@@ -253,6 +276,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             border-radius: 10px;
             min-height: 40px;
             padding: 0 12px;
+            placeholder-text-color: {text_muted};
         }}
         QLineEdit#conversationSearchInput:focus {{ border-color: {accent}; }}
         QComboBox#conversationFilter {{
@@ -286,13 +310,14 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QWidget#assistantBubble {{
             background: {assistant_bubble};
-            border: 1px solid {border};
-            border-radius: 16px;
+            border: 1px solid {soft_border};
+            border-radius: 18px;
         }}
         QWidget#userBubble {{
-            background: {user_bubble};
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                stop:0 {user_bubble}, stop:1 {user_border});
             border: 1px solid {user_border};
-            border-radius: 16px;
+            border-radius: 18px;
         }}
         QWidget#userBubble QLabel {{ color: {user_text}; }}
         QLabel#bubbleText {{
@@ -302,7 +327,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QLabel#assistantAvatar {{
             background: {selected}; color: {accent}; border: 1px solid {accent};
-            border-radius: 16px; font-weight: 700;
+            border-radius: 18px; font-weight: 700;
         }}
         QLabel#messageImagePreview {{
             background: {composer_bg};
@@ -372,7 +397,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             min-height: 32px;
             padding: 4px 10px;
         }}
-        QPushButton:hover {{ background: {selected}; border-color: {accent}; }}
+        QPushButton:hover {{ background: {selected}; border-color: {border}; }}
         QPushButton:pressed {{ background: {pressed}; }}
         QPushButton:focus {{ border: 2px solid {focus}; }}
         QPushButton:disabled {{ color: {disabled}; background: {panel_bg}; border-color: {soft_border}; }}
@@ -384,10 +409,12 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         }}
         QPushButton#accentButton:hover {{ background: {accent_hover}; }}
         QPushButton#primaryNavigationButton {{
-            background: {selected}; color: {text_primary}; border: 1px solid {soft_border};
-            border-radius: 10px; min-height: 40px; font-weight: 600;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 {accent}, stop:1 {accent_hover});
+            color: {user_text}; border: 1px solid {accent_hover};
+            border-radius: 12px; min-height: 46px; font-size: 11pt; font-weight: 650;
         }}
-        QPushButton#primaryNavigationButton:hover {{ background: {elevated_bg}; border-color: {accent}; }}
+        QPushButton#primaryNavigationButton:hover {{ background: {accent_hover}; border-color: {focus}; }}
         QPushButton#composerActionButton {{
             min-height: 38px;
             max-height: 38px;
@@ -400,8 +427,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QPushButton#composerUtilityButton:hover {{ background: {elevated_bg}; border-color: {border}; }}
         QPushButton#composerSendButton {{
             background: {accent}; color: {user_text}; border: 1px solid {accent};
-            border-radius: 19px; min-width: 38px; max-width: 38px;
-            min-height: 38px; max-height: 38px; padding: 0;
+            border-radius: 21px; min-width: 42px; max-width: 42px;
+            min-height: 42px; max-height: 42px; padding: 0;
         }}
         QPushButton#composerSendButton:hover {{ background: {accent_hover}; border-color: {accent_hover}; }}
         QPushButton#composerSendButton:disabled {{ background: {elevated_bg}; border-color: {border}; color: {disabled}; }}

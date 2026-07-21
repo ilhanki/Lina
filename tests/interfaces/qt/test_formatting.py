@@ -48,5 +48,5 @@ def test_welcome_message_is_time_aware_and_deterministic() -> None:
     second = build_welcome_message(morning, conversation_id=4)
 
     assert first == second
-    assert first[0] == "Günaydın İlhan."
+    assert first[0] == "Günaydın."
     assert format_message_time(morning) == morning.astimezone().strftime("%H:%M")

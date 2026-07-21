@@ -12,7 +12,7 @@ def test_panel_shows_cli_missing(qtbot) -> None:
     panel = CodexInspector()
     qtbot.addWidget(panel)
     panel.render(None, info=CodexCliInfo())
-    assert "CLI bulunamadı" in panel.cli_status_label.text()
+    assert "Codex komut aracı · Bulunamadı" in panel.cli_status_label.text()
     assert not panel.login_button.isVisible()
 
 
@@ -42,7 +42,7 @@ def test_panel_shows_ready_and_general_auth_method_only(qtbot, tmp_path: Path) -
     assert panel.logout_button.isVisible()
 
 
-def test_panel_shows_selected_candidate_source_and_kind(qtbot, tmp_path: Path) -> None:
+def test_panel_hides_raw_candidate_source_and_kind(qtbot, tmp_path: Path) -> None:
     panel = CodexInspector()
     qtbot.addWidget(panel)
     panel.render(None, info=CodexCliInfo(
@@ -50,7 +50,9 @@ def test_panel_shows_selected_candidate_source_and_kind(qtbot, tmp_path: Path) -
         selected_candidate_source="path:codex.cmd", executable_kind="cmd_wrapper",
     ))
     assert "codex.cmd" in panel.candidate_label.text()
-    assert "cmd_wrapper" in panel.candidate_label.text()
+    assert "Komut dosyası" in panel.candidate_label.text()
+    assert "cmd_wrapper" not in panel.candidate_label.text()
+    assert "path:codex.cmd" not in panel.candidate_label.text()
 
 
 def test_panel_shows_review_pending_summary(qtbot, tmp_path: Path) -> None:

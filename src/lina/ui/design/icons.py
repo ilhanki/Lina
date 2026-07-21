@@ -10,7 +10,7 @@ from lina.ui.design.tokens import resolve_palette
 
 
 _ICON_NAMES = frozenset({
-    "add", "agent", "archive", "close", "collapse", "compose", "copy",
+    "add", "agent", "archive", "chat", "close", "collapse", "compose", "copy", "expand",
     "delete", "details", "file", "history", "memory", "microphone", "more",
     "notifications", "pause", "pin", "resume", "screen", "search", "send",
     "settings", "status", "stop", "thumbs_down", "thumbs_up", "tools", "vision", "voice",
@@ -70,6 +70,18 @@ def _draw_icon(painter: QPainter, name: str) -> None:
         painter.drawLine(QPointF(6, 4), QPointF(6, 16))
         painter.drawLine(QPointF(14, 6), QPointF(10, 10))
         painter.drawLine(QPointF(10, 10), QPointF(14, 14))
+    elif name == "expand":
+        painter.drawLine(QPointF(14, 4), QPointF(14, 16))
+        painter.drawLine(QPointF(6, 6), QPointF(10, 10))
+        painter.drawLine(QPointF(10, 10), QPointF(6, 14))
+    elif name == "chat":
+        painter.drawRoundedRect(QRectF(2.8, 3.5, 14.4, 11.5), 3, 3)
+        path = QPainterPath(QPointF(7, 14.5))
+        path.lineTo(QPointF(5, 17.3))
+        path.lineTo(QPointF(10, 14.8))
+        painter.drawPath(path)
+        for x in (7.0, 10.0, 13.0):
+            painter.drawEllipse(QPointF(x, 9.2), 0.55, 0.55)
     elif name in {"details", "more", "tools"}:
         for x in (5.0, 10.0, 15.0):
             painter.drawEllipse(QPointF(x, 10), 0.8, 0.8)

@@ -28,7 +28,7 @@ class AppearanceSettings:
     sidebar_collapsed: bool = False
     right_panel_visible: bool = False
     right_panel_section: str = "tools"
-    right_panel_width: int = 320
+    right_panel_width: int = 344
     message_width: int = 820
     settings_last_section: int = 0
 
@@ -186,8 +186,8 @@ class UserSettings:
             raise ValueError("Unsupported interface density")
         if self.appearance.right_panel_section not in {"tools", "memory", "agent", "codex", "voice", "vision", "system"}:
             raise ValueError("Unsupported right panel section")
-        if not 300 <= self.appearance.right_panel_width <= 360:
-            raise ValueError("Right panel width must be between 300 and 360")
+        if not 300 <= self.appearance.right_panel_width <= 384:
+            raise ValueError("Right panel width must be between 300 and 384")
         if not 720 <= self.appearance.message_width <= 900:
             raise ValueError("Message width must be between 720 and 900")
         if not 0 <= self.appearance.settings_last_section <= 9:
@@ -215,7 +215,7 @@ class UserSettings:
             raise ValueError("Context budget must be between 1000 and 100000")
         if self.system.close_behavior not in SUPPORTED_CLOSE_BEHAVIORS:
             raise ValueError("Unsupported close behavior")
-        if not 720 <= self.system.window_width <= 7680 or not 560 <= self.system.window_height <= 4320:
+        if not 760 <= self.system.window_width <= 7680 or not 600 <= self.system.window_height <= 4320:
             raise ValueError("Saved window size is outside safe bounds")
         if self.live_vision.default_source not in SUPPORTED_LIVE_VISION_SOURCES:
             raise ValueError("Unsupported live vision source")
@@ -427,7 +427,9 @@ class UserSettings:
                     defaults.appearance.right_panel_section,
                     {"tools", "memory", "agent", "codex", "voice", "vision", "system"},
                 ),
-                right_panel_width=_bounded_int(appearance, "right_panel_width", defaults.appearance.right_panel_width, 300, 360),
+                right_panel_width=_bounded_int(
+                    appearance, "right_panel_width", defaults.appearance.right_panel_width, 300, 384
+                ),
                 message_width=_bounded_int(appearance, "message_width", defaults.appearance.message_width, 720, 900),
                 settings_last_section=_bounded_int(appearance, "settings_last_section", defaults.appearance.settings_last_section, 0, 9),
             ),
@@ -505,8 +507,8 @@ class UserSettings:
                 show_missed_reminders=_bool(system, "show_missed_reminders", defaults.system.show_missed_reminders),
                 window_x=_optional_signed_int(system, "window_x", -10000, 10000),
                 window_y=_optional_signed_int(system, "window_y", -10000, 10000),
-                window_width=_bounded_int(system, "window_width", defaults.system.window_width, 720, 7680),
-                window_height=_bounded_int(system, "window_height", defaults.system.window_height, 560, 4320),
+                window_width=_bounded_int(system, "window_width", defaults.system.window_width, 760, 7680),
+                window_height=_bounded_int(system, "window_height", defaults.system.window_height, 600, 4320),
                 window_maximized=_bool(system, "window_maximized", defaults.system.window_maximized),
             ),
             agent=AgentUserSettings(

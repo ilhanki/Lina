@@ -34,7 +34,7 @@ def test_default_user_settings_are_turkish_and_local_first() -> None:
     assert settings.appearance.density == "comfortable"
     assert settings.appearance.right_panel_visible is False
     assert settings.agent.show_task_template_suggestions is False
-    assert settings.appearance.right_panel_width == 320
+    assert settings.appearance.right_panel_width == 344
 
 
 def test_user_settings_round_trip_contains_only_known_preferences() -> None:

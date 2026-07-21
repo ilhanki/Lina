@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -49,6 +51,7 @@ class ChatMessageWidget(QWidget):
         image_bytes: bytes | None = None,
         visual_context: ScreenContext | None = None,
         created_at: datetime | None = None,
+        avatar_path: Path | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -59,6 +62,11 @@ class ChatMessageWidget(QWidget):
         self.created_at = created_at or datetime.now().astimezone()
         self.setObjectName("chatMessage")
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Minimum)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setAccessibleName("Lina mesajı" if role == "assistant" else "Kullanıcı mesajı")
+        self._focus_timer = QTimer(self)
+        self._focus_timer.setSingleShot(True)
+        self._focus_timer.timeout.connect(self._refresh_progressive_actions)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -80,8 +88,19 @@ class ChatMessageWidget(QWidget):
         self.avatar_label = QLabel("L", self)
         self.avatar_label.setObjectName("assistantAvatar")
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_label.setFixedSize(32, 32)
+        self.avatar_label.setFixedSize(36, 36)
         self.avatar_label.setAccessibleName("Lina")
+        avatar = QPixmap(str(avatar_path)) if avatar_path is not None and avatar_path.exists() else QPixmap()
+        if not avatar.isNull():
+            self.avatar_label.setText("")
+            self.avatar_label.setPixmap(
+                avatar.scaled(
+                    26,
+                    26,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
         self.avatar_label.setVisible(role == "assistant")
         content_row.addWidget(self.avatar_label, 0, Qt.AlignmentFlag.AlignTop)
         content_row.addWidget(self.bubble)
@@ -127,35 +146,38 @@ class ChatMessageWidget(QWidget):
         metadata.setSpacing(SPACE_SM)
         self.timestamp_label = QLabel(format_message_time(self.created_at), self.bubble)
         self.timestamp_label.setObjectName("messageTimestamp")
+        if role == "user":
+            metadata.addStretch(1)
         metadata.addWidget(self.timestamp_label)
-        metadata.addStretch(1)
+        if role != "user":
+            metadata.addStretch(1)
 
         self.copy_button = QPushButton("Kopyala", self.action_bar)
         self.copy_button.setObjectName("copyButton")
         self.copy_button.setToolTip("Bu mesajı kopyala")
         self.copy_button.setAccessibleName("Mesajı kopyala")
         self.copy_button.clicked.connect(lambda: self.copy_requested.emit(self.raw_text))
-        self.copy_button.setVisible(not typing)
+        self.copy_button.hide()
         metadata.addWidget(self.copy_button)
         self.retry_button = QPushButton("Yeniden dene", self.action_bar)
         self.retry_button.setObjectName("copyButton")
         self.retry_button.setToolTip("Son isteği yeniden gönder")
         self.retry_button.setAccessibleName("Yanıtı yeniden dene")
-        self.retry_button.setVisible(role == "assistant" and not typing)
+        self.retry_button.hide()
         self.retry_button.clicked.connect(self.retry_requested)
         metadata.addWidget(self.retry_button)
         self.read_aloud_button = QPushButton("Seslendir", self.action_bar)
         self.read_aloud_button.setObjectName("copyButton")
         self.read_aloud_button.setToolTip("Bu yanıtı seslendir")
         self.read_aloud_button.setAccessibleName("Yanıtı seslendir")
-        self.read_aloud_button.setVisible(role == "assistant" and not typing)
+        self.read_aloud_button.hide()
         self.read_aloud_button.clicked.connect(lambda: self.read_aloud_requested.emit(self.raw_text))
         metadata.addWidget(self.read_aloud_button)
         self.stop_speech_button = QPushButton("Sesi durdur", self.action_bar)
         self.stop_speech_button.setObjectName("copyButton")
         self.stop_speech_button.setToolTip("Seslendirmeyi durdur")
         self.stop_speech_button.setAccessibleName("Sesi durdur")
-        self.stop_speech_button.setVisible(role == "assistant" and not typing)
+        self.stop_speech_button.hide()
         self.stop_speech_button.clicked.connect(self.stop_speech_requested)
         metadata.addWidget(self.stop_speech_button)
         self.visual_status_label = QLabel(self.bubble)
@@ -165,25 +187,47 @@ class ChatMessageWidget(QWidget):
         metadata.insertWidget(1, self.visual_status_label)
         self.reanalyze_button = QPushButton("Yeniden analiz et", self.bubble)
         self.reanalyze_button.setObjectName("copyButton")
-        self.reanalyze_button.setToolTip("Bu görseli composer alanına geri yükle")
+        self.reanalyze_button.setToolTip("Bu görseli mesaj alanına geri yükle")
         self.reanalyze_button.setAccessibleName("Görseli yeniden analize hazırla")
-        self.reanalyze_button.setVisible(visual_context is not None)
+        self.reanalyze_button.hide()
         self.reanalyze_button.clicked.connect(
             lambda: self.reanalyze_requested.emit(self.visual_context)
         )
         metadata.addWidget(self.reanalyze_button)
-        self.action_bar.setVisible(not typing and role == "user")
+        self.action_bar.setFixedHeight(24)
+        self.action_bar.setVisible(not typing)
         bubble_layout.addWidget(self.action_bar)
 
     def enterEvent(self, event) -> None:
-        if not self.typing:
-            self.action_bar.show()
+        self._set_progressive_actions_visible(True)
         super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:
-        if self.role == "assistant":
-            self.action_bar.hide()
+        if not self._focus_within():
+            self._set_progressive_actions_visible(False)
         super().leaveEvent(event)
+
+    def focusInEvent(self, event) -> None:
+        self._set_progressive_actions_visible(True)
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event) -> None:
+        super().focusOutEvent(event)
+        self._focus_timer.start(0)
+
+    def _focus_within(self) -> bool:
+        focused = QApplication.focusWidget()
+        return focused is self or (focused is not None and self.isAncestorOf(focused))
+
+    def _refresh_progressive_actions(self) -> None:
+        self._set_progressive_actions_visible(self.underMouse() or self._focus_within())
+
+    def _set_progressive_actions_visible(self, visible: bool) -> None:
+        visible = visible and not self.typing
+        self.copy_button.setVisible(visible)
+        self.retry_button.setVisible(visible and self.role == "assistant")
+        self.read_aloud_button.setVisible(visible and self.role == "assistant")
+        self.reanalyze_button.setVisible(visible and self.visual_context is not None)
 
     def _handle_image_click(self, _event) -> None:
         if self.visual_context is not None:
@@ -233,4 +277,5 @@ class ChatMessageWidget(QWidget):
         self.text_label.setText(text)
         self.typing = False
         self.sender_label.setText("Lina")
-        self.copy_button.show()
+        self.action_bar.show()
+        self._refresh_progressive_actions()

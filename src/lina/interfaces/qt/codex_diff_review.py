@@ -18,7 +18,7 @@ class CodexDiffReviewDialog(QDialog):
     review_completed = Signal()
 
     def __init__(self, change_set: CodexChangeSet, *, task_title: str = "Codex görevi",
-                 workspace_name: str = "Workspace", parent=None) -> None:
+                 workspace_name: str = "Çalışma alanı", parent=None) -> None:
         super().__init__(parent)
         self.change_set = change_set
         self._current: CodexFileChange | None = None
@@ -38,7 +38,7 @@ class CodexDiffReviewDialog(QDialog):
 
         toolbar = QHBoxLayout()
         self.search = QLineEdit(self)
-        self.search.setPlaceholderText("Diff içinde ara")
+        self.search.setPlaceholderText("Değişikliklerde ara")
         self.previous_button = QPushButton("Önceki", self)
         self.next_button = QPushButton("Sonraki", self)
         self.wrap_toggle = QCheckBox("Satırları kaydır", self)
@@ -56,7 +56,7 @@ class CodexDiffReviewDialog(QDialog):
         self.diff_view.setReadOnly(True)
         self.diff_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.diff_view.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
-        self.diff_view.setAccessibleName("Codex unified diff")
+        self.diff_view.setAccessibleName("Birleştirilmiş Codex değişiklikleri")
         self.review_panel = QWidget(self.splitter)
         actions = QVBoxLayout(self.review_panel)
         self.file_status = QLabel("Bir dosya seç.", self.review_panel)
@@ -139,14 +139,14 @@ class CodexDiffReviewDialog(QDialog):
         self.accept_file_button.setEnabled(not blocked)
         self.reject_file_button.setEnabled(not blocked)
         if change.forbidden:
-            text = "Hassas dosya değişikliği engellendi. Diff içeriği gösterilmiyor."
+            text = "Hassas dosya değişikliği engellendi. Değişiklik içeriği gösterilmiyor."
         elif change.binary:
             text = (f"Binary dosya · önce {change.size_before} bayt · "
                     f"sonra {change.size_after} bayt. İçerik gösterilmiyor.")
         elif change.diff_available:
             text = change.unified_diff
             if change.truncated:
-                text += "\n\n[Diff güvenli boyut sınırında kısaltıldı.]"
+                text += "\n\n[Değişiklik içeriği güvenli boyut sınırında kısaltıldı.]"
         else:
             text = "Bu dosya için güvenli metin diff'i kullanılamıyor."
         self.diff_view.setPlainText(text)

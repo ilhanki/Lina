@@ -36,7 +36,7 @@ class CodexInspector(QWidget):
         self.task_label = QLabel("Aktif Codex görevi yok.", self)
         self.task_label.setObjectName("codexActiveTask")
         self.status_label = QLabel("Durum · Hazır", self)
-        self.workspace_label = QLabel("Workspace · Seçilmedi", self)
+        self.workspace_label = QLabel("Çalışma alanı · Seçilmedi", self)
         self.progress = QProgressBar(self)
         self.progress.setRange(0, 100)
         self.progress.setAccessibleName("Codex görev ilerlemesi")
@@ -44,21 +44,21 @@ class CodexInspector(QWidget):
         self.setup_card = QWidget(self)
         self.setup_card.setObjectName("codexSetupCard")
         setup = QVBoxLayout(self.setup_card)
-        self.cli_status_label = QLabel("Codex CLI durumu · Kontrol edilmedi", self.setup_card)
-        self.cli_version_label = QLabel("Version · Bilinmiyor", self.setup_card)
-        self.auth_status_label = QLabel("Authentication · Bilinmiyor", self.setup_card)
-        self.candidate_label = QLabel("Executable · Bilinmiyor", self.setup_card)
+        self.cli_status_label = QLabel("Codex komut aracı · Kontrol edilmedi", self.setup_card)
+        self.cli_version_label = QLabel("Sürüm · Bilinmiyor", self.setup_card)
+        self.auth_status_label = QLabel("Oturum · Bilinmiyor", self.setup_card)
+        self.candidate_label = QLabel("Komut dosyası · Bilinmiyor", self.setup_card)
         self.privacy_label = QLabel(
-            "Codex seçilen workspace içindeki gerekli dosyalara erişebilir ve OpenAI hizmetlerine "
-            "veri gönderebilir. Lina credential içeriğini okumaz; yalnız güvenli görev metadata'sı saklar.",
+            "Codex seçilen çalışma alanındaki gerekli dosyalara erişebilir ve OpenAI hizmetlerine "
+            "veri gönderebilir. Lina kimlik bilgilerini okumaz; yalnız güvenli görev üstverisini saklar.",
             self.setup_card,
         )
         self.privacy_label.setWordWrap(True)
         self.refresh_button = QPushButton("Durumu Yenile", self.setup_card)
         self.login_button = QPushButton("ChatGPT ile Giriş Yap", self.setup_card)
-        self.device_login_button = QPushButton("Device Code ile Giriş", self.setup_card)
+        self.device_login_button = QPushButton("Cihaz Koduyla Giriş Yap", self.setup_card)
         self.logout_button = QPushButton("Oturumu Kapat", self.setup_card)
-        self.update_guide_button = QPushButton("Codex'i Güncelle Rehberi", self.setup_card)
+        self.update_guide_button = QPushButton("Codex Güncelleme Rehberi", self.setup_card)
         self.diagnostics_button = QPushButton("Ayrıntılar", self.setup_card)
         self.terminal_button = QPushButton("Terminalde Aç", self.setup_card)
         for widget in (
@@ -170,14 +170,14 @@ class CodexInspector(QWidget):
         if session is None:
             self.task_label.setText("Aktif Codex görevi yok.")
             self.status_label.setText("Durum · Hazır")
-            self.workspace_label.setText("Workspace · Seçilmedi")
+            self.workspace_label.setText("Çalışma alanı · Seçilmedi")
             self.progress.setValue(0)
             waiting = False
         else:
             self.task_label.setText(f"Aktif görev · {session.task_summary}")
             status_text = codex_status_label(session.status)
             self.status_label.setText(f"Durum · {status_text}")
-            self.workspace_label.setText(f"Workspace · {session.project_context.root_path.name}")
+            self.workspace_label.setText(f"Çalışma alanı · {session.project_context.root_path.name}")
             self.progress.setValue(session.progress)
             waiting = session.status is CodexSessionStatus.WAITING_APPROVAL
             if session.task is not None:
@@ -222,29 +222,29 @@ class CodexInspector(QWidget):
 
     def render_cli_info(self, info: CodexCliInfo | None) -> None:
         if info is None or not info.available:
-            self.cli_status_label.setText("Codex CLI durumu · CLI bulunamadı")
-            self.cli_version_label.setText("Version · Bilinmiyor")
-            self.auth_status_label.setText("Authentication · Kontrol edilemedi")
-            self.candidate_label.setText("Executable · Kullanılamıyor")
+            self.cli_status_label.setText("Codex komut aracı · Bulunamadı")
+            self.cli_version_label.setText("Sürüm · Bilinmiyor")
+            self.auth_status_label.setText("Oturum · Kontrol edilemedi")
+            self.candidate_label.setText("Komut dosyası · Kullanılamıyor")
             self.login_button.hide()
             self.device_login_button.hide()
             self.logout_button.hide()
             self.update_guide_button.show()
             return
-        self.cli_version_label.setText(f"Version · {info.version or 'Bilinmiyor'}")
+        self.cli_version_label.setText(f"Sürüm · {info.version or 'Bilinmiyor'}")
         name = info.executable_path.name if info.executable_path else "Bilinmiyor"
-        self.candidate_label.setText(
-            f"Executable · {name} · {info.selected_candidate_source} · {info.executable_kind}"
-        )
+        self.candidate_label.setText(f"Komut dosyası · {name}")
+        auth_method = _auth_method_label(info.auth_method_summary)
+        auth_suffix = f" ({auth_method})" if auth_method else ""
         if info.authenticated and info.ready:
-            self.cli_status_label.setText("Codex CLI durumu · Hazır")
-            self.auth_status_label.setText(f"Authentication · Bağlı ({info.auth_method_summary})")
+            self.cli_status_label.setText("Codex komut aracı · Hazır")
+            self.auth_status_label.setText(f"Oturum · Bağlı{auth_suffix}")
         elif info.authenticated:
-            self.cli_status_label.setText("Codex CLI durumu · Güncelleme gerekli")
-            self.auth_status_label.setText(f"Authentication · Bağlı ({info.auth_method_summary})")
+            self.cli_status_label.setText("Codex komut aracı · Güncelleme gerekli")
+            self.auth_status_label.setText(f"Oturum · Bağlı{auth_suffix}")
         else:
-            self.cli_status_label.setText("Codex CLI durumu · Oturum gerekli")
-            self.auth_status_label.setText("Authentication · Oturum gerekli")
+            self.cli_status_label.setText("Codex komut aracı · Oturum gerekli")
+            self.auth_status_label.setText("Oturum · Giriş gerekli")
         self.login_button.setVisible(not info.authenticated)
         self.device_login_button.setVisible(not info.authenticated and info.supports_device_auth)
         self.logout_button.setVisible(info.authenticated)
@@ -253,8 +253,8 @@ class CodexInspector(QWidget):
     def render_workspace_required(self, request: str) -> None:
         self.setVisible(True)
         self.task_label.setText("Codex görevi hazırlanıyor")
-        self.status_label.setText("Durum · Workspace bekleniyor")
-        self.workspace_label.setText("Workspace · Seçilmedi")
+        self.status_label.setText("Durum · Çalışma alanı bekleniyor")
+        self.workspace_label.setText("Çalışma alanı · Seçilmedi")
         self.progress.setValue(0)
         self.workspace_summary.setText(
             "Codex ile analiz yapabilmem için önce çalışma klasörünü seçmelisin.\n\n"
@@ -262,3 +262,12 @@ class CodexInspector(QWidget):
         )
         self.workspace_card.show()
         self.approval_card.hide()
+
+
+def _auth_method_label(value: str) -> str:
+    """Return a bounded user-facing label without exposing raw auth values."""
+    return {
+        "chatgpt": "ChatGPT",
+        "device_code": "Cihaz kodu",
+        "api_key": "API anahtarı",
+    }.get(str(value).casefold(), "")

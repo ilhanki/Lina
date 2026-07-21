@@ -37,8 +37,9 @@ olarak kapalı ve ana akışın dışındadır.
   eksik bilgi sorulur ve kayıttan önce kısa onay alınır.
 - **Ekran ve kamera:** Dosya, ekran, seçili bölge veya kullanıcı onaylı kamera
   karesi yerel vision modeliyle incelenir.
-- **Temiz masaüstü arayüzü:** Sol tarafta sohbetler, ortada konuşma ve altta sade
-  composer bulunur. Sağ ayrıntı paneli yalnız istendiğinde açılır.
+- **Premium masaüstü arayüzü:** Sol tarafta aranabilir sohbet geçmişi, ortada ferah
+  konuşma akışı ve altta Dosya/Mikrofon/Ekran eylemlerini birleştiren modern mesaj
+  alanı bulunur. Sağ yardımcı panel yalnız istendiğinde açılır.
 
 ## Nasıl çalışır?
 
@@ -123,6 +124,25 @@ Benim hakkımda ne hatırlıyorsun?
 
 Bir hatırlatıcının tarihi, saati veya başlığı eksikse Lina yalnızca eksik bilgiyi
 sorar. `iptal`, `vazgeç`, `boşver` ve `gerek yok` açık işlemi kapatır.
+
+### Masaüstü düzeni
+
+- Sol panel Lina markasını, **Yeni sohbet** eylemini, aramayı ve sohbet kartlarını
+  taşır. Geniş görünümde 292 px, kompakt görünümde 64 px genişliğindedir.
+- Minimal üst çubuk yalnız sohbet başlığını, kısa durumu ve gerekli araç erişimini
+  gösterir; model, sağlayıcı ve ham teknik durumlar ana akışı kalabalıklaştırmaz.
+- Mesajlar okunabilir bir merkez kolonda kalır. Lina yanıtları solda yüzey kartı,
+  kullanıcı mesajları sağda mavi vurgu balonu olarak görünür; ikincil eylemler
+  yalnız gerektiğinde belirginleşir.
+- Sağ yardımcı panel varsayılan olarak kapalıdır. Açıldığında Sohbet, Sesli sohbet,
+  Görsel anlama, Dosya anlama, Hatırlatıcılar ve Bellek araçlarını 2×3 kart düzeninde
+  sunar. Agent ve Codex yalnız ilgili gelişmiş seçenek etkinse görünür.
+- Pencere 900 px altında kompakt, 900–1319 px arasında orta ve 1320 px üzerinde
+  geniş düzene geçer. Desteklenen minimum pencere boyutu 760×600’dür.
+
+Arayüz gerçek Lina yeteneklerini gösterir; örnek ücretli plan, depolama kotası,
+hesap profili veya desteklenmeyen klasör yapısı üretmez. Koyu tema ana görsel hedef
+olmakla birlikte açık ve sistem temaları aynı işlevleri korur.
 
 ### Ses
 
@@ -233,6 +253,8 @@ Katkı standartları [contributing.md](contributing.md) dosyasındadır.
 - [Vision](docs/vision.md)
 - [Dosya ekleri](docs/file-attachments.md)
 - [Arayüz mimarisi](docs/user-interface-architecture.md)
+- [Arayüz tasarım sistemi](docs/ui-design-system.md)
+- [Referans arayüz uygulaması](docs/reference-ui-implementation.md)
 - [Erişilebilirlik](docs/accessibility.md)
 - [Manuel smoke checklist](docs/smoke-test-checklist.md)
 - [Yol haritası](docs/roadmap.md)

@@ -118,7 +118,7 @@ class CameraPreviewWindow(QWidget):
         self.mute_button.setCheckable(True)
         self.mute_button.setChecked(commentary_muted)
         self.stop_button = QPushButton("Kamerayı Kapat", self)
-        self.hide_button = QPushButton("Preview’i Gizle", self)
+        self.hide_button = QPushButton("Önizlemeyi Gizle", self)
         self.analyze_button.clicked.connect(self.analyze_requested)
         self.pause_button.clicked.connect(self.pause_requested)
         self.stop_button.clicked.connect(self.stop_requested)
@@ -154,7 +154,7 @@ class CameraPreviewWindow(QWidget):
             LiveVisionState.ANALYZING: "Analiz ediliyor",
             LiveVisionState.PAUSED: "Duraklatıldı",
         }
-        self.status_label.setText(labels.get(state, state.value))
+        self.status_label.setText(labels.get(state, "Durum güncelleniyor"))
         self.pause_button.setText("Devam Et" if state is LiveVisionState.PAUSED else "Duraklat")
         self.analyze_button.setEnabled(state not in {LiveVisionState.ANALYZING, LiveVisionState.PAUSED})
 

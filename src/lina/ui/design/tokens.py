@@ -100,7 +100,8 @@ class ColorPalette:
         return {
             "app_bg": self.canvas, "sidebar_bg": self.surface_secondary,
             "panel_bg": self.surface_primary, "elevated_bg": self.surface_elevated,
-            "composer_bg": self.surface_primary, "assistant_bubble": self.canvas,
+            "composer_bg": self.surface_primary,
+            "assistant_bubble": self.assistant_message_surface,
             "user_bubble": self.user_surface, "text_primary": self.text_primary,
             "text_secondary": self.text_secondary, "text_muted": self.text_tertiary,
             "border": self.border_default, "soft_border": self.border_subtle,
@@ -139,8 +140,8 @@ class RadiusTokens:
     lg: int = 12
     xl: int = 16
     extra_large: int = 20
-    message: int = 16
-    composer: int = 18
+    message: int = 18
+    composer: int = 20
     pill: int = 999
 
 
@@ -163,9 +164,9 @@ class ControlMetrics:
     default: int = 36
     large: int = 42
     composer: int = 46
-    sidebar_item: int = 64
-    composer_min: int = 58
-    composer_max: int = 160
+    sidebar_item: int = 68
+    composer_min: int = 46
+    composer_max: int = 144
     icon_small: int = 16
     icon_default: int = 20
     icon_large: int = 24
@@ -173,20 +174,20 @@ class ControlMetrics:
 
 @dataclass(frozen=True, slots=True)
 class LayoutMetrics:
-    navigation_expanded: int = 280
-    navigation_collapsed: int = 60
+    navigation_expanded: int = 292
+    navigation_collapsed: int = 64
     content_maximum: int = 1180
     chat_readable: int = 820
-    inspector_width: int = 320
-    composer_maximum: int = 860
-    message_spacing: int = 20
-    header_height: int = 68
+    inspector_width: int = 344
+    composer_maximum: int = 880
+    message_spacing: int = 22
+    header_height: int = 72
     compact_breakpoint: int = 900
     medium_breakpoint: int = 1320
     minimum_window_width: int = 760
     minimum_window_height: int = 600
     inspector_minimum: int = 300
-    inspector_maximum: int = 360
+    inspector_maximum: int = 384
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,14 +219,14 @@ class DesignTokens:
 
 
 _DARK = ColorPalette(
-    canvas="#0b111a", surface_primary="#111925", surface_secondary="#0d151f",
-    surface_elevated="#172231", surface_hover="#1b293b", surface_pressed="#223247",
-    surface_selected="#192c45", border_subtle="#1d2a3a", border_default="#2a3a4f",
-    border_focus="#63adff", text_primary="#edf3fb", text_secondary="#c2ccda",
-    text_tertiary="#8492a5", text_disabled="#607084", accent="#4f9cff",
-    accent_hover="#68acff", accent_pressed="#347fda", success="#55d990",
-    warning="#e7bd68", danger="#f17b86", information="#6caeff",
-    overlay="#111925", scrim="#02060db3", user_surface="#1d3d66", user_text="#f7fbff",
+    canvas="#070d18", surface_primary="#0d1726", surface_secondary="#091321",
+    surface_elevated="#132238", surface_hover="#192b45", surface_pressed="#213653",
+    surface_selected="#112c50", border_subtle="#1a2b42", border_default="#29415f",
+    border_focus="#62b2ff", text_primary="#f1f6fd", text_secondary="#c7d2e1",
+    text_tertiary="#8797ad", text_disabled="#62738a", accent="#3f8cff",
+    accent_hover="#63a7ff", accent_pressed="#2c70d1", success="#42d995",
+    warning="#e8bd68", danger="#f17b86", information="#6db2ff",
+    overlay="#0d1726", scrim="#02060dbd", user_surface="#173b77", user_text="#f7fbff",
 )
 
 _LIGHT = ColorPalette(

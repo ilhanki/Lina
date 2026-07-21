@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QTimer, Qt, Signal
-from PySide6.QtGui import QFont, QIcon, QKeyEvent, QPixmap, QTextCursor
+from PySide6.QtGui import QFocusEvent, QFont, QIcon, QKeyEvent, QPixmap, QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -19,9 +19,9 @@ from lina.interfaces.qt.theme import SPACE_SM
 from lina.ui.design import standard_icon
 
 
-COMPOSER_INPUT_MIN_HEIGHT = 58
-COMPOSER_INPUT_MAX_HEIGHT = 160
-COMPOSER_BUTTON_HEIGHT = 38
+COMPOSER_INPUT_MIN_HEIGHT = 46
+COMPOSER_INPUT_MAX_HEIGHT = 144
+COMPOSER_BUTTON_HEIGHT = 36
 
 
 class ComposerInput(QPlainTextEdit):
@@ -29,6 +29,15 @@ class ComposerInput(QPlainTextEdit):
 
     send_requested = Signal()
     history_requested = Signal(int)
+    focus_changed = Signal(bool)
+
+    def focusInEvent(self, event: QFocusEvent) -> None:
+        super().focusInEvent(event)
+        self.focus_changed.emit(True)
+
+    def focusOutEvent(self, event: QFocusEvent) -> None:
+        super().focusOutEvent(event)
+        self.focus_changed.emit(False)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         key = event.key()
@@ -75,6 +84,7 @@ class ComposerWidget(QWidget):
     def __init__(self, font_family: str, font_size: int, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("composerPanel")
+        self.setProperty("active", False)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._initial_resize_done = False
@@ -82,8 +92,8 @@ class ComposerWidget(QWidget):
         self._compact = False
         self._advanced_actions_available = False
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(10)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(6)
 
         self.screen_context_chip = QWidget(self)
         self.screen_context_chip.setObjectName("screenContextChip")
@@ -134,7 +144,7 @@ class ComposerWidget(QWidget):
         self.input.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.input.setFont(QFont(font_family, font_size))
         self.input.setAccessibleName("Lina mesaj alanı")
-        self.input.setAccessibleDescription("Enter gönderir, Shift Enter yeni satır ekler")
+        self.input.setAccessibleDescription("Enter ile gönder, Shift Enter ile yeni satır ekle")
         layout.addWidget(self.input)
 
         action_row = QWidget(self)
@@ -157,6 +167,7 @@ class ComposerWidget(QWidget):
             tooltip="Konuşmayı metne çevir",
             accessible_name="Mikrofon",
         )
+        self.mic_button.setObjectName("composerUtilityButton")
         action_layout.addWidget(self.mic_button)
 
         self.screen_button = QPushButton("Ekran", self)
@@ -166,14 +177,15 @@ class ComposerWidget(QWidget):
             tooltip="Tam ekran veya seçili alan görüntüsü ekle",
             accessible_name="Ekran görüntüsü yakala",
         )
+        self.screen_button.setObjectName("composerUtilityButton")
         action_layout.addWidget(self.screen_button)
 
-        self.agent_button = QPushButton("Agent", self)
+        self.agent_button = QPushButton("Görev modu", self)
         self.agent_button.setIcon(standard_icon(self, "agent"))
         self._configure_action_button(
             self.agent_button,
-            tooltip="Agent çalışma modunu aç veya kapat",
-            accessible_name="Agent modu",
+            tooltip="Gelişmiş görev modunu aç veya kapat",
+            accessible_name="Gelişmiş görev modu",
         )
         self.agent_button.hide()
 
@@ -190,16 +202,16 @@ class ComposerWidget(QWidget):
         self.mic_action = self.tools_menu.addAction("Mikrofon")
         self.mic_action.triggered.connect(self.mic_button.click)
         self.screen_menu = self.tools_menu.addMenu("Ekran görüntüsü")
-        self.agent_action = self.tools_menu.addAction("Agent modu")
+        self.agent_action = self.tools_menu.addAction("Gelişmiş görev modu")
         self.agent_action.triggered.connect(self.agent_button.click)
         self.task_templates_action = self.tools_menu.addAction("Hazır görevler")
         self.task_templates_action.triggered.connect(self.task_templates_requested.emit)
         self.tools_button.setMenu(self.tools_menu)
         self.set_advanced_actions_visible(agent=False, templates=False)
         action_layout.addWidget(self.tools_button)
-        self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)
+        self.input_hint = QLabel("Enter ile gönder · Shift+Enter ile yeni satır", action_row)
         self.input_hint.setObjectName("composerHint")
-        self.input_hint.hide()
+        self.input_hint.show()
         action_layout.addStretch(1)
         action_layout.addWidget(self.input_hint)
 
@@ -217,6 +229,7 @@ class ComposerWidget(QWidget):
         self.input.send_requested.connect(self.send_requested)
         self.input.history_requested.connect(self.history_requested)
         self.input.textChanged.connect(self._handle_text_changed)
+        self.input.focus_changed.connect(self._set_active)
         self.attachment_button.clicked.connect(self.attachment_requested)
         self.mic_button.clicked.connect(self.mic_requested)
         self.screen_button.clicked.connect(self.screen_requested)
@@ -300,7 +313,7 @@ class ComposerWidget(QWidget):
                              truncated: bool = False) -> None:
         """Show one temporary document attachment without pretending it is visual."""
         self.screen_context_label.setText(f"Belge · {display_name}")
-        note = f"{document_format.upper()} · salt-okunur"
+        note = f"{document_format.upper()} · yalnızca okunur"
         if truncated:
             note += " · içerik kısaltıldı"
         self.screen_context_note.setText(note)
@@ -328,7 +341,7 @@ class ComposerWidget(QWidget):
 
     def set_compact(self, compact: bool) -> None:
         self._compact = compact
-        self.input_hint.hide()
+        self.input_hint.setVisible(not compact)
         self.mic_button.setVisible(not compact)
         self.screen_button.setVisible(not compact)
         labels = (
@@ -370,6 +383,12 @@ class ComposerWidget(QWidget):
         button.setAccessibleName(accessible_name)
         button.setMinimumHeight(COMPOSER_BUTTON_HEIGHT)
         button.setMaximumHeight(COMPOSER_BUTTON_HEIGHT)
+
+    def _set_active(self, active: bool) -> None:
+        self.setProperty("active", active)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
 
     def _handle_text_changed(self) -> None:
         self._resize_input_to_content()

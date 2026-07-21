@@ -146,7 +146,7 @@ from lina.vision.live import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
-BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"
+BRANDING_MARK_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-mark.svg"
 AUTO_SCROLL_THRESHOLD_PX = 110
 LIVE_CAMERA_CONTEXT = "live_camera"
 
@@ -159,13 +159,35 @@ def _is_camera_question(text: str) -> bool:
     ))
 
 
+def _status_visual_state(text: str, priority: StatusPriority) -> str:
+    """Map concise user-facing status copy to a non-color-only semantic state."""
+    normalized = " ".join(text.casefold().replace("…", "").replace("...", "").split())
+    error_terms = (
+        "hata", "başarısız", "yüklenemedi", "oluşturulamadı", "bulunamadı",
+        "kullanılamıyor", "hazır değil", "ulaşılamıyor", "desteklenmiyor",
+        "aşıyor", "eklenemez", "çıkarılamadı",
+    )
+    warning_terms = (
+        "onay bekliyor", "durduruldu", "iptal edildi", "seçmelisin",
+        "doğrula", "kapalı",
+    )
+    if priority >= StatusPriority.ERROR or any(term in normalized for term in error_terms):
+        return "error"
+    if priority >= StatusPriority.ATTENTION or any(term in normalized for term in warning_terms):
+        return "warning"
+    if normalized == "hazır" or normalized.endswith(" hazır"):
+        return "ready"
+    return "active"
+
+
 def clamp_window_geometry(saved: QRect, available: tuple[QRect, ...]) -> QRect:
     """Clamp a saved window to a visible screen without assuming positive coordinates."""
     if not available:
         return saved
     target = next((screen for screen in available if screen.intersects(saved)), available[0])
-    width = min(max(720, saved.width()), target.width())
-    height = min(max(560, saved.height()), target.height())
+    metrics = design_tokens("dark").layout
+    width = min(max(metrics.minimum_window_width, saved.width()), target.width())
+    height = min(max(metrics.minimum_window_height, saved.height()), target.height())
     x = max(target.left(), min(saved.x(), target.right() - width + 1))
     y = max(target.top(), min(saved.y(), target.bottom() - height + 1))
     return QRect(x, y, width, height)
@@ -295,6 +317,9 @@ class LinaMainWindow(QMainWindow):
         self._is_programmatic_scroll = False
         self._message_font_size = MESSAGE_FONT_DEFAULT
         self._interface_density = "comfortable"
+        self._compact_mode_setting = False
+        self._reduce_motion = False
+        self._sidebar_collapsed_preference = False
         self._compact_chrome = False
         self._font_family = resolve_font_family()
         self._session_title_text = "Yeni Sohbet"
@@ -372,7 +397,7 @@ class LinaMainWindow(QMainWindow):
             else "model bilinmiyor"
         )
         self._sidebar = SidebarWidget(
-            logo_path=BRANDING_LOGO_PATH,
+            logo_path=BRANDING_MARK_PATH,
             version=APP_VERSION,
             model_name=model_name,
             parent=self,
@@ -418,6 +443,9 @@ class LinaMainWindow(QMainWindow):
         self._sidebar.notifications_requested.connect(self.open_notifications)
         self._sidebar.agent_tasks_requested.connect(self._show_agent_task_center)
         self._sidebar.local_status_requested.connect(self._show_system_inspector)
+        self._sidebar.collapse_button.clicked.connect(
+            self._remember_sidebar_collapsed_preference
+        )
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header = QWidget(self)
@@ -433,12 +461,14 @@ class LinaMainWindow(QMainWindow):
         titles.addWidget(self._session_title)
         status_row = QHBoxLayout()
         status_row.setSpacing(6)
-        status_dot = QLabel("●", header)
-        status_dot.setObjectName("readyStatusDot")
-        status_dot.setAccessibleName("Hazır")
-        status_row.addWidget(status_dot)
+        self._status_dot = QLabel("●", header)
+        self._status_dot.setObjectName("readyStatusDot")
+        self._status_dot.setProperty("state", "ready")
+        self._status_dot.setAccessibleName("Durum: Hazır")
+        status_row.addWidget(self._status_dot)
         self._header_status_label = QLabel("Hazır", header)
         self._header_status_label.setObjectName("conversationSubtitle")
+        self._header_status_label.setMaximumWidth(240)
         status_row.addWidget(self._header_status_label)
         status_row.addStretch(1)
         titles.addLayout(status_row)
@@ -450,31 +480,31 @@ class LinaMainWindow(QMainWindow):
         self._status_button = QPushButton("", header)
         self._status_button.setObjectName("unifiedStatusButton")
         self._status_button.setIcon(standard_icon(self, "status"))
-        self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
-        self._status_button.setToolTip("Model, mikrofon, ses ve Vision durumlarını göster")
+        self._status_button.setAccessibleName("Lina durumu ve sistem ayrıntıları")
+        self._status_button.setToolTip("Model, mikrofon, ses ve görsel anlama durumlarını göster")
         self._status_button.clicked.connect(self._show_status_menu)
         layout.addWidget(self._status_button)
 
         # Diagnostic labels remain as state sinks; details are progressively disclosed.
-        self._model_status = QLabel("Model kontrol ediliyor...", header)
+        self._model_status = QLabel("Model kontrol ediliyor…", header)
         self._model_status.setObjectName("statusChip")
         self._model_status.hide()
 
-        self._speech_status = QLabel("Mic · hazırlanıyor", header)
+        self._speech_status = QLabel("Mikrofon · hazırlanıyor", header)
         self._speech_status.setObjectName("statusChip")
         self._speech_status.hide()
         self._voice_status = QLabel("Ses · kapalı", header)
         self._voice_status.setObjectName("statusChip")
         self._voice_status.hide()
         if self._hands_free_service is not None:
-            self._hands_free_toggle = QPushButton("Hands-free Kapalı", header)
-            self._hands_free_toggle.setAccessibleName("Hands-free conversation aç veya kapat")
+            self._hands_free_toggle = QPushButton("Eller serbest kapalı", header)
+            self._hands_free_toggle.setAccessibleName("Eller serbest konuşmayı aç veya kapat")
             self._hands_free_toggle.setObjectName("modeChip")
             self._hands_free_toggle.clicked.connect(self._toggle_hands_free_from_tray)
             self._hands_free_toggle.hide()
             layout.addWidget(self._hands_free_toggle)
             self._hands_free_pause = QPushButton("Dinlemeyi Duraklat", header)
-            self._hands_free_pause.setAccessibleName("Hands-free dinlemeyi duraklat veya sürdür")
+            self._hands_free_pause.setAccessibleName("Eller serbest dinlemeyi duraklat veya sürdür")
             self._hands_free_pause.clicked.connect(self._toggle_hands_free_pause)
             self._hands_free_pause.setEnabled(False)
             self._hands_free_pause.hide()
@@ -506,7 +536,7 @@ class LinaMainWindow(QMainWindow):
         self._message_container = QWidget(self._scroll)
         self._message_container.setObjectName("chatTimeline")
         self._message_layout = QVBoxLayout(self._message_container)
-        self._message_layout.setContentsMargins(20, 22, 20, 20)
+        self._message_layout.setContentsMargins(20, 26, 20, 24)
         self._message_layout.setSpacing(design_tokens("dark").layout.message_spacing)
         self._message_layout.addStretch(1)
         self._scroll.setWidget(self._message_container)
@@ -520,9 +550,9 @@ class LinaMainWindow(QMainWindow):
         panel.setObjectName("liveVisionPanel")
         layout = QHBoxLayout(panel)
         layout.setContentsMargins(10, 6, 10, 6)
-        self._live_indicator = QLabel("◉ Live Vision · Kapalı", panel)
+        self._live_indicator = QLabel("◉ Canlı görsel takip · Kapalı", panel)
         self._live_indicator.setObjectName("statusChip")
-        self._live_indicator.setAccessibleName("Live Vision gizlilik göstergesi")
+        self._live_indicator.setAccessibleName("Canlı görsel takip gizlilik göstergesi")
         layout.addWidget(self._live_indicator)
         self._live_result = QLabel("Kamera veya ekran takibi etkin değil.", panel)
         self._live_result.setObjectName("mutedLabel")
@@ -531,7 +561,7 @@ class LinaMainWindow(QMainWindow):
         self._live_analyze = QPushButton("Şimdi Analiz Et", panel)
         self._live_pause = QPushButton("Duraklat", panel)
         self._live_stop = QPushButton("Durdur", panel)
-        self._live_show_preview = QPushButton("Preview’i Göster", panel)
+        self._live_show_preview = QPushButton("Önizlemeyi göster", panel)
         self._live_details = QPushButton("Ayrıntılar", panel)
         self._live_analyze.clicked.connect(self._live_analyze_now)
         self._live_pause.clicked.connect(self._toggle_live_pause)
@@ -570,7 +600,7 @@ class LinaMainWindow(QMainWindow):
         composer_row = QWidget(self)
         composer_row.setObjectName("composerRow")
         composer_layout = QHBoxLayout(composer_row)
-        composer_layout.setContentsMargins(24, 12, 24, 18)
+        composer_layout.setContentsMargins(24, 10, 24, 10)
         composer_layout.addStretch(1)
         self._composer.setMaximumWidth(design_tokens("dark").layout.composer_maximum)
         composer_layout.addWidget(self._composer, 8)
@@ -579,7 +609,7 @@ class LinaMainWindow(QMainWindow):
 
         footer = QWidget(self)
         footer.setObjectName("statusPanel")
-        footer.setMaximumHeight(28)
+        footer.setMaximumHeight(22)
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(4, 0, 4, 2)
         layout.setSpacing(0)
@@ -591,6 +621,7 @@ class LinaMainWindow(QMainWindow):
         layout.addWidget(self._status_label)
         disclaimer = QLabel("Lina hata yapabilir. Önemli bilgileri doğrulayın.", footer)
         disclaimer.setObjectName("composerDisclaimer")
+        disclaimer.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(disclaimer, 1)
         model_name = (
             self._diagnostics_service.configured_model
@@ -599,6 +630,7 @@ class LinaMainWindow(QMainWindow):
         )
         self._composer_model_label = QLabel(f"Yerel · {model_name}", footer)
         self._composer_model_label.setObjectName("composerModelLabel")
+        self._composer_model_label.hide()
         layout.addWidget(self._composer_model_label)
         parent_layout.addWidget(footer)
 
@@ -726,6 +758,14 @@ class LinaMainWindow(QMainWindow):
         self._inspector_button.setFocus()
 
     def _set_inspector_button_state(self, *, opened: bool) -> None:
+        drawer_open = opened and self._responsive_mode is not ResponsiveMode.LARGE
+        self._inspector_button.setVisible(not drawer_open)
+        self._status_button.setVisible(not drawer_open)
+        if hasattr(self, "_notification_button"):
+            if drawer_open:
+                self._notification_button.hide()
+            else:
+                self._refresh_notification_badge()
         self._inspector_button.setProperty("opened", opened)
         self._inspector_button.setToolTip(
             "Bağlamsal araçları kapat" if opened else "Bağlamsal araçları aç"
@@ -770,31 +810,72 @@ class LinaMainWindow(QMainWindow):
         self._inspector.setGeometry(available - width, 0, width, self._central.height())
 
     def _apply_responsive_layout(self) -> None:
-        tokens = design_tokens("dark").layout
-        previous = self._responsive_mode
-        derived = self._view_state.for_width(self.width(), tokens)
-        self._responsive_mode = derived.responsive_mode
-        compact = (
-            self._interface_density == "compact"
-            or self._responsive_mode is ResponsiveMode.COMPACT
-        )
-        self._sidebar.set_collapsed(compact)
-        self._composer.set_compact(compact)
-        self._update_responsive_chrome(compact)
-        if self._responsive_mode is ResponsiveMode.LARGE:
-            self._dock_inspector()
-            self._inspector.setVisible(self._right_panel_requested_visible)
-            self._drawer_scrim.hide()
-        else:
-            if previous is ResponsiveMode.LARGE:
-                self._inspector.hide()
-            if self._inspector.isVisible():
-                self._undock_inspector()
-            else:
+        if getattr(self, "_applying_responsive_layout", False):
+            return
+        self._applying_responsive_layout = True
+        try:
+            tokens = design_tokens("dark").layout
+            previous = self._responsive_mode
+            derived = self._view_state.for_width(self.width(), tokens)
+            self._responsive_mode = derived.responsive_mode
+            compact = (
+                self._compact_mode_setting
+                or self._interface_density == "compact"
+                or self._responsive_mode is ResponsiveMode.COMPACT
+            )
+            sidebar_collapsed = compact or self._sidebar_collapsed_preference
+            self._sidebar.set_collapsed(sidebar_collapsed)
+            self._composer.set_compact(compact)
+            if self._responsive_mode is ResponsiveMode.LARGE:
+                self._dock_inspector()
+                if self._inspector.isHidden() == self._right_panel_requested_visible:
+                    self._schedule_inspector_visibility(
+                        self._right_panel_requested_visible
+                    )
                 self._drawer_scrim.hide()
+            else:
+                if previous is ResponsiveMode.LARGE:
+                    self._inspector.hide()
+                if self._inspector.isVisible():
+                    self._undock_inspector()
+                else:
+                    self._drawer_scrim.hide()
+            self._update_responsive_chrome(compact)
+            self._view_state = replace(
+                derived,
+                sidebar_collapsed=sidebar_collapsed,
+                right_panel_visible=(
+                    self._right_panel_requested_visible
+                    if self._responsive_mode is ResponsiveMode.LARGE
+                    else not self._inspector.isHidden()
+                ),
+            )
+        finally:
+            self._applying_responsive_layout = False
+
+    def _schedule_inspector_visibility(self, visible: bool) -> None:
+        self._scheduled_inspector_visibility = visible
+        if getattr(self, "_inspector_visibility_scheduled", False):
+            return
+        self._inspector_visibility_scheduled = True
+        QTimer.singleShot(0, self._apply_scheduled_inspector_visibility)
+
+    def _apply_scheduled_inspector_visibility(self) -> None:
+        self._inspector_visibility_scheduled = False
+        if getattr(self, "_closing", False):
+            return
+        visible = getattr(self, "_scheduled_inspector_visibility", False)
+        if self._responsive_mode is not ResponsiveMode.LARGE:
+            return
+        if self._inspector.isHidden() == visible:
+            self._inspector.setVisible(visible)
+        self._set_inspector_button_state(opened=visible)
+
+    def _remember_sidebar_collapsed_preference(self) -> None:
+        self._sidebar_collapsed_preference = self._sidebar.collapsed
         self._view_state = replace(
-            derived,
-            right_panel_visible=self._inspector.isVisible(),
+            self._view_state,
+            sidebar_collapsed=self._sidebar.collapsed,
         )
 
     def _show_system_inspector(self) -> None:
@@ -877,6 +958,8 @@ class LinaMainWindow(QMainWindow):
             self._show_vision_inspector()
         elif tool_id == "file":
             self.handle_image_upload()
+        elif tool_id == "reminders":
+            self.open_notifications()
         elif tool_id == "agent":
             self._show_agent_inspector()
         elif tool_id == "codex":
@@ -970,7 +1053,7 @@ class LinaMainWindow(QMainWindow):
             f"{index}. {action.purpose}" for index, action in enumerate(task.requested_actions, 1)
         ) if task else ""
         self._append_assistant_message(
-            f"{confirmation_prompt()}\n\nPlan:\n{actions}\n\nWorkspace: {context.root_path.name}")
+            f"{confirmation_prompt()}\n\nPlan:\n{actions}\n\nÇalışma alanı: {context.root_path.name}")
         self._speak_codex_status("Codex görevi hazır. Onayını bekliyorum.")
         self._show_codex_inspector()
 
@@ -1156,19 +1239,19 @@ class LinaMainWindow(QMainWindow):
         instruction = instruction if isinstance(instruction, str) else ""
         if self._codex_bridge is None or self._codex_bridge.session is None:
             self._append_assistant_message(
-                "Önceki görevi sürdürmek için aynı workspace'i seçip açıkça onaylamalısın."
+                "Önceki görevi sürdürmek için aynı çalışma alanını seçip açıkça onaylamalısın."
             )
             return
         session = self._codex_bridge.session
         reference = session.remote_session
         if reference is None or not reference.resumable:
             self._append_assistant_message(
-                "Bu görev güvenli resume metadata'sına sahip değil. Yeni görev olarak başlatabilirsin."
+                "Bu görev güvenli devam bilgisine sahip değil. Yeni görev olarak başlatabilirsin."
             )
             return
         answer = QMessageBox.question(
             self, "Codex görevini sürdür",
-            "Aynı workspace ve doğrulanmış CLI oturumuyla göreve devam edilsin mi?",
+            "Aynı çalışma alanı ve doğrulanmış komut aracı oturumuyla göreve devam edilsin mi?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -1191,7 +1274,7 @@ class LinaMainWindow(QMainWindow):
             return
         details = (
             f"Görev: {getattr(item, 'task_summary', 'Bilinmiyor')}\n"
-            f"Workspace: {getattr(item, 'workspace_display_name', 'Bilinmiyor')}\n"
+            f"Çalışma alanı: {getattr(item, 'workspace_display_name', 'Bilinmiyor')}\n"
             f"Durum: {codex_status_label(getattr(item, 'status', 'unknown'))}\n"
             f"Son olay: {getattr(item, 'last_event', 'unknown')}\n"
             f"Doğrulama: {getattr(item, 'verification', 'unverified')}"
@@ -1204,14 +1287,16 @@ class LinaMainWindow(QMainWindow):
         self._composer.input.setPlainText(str(getattr(item, "task_summary", "")))
         self._composer.input.setFocus()
         self._append_assistant_message(
-            "Önceki görev özeti yeni görev taslağına alındı; workspace ve plan yeniden onaylanacak."
+            "Önceki görev özeti yeni görev taslağına alındı; çalışma alanı ve plan yeniden onaylanacak."
         )
 
     def _remove_codex_recovery(self, item: object) -> None:
         if self._codex_bridge is None or item is None:
             return
         self._codex_bridge.repository.delete(str(getattr(item, "session_id", "")))
-        self._append_assistant_message("Codex görev kaydı geçmişten kaldırıldı; workspace dosyalarına dokunulmadı.")
+        self._append_assistant_message(
+            "Codex görev kaydı geçmişten kaldırıldı; çalışma alanındaki dosyalara dokunulmadı."
+        )
         self._show_codex_inspector()
 
     def _show_codex_diagnostics(self) -> None:
@@ -1379,10 +1464,14 @@ class LinaMainWindow(QMainWindow):
 
     def _show_vision_inspector(self) -> None:
         snapshot = self._live_vision_controller.snapshot if self._live_vision_controller else None
-        summary = "Aktif Vision oturumu yok."
+        summary = "Aktif görsel takip oturumu yok."
         if snapshot is not None:
-            summary = f"Kaynak: {snapshot.source.value}\nDurum: {snapshot.state.value}\n{snapshot.last_result or snapshot.user_message}"
-        self._inspector.show_details("Vision Oturumu", summary)
+            summary = (
+                f"Kaynak: {self._live_source_label(snapshot.source)}\n"
+                f"Durum: {self._live_state_label(snapshot.state)}\n"
+                f"{snapshot.last_result or snapshot.user_message}"
+            )
+        self._inspector.show_details("Görsel takip", summary)
         self._view_state = replace(self._view_state, right_panel_section=RightPanelSection.VISION)
         self._present_inspector()
 
@@ -1393,9 +1482,12 @@ class LinaMainWindow(QMainWindow):
             action.setEnabled(False)
         menu.addSeparator()
         details = menu.addAction("Tüm ayrıntıları göster")
+        settings = menu.addAction("Ayarlar") if self._user_settings_service is not None else None
         selected = menu.exec(self._status_button.mapToGlobal(self._status_button.rect().bottomLeft()))
         if selected is details:
             self._show_system_inspector()
+        elif settings is not None and selected is settings:
+            self.open_settings()
 
     def _show_tools_menu(self) -> None:
         self._tools_menu = self._build_tools_menu()
@@ -1462,7 +1554,7 @@ class LinaMainWindow(QMainWindow):
         menu = QMenu(self)
         open_action = menu.addAction("Lina'yı Aç")
         open_action.triggered.connect(self._show_from_tray)
-        new_action = menu.addAction("Yeni Sohbet")
+        new_action = menu.addAction("Yeni sohbet")
         new_action.triggered.connect(self._new_chat_from_tray)
         if self._notification_service is not None:
             reminder_action = menu.addAction("Yeni Hatırlatıcı")
@@ -1474,13 +1566,13 @@ class LinaMainWindow(QMainWindow):
         stop_voice_action = menu.addAction("Sesi Durdur")
         stop_voice_action.triggered.connect(self.stop_voice)
         if self._hands_free_service is not None:
-            self._tray_hands_free_action = menu.addAction("Hands-free Aç/Kapat")
+            self._tray_hands_free_action = menu.addAction("Eller serbest konuşmayı aç/kapat")
             self._tray_hands_free_action.triggered.connect(self._toggle_hands_free_from_tray)
             self._tray_pause_action = menu.addAction("Dinlemeyi Duraklat")
             self._tray_pause_action.triggered.connect(self._toggle_hands_free_pause)
         if self._live_vision_controller is not None:
             menu.addSeparator()
-            self._tray_live_status_action = menu.addAction("Live Vision Durumu: Kapalı")
+            self._tray_live_status_action = menu.addAction("Canlı görsel takip: Kapalı")
             self._tray_live_status_action.setEnabled(False)
             self._tray_live_analyze_action = menu.addAction("Şimdi Analiz Et")
             self._tray_live_analyze_action.triggered.connect(self._live_analyze_now)
@@ -1632,17 +1724,21 @@ class LinaMainWindow(QMainWindow):
             return
         if self._voice_controller.hands_free_paused:
             resumed = self._hands_free_service.resume()
-            self._set_status("Hands-free dinleme devam ediyor." if resumed else "Wake-word algılama şu anda kullanılamıyor.")
+            self._set_status(
+                "Eller serbest dinleme devam ediyor."
+                if resumed
+                else "Uyandırma sözü algılama şu anda kullanılamıyor."
+            )
         else:
             self._hands_free_service.pause()
             self._set_status("Sesli konuşma durduruldu.")
 
     def _confirm_hands_free_privacy(self) -> bool:
         box = QMessageBox(self)
-        box.setWindowTitle("Hands-free conversation")
+        box.setWindowTitle("Eller serbest konuşma")
         box.setText(
-            "Hands-free modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
-            "yerel olarak dinler. Ses kayıtları saklanmaz ve cloud’a gönderilmez."
+            "Eller serbest modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
+            "yerel olarak dinler. Ses kayıtları saklanmaz ve buluta gönderilmez."
         )
         enable = box.addButton("Etkinleştir", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
@@ -1654,6 +1750,7 @@ class LinaMainWindow(QMainWindow):
 
     def _apply_user_settings(self, settings: UserSettings) -> None:
         """Apply settings that are safe to reflect in the current window."""
+        initial_application = not self._window_state_restored
         if not settings.general.intent_routing_enabled and self._intent_router is not None:
             self._intent_router.cancel_pending()
             self._active_confirmation_cancel = None
@@ -1684,6 +1781,9 @@ class LinaMainWindow(QMainWindow):
             self._hide_welcome_state()
         self._speech_enabled = settings.speech.enabled
         self._interface_density = settings.appearance.density
+        self._compact_mode_setting = settings.appearance.compact_mode
+        self._reduce_motion = settings.appearance.reduce_motion
+        self._sidebar_collapsed_preference = settings.appearance.sidebar_collapsed
         self._right_panel_width = settings.appearance.right_panel_width
         self._message_width = settings.appearance.message_width
         self._right_panel_requested_visible = settings.appearance.right_panel_visible
@@ -1762,7 +1862,9 @@ class LinaMainWindow(QMainWindow):
             self._camera_preview.auto_commentary_button.setChecked(settings.live_vision.automatic_camera_commentary_enabled)
             self._camera_preview.mute_button.setChecked(not settings.live_vision.speak_semantic_changes)
         if hasattr(self, "_hands_free_toggle"):
-            self._hands_free_toggle.setText("Hands-free Açık" if settings.speech.hands_free_enabled else "Hands-free Kapalı")
+            self._hands_free_toggle.setText(
+                "Eller serbest açık" if settings.speech.hands_free_enabled else "Eller serbest kapalı"
+            )
             self._hands_free_pause.setEnabled(settings.speech.hands_free_enabled)
         self._composer.attachment_button.setEnabled(True)
         self._set_vision_controls_enabled(self._vision_enabled)
@@ -1771,7 +1873,31 @@ class LinaMainWindow(QMainWindow):
         if not self._live_vision_enabled and self._live_vision_controller is not None:
             self._live_vision_controller.stop()
         self._refresh_speech_status()
-        self._set_status("Ayarlar uygulandı")
+        if self._right_panel_requested_visible:
+            self._restore_inspector_section(section)
+        if not initial_application:
+            self._set_status("Ayarlar uygulandı")
+
+    def _restore_inspector_section(self, section: RightPanelSection) -> None:
+        if section is RightPanelSection.MEMORY:
+            self._show_memory_inspector()
+        elif section is RightPanelSection.VOICE:
+            self._show_voice_inspector()
+        elif section is RightPanelSection.VISION:
+            self._show_vision_inspector()
+        elif section is RightPanelSection.SYSTEM:
+            self._show_system_inspector()
+        elif section is RightPanelSection.AGENT and self._agent_enabled and self._agent_controller:
+            self._show_agent_inspector()
+        elif section is RightPanelSection.CODEX and self._codex_bridge is not None:
+            self._show_codex_inspector()
+        else:
+            self._inspector.show_home()
+            self._view_state = replace(
+                self._view_state,
+                right_panel_section=RightPanelSection.TOOLS,
+            )
+            self._present_inspector()
 
     def _restore_window_state(self, settings: UserSettings) -> None:
         system = settings.system
@@ -1792,12 +1918,17 @@ class LinaMainWindow(QMainWindow):
         system = replace(
             current.system,
             window_x=geometry.x(), window_y=geometry.y(),
-            window_width=max(720, geometry.width()), window_height=max(560, geometry.height()),
+            window_width=max(
+                design_tokens("dark").layout.minimum_window_width, geometry.width()
+            ),
+            window_height=max(
+                design_tokens("dark").layout.minimum_window_height, geometry.height()
+            ),
             window_maximized=self.isMaximized(),
         )
         appearance = replace(
             current.appearance,
-            sidebar_collapsed=self._sidebar.collapsed,
+            sidebar_collapsed=self._sidebar_collapsed_preference,
             right_panel_visible=self._right_panel_requested_visible,
             right_panel_section=self._view_state.right_panel_section.value,
             right_panel_width=self._right_panel_width,
@@ -1999,7 +2130,7 @@ class LinaMainWindow(QMainWindow):
             self._finish_routed_intent(user_text, "İşlem iptal edildi.", created_at)
             return
         if request.intent in {RoutingIntentType.ANALYZE_SCREEN, RoutingIntentType.ANALYZE_REGION, RoutingIntentType.ANALYZE_IMAGE}:
-            card = self._add_tool_card("Görsel analiz", "Vision hazırlanıyor.")
+            card = self._add_tool_card("Görsel analiz", "Görsel anlama hazırlanıyor.")
             card.set_status(ToolStatus.RUNNING)
             message = self._run_vision_intent(request.intent)
             unavailable = any(term in message for term in ("kapalı", "ulaşılamadığı", "uygun değil", "seçmelisin"))
@@ -2016,7 +2147,9 @@ class LinaMainWindow(QMainWindow):
     def _handle_agent_intent(self, request: IntentRequest, user_text: str, created_at: datetime) -> None:
         controller = self._agent_controller
         if controller is None:
-            self._finish_routed_intent(user_text, "Agent Mode şu anda kullanılamıyor.", created_at)
+            self._finish_routed_intent(
+                user_text, "Gelişmiş görev modu şu anda kullanılamıyor.", created_at
+            )
             return
         try:
             if request.intent is RoutingIntentType.AGENT_STATUS:
@@ -2323,7 +2456,9 @@ class LinaMainWindow(QMainWindow):
             RoutingIntentType.LIVE_VISION_STATUS,
         }
         if request.intent in live_intents:
-            activity = card or self._add_tool_card(self._tool_title(request), "Live Vision hazırlanıyor.")
+            activity = card or self._add_tool_card(
+                self._tool_title(request), "Canlı görsel takip hazırlanıyor."
+            )
             activity.set_status(ToolStatus.RUNNING)
             result = self._execute_live_intent(request)
             activity.set_status(ToolStatus.SUCCESS if result.success else ToolStatus.UNAVAILABLE, result.user_message, result.retryable)
@@ -2404,7 +2539,7 @@ class LinaMainWindow(QMainWindow):
             self._conversation_history_service.record_assistant_message(result.user_message)
 
     def _retry_vision_intent(self, intent: RoutingIntentType, card: ToolActivityCard) -> None:
-        card.set_status(ToolStatus.RUNNING, "Vision tekrar deneniyor.")
+        card.set_status(ToolStatus.RUNNING, "Görsel analiz tekrar deneniyor.")
         message = self._run_vision_intent(intent)
         unavailable = any(term in message for term in ("kapalı", "ulaşılamadığı", "uygun değil", "seçmelisin"))
         card.set_status(ToolStatus.UNAVAILABLE if unavailable else ToolStatus.SUCCESS, message, retryable=unavailable)
@@ -2438,7 +2573,7 @@ class LinaMainWindow(QMainWindow):
             RoutingIntentType.LIVE_VISION_PAUSE: "Takibi duraklat",
             RoutingIntentType.LIVE_VISION_RESUME: "Takibe devam et",
             RoutingIntentType.LIVE_VISION_STOP: "Takibi durdur",
-            RoutingIntentType.LIVE_VISION_STATUS: "Live Vision durumu",
+            RoutingIntentType.LIVE_VISION_STATUS: "Canlı görsel takip durumu",
         }.get(request.intent, "Araç işlemi")
 
     @staticmethod
@@ -2454,7 +2589,11 @@ class LinaMainWindow(QMainWindow):
     def _execute_live_intent(self, request: IntentRequest) -> ToolResult:
         controller = self._live_vision_controller
         if controller is None or not self._live_vision_enabled:
-            return ToolResult(False, "Live Vision şu anda kapalı.", error_code="unavailable")
+            return ToolResult(
+                False,
+                "Canlı görsel takip şu anda kapalı.",
+                error_code="unavailable",
+            )
         intent = request.intent
         if intent is RoutingIntentType.LIVE_VISION_PAUSE:
             success = controller.pause()
@@ -2471,7 +2610,11 @@ class LinaMainWindow(QMainWindow):
             snapshot = controller.snapshot
             if snapshot.state is LiveVisionState.IDLE:
                 return ToolResult(True, "Şu anda aktif bir takip yok.")
-            return ToolResult(True, f"{self._live_source_label(snapshot.source)} takip ediliyor; durum: {snapshot.state.value}.")
+            return ToolResult(
+                True,
+                f"{self._live_source_label(snapshot.source)} takip ediliyor; "
+                f"durum: {self._live_state_label(snapshot.state)}.",
+            )
         focus = str(request.extracted_arguments.get("user_focus", ""))
         if intent is RoutingIntentType.REGION_MONITOR:
             self._pending_region_monitor_focus = focus
@@ -2763,7 +2906,11 @@ class LinaMainWindow(QMainWindow):
             LiveVisionState.STOPPING: "Durduruluyor", LiveVisionState.SPEAKING: "Seslendiriliyor",
             LiveVisionState.DISABLED: "Kapalı",
         }
-        self._live_indicator.setText(f"◉ {label} · {state_labels.get(snapshot.state, snapshot.state.value)}" if active else "◉ Live Vision · Kapalı")
+        self._live_indicator.setText(
+            f"◉ {label} · {state_labels.get(snapshot.state, 'Durum güncelleniyor')}"
+            if active
+            else "◉ Canlı görsel takip · Kapalı"
+        )
         self._live_result.setText(snapshot.last_result or snapshot.user_message or "Kamera veya ekran takibi etkin değil.")
         self._live_analyze.setEnabled(active and snapshot.state is not LiveVisionState.ANALYZING)
         self._live_pause.setEnabled(active and snapshot.state is not LiveVisionState.ANALYZING)
@@ -2786,13 +2933,39 @@ class LinaMainWindow(QMainWindow):
 
     @staticmethod
     def _live_source_label(source: LiveVisionSource | None) -> str:
-        return {LiveVisionSource.CAMERA: "Kamera", LiveVisionSource.SCREEN: "Ekran", LiveVisionSource.REGION: "Bölge"}.get(source, "Live Vision")
+        return {
+            LiveVisionSource.CAMERA: "Kamera",
+            LiveVisionSource.SCREEN: "Ekran",
+            LiveVisionSource.REGION: "Bölge",
+        }.get(source, "Canlı görsel takip")
 
-    def _update_live_tray_actions(self, state: LiveVisionState, label: str = "Live Vision") -> None:
+    @staticmethod
+    def _live_state_label(state: LiveVisionState) -> str:
+        return {
+            LiveVisionState.STARTING: "Başlatılıyor",
+            LiveVisionState.MONITORING: "Takip ediliyor",
+            LiveVisionState.CHANGE_DETECTED: "Değişiklik algılandı",
+            LiveVisionState.ANALYZING: "Analiz ediliyor",
+            LiveVisionState.PAUSED: "Duraklatıldı",
+            LiveVisionState.ERROR: "Hata",
+            LiveVisionState.UNAVAILABLE: "Kullanılamıyor",
+            LiveVisionState.IDLE: "Kapalı",
+            LiveVisionState.STOPPING: "Durduruluyor",
+            LiveVisionState.SPEAKING: "Seslendiriliyor",
+            LiveVisionState.DISABLED: "Kapalı",
+        }.get(state, "Durum güncelleniyor")
+
+    def _update_live_tray_actions(
+        self,
+        state: LiveVisionState,
+        label: str = "Canlı görsel takip",
+    ) -> None:
         if not hasattr(self, "_tray_live_status_action"):
             return
         active = state not in {LiveVisionState.IDLE, LiveVisionState.DISABLED, LiveVisionState.UNAVAILABLE}
-        self._tray_live_status_action.setText(f"Live Vision Durumu: {label if active else 'Kapalı'}")
+        self._tray_live_status_action.setText(
+            f"Canlı görsel takip: {label if active else 'Kapalı'}"
+        )
         self._tray_live_analyze_action.setEnabled(active)
         self._tray_live_pause_action.setEnabled(active)
         self._tray_live_pause_action.setText("Takibe Devam Et" if state is LiveVisionState.PAUSED else "Takibi Duraklat")
@@ -2801,22 +2974,22 @@ class LinaMainWindow(QMainWindow):
             self._tray_icon.setToolTip(f"Lina — {label} takibi aktif" if active else "Lina")
 
     def _confirm_tray_live_start(self, source: LiveVisionSource) -> None:
-        message = "Lina kamera görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz veya cloud'a gönderilmez." if source is LiveVisionSource.CAMERA else "Lina ekran görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz."
-        if QMessageBox.question(self, "Live Vision Gizlilik Onayı", message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+        message = "Lina kamera görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz veya buluta gönderilmez." if source is LiveVisionSource.CAMERA else "Lina ekran görüntüsünü yalnız yerel analiz için kullanır. Görüntüler kalıcı olarak saklanmaz."
+        if QMessageBox.question(self, "Canlı görsel takip gizlilik onayı", message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         intent = RoutingIntentType.CAMERA_MONITOR if source is LiveVisionSource.CAMERA else RoutingIntentType.SCREEN_MONITOR
         self._execute_live_intent(IntentRequest(intent, 1.0, message, {"user_focus": ""}, True))
 
     def _run_vision_intent(self, intent: RoutingIntentType) -> str:
         if not self._vision_enabled:
-            return "Vision özelliği Ayarlar’dan kapalı."
+            return "Görsel anlama özelliği Ayarlar’dan kapalı."
         if self._vision_status is not None and self._vision_status.status is not VisionStatus.READY:
             if self._vision_status.status is VisionStatus.DISABLED:
-                return "Vision şu anda kapalı. Ayarlar’dan açabilirsin."
+                return "Görsel anlama şu anda kapalı. Ayarlar’dan açabilirsin."
             if self._vision_status.status in {VisionStatus.MODEL_NOT_AVAILABLE, VisionStatus.VISION_NOT_SUPPORTED, VisionStatus.INVALID_RESPONSE}:
                 if self._vision_status.status is VisionStatus.VISION_NOT_SUPPORTED:
-                    return "Seçili model görüntü analizi desteklemiyor. Ayarlardan bir vision modeli seç."
-                return "Seçili Vision modeli görsel analiz için uygun değil."
+                    return "Seçili model görüntü analizi desteklemiyor. Ayarlardan bir görsel modeli seç."
+                return "Seçili görsel modeli analiz için uygun değil."
             if self._vision_status.status in {VisionStatus.OLLAMA_UNREACHABLE, VisionStatus.TIMEOUT}:
                 return "Ollama’ya ulaşılamadığı için görsel analiz yapılamıyor."
         if intent is RoutingIntentType.ANALYZE_SCREEN:
@@ -3115,7 +3288,7 @@ class LinaMainWindow(QMainWindow):
             else None
         )
         self._welcome_state = WelcomeStateWidget(
-            BRANDING_LOGO_PATH,
+            BRANDING_MARK_PATH,
             conversation_id=conversation_id,
             parent=self._message_container,
         )
@@ -3230,7 +3403,7 @@ class LinaMainWindow(QMainWindow):
                 self._set_status("Belge soruna eklenmeye hazır")
             return
         if not self._vision_enabled:
-            self._set_status("Görsel eklemek için Vision özelliğini aç.")
+            self._set_status("Görsel eklemek için görsel anlama özelliğini aç.")
             return
         try:
             context = self._image_loader.load(path)
@@ -3554,7 +3727,7 @@ class LinaMainWindow(QMainWindow):
             text = (
                 friendly_error_message(error)
                 if isinstance(error, Exception)
-                else "Bir şey ters gitti İlhan. İstersen tekrar deneyebiliriz."
+                else "Bir şey ters gitti. İstersen tekrar deneyebiliriz."
             )
         self._auto_scroll_enabled = True
         self._append_assistant_message(text)
@@ -3575,7 +3748,7 @@ class LinaMainWindow(QMainWindow):
         text = result.text.strip()
         if not text:
             self._append_assistant_message(
-                "Net bir konuşma algılayamadım İlhan. Tekrar deneyebilirsin."
+                "Net bir konuşma algılayamadım. Tekrar deneyebilirsin."
             )
             self._set_status("Hazır")
             return
@@ -3587,12 +3760,12 @@ class LinaMainWindow(QMainWindow):
                 self.send_message()
                 return
             self._append_assistant_message(
-                "Konuşmanı yazıya çevirdim İlhan. Kontrol edip gönderebilirsin."
+                "Konuşmanı yazıya çevirdim. Kontrol edip gönderebilirsin."
             )
             self._set_status("Metne çevrildi.")
             return
         self._append_assistant_message(
-            "Transkripsiyonu mesaj alanına yazamadım İlhan. Tekrar deneyebiliriz."
+            "Yazıya çevrilen metni mesaj alanına ekleyemedim. Tekrar deneyebiliriz."
         )
         self._set_status("Hata oluştu.")
 
@@ -3664,11 +3837,11 @@ class LinaMainWindow(QMainWindow):
 
     def _handle_transcription_error(self, error: object) -> None:
         if isinstance(error, SpeechUnavailableError):
-            text = "Mikrofon/STT şu anda hazır değil İlhan."
+            text = "Mikrofon ve yazıya çevirme şu anda hazır değil."
         elif isinstance(error, SpeechServiceError):
-            text = "Konuşmayı yazıya çevirirken sorun yaşadım İlhan."
+            text = "Konuşmayı yazıya çevirirken bir sorun yaşadım."
         else:
-            text = "Mikrofon akışında beklenmeyen bir sorun oluştu İlhan."
+            text = "Mikrofon akışında beklenmeyen bir sorun oluştu."
         self._append_assistant_message(text)
         self._set_status("Hazır")
 
@@ -3733,6 +3906,7 @@ class LinaMainWindow(QMainWindow):
             image_bytes=image_bytes,
             visual_context=visual_context,
             created_at=created_at,
+            avatar_path=BRANDING_MARK_PATH if role == "assistant" else None,
             parent=self._message_container,
         )
         message.copy_requested.connect(self._copy_text)
@@ -3858,15 +4032,36 @@ class LinaMainWindow(QMainWindow):
     def _set_status(self, text: str, *, generation: int | None = None, priority: StatusPriority = StatusPriority.ACTIVE) -> None:
         if self._unified_status.publish(text, generation=generation, priority=priority):
             self._status_label.setText(text)
-            if hasattr(self, "_header_status_label"):
-                self._header_status_label.setText(text)
+            self._header_status_text = text
+            self._refresh_header_status_label()
+            if hasattr(self, "_status_dot"):
+                self._status_dot.setAccessibleName(f"Durum: {text}")
+                self._status_dot.setProperty("state", _status_visual_state(text, priority))
+                self._status_dot.style().unpolish(self._status_dot)
+                self._status_dot.style().polish(self._status_dot)
             if hasattr(self, "_status_button"):
                 self._status_button.setToolTip(
-                    f"Lina Durumu: {text}. Model, mikrofon, ses ve Vision ayrıntılarını göster"
+                    f"Lina durumu: {text}. Model, mikrofon, ses ve görsel anlama ayrıntılarını göster"
                 )
+
+    def _refresh_header_status_label(self) -> None:
+        if not hasattr(self, "_header_status_label"):
+            return
+        text = getattr(self, "_header_status_text", self._header_status_label.text())
+        width = 140 if self._compact_chrome else 240
+        self._header_status_label.setMaximumWidth(width)
+        self._header_status_label.setText(
+            self._header_status_label.fontMetrics().elidedText(
+                text,
+                Qt.TextElideMode.ElideRight,
+                width,
+            )
+        )
+        self._header_status_label.setToolTip(text if self._header_status_label.text() != text else "")
 
     def _update_responsive_chrome(self, compact: bool) -> None:
         self._compact_chrome = compact
+        self._refresh_header_status_label()
         self._set_inspector_button_state(opened=self._inspector.isVisible())
         if hasattr(self, "_notification_button"):
             self._refresh_notification_badge()
@@ -3913,27 +4108,27 @@ class LinaMainWindow(QMainWindow):
 
     def _vision_attachment_status_text(self) -> str:
         if self._vision_status is None:
-            return "Vision kontrol ediliyor"
+            return "Görsel anlama kontrol ediliyor"
         labels = {
             VisionStatus.READY: "Analize hazır",
-            VisionStatus.DISABLED: "Vision kapalı",
-            VisionStatus.MODEL_NOT_AVAILABLE: "Vision modeli hazır değil",
+            VisionStatus.DISABLED: "Görsel anlama kapalı",
+            VisionStatus.MODEL_NOT_AVAILABLE: "Görsel modeli hazır değil",
             VisionStatus.VISION_NOT_SUPPORTED: "Model görüntü desteklemiyor",
-            VisionStatus.TIMEOUT: "Vision kontrolü zaman aşımına uğradı",
+            VisionStatus.TIMEOUT: "Görsel anlama kontrolü zaman aşımına uğradı",
             VisionStatus.OLLAMA_UNREACHABLE: "Ollama ulaşılamıyor",
-            VisionStatus.INVALID_RESPONSE: "Vision durumu doğrulanamadı",
+            VisionStatus.INVALID_RESPONSE: "Görsel anlama durumu doğrulanamadı",
         }
         return labels[self._vision_status.status]
 
     def _refresh_speech_status(self) -> None:
         if self._speech_service is None:
-            self._speech_status.setText("Mic · yok")
+            self._speech_status.setText("Mikrofon · yok")
             return
         if self._speech_enabled and self._speech_service.is_stt_available():
-            self._speech_status.setText("Mic · hazır")
+            self._speech_status.setText("Mikrofon · hazır")
             self._composer.set_mic_enabled(True)
         else:
-            self._speech_status.setText("Mic · kapalı")
+            self._speech_status.setText("Mikrofon · kapalı")
             self._composer.set_mic_enabled(False)
 
     def _start_worker(self, worker: FunctionWorker) -> None:
@@ -4000,16 +4195,18 @@ class LinaMainWindow(QMainWindow):
         self._pending_scroll_to_top = False
         self._scroll_retry_count = 0
         self._message_container.layout().activate()
-        for delay in (0, 25, 75, 150, 300, 600, 1000):
+        delays = (0,) if self._reduce_motion else (0, 25, 75, 150, 300, 600, 1000)
+        for delay in delays:
             QTimer.singleShot(delay, self._scroll_to_bottom)
-        QTimer.singleShot(1100, self._finish_scroll_to_bottom)
+        QTimer.singleShot(25 if self._reduce_motion else 1100, self._finish_scroll_to_bottom)
 
     def _schedule_scroll_to_top(self) -> None:
         self._pending_scroll_to_top = True
         self._pending_scroll_to_bottom = False
         self._message_container.layout().activate()
         QTimer.singleShot(0, self._scroll_to_top)
-        QTimer.singleShot(25, self._scroll_to_top)
+        if not self._reduce_motion:
+            QTimer.singleShot(25, self._scroll_to_top)
 
     def _scroll_to_bottom(self) -> None:
         if not self._pending_scroll_to_bottom:
@@ -4040,8 +4237,8 @@ class LinaMainWindow(QMainWindow):
         self._auto_scroll_enabled = self._is_scroll_near_bottom()
 
     def _apply_window_icon(self) -> None:
-        if BRANDING_ICON_PATH.exists():
-            icon = QIcon(str(BRANDING_ICON_PATH))
+        if BRANDING_MARK_PATH.exists():
+            icon = QIcon(str(BRANDING_MARK_PATH))
             if not icon.isNull():
                 self.setWindowIcon(icon)
 
@@ -4127,7 +4324,7 @@ def _format_model_status_chip(result: DiagnosticsResult) -> str:
     if result.status is ModelStatus.CONNECTING:
         return "Model · bağlanıyor"
     if result.status is ModelStatus.TIMEOUT:
-        return "Model · timeout"
+        return "Model · zaman aşımı"
     if result.status is ModelStatus.MODEL_NOT_AVAILABLE:
         return "Model · yok"
     if result.status is ModelStatus.MODEL_NOT_CONFIGURED:
@@ -4145,11 +4342,11 @@ def _friendly_vision_error_message(error: Exception) -> str:
         return "Ekran görüntüsü analiz için fazla büyük."
     if "empty text content" in message:
         return (
-            "Vision modeli boş cevap döndürdü. Görseli daha kısa bir soruyla "
+            "Görsel modeli boş cevap döndürdü. Görseli daha kısa bir soruyla "
             "tekrar deneyebilirsin."
         )
     if "missing text content" in message or "invalid response" in message:
-        return "Vision modelinden geçerli bir cevap alınamadı. Tekrar deneyebilirsin."
+        return "Görsel modelinden geçerli bir cevap alınamadı. Tekrar deneyebilirsin."
     if "valid png" in message or "image attachment" in message:
         return "Ekran görüntüsü doğrulanamadı."
     if "timed out" in message or "timeout" in message:
@@ -4157,7 +4354,7 @@ def _friendly_vision_error_message(error: Exception) -> str:
     if "network error" in message or "connection refused" in message:
         return "Lina yerel modele ulaşamadı. Ollama'nın çalıştığını kontrol et."
     if "http error: 404" in message or "not found" in message:
-        return "Görüntü analizi için vision modeli kurulu değil."
+        return "Görüntü analizi için görsel modeli kurulu değil."
     return "Ekran görüntüsü analiz edilirken bir sorun oluştu."
 
 

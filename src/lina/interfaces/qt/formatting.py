@@ -25,7 +25,7 @@ def normalize_assistant_text(text: str) -> str:
 def format_welcome_message() -> str:
     """Return the first visible assistant message for a fresh GUI session."""
     return (
-        "Merhaba İlhan. Ben Lina, yerel çalışan masaüstü asistanın.\n"
+        "Merhaba. Ben Lina, yerel çalışan masaüstü asistanın.\n"
         "Hazırım."
     )
 
@@ -97,13 +97,13 @@ def build_welcome_message(
     """Return a deterministic time-aware welcome heading and supporting line."""
     hour = (now or datetime.now().astimezone()).astimezone().hour
     if 5 <= hour < 12:
-        greeting = "Günaydın İlhan."
+        greeting = "Günaydın."
     elif 12 <= hour < 18:
-        greeting = "İyi günler İlhan."
+        greeting = "İyi günler."
     elif 18 <= hour < 23:
-        greeting = "İyi akşamlar İlhan."
+        greeting = "İyi akşamlar."
     else:
-        greeting = "Gece vardiyasındayız İlhan."
+        greeting = "Gece vardiyasındayız."
     options = (
         "Bugün ne yapıyoruz?",
         "Nereden devam edelim?",
@@ -128,12 +128,12 @@ def friendly_error_message(error: Exception) -> str:
         return "Ollama'ya ulaşılamadı."
     if "timeout" in name or "timeout" in message.casefold():
         return (
-            "Model yanıt vermedi İlhan. Ollama çalışıyor olabilir ama bu istek "
+            "Model yanıt vermedi. Ollama çalışıyor olabilir ama bu istek "
             "zaman aşımına uğradı."
         )
     if "provider" in name or "ollama" in message.casefold():
         return (
-            "Modele ulaşılamadı İlhan. Ollama'nın çalıştığını ve modelin yüklü "
+            "Modele ulaşılamadı. Ollama'nın çalıştığını ve modelin yüklü "
             "olduğunu kontrol edebilirsin."
         )
-    return "Bir şey ters gitti İlhan. İstersen tekrar deneyebiliriz."
+    return "Bir şey ters gitti. İstersen tekrar deneyebiliriz."

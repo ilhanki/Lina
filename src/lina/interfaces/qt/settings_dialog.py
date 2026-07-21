@@ -95,7 +95,7 @@ class SettingsDialog(QDialog):
         self._navigation.setFixedWidth(204)
         self._navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._navigation.addItems(
-            ["Genel", "Görünüm", "Modeller", "Ses", "Vision", "Hatırlatıcılar", "Gelişmiş"]
+            ["Genel", "Görünüm", "Modeller", "Ses", "Görsel Anlama", "Hatırlatıcılar", "Gelişmiş"]
         )
         content.addWidget(self._navigation)
         content.setSpacing(18)
@@ -125,11 +125,11 @@ class SettingsDialog(QDialog):
             (("Yerel modeller", models_section),),
         )
         speech = self._settings_page(
-            "Ses", "Mikrofon, konuşma, wake word ve hands-free tercihlerini tek yerde yönet.",
-            (("Konuşma ve mikrofon", speech_section), ("Hands-Free", hands_free_section)),
+            "Ses", "Mikrofon, konuşma, uyandırma sözü ve eller serbest kullanım tercihlerini tek yerde yönet.",
+            (("Konuşma ve mikrofon", speech_section), ("Eller serbest", hands_free_section)),
         )
         vision = self._settings_page(
-            "Vision", "Kamera ve ekran analizinin açık izinli davranışlarını yönet.",
+            "Görsel Anlama", "Kamera ve ekran analizinin izinli davranışlarını yönet.",
             (("Görsel analiz", vision_section),),
         )
         notifications = self._settings_page(
@@ -137,7 +137,7 @@ class SettingsDialog(QDialog):
             (("Bildirimler", notifications_section),),
         )
         advanced = self._settings_page(
-            "Gelişmiş", "Agent, gizlilik, sistem ve tanılama seçeneklerini gerektiğinde aç.",
+            "Gelişmiş", "Agent, gizlilik, sistem ve tanılama seçeneklerini gerektiğinde yönet.",
             (
                 ("Agent", agent_section),
                 ("Gizlilik", privacy_section),
@@ -239,7 +239,7 @@ class SettingsDialog(QDialog):
         self._language.addItem("Türkçe", "tr")
         self._open_last = QCheckBox("Son sohbeti başlangıçta aç", page)
         self._confirm_delete = QCheckBox("Sohbet silmeden önce onayla", page)
-        self._welcome = QCheckBox("Welcome alanını göster", page)
+        self._welcome = QCheckBox("Karşılama alanını göster", page)
         self._intent_routing = QCheckBox("Akıllı araç yönlendirme", page)
         form.addRow("Dil", self._language)
         form.addRow(self._open_last)
@@ -263,10 +263,10 @@ class SettingsDialog(QDialog):
         self._density = QComboBox(page)
         self._density.addItem("Rahat", "comfortable")
         self._density.addItem("Kompakt", "compact")
-        self._sidebar_collapsed_default = QCheckBox("Sidebar’ı daraltılmış başlat", page)
+        self._sidebar_collapsed_default = QCheckBox("Sol paneli daraltılmış başlat", page)
         self._right_panel_default = QCheckBox("Büyük pencerede bağlamsal paneli göster", page)
         self._right_panel_width = QSpinBox(page)
-        self._right_panel_width.setRange(300, 360)
+        self._right_panel_width.setRange(300, 384)
         self._right_panel_width.setSuffix(" px")
         self._message_width = QSpinBox(page)
         self._message_width.setRange(720, 900)
@@ -300,11 +300,11 @@ class SettingsDialog(QDialog):
         self._warm_up = QCheckBox("Modeli açılışta arka planda hazırla", page)
         self._refresh_models = QPushButton("Modelleri Yenile", page)
         self._model_status = QLabel("", page)
-        form.addRow("Text model", self._text_model)
-        form.addRow("Vision model", self._vision_model)
+        form.addRow("Metin modeli", self._text_model)
+        form.addRow("Görsel modeli", self._vision_model)
         form.addRow("Modeli bellekte tut", self._keep_alive)
         form.addRow("Maksimum cevap uzunluğu", self._max_output_tokens)
-        form.addRow("Context bütçesi", self._context_budget)
+        form.addRow("Bağlam bütçesi", self._context_budget)
         form.addRow(self._warm_up)
         form.addRow(self._refresh_models)
         form.addRow(self._model_status)
@@ -338,15 +338,15 @@ class SettingsDialog(QDialog):
         self._volume = QSlider(Qt.Orientation.Horizontal, page)
         self._volume.setRange(0, 100)
         self._transcription_mode = QComboBox(page)
-        self._transcription_mode.addItem("Composer'a ekle", "insert")
+        self._transcription_mode.addItem("Mesaj alanına ekle", "insert")
         self._transcription_mode.addItem("Otomatik gönder", "send")
         self._barge_in = QCheckBox("Lina konuşurken mikrofonla sesi kes", page)
-        self._hands_free = QCheckBox("Hands-free conversation", page)
-        self._wake_word = QCheckBox("Wake word (Deneysel)", page)
+        self._hands_free = QCheckBox("Eller serbest konuşma", page)
+        self._wake_word = QCheckBox("Uyandırma sözü (Deneysel)", page)
         self._wake_phrase = QLineEdit(page)
-        self._wake_indicator = QCheckBox("Wake-word listening indicator", page)
+        self._wake_indicator = QCheckBox("Uyandırma sözü dinleme göstergesini göster", page)
         self._return_to_wake = QCheckBox("Lina cevap verdikten sonra tekrar dinlemeye dön", page)
-        self._voice_confirmation = QCheckBox("Confirmation cevaplarını sesle kabul et", page)
+        self._voice_confirmation = QCheckBox("Onay yanıtlarını sesle kabul et", page)
         self._microphone_device = QComboBox(page)
         self._microphone_device.addItem("Varsayılan mikrofon", None)
         self._refresh_microphones = QPushButton("Mikrofonları Yenile", page)
@@ -361,25 +361,25 @@ class SettingsDialog(QDialog):
         self._wake_test_level = QProgressBar(page)
         self._wake_test_level.setRange(0, 10)
         self._wake_test_level.setValue(0)
-        self._wake_test_level.setFormat("Wake algılama · %v")
+        self._wake_test_level.setFormat("Uyandırma algılama · %v")
         self._wake_test_level.setAccessibleName("Hey Lina test göstergesi")
         wake_available = bool(self._voice_controller and self._voice_controller.wake_word_available)
         self._hands_free.setEnabled(wake_available)
         self._wake_word.setEnabled(wake_available)
         if not wake_available:
-            self._wake_word.setToolTip("Bu sürümde detector kurulu değil.")
-            self._hands_free.setToolTip("Wake-word algılama şu anda kullanılamıyor.")
+            self._wake_word.setToolTip("Bu sürümde uyandırma sözü algılayıcısı kurulu değil.")
+            self._hands_free.setToolTip("Uyandırma sözü algılama şu anda kullanılamıyor.")
         form.addRow(self._speech_enabled)
         form.addRow("Dil", self._speech_language)
         form.addRow(self._voice_responses)
         form.addRow("Sistem sesi", self._system_voice)
         form.addRow("Konuşma hızı", self._speech_rate)
         form.addRow("Ses seviyesi", self._volume)
-        form.addRow("Transcription davranışı", self._transcription_mode)
+        form.addRow("Yazıya çevirme davranışı", self._transcription_mode)
         form.addRow(self._barge_in)
         form.addRow(self._hands_free)
         form.addRow(self._wake_word)
-        form.addRow("Wake phrase", self._wake_phrase)
+        form.addRow("Uyandırma ifadesi", self._wake_phrase)
         form.addRow(self._wake_indicator)
         form.addRow(self._return_to_wake)
         form.addRow(self._voice_confirmation)
@@ -422,7 +422,7 @@ class SettingsDialog(QDialog):
             control.setParent(page)
         form.addRow(self._hands_free)
         form.addRow(self._wake_word)
-        form.addRow("Wake ifadesi", self._wake_phrase)
+        form.addRow("Uyandırma ifadesi", self._wake_phrase)
         form.addRow(self._wake_indicator)
         form.addRow(self._return_to_wake)
         form.addRow(self._voice_confirmation)
@@ -433,11 +433,11 @@ class SettingsDialog(QDialog):
     def _vision_page(self) -> QWidget:
         page = QWidget(self)
         form = QFormLayout(page)
-        self._vision_enabled = QCheckBox("Vision özelliğini etkinleştir", page)
-        self._vision_consume = QCheckBox("Başarılı analizden sonra attachment'ı kaldır", page)
+        self._vision_enabled = QCheckBox("Görsel anlama özelliğini etkinleştir", page)
+        self._vision_consume = QCheckBox("Başarılı analizden sonra eki kaldır", page)
         form.addRow(self._vision_enabled)
         form.addRow(self._vision_consume)
-        self._live_vision_enabled = QCheckBox("Live Vision etkin", page)
+        self._live_vision_enabled = QCheckBox("Canlı görsel takibi etkinleştir", page)
         self._live_default_source = QComboBox(page)
         self._live_default_source.addItem("Kamera", "camera")
         self._live_default_source.addItem("Ekran", "screen")
@@ -456,12 +456,12 @@ class SettingsDialog(QDialog):
         self._live_change_sensitivity.addItem("Düşük", "low")
         self._live_change_sensitivity.addItem("Orta", "medium")
         self._live_change_sensitivity.addItem("Yüksek", "high")
-        self._live_voice = QCheckBox("Live Vision sonuçlarını seslendir", page)
+        self._live_voice = QCheckBox("Canlı görsel takip sonuçlarını seslendir", page)
         self._live_meaningful_only = QCheckBox("Yalnız önemli değişikliklerde konuş", page)
-        self._camera_conversation = QCheckBox("Realtime camera conversation", page)
-        self._camera_auto_commentary = QCheckBox("Automatic camera commentary", page)
+        self._camera_conversation = QCheckBox("Kamerayla gerçek zamanlı konuşma", page)
+        self._camera_auto_commentary = QCheckBox("Otomatik kamera yorumu", page)
         self._camera_mirror = QCheckBox("Kamera önizlemesini aynala", page)
-        self._camera_speak_semantic = QCheckBox("Semantik kamera değişikliklerini seslendir", page)
+        self._camera_speak_semantic = QCheckBox("Anlamlı kamera değişikliklerini seslendir", page)
         self._camera_commentary_cooldown = QDoubleSpinBox(page)
         self._camera_commentary_cooldown.setRange(8.0, 60.0)
         self._camera_commentary_cooldown.setSuffix(" sn")
@@ -488,7 +488,7 @@ class SettingsDialog(QDialog):
         form.addRow(self._camera_auto_commentary)
         form.addRow(self._camera_mirror)
         form.addRow(self._camera_speak_semantic)
-        form.addRow("Yorum cooldown", self._camera_commentary_cooldown)
+        form.addRow("Yorum bekleme süresi", self._camera_commentary_cooldown)
         form.addRow("Kamera analiz aralığı", self._camera_analysis_interval)
         form.addRow("Kamera", self._live_camera_device)
         form.addRow("Ekran", self._live_screen)
@@ -538,8 +538,8 @@ class SettingsDialog(QDialog):
         layout.addWidget(title)
         for text in (
             "Sohbet, ayar ve hatırlatıcı verileri bu cihazda tutulur.",
-            "Ham mikrofon, kalibrasyon ve wake test sesleri kaydedilmez.",
-            "Tam prompt, model cevabı ve transcription içeriği teknik loglara yazılmaz.",
+            "Ham mikrofon, kalibrasyon ve uyandırma testi sesleri kaydedilmez.",
+            "Tam istem, model yanıtı ve yazıya çevrilen içerik teknik günlüklere yazılmaz.",
             "Kamera ve ekran yalnız açık kullanıcı eylemiyle başlatılır.",
         ):
             label = QLabel(text, page)
@@ -552,10 +552,10 @@ class SettingsDialog(QDialog):
     def _agent_page(self) -> QWidget:
         page = QWidget(self)
         form = QFormLayout(page)
-        self._codex_enabled = QCheckBox("Codex Bridge aktif", page)
+        self._codex_enabled = QCheckBox("Codex bağlantısını etkinleştir", page)
         self._codex_cli_path = QLineEdit(page)
-        self._codex_cli_path.setPlaceholderText("Otomatik algıla veya codex.exe tam yolu")
-        self._codex_auto_detect = QCheckBox("Codex CLI'yi otomatik algıla", page)
+        self._codex_cli_path.setPlaceholderText("Otomatik bul veya codex.exe tam yolunu gir")
+        self._codex_auto_detect = QCheckBox("Codex komut aracını otomatik bul", page)
         self._codex_timeout = QSpinBox(page)
         self._codex_timeout.setRange(15, 3600)
         self._codex_timeout.setSuffix(" sn")
@@ -581,7 +581,7 @@ class SettingsDialog(QDialog):
         self._codex_diagnostics.addItem("Standart", "standard")
         self._codex_diagnostics.addItem("Ayrıntılı", "detailed")
         form.addRow(self._codex_enabled)
-        form.addRow("Codex CLI executable", self._codex_cli_path)
+        form.addRow("Codex komut dosyası", self._codex_cli_path)
         form.addRow(self._codex_auto_detect)
         form.addRow("Görev zaman aşımı", self._codex_timeout)
         form.addRow(self._codex_read_only)
@@ -590,9 +590,9 @@ class SettingsDialog(QDialog):
         form.addRow("Oturum saklama", self._codex_session_retention)
         form.addRow(self._codex_resume)
         form.addRow(self._codex_diff_review)
-        form.addRow("Maksimum diff", self._codex_diff_max)
+        form.addRow("Değişiklik inceleme sınırı", self._codex_diff_max)
         form.addRow("Tanılama ayrıntısı", self._codex_diagnostics)
-        self._agent_enabled = QCheckBox("Agent Mode etkin", page)
+        self._agent_enabled = QCheckBox("Agent modunu etkinleştir", page)
         self._agent_max_steps = QSpinBox(page)
         self._agent_max_steps.setRange(3, 12)
         self._agent_max_replans = QSpinBox(page)
@@ -627,7 +627,7 @@ class SettingsDialog(QDialog):
         self._agent_security_note = QLabel(
             "Güvenlik sınırları her zaman etkindir: kalıcı işlem onayı, yasak araç filtresi, "
             "katı adım sınırı, kalıcı işlemlerde otomatik yeniden deneme yasağı, eski sonuç koruması, "
-            "iptal ve restart sonrası otomatik devam etmeme kapatılamaz.",
+            "iptal ve yeniden başlatma sonrası otomatik devam etmeme kapatılamaz.",
             page,
         )
         self._agent_security_note.setAccessibleName("Değiştirilemez Agent güvenlik ilkeleri")
@@ -636,7 +636,7 @@ class SettingsDialog(QDialog):
         form.addRow(self._agent_security_note)
         self._codex_security_note = QLabel(
             "Codex güvenliği kapatılamaz: her görevde plan onayı, değişikliklerde ayrıca işlem onayı, "
-            "workspace sınırı, secret filtresi, metadata-only geçmiş ve audit logging her zaman etkindir.",
+            "çalışma alanı sınırı, gizli bilgi filtresi, yalnız teknik üstveri geçmişi ve denetim kaydı her zaman etkindir.",
             page,
         )
         self._codex_security_note.setAccessibleName("Değiştirilemez Codex güvenlik ilkeleri")
@@ -649,15 +649,15 @@ class SettingsDialog(QDialog):
         page = QWidget(self)
         layout = QVBoxLayout(page)
         label = QLabel(
-            "Lina\n\nLocal-first kişisel yapay zeka asistanı.\n"
+            "Lina\n\nYerel öncelikli kişisel yapay zekâ asistanı.\n"
             "Ayarlar yalnızca bu cihazda tutulur; sohbet ve hafıza verileri bu dosyaya yazılmaz.\n\n"
-            "Lina araç işlemlerinde yalnız tür, durum ve süre gibi teknik bilgileri loglar.",
+            "Lina araç işlemlerinde yalnız tür, durum ve süre gibi teknik bilgileri günlüğe kaydeder.",
             page,
         )
         label.setWordWrap(True)
         layout.addWidget(label)
         privacy = QLabel(
-            "Ses işleme yereldir. Wake word varsayılan olarak kapalıdır; audio kayıtları "
+            "Ses işleme yereldir. Uyandırma sözü varsayılan olarak kapalıdır; ses kayıtları "
             "saklanmaz. Lina konuşurken sesi manuel olarak durdurabilirsin.",
             page,
         )
@@ -923,10 +923,10 @@ class SettingsDialog(QDialog):
 
     def _show_hands_free_privacy_confirmation(self) -> bool:
         box = QMessageBox(self)
-        box.setWindowTitle("Hands-free conversation")
+        box.setWindowTitle("Eller serbest konuşma")
         box.setText(
-            "Hands-free modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
-            "yerel olarak dinler. Ses kayıtları saklanmaz ve cloud’a gönderilmez."
+            "Eller serbest modunda Lina, “Hey Lina” ifadesini algılamak için mikrofonu "
+            "yerel olarak dinler. Ses kayıtları saklanmaz ve buluta gönderilmez."
         )
         enable = box.addButton("Etkinleştir", QMessageBox.ButtonRole.AcceptRole)
         box.addButton("Vazgeç", QMessageBox.ButtonRole.RejectRole)
@@ -1024,7 +1024,7 @@ class SettingsDialog(QDialog):
         box.addButton("Kapat", QMessageBox.ButtonRole.RejectRole)
         box.exec()
         if box.clickedButton() is correct:
-            self._microphone_status.setText("Wake algılama geri bildirimi yerel olarak uygulandı.")
+            self._microphone_status.setText("Uyandırma algılama geri bildirimi yerel olarak uygulandı.")
         elif box.clickedButton() is incorrect:
             self._input_sensitivity.setCurrentIndex(self._input_sensitivity.findData("noisy"))
             self._microphone_status.setText("Yanlış tetiklenmeyi azaltmak için gürültülü ortam ayarı önerildi.")
@@ -1089,10 +1089,10 @@ class SettingsDialog(QDialog):
         generated = getattr(metrics, "generated_tokens", None)
         load = getattr(metrics, "load_ms", None)
         lines = [f"Son model: {getattr(metrics, 'model', '-')}"]
-        lines.append(f"İlk token: {first / 1000:.1f} sn" if first is not None else "İlk token: -")
-        lines.append(f"Hız: {speed:.1f} token/sn" if speed is not None else "Hız: -")
+        lines.append(f"İlk yanıt: {first / 1000:.1f} sn" if first is not None else "İlk yanıt: -")
+        lines.append(f"Üretim hızı: {speed:.1f} metin birimi/sn" if speed is not None else "Üretim hızı: -")
         lines.append(f"Toplam: {total / 1000:.1f} sn" if total is not None else "Toplam: -")
-        lines.append(f"Prompt / generated: {prompt or '-'} / {generated or '-'}")
+        lines.append(f"Girdi / çıktı: {prompt or '-'} / {generated or '-'} metin birimi")
         lines.append(f"Model yükleme: {load / 1000:.1f} sn" if load is not None else "Model yükleme: -")
         self._performance_status.setText("\n".join(lines))
 

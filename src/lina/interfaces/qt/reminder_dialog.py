@@ -12,7 +12,7 @@ class ReminderDialog(QDialog):
     def __init__(self, reminder: Reminder | None = None, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("reminderDialog")
-        self.setWindowTitle("Hatırlatıcıyı Düzenle" if reminder else "Yeni Hatırlatıcı")
+        self.setWindowTitle("Hatırlatıcıyı düzenle" if reminder else "Yeni hatırlatıcı")
         layout = QVBoxLayout(self)
         form = QFormLayout()
         self.title_edit = QLineEdit(reminder.title if reminder else "", self)
@@ -38,6 +38,8 @@ class ReminderDialog(QDialog):
         self.error_label.setObjectName("errorLabel")
         layout.addWidget(self.error_label)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel, self)
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Kaydet")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Vazgeç")
         buttons.accepted.connect(self._validate)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

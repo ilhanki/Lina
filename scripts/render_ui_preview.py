@@ -25,6 +25,9 @@ from lina.settings.repository import UserSettingsRepository
 from lina.settings.service import UserSettingsService
 
 
+PREVIEW_NOW = datetime(2026, 1, 20, 10, 30, tzinfo=timezone.utc)
+
+
 class PreviewConversationService:
     conversation_history_service = None
 
@@ -42,6 +45,32 @@ def render(
     state: str = "default",
 ) -> None:
     application = QApplication.instance() or QApplication([])
+    previous_stylesheet = application.styleSheet()
+    try:
+        _render_with_application(
+            application,
+            output,
+            width,
+            height,
+            surface,
+            theme=theme,
+            state=state,
+        )
+    finally:
+        application.setStyleSheet(previous_stylesheet)
+        application.processEvents()
+
+
+def _render_with_application(
+    application: QApplication,
+    output: Path,
+    width: int,
+    height: int,
+    surface: str,
+    *,
+    theme: str,
+    state: str,
+) -> None:
     font_path = Path("C:/Windows/Fonts/segoeui.ttf")
     if font_path.exists():
         QFontDatabase.addApplicationFont(str(font_path))
@@ -63,7 +92,7 @@ def render(
     else:
         window = LinaMainWindow(PreviewConversationService())
         window.resize(width, height)
-        now = datetime.now(timezone.utc)
+        now = PREVIEW_NOW
         sessions = (
             ConversationSession(1, "Lina arayüz fikirleri", now, now, now, preview="Arayüzü daha yalın ve tutarlı yapalım"),
             ConversationSession(2, "Bugünkü plan", now - timedelta(hours=2), now, now - timedelta(hours=2), preview="Toplantı, analiz ve rapor taslağı"),
@@ -81,6 +110,14 @@ def render(
                 "2. **Okunabilir akış:** Mesaj genişliğini sınırla.\n"
                 "3. **Tutarlı composer:** Dosya, mikrofon ve ekranı aynı ritimde sun.",
                 created_at=now,
+            )
+            window._append_user_message(
+                "Yarın saat 09.00 için bunu bana hatırlat.",
+                created_at=now + timedelta(minutes=2),
+            )
+            window._append_assistant_message(
+                "Elbette. Hatırlatıcıyı hazırladım; kaydetmeden önce senden onay isteyeceğim.",
+                created_at=now + timedelta(minutes=3),
             )
         if state == "search":
             window._sidebar.search_input.setText("arayüz")

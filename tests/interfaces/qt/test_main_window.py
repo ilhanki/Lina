@@ -3,7 +3,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QRect, QSize
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
@@ -45,6 +45,7 @@ def test_saved_window_geometry_is_clamped_to_visible_screen() -> None:
     available = (QRect(0, 0, 1920, 1080),)
     assert clamp_window_geometry(QRect(5000, 4000, 2400, 1400), available) == QRect(0, 0, 1920, 1080)
     assert clamp_window_geometry(QRect(100, 120, 1000, 700), available) == QRect(100, 120, 1000, 700)
+    assert clamp_window_geometry(QRect(20, 30, 400, 300), available).size() == QSize(760, 600)
 
 
 class ImmediateThreadPool:
@@ -388,6 +389,9 @@ def test_codex_selected_workspace_plan_and_unavailable_notice(
     assert bridge.session.status.value == "waiting_approval"
     assert bridge.session.task is not None
     assert bridge.session.task.risk_level.value == "read_only"
+    plan_message = _assistant_texts(window)[-1]
+    assert f"Çalışma alanı: {tmp_path.name}" in plan_message
+    assert "Workspace" not in plan_message
     window._approve_codex_task()
     assert "henüz yapılandırılmadığı" in _assistant_texts(window)[-1]
     assert bridge.repository.list() == ()
@@ -547,11 +551,11 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
 
     assert window.windowTitle() == "Lina"
     assert window._welcome_state is not None
-    assert "İlhan" in window._welcome_state.greeting_label.text()
+    assert "İlhan" not in window._welcome_state.greeting_label.text()
     assert _assistant_texts(window) == []
     assert window._composer.mic_button.isEnabled() is False
     assert window._model_status.text() == "Model · hazır"
-    assert window._speech_status.text() == "Mic · kapalı"
+    assert window._speech_status.text() == "Mikrofon · kapalı"
     assert window._scroll.objectName() == "chatTimelineScroll"
     assert window._scroll.viewport().objectName() == "chatTimelineViewport"
     assert window._message_container.objectName() == "chatTimeline"
@@ -567,6 +571,85 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert {action.id for action in window._palette_actions()} == {
         "new_chat", "search", "notifications", "settings", "inspector"
     }
+    long_status = "Görsel analiz sürerken ayrıntılı teknik durum kullanıcıyı boğmamalı. " * 6
+    window._set_status(long_status)
+    assert window._header_status_label.text() != long_status
+    assert window._header_status_label.toolTip() == long_status
+    assert window._status_dot.accessibleName() == f"Durum: {long_status}"
+    assert window._status_dot.property("state") == "active"
+    window._set_status("Hata oluştu.")
+    assert window._status_dot.property("state") == "error"
+    window._set_status("Hazır")
+    assert window._status_dot.property("state") == "ready"
+
+
+def test_appearance_preferences_survive_responsive_cycles_and_persist(qtbot, tmp_path) -> None:
+    settings_service = UserSettingsService(UserSettingsRepository(tmp_path / "settings.json"))
+    settings_service.update(
+        UserSettings.from_dict(
+            {
+                "appearance": {
+                    "sidebar_collapsed": True,
+                    "right_panel_visible": True,
+                    "right_panel_section": "memory",
+                    "right_panel_width": 344,
+                    "message_width": 840,
+                    "reduce_motion": True,
+                },
+                "system": {"window_width": 1440, "window_height": 800},
+            }
+        )
+    )
+    window = LinaMainWindow(
+        FakeConversationService(),
+        user_settings_service=settings_service,
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    window.show()
+    window.resize(1440, 800)
+    qtbot.wait(20)
+
+    assert window._responsive_mode is ResponsiveMode.LARGE
+    assert window._sidebar.collapsed
+    assert window._inspector.isVisible()
+    assert window._inspector.title.text() == "Bellek"
+    assert window._reduce_motion is True
+
+    window.resize(800, 700)
+    qtbot.wait(20)
+    assert window._sidebar.collapsed
+    assert window._inspector.isHidden()
+    assert window._inspector_button.property("opened") is False
+    assert window._inspector_button.toolTip() == "Bağlamsal araçları aç"
+
+    window.resize(1440, 800)
+    qtbot.wait(20)
+    assert window._sidebar.collapsed
+    assert window._inspector.isVisible()
+    assert window._inspector.title.text() == "Bellek"
+    assert window._inspector_button.property("opened") is True
+    assert window._inspector_button.toolTip() == "Bağlamsal araçları kapat"
+
+    window._sidebar.collapse_button.click()
+    assert window._sidebar.collapsed is False
+    window._persist_window_state()
+    assert settings_service.current.appearance.sidebar_collapsed is False
+    assert settings_service.current.appearance.right_panel_section == "memory"
+    window._force_exit = True
+    window.close()
+
+
+def test_explicit_compact_mode_uses_compact_sidebar_and_composer(qtbot) -> None:
+    window = LinaMainWindow(FakeConversationService(), thread_pool=ImmediateThreadPool())
+    qtbot.addWidget(window)
+    window.resize(1440, 800)
+    window._apply_user_settings(
+        UserSettings.from_dict({"appearance": {"compact_mode": True}})
+    )
+
+    assert window._sidebar.collapsed
+    assert window._composer.input_hint.isHidden()
 
 
 def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
@@ -1329,6 +1412,8 @@ def test_responsive_shell_docks_and_overlays_context_panel(qtbot) -> None:
     assert window._inspector.display_mode == "drawer"
     assert window._root_layout.indexOf(window._inspector) == -1
     assert window._drawer_scrim.isVisible()
+    assert window._inspector_button.isHidden()
+    assert window._status_button.isHidden()
 
     window.resize(800, 700)
     qtbot.wait(20)
@@ -1337,3 +1422,5 @@ def test_responsive_shell_docks_and_overlays_context_panel(qtbot) -> None:
     window._handle_escape()
     assert window._inspector.isHidden()
     assert window._drawer_scrim.isHidden()
+    assert window._inspector_button.isVisible()
+    assert window._status_button.isVisible()

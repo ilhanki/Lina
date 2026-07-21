@@ -21,6 +21,8 @@ def test_diff_dialog_renders_summary_and_file_list(qtbot) -> None:
     assert dialog.file_list.count() == 1
     assert "src/app.py" in dialog.file_list.item(0).text()
     assert "+new" in dialog.diff_view.toPlainText()
+    assert dialog.search.placeholderText() == "Değişikliklerde ara"
+    assert "Çalışma alanı" in dialog.summary_label.text()
 
 
 def test_binary_change_shows_metadata_only(qtbot) -> None:

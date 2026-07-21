@@ -94,18 +94,19 @@ Bu işaretlenmemiş maddeler otomatik test başarısızlığı değildir; auth/h
 
 Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
-## v0.12.2-alpha Reference-Driven Premium Desktop Experience
+## Premium Assistant Desktop Experience
 
-- 1440×900 dark/light/system temalarında sidebar + chat + inspector üç kolonunu; 1100 px’de sağ drawer’ı; 800 px’de collapsed sidebar + overlay drawer’ı doğrula.
+- 1440×900 dark/light/system temalarında 292 px sidebar + chat düzenini; isteğe bağlı 344 px inspector üçüncü kolonunu; 1100 px’de sağ drawer’ı; 800 px’de 64 px sidebar + overlay drawer’ı doğrula.
 - Drawer’ı araç düğmesi, scrim, close ve Escape ile aç/kapat; kapatınca klavye odağının araç düğmesine döndüğünü doğrula.
-- Sidebar’da gerçek son mesaj preview/time, tarih grupları, debounce search ve rename/pin/archive/delete context eylemlerini doğrula.
+- Sidebar’da şeffaf Lina işareti, gerçek son mesaj preview/time, debounce search ve rename/pin/archive/delete context eylemlerini doğrula. Sahte profil, Pro planı veya klasör ağacı görünmemeli.
 - Kısa/uzun user ve assistant mesajları, başlık/list/bold/inline code/fenced code, streaming finalize, image preview ve hover eylemlerinde taşma/HTML çalıştırma olmadığını doğrula.
 - Composer multiline auto-grow, Enter/Shift+Enter, Dosya/Mikrofon/Ekran/Daha Fazla, send/stop, attachment remove/change ve kompakt görünümü doğrula.
-- Tools satırlarının Chat, Voice, Vision, File, Agent ve Memory için mevcut controller/sinyallere gittiğini; unavailable capability’nin sahte başarı göstermediğini doğrula.
-- Memory bölümünde yalnız gerçek ve hassas olmayan 2–4 özet/empty state; local storage bölümünde gerçek data/cache ölçümü ve kullanıcı eylemli klasör açmayı doğrula. Fake quota/account/Pro verisi olmamalı.
+- Sağ panel ana sayfasında Sohbet, Sesli sohbet, Görsel anlama, Dosya anlama, Hatırlatıcılar ve Bellek kartlarının 2×3 düzende, yatay scrollbar olmadan göründüğünü doğrula. Agent/Codex yalnız ilgili gelişmiş ayar etkinse eklenmeli.
+- Bellek bölümünde yalnız gerçek ve hassas olmayan 2–4 özet/empty state; yerel saklama bölümünde gerçek data/cache ölçümü ve kullanıcı eylemli klasör açmayı doğrula. Sahte kota, hesap veya Pro verisi olmamalı.
 - Settings’te theme, sidebar başlangıcı, right panel görünürlük/genişlik, message genişliği ve son bölüm tercihlerini kaydet; restart ve schema v9→v10 migration’ını doğrula.
 - Ctrl+N, Ctrl+K, Ctrl+Shift+P, Ctrl+,, Ctrl+L, Ctrl+F ve Escape’i; accessible name/tooltip, focus ring, yalnız renge bağlı olmayan status’ları Narrator/NVDA ile doğrula.
 - Türkçe kalite hatası üret; invalid draft’ın history/DB/TTS/notification’a gitmediğini, yalnız bir non-streaming repair yapıldığını ve gerekirse sabit güvenli fallback’in gösterildiğini doğrula.
+- `scripts/render_ui_preview.py` ile sabit `2026-01-20 10:30 UTC` saati altında dark/light/compact PNG üret; iki ardışık çalıştırmada zaman kaynaklı kart/sıra farkı olmamalı.
 - Windows’ta minimize/maximize/restore/snap/drag/resize, %125/%150 DPI, çoklu monitör, tray close/exit, aktif worker kapanışı, mikrofon/kamera privacy lifecycle’ını smoke et.
 
 ## v0.12.1-alpha Agent Reliability, Task Templates & Recovery
@@ -129,12 +130,12 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
 - İlk açılışta sohbet ana odak, inspector kapalı, Agent/Vision büyük panelleri gizli, composer odakta ve header minimal olmalı.
 - Sidebar’da yalnız Lina, Yeni Sohbet, arama ve sohbet listesi görünmeli; local/device metni ve utility kısayolları ana yüzeyi doldurmamalı.
-- Composer’da Ekle, Araçlar ve Gönder görünmeli; Araçlar menüsündeki Mikrofon, Ekran ve Agent mevcut işlevlerini korumalı.
+- Composer’da Dosya, Mikrofon, Ekran ve Gönder görünmeli; kompakt düzende taşınan eylemler Daha Fazla menüsünde mevcut işlevlerini korumalı.
 - Bildirim ikonu yalnız okunmamış bildirim olduğunda görünmeli; sıfır durumda header’da yer kaplamamalı.
 - Yeni sohbet, kısa/uzun cevap, kod bloğu, çok uzun user mesajı, streaming, repair ve error durumlarında yatay taşma veya duplicate final olmamalı.
 - Yapay zekâ ajanı nedir? sorusu 2–4 doğal Türkçe cümle vermeli; Vietnamca/İngilizce sızıntısı, bozuk ek, ilgisiz selamlama ve tekrar olmamalı; reddedilen draft TTS’ye gitmemeli.
 - Sidebar’da collapse/expand, search/Escape, sohbet seçimi, rename/pin/archive/delete ve tooltip’leri klavye/fareyle doğrula.
-- 720 px dar pencerede ikon sidebar, ikon header, kompakt composer ve dikey suggestion’lar çakışmamalı; yatay scrollbar oluşmamalı.
+- 760 px minimum pencerede 64 px ikon sidebar, kompakt header/composer ve dikey suggestion’lar çakışmamalı; yatay scrollbar oluşmamalı.
 - 1080p/maximized pencerede timeline ve composer aynı merkez kolonda, assistant satırları okunabilir ve sağda anlamsız boşluk olmamalı.
 - Inspector sistem, Agent ve Vision ayrıntılarıyla açılıp kapanmalı; dar pencereye geçince güvenle kapanmalı.
 - Ctrl+Shift+P palette’i açmalı; arama, ok/Enter, unavailable action ve Escape/focus restore davranışını doğrula.
@@ -329,14 +330,15 @@ Kontroller:
 
 ## Premium Workstation UI Smoke Test
 
-- 1440×900 koyu temada sidebar’ın 280 px kaldığını; aktif sohbetin yalnız listede bir kez vurgulandığını doğrula.
-- Header’da başlık, yerel çalışma alanı metni, kısa durum ve Araçlar dışında kalıcı teknik panel olmadığını doğrula.
-- Assistant kartlarının 720 px, user bubble’larının 560 px sınırını aşmadığını ve uzun satırların yatay scrollbar üretmediğini doğrula.
-- Composer’ın tek yüzey gibi göründüğünü; Ekle/Araçlar/gönder ikonlarının klavye focus’u, tooltip’i ve accessible name’i olduğunu doğrula.
+- 1440×900 koyu temada sidebar’ın 292 px kaldığını; aktif sohbetin yalnız listede bir kez, yüzey ve ince vurgu işaretiyle seçildiğini doğrula.
+- Header’da başlık, kısa durum ve araç/ayar erişimi dışında kalıcı teknik panel olmadığını; uzun durumun elide edilip tamamının tooltip ve erişilebilir açıklamada korunduğunu doğrula.
+- Assistant kartlarının 820 px okunabilir kolon içinde kaldığını, user bubble’larının sağa hizalandığını ve uzun satırların yatay scrollbar üretmediğini doğrula.
+- Composer’ın 880 px içinde tek yüzey gibi göründüğünü; Dosya/Mikrofon/Ekran/gönder kontrollerinin klavye focus’u, tooltip’i ve accessible name’i olduğunu doğrula.
 - Yanıt beklerken gönder ikonunun stop ikonuna dönüştüğünü, input’un kullanılabilir kaldığını ve iptalin mevcut controller zincirini kullandığını doğrula.
-- 800 px altına inerken sidebar’ın 60 px’e çöktüğünü, inspector’ın kapandığını ve mesaj/composer alanının taşmadığını doğrula.
+- 900 px altına inerken sidebar’ın 64 px’e çöktüğünü, inspector’ın drawer olduğunu ve mesaj/composer alanının taşmadığını doğrula.
 - Ayarlar’da yedi ana navigasyon maddesini, aranabilir section card’ları, %135 font ölçeğini ve kaydet/uygula davranışını doğrula.
-- Agent, Vision, Voice ve bildirimlerin kapalıyken ana ekranda alan tüketmediğini; aktifken mevcut panel/inspector’a açıldığını doğrula.
+- Sağ paneli açıp 344 px genişlikte 2×3 temel araç kartını, Bellek ve Bu cihazda kartlarını doğrula; fake Pro, kota, profil veya klasör listesi bulunmamalı.
+- Agent, Codex ve diğer gelişmiş yüzeylerin kapalıyken ana ekranda alan tüketmediğini; aktifken mevcut panel/inspector’a açıldığını doğrula.
 - Dark, light ve system temalarında çizgi ikonların okunur olduğunu; focus ve seçimlerin yalnız renkle anlatılmadığını doğrula.
 - Türkçe normal yanıtta rol etiketi, iç prompt, yabancı kalıp giriş/kapanış veya bozuk teknik ek sızıntısı olmadığını doğrula.
 
