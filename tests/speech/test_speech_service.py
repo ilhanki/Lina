@@ -259,3 +259,41 @@ def test_stop_speaking_calls_provider_stop() -> None:
 
     assert provider.stop_count == 1
     assert service.get_state() is SpeechState.IDLE
+
+
+def test_shutdown_invalidates_inflight_transcription_and_late_state() -> None:
+    recorder = BlockingAudioRecorder()
+    service = _create_service(
+        stt_provider=FakeSTTProvider(),
+        audio_recorder=recorder,
+    )
+    states: list[SpeechState] = []
+    errors: list[Exception] = []
+    service.subscribe_state(states.append)
+
+    def transcribe() -> None:
+        try:
+            service.transcribe_once()
+        except Exception as error:
+            errors.append(error)
+
+    thread = threading.Thread(target=transcribe)
+    thread.start()
+    assert recorder.started.wait(timeout=1)
+    service.shutdown()
+    thread.join(timeout=1)
+
+    assert thread.is_alive() is False
+    assert errors and isinstance(errors[0], SpeechServiceError)
+    assert service.get_state() is SpeechState.IDLE
+    assert states == [SpeechState.LISTENING]
+    assert service.is_stt_available() is False
+
+
+def test_shutdown_is_idempotent() -> None:
+    recorder = FakeAudioRecorder()
+    service = _create_service(audio_recorder=recorder)
+    service.shutdown()
+    service.shutdown()
+    assert recorder.stop_count == 1
+    assert service.get_state() is SpeechState.IDLE

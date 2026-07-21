@@ -31,6 +31,9 @@ class SpeechService:
         self._audio_recorder = audio_recorder or NoOpAudioRecorder()
         self._state = SpeechState.IDLE
         self._transcription_lock = threading.Lock()
+        self._lifecycle_lock = threading.Lock()
+        self._generation = 0
+        self._closed = False
         self._state_listeners: list[Callable[[SpeechState], None]] = []
         self._last_transcription: tuple[str, float] | None = None
 
@@ -43,7 +46,10 @@ class SpeechService:
             self._state_listeners.remove(listener)
 
     def _set_state(self, state: SpeechState) -> None:
-        self._state = state
+        with self._lifecycle_lock:
+            if self._closed:
+                return
+            self._state = state
         for listener in tuple(self._state_listeners):
             try:
                 listener(state)
@@ -61,14 +67,14 @@ class SpeechService:
 
     def is_stt_available(self) -> bool:
         """Return whether speech transcription is available."""
-        return (
+        return (not self._closed and
             self._audio_recorder.is_available()
             and self._stt_provider.is_available()
         )
 
     def is_tts_available(self) -> bool:
         """Return whether speech synthesis is available."""
-        return self._tts_provider.is_available()
+        return not self._closed and self._tts_provider.is_available()
 
     def set_microphone_device(self, device_id: int | None) -> None:
         setter = getattr(self._audio_recorder, "set_device", None)
@@ -91,6 +97,8 @@ class SpeechService:
         if not self._transcription_lock.acquire(blocking=False):
             raise SpeechServiceError("Speech transcription is already active")
 
+        with self._lifecycle_lock:
+            generation = self._generation
         try:
             if not self.is_stt_available():
                 self._set_state(SpeechState.UNAVAILABLE)
@@ -98,8 +106,10 @@ class SpeechService:
 
             self._set_state(SpeechState.LISTENING)
             recording = self._audio_recorder.record_once()
+            self._ensure_active(generation)
             self._set_state(SpeechState.TRANSCRIBING)
             result = self._stt_provider.transcribe(recording)
+            self._ensure_active(generation)
             normalized = normalize_transcription(result.text)
             low_quality = transcription_is_low_quality(normalized, result.confidence)
             now = time.monotonic()
@@ -168,9 +178,23 @@ class SpeechService:
 
     def shutdown(self) -> None:
         """Stop active local speech work and prevent later state callbacks."""
-        self.stop_listening()
+        with self._lifecycle_lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._generation += 1
+            self._state = SpeechState.IDLE
+        try:
+            self._audio_recorder.stop()
+        except Exception:
+            pass
         try:
             self._tts_provider.stop()
         except Exception:
             pass
         self._state_listeners.clear()
+
+    def _ensure_active(self, generation: int) -> None:
+        with self._lifecycle_lock:
+            if self._closed or generation != self._generation:
+                raise SpeechServiceError("Speech service is shutting down")
