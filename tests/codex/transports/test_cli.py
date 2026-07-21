@@ -19,7 +19,7 @@ from lina.codex.transports.errors import (
     CodexOutputInvalid,
 )
 from lina.codex.transports.process import ProcessResult
-from lina.codex.transports.prompt import build_task_prompt
+from lina.codex.transports.prompt import build_resume_prompt, build_task_prompt
 
 
 def info(path: Path, **changes) -> CodexCliInfo:
@@ -156,6 +156,18 @@ def test_prompt_is_minimal_and_contains_security_boundaries(tmp_path: Path) -> N
     assert "Git push" in prompt
     assert "conversation history" not in prompt
     assert "system prompt" not in prompt
+
+
+def test_resume_prompt_makes_follow_up_objective_binding(tmp_path: Path) -> None:
+    follow_up = task(tmp_path)
+    follow_up.objective = "Bu kez yalnız pytest çalıştır ve güncel sonucu doğrula."
+    prompt = build_resume_prompt(
+        follow_up, ProjectContext(tmp_path), CodexExecutionMode.READ_ONLY,
+        "Önceki geniş analiz görevi",
+    )
+    assert prompt.startswith("Yeni ve bağlayıcı takip görevi:")
+    assert "eski görevi veya eski yanıtı tekrarlama" in prompt
+    assert follow_up.objective in prompt
 
 
 def test_probe_detects_version_auth_and_documented_capabilities(monkeypatch, tmp_path: Path) -> None:

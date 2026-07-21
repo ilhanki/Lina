@@ -47,6 +47,14 @@ class CodexOutputValidator:
                                           "Salt-okunur görev çalışma alanını değiştirdi.",
                                           tuple(checks + ["read_only_changed"]))
             checks.append("workspace_snapshot_checked")
+        if any(rule.kind == "test_execution_succeeded" for rule in task.verification_rules):
+            if evidence is None or evidence.tests_passed is not True or not evidence.test_commands:
+                return VerificationReport(
+                    VerificationOutcome.FAILED,
+                    "İstenen testin başarıyla çalıştığına dair yürütme kanıtı yok.",
+                    tuple(checks + ["test_execution_evidence_missing"]),
+                )
+            checks.append("test_execution_succeeded")
         if task.risk_level.value == "modification" and not result.changed_files:
             return VerificationReport(VerificationOutcome.UNCERTAIN,
                                       "Değişiklik istendi ancak dosya değişikliği kanıtlanamadı.", tuple(checks))

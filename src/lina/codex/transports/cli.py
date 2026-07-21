@@ -24,7 +24,7 @@ from lina.codex.transports.parser import CodexJsonlParser
 from lina.codex.transports.process import CodexProcessRunner, ProcessResult
 from lina.codex.transports.invocation import (WindowsCommandInvocation,
                                               build_process_invocation)
-from lina.codex.transports.prompt import build_task_prompt
+from lina.codex.transports.prompt import build_resume_prompt, build_task_prompt
 from lina.codex.transports.verification import build_evidence, capture_workspace, changed_paths
 from lina.codex.snapshot import build_change_set
 from lina.codex.resume import assess_resume, workspace_fingerprint
@@ -296,7 +296,10 @@ class CodexCliClient:
         mode: CodexExecutionMode,
         reference: CodexRemoteSessionReference | None = None,
     ) -> CodexResult:
-        prompt = build_task_prompt(task, context, mode)
+        prompt = (
+            build_resume_prompt(task, context, mode, reference.task_summary)
+            if reference is not None else build_task_prompt(task, context, mode)
+        )
         parser = CodexJsonlParser(task.task_id)
         before = capture_workspace(context)
         with self._lock:
@@ -333,7 +336,9 @@ class CodexCliClient:
             after = capture_workspace(context)
             change_set = build_change_set(before, after)
             evidence = build_evidence(before, after, result.exit_code,
-                                      sensitive_output_detected=result.sensitive_output_detected)
+                                      sensitive_output_detected=result.sensitive_output_detected,
+                                      tests_passed=parser.tests_passed,
+                                      test_commands=tuple(parser.test_commands))
             if parser.git_action_signals:
                 evidence = replace(
                     evidence,

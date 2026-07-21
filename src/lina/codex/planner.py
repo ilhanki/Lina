@@ -11,6 +11,11 @@ from lina.codex.models import (CodexRiskLevel, CodexTask, CodexVerificationRule,
 
 _MODIFICATION_WORDS = re.compile(
     r"\b(değiştir|düzenle|ekle|sil|uygula|optimize et|fix|implement|modify|edit|delete)\b", re.I)
+_TEST_EXECUTION_WORDS = re.compile(
+    r"\b(?:test|pytest|unittest|doctest)\b.*\b(?:çalıştır|doğrula|run|execute|verify)\b"
+    r"|\b(?:çalıştır|doğrula|run|execute|verify)\b.*\b(?:test|pytest|unittest|doctest)\b",
+    re.IGNORECASE,
+)
 
 
 class CodexPlanner:
@@ -28,10 +33,13 @@ class CodexPlanner:
         )
         if modification:
             actions += (RequestedAction("propose_modification", purpose="Dosya bazında değişiklik öner"),)
+        rules = [CodexVerificationRule("non_empty_summary"),
+                 CodexVerificationRule("workspace_containment")]
+        if _TEST_EXECUTION_WORDS.search(clean):
+            rules.append(CodexVerificationRule("test_execution_succeeded"))
         return CodexTask.create(
             "Codex ile proje çalışması", clean, clean, workspace, actions,
             risk_level=risk, approval_required=modification,
             expected_output=ExpectedOutput("Lina tarafından özetlenebilir doğrulanmış sonuç"),
-            verification_rules=(CodexVerificationRule("non_empty_summary"),
-                                CodexVerificationRule("workspace_containment")),
+            verification_rules=tuple(rules),
         )

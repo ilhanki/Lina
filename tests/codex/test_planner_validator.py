@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from lina.codex.models import (CodexResult, CodexRiskLevel, VerificationOutcome)
+from lina.codex.models import (CodexExecutionEvidence, CodexResult, CodexRiskLevel,
+                                VerificationOutcome)
 from lina.codex.planner import CodexPlanner
 from lina.codex.validator import CodexOutputValidator
 
@@ -42,3 +43,18 @@ def test_changed_file_outside_workspace_fails(tmp_path: Path):
     report = CodexOutputValidator().verify(
         task, CodexResult("Tamamlandı", changed_files=(str(tmp_path / "other.py"),)))
     assert report.outcome is VerificationOutcome.FAILED
+
+
+def test_requested_test_requires_successful_execution_evidence(tmp_path: Path) -> None:
+    task = CodexPlanner().plan("Yalnız test komutunu çalıştır ve sonucu doğrula", tmp_path)
+    missing = CodexOutputValidator().verify(
+        task, CodexResult("Testler geçti", evidence=CodexExecutionEvidence(exit_code=0))
+    )
+    assert missing.outcome is VerificationOutcome.FAILED
+    assert "test_execution_evidence_missing" in missing.checks
+    verified = CodexOutputValidator().verify(
+        task, CodexResult("Testler geçti", evidence=CodexExecutionEvidence(
+            exit_code=0, tests_passed=True, test_commands=("pytest",),
+        ))
+    )
+    assert verified.outcome is VerificationOutcome.SUCCESS

@@ -161,9 +161,15 @@ class CodexBridge:
                 session.review_pending = bool(
                     task.risk_level is CodexRiskLevel.MODIFICATION and result.changed_files
                 )
-                session.transition(CodexSessionStatus.COMPLETED, 100)
-                session.exit_category = "success"
-                self._emit(CodexEvent.create(session.session_id, CodexEventType.COMPLETED, progress=100))
+                if session.review_pending:
+                    session.transition(CodexSessionStatus.REVIEWING, 95)
+                    session.exit_category = "review_pending"
+                else:
+                    session.transition(CodexSessionStatus.COMPLETED, 100)
+                    session.exit_category = "success"
+                    self._emit(CodexEvent.create(
+                        session.session_id, CodexEventType.COMPLETED, progress=100
+                    ))
             return result
         except CodexClientUnavailableError:
             retain_history = False
@@ -268,7 +274,38 @@ class CodexBridge:
         if summary is None or not summary.approved_for_continue:
             raise PermissionError("Codex değişiklikleri onaylanmadan devam edilemez.")
         session.review_pending = False
+        session.transition(CodexSessionStatus.COMPLETED, 100)
+        session.exit_category = "success"
+        self._emit(CodexEvent.create(
+            session.session_id, CodexEventType.COMPLETED, progress=100
+        ))
         self.repository.save(session)
+
+    def prepare_resume(self, session_id: str, instruction: str = "") -> CodexSession:
+        previous = self._matching(session_id)
+        reference = previous.remote_session
+        if reference is None or not reference.resumable:
+            raise ValueError("Bu Codex oturumu güvenli biçimde sürdürülemez.")
+        clean = " ".join(instruction.split())
+        task = self.planner.plan(clean, previous.project_context.root_path) if clean else previous.task
+        if task is None:
+            raise RuntimeError("Sürdürülecek Codex görevi bulunamadı.")
+        session = CodexSession.create(
+            previous.project_context,
+            clean[:160] if clean else previous.task_summary,
+            previous.conversation_id,
+            previous.agent_session_id,
+            previous.permission_level,
+            (CodexExecutionMode.CONTROLLED_MODIFICATION
+             if task.risk_level is CodexRiskLevel.MODIFICATION else CodexExecutionMode.READ_ONLY),
+        )
+        session.task = task
+        session.remote_session = reference
+        session.cli_version = previous.cli_version
+        session.transition(CodexSessionStatus.WAITING_APPROVAL, 20)
+        self._session = session
+        self.repository.save(session)
+        return session
 
     def shutdown(self) -> None:
         if hasattr(self.client, "shutdown"):

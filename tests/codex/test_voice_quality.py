@@ -44,6 +44,14 @@ def test_voice_routes_codex_resume_control() -> None:
     assert route_codex_control("Codex görevine devam et").action is CodexControlAction.RESUME
 
 
+def test_resume_control_preserves_only_new_binding_instruction() -> None:
+    intent = route_codex_control(
+        "Önceki Codex görevine devam et. Bu kez yalnız test komutunu çalıştır ve güncel sonucu doğrula."
+    )
+    assert intent.action is CodexControlAction.RESUME
+    assert intent.instruction == "Bu kez yalnız test komutunu çalıştır ve güncel sonucu doğrula."
+
+
 def test_voice_routes_codex_change_review_control() -> None:
     assert route_codex_control("Codex değişiklikleri göster").action is CodexControlAction.SHOW_CHANGES
 

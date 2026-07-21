@@ -32,6 +32,9 @@ class CodexJsonlParser:
         self.final_event_seen = False
         self.usage: dict[str, int] = {}
         self.git_action_signals: set[str] = set()
+        self.test_commands: set[str] = set()
+        self._test_successes = 0
+        self._test_failures = 0
 
     def feed(self, chunk: str) -> tuple[CodexEvent, ...]:
         self._buffer += str(chunk or "")
@@ -82,6 +85,14 @@ class CodexJsonlParser:
             values.append("final_event_missing")
         return tuple(values)
 
+    @property
+    def tests_passed(self) -> bool | None:
+        if self._test_failures:
+            return False
+        if self._test_successes:
+            return True
+        return None
+
     def _parse_line(self, line: str) -> CodexEvent | None:
         if self._first_line:
             line = line.lstrip("\ufeff")
@@ -114,6 +125,17 @@ class CodexJsonlParser:
             if isinstance(command, list):
                 command = " ".join(str(part) for part in command[:100])
             self._capture_git_signal(str(command or ""))
+            test_kind = classify_test_command(str(command or ""))
+            if test_kind:
+                self.test_commands.add(test_kind)
+                exit_code = item.get("exit_code", payload.get("exit_code"))
+                completed = ("completed" in raw_type
+                             or str(item.get("status", "")).casefold() == "completed")
+                if completed and isinstance(exit_code, int):
+                    if exit_code == 0:
+                        self._test_successes += 1
+                    else:
+                        self._test_failures += 1
         path = self._extract_path(item)
         if path:
             self.changed_files.add(path)
@@ -194,3 +216,19 @@ class CodexJsonlParser:
 def re_search_git_action(command: str, action: str) -> bool:
     import re
     return re.search(rf"(?:^|[;&|]\s*|\s)git\s+(?:-[^\s]+\s+)*{action}(?:\s|$)", command) is not None
+
+
+def classify_test_command(command: str) -> str | None:
+    import re
+    folded = " ".join(command.casefold().split())
+    patterns = (
+        ("pytest", r"(?:^|[;&|]\s*|\s)(?:python(?:\.exe)?\s+-m\s+)?pytest(?:\s|$)"),
+        ("unittest", r"(?:^|[;&|]\s*|\s)python(?:\.exe)?\s+-m\s+unittest(?:\s|$)"),
+        ("npm-test", r"(?:^|[;&|]\s*|\s)npm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|$)"),
+        ("pnpm-test", r"(?:^|[;&|]\s*|\s)pnpm(?:\.cmd)?\s+(?:run\s+)?test(?:\s|$)"),
+        ("yarn-test", r"(?:^|[;&|]\s*|\s)yarn(?:\.cmd)?\s+test(?:\s|$)"),
+        ("cargo-test", r"(?:^|[;&|]\s*|\s)cargo(?:\.exe)?\s+test(?:\s|$)"),
+        ("go-test", r"(?:^|[;&|]\s*|\s)go(?:\.exe)?\s+test(?:\s|$)"),
+        ("dotnet-test", r"(?:^|[;&|]\s*|\s)dotnet(?:\.exe)?\s+test(?:\s|$)"),
+    )
+    return next((name for name, pattern in patterns if re.search(pattern, folded)), None)

@@ -20,6 +20,8 @@ def build_evidence(
     exit_code: int,
     *,
     sensitive_output_detected: bool = False,
+    tests_passed: bool | None = None,
+    test_commands: tuple[str, ...] = (),
 ) -> CodexExecutionEvidence:
     change_set = build_change_set(before, after)
     reasons = list(change_set.integrity_reasons)
@@ -30,6 +32,7 @@ def build_evidence(
     return CodexExecutionEvidence(
         exit_code=exit_code, before_fingerprints=before.fingerprint_pairs,
         after_fingerprints=after.fingerprint_pairs,
+        tests_passed=tests_passed, test_commands=tuple(sorted(set(test_commands))),
         sensitive_output_detected=sensitive_output_detected,
         integrity_reasons=tuple(dict.fromkeys(reasons)),
     )

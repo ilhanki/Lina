@@ -892,7 +892,7 @@ class LinaMainWindow(QMainWindow):
         if control.action.value == "stop":
             self._stop_codex_task()
         elif control.action.value == "resume":
-            self._resume_codex_task()
+            self._resume_codex_task(control.instruction)
         elif control.action.value == "show_changes":
             self._show_codex_diff_review()
         else:
@@ -1136,7 +1136,8 @@ class LinaMainWindow(QMainWindow):
         self._append_assistant_message("Codex değişiklik incelemesi tamamlandı.")
         self._show_codex_inspector()
 
-    def _resume_codex_task(self) -> None:
+    def _resume_codex_task(self, instruction: str = "") -> None:
+        instruction = instruction if isinstance(instruction, str) else ""
         if self._codex_bridge is None or self._codex_bridge.session is None:
             self._append_assistant_message(
                 "Önceki görevi sürdürmek için aynı workspace'i seçip açıkça onaylamalısın."
@@ -1156,6 +1157,11 @@ class LinaMainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            session = self._codex_bridge.prepare_resume(session.session_id, instruction)
+        except (RuntimeError, ValueError) as error:
+            self._append_assistant_message(str(error))
             return
         worker = FunctionWorker(lambda: self._codex_bridge.start(
             session.session_id, approved=True, resume_reference=reference

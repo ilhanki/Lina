@@ -28,3 +28,17 @@ def build_task_prompt(task: CodexTask, context: ProjectContext, mode: CodexExecu
         "Yanıt dili: Türkçe.",
     ))
 
+
+def build_resume_prompt(task: CodexTask, context: ProjectContext,
+                        mode: CodexExecutionMode, previous_summary: str) -> str:
+    boundary = build_task_prompt(task, context, mode)
+    return "\n".join((
+        "Yeni ve bağlayıcı takip görevi:",
+        task.objective.strip(),
+        "",
+        "Önceki oturum yalnız bağlamdır; eski görevi veya eski yanıtı tekrarlama.",
+        f"Önceki görev özeti: {previous_summary[:160]}",
+        "Yeni talimattaki ‘yalnız’, ‘sadece’, ‘bu kez’, ‘çalıştır’ ve ‘doğrula’ sınırlarını koru.",
+        "",
+        boundary,
+    ))

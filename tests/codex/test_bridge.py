@@ -27,6 +27,12 @@ class FakeClient:
         on_event(CodexEvent.create("ignored", CodexEventType.ANALYZING, progress=50))
         return self.result
 
+    def resume(self, task, context, reference, on_event, *, approved=False):
+        self.calls += 1
+        self.resumed_task = task
+        self.resume_reference = reference
+        return self.result
+
 
 def prepared_bridge(tmp_path: Path, client=None):
     bridge = CodexBridge(client or FakeClient())
@@ -153,6 +159,7 @@ def test_modification_result_waits_for_review(tmp_path: Path) -> None:
     session = bridge.prepare("app.py dosyasını değiştir", context)
     bridge.start(session.session_id, approved=True)
     assert session.review_pending
+    assert session.status is CodexSessionStatus.REVIEWING
     assert session.changed_file_count == 1
     assert (session.additions, session.deletions) == (1, 1)
     assert bridge.review_summary(session.session_id).pending == 1
@@ -168,6 +175,7 @@ def test_review_before_continue_requires_acceptance(tmp_path: Path) -> None:
     bridge.decide_review(session.session_id, CodexReviewDecision("accept", "app.py"))
     bridge.complete_review(session.session_id)
     assert not session.review_pending
+    assert session.status is CodexSessionStatus.COMPLETED
 
 
 def test_rejected_review_blocks_continue_without_touching_file(tmp_path: Path) -> None:

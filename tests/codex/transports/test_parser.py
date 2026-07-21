@@ -152,3 +152,23 @@ def test_parser_ignores_safe_non_git_command_signal() -> None:
     parser = CodexJsonlParser("session")
     parser.feed('{"type":"command.started","item":{"command":"python -m pytest"}}\n')
     assert parser.git_action_signals == set()
+
+
+def test_parser_records_successful_test_evidence_without_raw_command() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.completed","item":{"type":"command_execution",'
+        '"command":"python -m pytest tests/private_case.py","exit_code":0}}\n'
+    )
+    assert parser.tests_passed is True
+    assert parser.test_commands == {"pytest"}
+    assert "private_case.py" not in repr(parser.test_commands)
+
+
+def test_parser_records_failed_test_evidence() -> None:
+    parser = CodexJsonlParser("session")
+    parser.feed(
+        '{"type":"item.completed","item":{"type":"command_execution",'
+        '"command":"pytest","exit_code":1}}\n'
+    )
+    assert parser.tests_passed is False

@@ -20,6 +20,7 @@ class CodexSessionStatus(str, Enum):
     WAITING_APPROVAL = "waiting_approval"
     RUNNING = "running"
     VERIFYING = "verifying"
+    REVIEWING = "reviewing"
     PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -218,6 +219,7 @@ class CodexExecutionEvidence:
     before_fingerprints: tuple[tuple[str, str], ...] = ()
     after_fingerprints: tuple[tuple[str, str], ...] = ()
     tests_passed: bool | None = None
+    test_commands: tuple[str, ...] = ()
     sensitive_output_detected: bool = False
     integrity_reasons: tuple[str, ...] = ()
 
