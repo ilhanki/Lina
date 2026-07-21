@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QLabel, QProgressBar, QPushButton, QVBoxLayout, QW
 from lina.codex.changes import CodexChangeSet
 from lina.codex.models import CodexHistoryEntry, CodexSession, CodexSessionStatus
 from lina.codex.transports.diagnostics import CodexCliInfo
+from lina.interfaces.qt.status_labels import codex_risk_label, codex_status_label
 
 
 class CodexInspector(QWidget):
@@ -174,14 +175,7 @@ class CodexInspector(QWidget):
             waiting = False
         else:
             self.task_label.setText(f"Aktif görev · {session.task_summary}")
-            status_text = {
-                "created": "Hazır", "planning": "Görev hazırlanıyor",
-                "waiting_approval": "Onay bekliyor", "running": "Çalışıyor",
-                "analyzing": "Analiz ediliyor", "verifying": "Doğrulanıyor",
-                "completed": "Tamamlandı", "failed": "Başarısız",
-                "cancelled": "İptal edildi", "interrupted": "Kesintiye uğradı",
-                "paused": "Duraklatıldı",
-            }.get(session.status.value, session.status.value)
+            status_text = codex_status_label(session.status)
             self.status_label.setText(f"Durum · {status_text}")
             self.workspace_label.setText(f"Workspace · {session.project_context.root_path.name}")
             self.progress.setValue(session.progress)
@@ -191,7 +185,7 @@ class CodexInspector(QWidget):
                     action.target for action in session.task.requested_actions if action.target
                 )
                 self.approval_summary.setText(
-                    f"Amaç: {session.task.objective}\nRisk: {session.task.risk_level.value}"
+                    f"Amaç: {session.task.objective}\nRisk: {codex_risk_label(session.task.risk_level)}"
                     + (f"\nDosya: {targets}" if targets else "")
                 )
         self.approval_card.setVisible(waiting)
@@ -210,14 +204,15 @@ class CodexInspector(QWidget):
             item = recovery[0]
             self.recovery_label.setText(
                 f"Önceki Codex görevi tamamlanmadan kapanmış.\n"
-                f"{item.task_summary} · {item.workspace_display_name or 'Workspace'} · {item.status.value}"
+                f"{item.task_summary} · {item.workspace_display_name or 'Çalışma alanı'} · "
+                f"{codex_status_label(item.status)}"
             )
             can_resume = bool(
                 item.resumable and session is not None and session.remote_session is not None
             )
             self.recovery_resume_button.setEnabled(can_resume)
         summaries = [
-            f"{item.created_at.date()} · {item.task_summary} · {item.status.value} · "
+            f"{item.created_at.date()} · {item.task_summary} · {codex_status_label(item.status)} · "
             f"{item.changed_file_count} dosya"
             for item in history[:5]
         ]

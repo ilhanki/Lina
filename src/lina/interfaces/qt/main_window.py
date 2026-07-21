@@ -83,6 +83,7 @@ from lina.interfaces.qt.widgets.tool_activity_card import ToolActivityCard
 from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.codex_panel import CodexInspector
 from lina.interfaces.qt.codex_diff_review import CodexDiffReviewDialog
+from lina.interfaces.qt.status_labels import codex_status_label
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
     AgentStepArgumentsDialog,
@@ -908,7 +909,8 @@ class LinaMainWindow(QMainWindow):
                 self._append_assistant_message("Aktif Codex görevi yok.")
             else:
                 self._append_assistant_message(
-                    f"Codex görev durumu: {session.status.value}. İlerleme: %{session.progress}."
+                    f"Codex görev durumu: {codex_status_label(session.status)}. "
+                    f"İlerleme: %{session.progress}."
                 )
             self._show_codex_inspector()
         return True
@@ -1183,7 +1185,7 @@ class LinaMainWindow(QMainWindow):
         details = (
             f"Görev: {getattr(item, 'task_summary', 'Bilinmiyor')}\n"
             f"Workspace: {getattr(item, 'workspace_display_name', 'Bilinmiyor')}\n"
-            f"Durum: {getattr(getattr(item, 'status', None), 'value', 'unknown')}\n"
+            f"Durum: {codex_status_label(getattr(item, 'status', 'unknown'))}\n"
             f"Son olay: {getattr(item, 'last_event', 'unknown')}\n"
             f"Doğrulama: {getattr(item, 'verification', 'unverified')}"
         )
