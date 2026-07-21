@@ -3839,6 +3839,9 @@ class LinaMainWindow(QMainWindow):
             self._composer.set_mic_enabled(False)
 
     def _start_worker(self, worker: FunctionWorker) -> None:
+        if getattr(self, "_closing", False):
+            worker.cancel()
+            return
         self._workers.add(worker)
         worker.signals.finished.connect(lambda: self._workers.discard(worker))
         self._thread_pool.start(worker)
@@ -3969,6 +3972,9 @@ class LinaMainWindow(QMainWindow):
                     self.hide()
                     event.ignore()
                     return
+        self._closing = True
+        for worker in tuple(self._workers):
+            worker.cancel()
         self._clear_screen_context()
         if self._live_vision_controller is not None:
             self._live_vision_controller.shutdown()
@@ -3999,6 +4005,10 @@ class LinaMainWindow(QMainWindow):
             self._notification_scheduler.stop()
         if self._tray_icon is not None:
             self._tray_icon.hide()
+        wait_for_done = getattr(self._thread_pool, "waitForDone", None)
+        if callable(wait_for_done):
+            wait_for_done(1500)
+        self._workers.clear()
         self._pending_scroll_to_bottom = False
         self._pending_scroll_to_top = False
         event.accept()
