@@ -84,6 +84,7 @@ from lina.interfaces.qt.agent_panel import AgentPanel
 from lina.interfaces.qt.codex_panel import CodexInspector
 from lina.interfaces.qt.codex_diff_review import CodexDiffReviewDialog
 from lina.interfaces.qt.status_labels import codex_status_label
+from lina.version import APP_VERSION
 from lina.interfaces.qt.agent_task_center import (
     AgentInspectorV2,
     AgentStepArgumentsDialog,
@@ -146,7 +147,6 @@ from lina.vision.live import (
 )
 
 
-APP_VERSION = "v0.13.2-alpha"
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 BRANDING_LOGO_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-logo.png"
 BRANDING_ICON_PATH = PROJECT_ROOT / "assets" / "branding" / "lina-icon.png"

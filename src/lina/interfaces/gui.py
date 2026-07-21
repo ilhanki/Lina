@@ -54,14 +54,13 @@ from lina.speech.models import (
     SpeechTranscriptionResult,
 )
 from lina.speech.service import SpeechService
+from lina.version import APP_VERSION
 
 if TYPE_CHECKING:
     from lina.services.model_diagnostics_service import DiagnosticsResult
 
 
 _logger = logging.getLogger(__name__)
-
-APP_VERSION = "v0.13.2-alpha"
 
 COLOR_BG = COLOR_APP_BG
 COLOR_SIDEBAR = COLOR_SIDEBAR_BG
