@@ -1,5 +1,25 @@
 # Lina Smoke Test Checklist
 
+## v0.14.0-alpha Full-System Product Hardening
+
+- [x] Tam otomatik regresyon paketi ilk final turunda `1384 passed` verdi.
+- [x] Codex resume takip cümlesinde yalnız yeni bağlayıcı objective stdin promptuna taşınıyor.
+- [x] Test istenen Codex görevi command category + başarılı exit kanıtı olmadan tamamlanmıyor.
+- [x] Dosya değişikliği olan Codex session diff incelemesi tamamlanana kadar `reviewing` kalıyor.
+- [x] Qt worker ve speech geç callback testleri kapanış sonrasında result/state üretmiyor.
+- [x] Agent cancellation token'ı çalışan step controller lock'ını tutarken executor'a ulaşıyor.
+- [x] TXT/MD/PY/JSON/CSV/PDF/DOCX/XLSX attachment çıkarımı, size/truncation/secret/bozuk belge sınırlarıyla test edildi.
+- [x] Vision kapalıyken belge ekleme çalışıyor; görsel/kamera otomatik başlamıyor.
+- [x] Memory hassas direct write ve conversation stale selection regresyonları kapalı.
+- [x] TTS path, diff, log, JSON, code, URL ve Base64 payload okumuyor.
+- [x] Version contract `0.14.0a0 / v0.14.0-alpha`.
+- [ ] Windows üzerinde gerçek mikrofon STT ve WinRT TTS manuel doğrulandı.
+- [ ] Kamera permission denial, preview, multi-monitor region ve DPI manuel doğrulandı.
+- [ ] Authenticated Codex read-only + test evidence + resume smoke başarılı oldu. Release makinesi `Not logged in` durumunda.
+- [ ] Narrator/NVDA keyboard-only ve %100/%125/%150 DPI görsel turu ürün sahibi tarafından tamamlandı.
+
+İşaretlenmemiş maddeler sahte biçimde tamamlanmış sayılmaz; gerçek auth, donanım veya insan değerlendirmesi gerektirir.
+
 ## v0.13.2-alpha Codex Production Hardening
 
 - [x] WindowsApps launch edilemezken sınırlı discovery npm `codex.cmd` adayını seçti; ACL/PATH/paket değişmedi.

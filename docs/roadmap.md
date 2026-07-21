@@ -2,17 +2,18 @@
 
 Bu yol haritası Lina'nın geliştirme sırasını tanımlar. Amaç, erken aşamada karmaşık özelliklere atlamadan sağlam bir temel kurmak ve her capability'yi kontrollü şekilde büyütmektir.
 
-## Mevcut Durum: v0.13.2-alpha Codex Production Hardening
+## Mevcut Durum: v0.14.0-alpha Full-System Product Hardening
 
 Tamamlandı:
 
 - `v0.13.0-alpha`: Codex Bridge Foundation.
 - `v0.13.1-alpha`: CLI discovery/diagnostics, resmi auth status/login/logout, JSONL exec transport, cancellation, verification, GUI/Voice/settings ve credential isolation.
 - `v0.13.2-alpha`: Windows npm CLI reliability, session resume kapıları, interrupted recovery, bounded snapshot/diff review, process/parser hardening ve developer workflow.
+- `v0.14.0-alpha`: Full-system audit, shutdown/stale-result onarımları, Codex takip ve execution evidence, Agent cancellation, document attachments, memory/conversation/settings hardening ve profesyonel release kanıtı.
 
 Sıradaki:
 
-- `v0.14.0-alpha`: Safe Desktop Capabilities.
+- `v0.15.0-alpha`: Packaging & Update Foundation.
 
 Typed bridge, gerçek CLI transportu, workspace izinleri, secret filtreleme, explicit approval, session resume, interrupted recovery, bounded diff review, bağımsız verification, metadata-only history, Tools/command palette/settings ve voice routing tamamlandı. Sonraki sürüm güvenlik sınırlarını gevşetmeden yeni masaüstü capability'lerini ele alabilir.
 
@@ -31,7 +32,7 @@ Typed bridge, gerçek CLI transportu, workspace izinleri, secret filtreleme, exp
 - `v0.13.0-alpha`: Codex Bridge Foundation tamamlandı.
 - `v0.13.1-alpha`: Real Codex CLI Transport tamamlandı.
 - `v0.13.2-alpha`: Codex Production Hardening tamamlandı; auth gerektiren gerçek başarılı exec/resume/modification smoke'u dış koşul olarak açık bırakıldı.
-- `v0.14.0-alpha`: Safe Desktop Capabilities.
+- `v0.14.0-alpha`: Full-System Audit, Integration Repair & Product Hardening tamamlandı; authenticated Codex ve gerçek donanım smoke'ları açık release koşuludur.
 - `v0.15.0-alpha`: Packaging & Update Foundation.
 
 v0.11.1-alpha; QVideoSink kamera preview’ü, grid tabanlı değişiklik kutuları, zorunlu click-through screen/region border, stale preview guard ve tam visual cleanup lifecycle’ını tamamladı. Video kaydı, frame persistence, semantic object detection, cloud vision ve yüz tanıma eklenmedi.
@@ -59,7 +60,6 @@ Manual realtime camera validation deferred.
 `v0.12.2-alpha` Reference-Driven Premium Desktop Experience tamamlandı. Var olan backend sözleşmeleri korunurken uygulama kabuğu, sidebar, chat, composer, inspector, ayarlar ve erişilebilir responsive davranış yenilendi. Fake kullanıcı/account/Pro veya depolama kotası eklenmedi. Sonraki hedefler:
 
 - `v0.13.0-alpha`: Codex Bridge.
-- `v0.14.0-alpha`: Safe Desktop Capabilities.
 - `v0.15.0-alpha`: Packaging & Update Foundation.
 
 `v0.3.0-alpha` tag'i oluşturuldu ve GitHub'a pushlandı. Bu tag, Lina'nın ilk anlamlı alpha sürüm çizgisini temsil eder.
