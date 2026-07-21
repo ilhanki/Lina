@@ -56,7 +56,7 @@ from lina.settings.service import UserSettingsService
 from lina.tools.builtin import CurrentTimeTool, EchoTool
 from lina.tools.registry import ToolRegistry
 from lina.vision.live import LiveVisionController
-from lina.vision.models import ImageAttachment
+from lina.vision.models import ImageAttachment, VisionRequestError
 
 
 @dataclass(frozen=True)

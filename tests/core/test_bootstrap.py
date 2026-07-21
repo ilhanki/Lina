@@ -1,5 +1,6 @@
 import pytest
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 from lina.core.bootstrap import create_application_services
 from lina.speech.models import SpeechState
@@ -7,6 +8,9 @@ from lina.speech.audio_recorder import SoundDeviceAudioRecorder
 from lina.speech.faster_whisper_provider import FasterWhisperSTTProvider
 from lina.settings.models import UserSettings
 from lina.settings.repository import UserSettingsRepository
+from lina.services.model_diagnostics_service import VisionDiagnosticsResult, VisionStatus
+from lina.vision.live.models import LiveVisionFrame, LiveVisionSource
+from lina.vision.models import VisionRequestError
 
 def test_bootstrap_wires_services_correctly(tmp_path: Path) -> None:
     config_path = tmp_path / "settings.toml"
@@ -183,3 +187,35 @@ enabled = false
     services = create_application_services(config_path, tmp_path, user_settings_path=user_path)
     assert services.codex_bridge is not None
     assert "automatic_discovery_disabled" in services.codex_bridge.client.info.diagnostics
+
+
+def test_live_vision_bootstrap_reports_model_unavailable_without_name_error(tmp_path: Path) -> None:
+    config_path = tmp_path / "settings.toml"
+    config_path.write_text("""
+[app]
+name = "Lina"
+environment = "test"
+[logging]
+level = "INFO"
+[paths]
+data = "data"
+logs = "logs"
+models = "models"
+cache = "cache"
+[ollama]
+base_url = "http://localhost:11434"
+default_model = "llama3"
+[memory]
+enabled = false
+    """, encoding="utf-8")
+    services = create_application_services(
+        config_path, tmp_path, user_settings_path=tmp_path / "user-settings.json"
+    )
+    services.vision_diagnostics_service.check_status = lambda: VisionDiagnosticsResult(
+        VisionStatus.MODEL_NOT_AVAILABLE, "vision", "hazır değil"
+    )
+    frame = LiveVisionFrame(
+        b"frame", 1, 1, datetime.now(timezone.utc), LiveVisionSource.SCREEN
+    )
+    with pytest.raises(VisionRequestError, match="kullanılamıyor"):
+        services.live_vision_controller._analyzer(frame, "Bu kareyi açıkla")
