@@ -157,9 +157,17 @@ class ConversationService:
                 conversation_history=self._history,
             )
             if conversation_input.image_attachment is None:
+                if conversation_input.document_attachment is not None:
+                    context = replace(
+                        context,
+                        file_context=_format_document_attachment(
+                            conversation_input.document_attachment
+                        ),
+                    )
                 if self._model_lifecycle_service is not None:
                     self._model_lifecycle_service.prepare_text()
                 response = self._brain.respond_with_context(context)
+                attachment_consumed = conversation_input.document_attachment is not None
             else:
                 if self._model_lifecycle_service is not None:
                     self._model_lifecycle_service.prepare_vision()
@@ -487,3 +495,15 @@ def _safe_image_source(attachment: object | None) -> str | None:
         "local_file": "local_image",
         "local_image": "local_image",
     }.get(source)
+
+
+def _format_document_attachment(attachment: object) -> str:
+    display_name = str(getattr(attachment, "display_name", "Belge"))[:240]
+    document_format = str(getattr(attachment, "format", "text"))[:20]
+    text = str(getattr(attachment, "text", ""))
+    truncated = bool(getattr(attachment, "truncated", False))
+    suffix = "\n\nNot: Belge boyut sınırı nedeniyle kısaltıldı." if truncated else ""
+    return (
+        f"Kullanıcının açıkça eklediği salt-okunur belge: {display_name} "
+        f"({document_format})\nİçerik:\n{text}{suffix}"
+    )

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from lina.brain.model_provider import ModelResponse
+from lina.files.models import DocumentAttachment
 from lina.vision.models import ImageAttachment
 
 
@@ -15,7 +16,12 @@ class ConversationInput:
 
     text: str
     image_attachment: ImageAttachment | None = None
+    document_attachment: DocumentAttachment | None = None
     created_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.image_attachment is not None and self.document_attachment is not None:
+            raise ValueError("A request can contain either an image or a document, not both")
 
 
 @dataclass(frozen=True, slots=True)

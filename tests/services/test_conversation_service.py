@@ -10,6 +10,7 @@ from lina.memory.repository import MemoryRepository
 from lina.memory.service import MemoryService
 from lina.services.conversation_service import ConversationService
 from lina.services.conversation_models import ConversationInput
+from lina.files.models import DocumentAttachment
 from lina.codex.intent import OperationalCodexIntentError
 from lina.services.model_diagnostics_service import (
     VisionDiagnosticsResult,
@@ -122,6 +123,39 @@ def test_operational_codex_request_never_reaches_normal_chat_brain() -> None:
     with pytest.raises(OperationalCodexIntentError):
         service.handle_message("Lina, Codex ile bu projeyi analiz et.")
     assert provider.requests == []
+
+
+def test_document_attachment_is_bounded_context_and_consumed_after_success() -> None:
+    from lina.brain.intent import IntentType
+
+    brain = FakeBrain()
+    service = ConversationService(
+        brain=brain,
+        intent_analyzer=FakeIntentAnalyzer(IntentType.CHAT),
+        deterministic_response_service=FakeDeterministicResponseService(False),
+    )
+    attachment = DocumentAttachment(
+        display_name="rapor.csv", format="csv",
+        text="başlık | değer\nLina | hazır", size_bytes=42, truncated=True,
+    )
+    result = service.handle_input(ConversationInput(
+        text="Bu belgedeki durumu özetle.", document_attachment=attachment,
+    ))
+
+    assert result.attachment_consumed is True
+    assert brain.file_contexts
+    assert "rapor.csv (csv)" in brain.file_contexts[0]
+    assert "Lina | hazır" in brain.file_contexts[0]
+    assert "kısaltıldı" in brain.file_contexts[0]
+
+
+def test_conversation_input_rejects_image_and_document_together() -> None:
+    attachment = DocumentAttachment("notlar.txt", "txt", "metin", 5)
+    with pytest.raises(ValueError, match="either an image or a document"):
+        ConversationInput(
+            text="İkisini incele", image_attachment=_image_attachment(),
+            document_attachment=attachment,
+        )
 
 
 def test_rejected_response_is_not_reused_by_next_request() -> None:
