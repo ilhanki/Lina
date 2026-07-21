@@ -26,6 +26,10 @@ class MemoryService:
     ) -> MemoryRecord | None:
         """Add a memory record."""
         normalized_content = content.strip()
+        if not normalized_content:
+            raise ValueError("Memory content must not be empty")
+        if self.is_sensitive_content(normalized_content):
+            return None
         if self._has_active_memory(normalized_content):
             return None
 
@@ -63,6 +67,11 @@ class MemoryService:
             "tckn",
             "kimlik numaram",
             "adresim",
+            "secret",
+            "access key",
+            "private key",
+            "cvv",
+            "iban",
         )
         return any(keyword in normalized_content for keyword in sensitive_keywords)
 
@@ -70,7 +79,7 @@ class MemoryService:
         """List memories."""
         if active_only:
             return self._repository.list_active()
-        return self._repository.list_active()
+        return self._repository.list_all()
 
     def forget_memory_by_content(self, content: str) -> int:
         """Forget active memories matching content."""

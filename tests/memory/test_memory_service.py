@@ -217,3 +217,33 @@ def test_memory_service_returns_no_context_when_empty(tmp_path: Path) -> None:
         assert service.build_memory_context(max_items=8, max_characters=1200) is None
     finally:
         repository.close()
+
+
+def test_memory_service_rejects_blank_and_sensitive_direct_writes(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+    try:
+        import pytest
+        with pytest.raises(ValueError, match="must not be empty"):
+            service.add_memory(MemoryType.CONVERSATION_NOTE, "   ")
+        assert service.add_memory(
+            MemoryType.CONVERSATION_NOTE, "private key: very-sensitive"
+        ) is None
+        assert service.list_memories() == ()
+    finally:
+        repository.close()
+
+
+def test_memory_service_can_list_deactivated_records_for_transparency(tmp_path: Path) -> None:
+    repository = MemoryRepository(tmp_path / "memory.sqlite3")
+    service = MemoryService(repository=repository)
+    try:
+        service.add_memory(MemoryType.CONVERSATION_NOTE, "Kaldırılacak kayıt")
+        service.clear_memories()
+        assert service.list_memories() == ()
+        all_records = service.list_memories(active_only=False)
+        assert len(all_records) == 1
+        assert all_records[0].content == "Kaldırılacak kayıt"
+        assert all_records[0].is_active is False
+    finally:
+        repository.close()

@@ -83,6 +83,18 @@ class MemoryRepository:
             ).fetchall()
         return tuple(_row_to_memory(row) for row in rows)
 
+    def list_all(self) -> tuple[MemoryRecord, ...]:
+        """Return active and deactivated records for transparent local history."""
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT id, type, content, created_at, updated_at, source, is_active
+                FROM memories
+                ORDER BY created_at ASC, id ASC
+                """
+            ).fetchall()
+        return tuple(_row_to_memory(row) for row in rows)
+
     def deactivate_by_content(self, content: str) -> int:
         """Deactivate active memories matching content exactly."""
         now = datetime.now().isoformat()
