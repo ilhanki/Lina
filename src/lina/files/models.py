@@ -20,6 +20,17 @@ class FileContent:
     truncated: bool
 
 
+@dataclass(frozen=True, slots=True)
+class DocumentAttachment:
+    """Bounded text extracted from one user-selected, read-only document."""
+
+    display_name: str
+    format: str
+    text: str
+    size_bytes: int
+    truncated: bool = False
+
+
 class FileAccessError(Exception):
     """Base error for file access failures."""
 
@@ -39,3 +50,14 @@ class MissingAllowedFileError(FileAccessError):
 class BinaryFileRejectedError(FileAccessError):
     """Raised when an allowed file cannot be read as UTF-8 text."""
 
+
+class UnsupportedFileTypeError(FileAccessError):
+    """Raised when an attachment format is outside Lina's explicit support list."""
+
+
+class FileTooLargeError(FileAccessError):
+    """Raised before reading an attachment beyond the configured byte limit."""
+
+
+class DocumentExtractionError(FileAccessError):
+    """Raised when a supported document cannot be parsed safely."""
