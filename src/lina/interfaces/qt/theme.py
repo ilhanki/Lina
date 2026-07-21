@@ -105,12 +105,30 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
         QScrollArea#settingsPageScroll, QScrollArea#settingsPageScroll > QWidget > QWidget {{
             background: {panel_bg}; border: none;
         }}
+        QProgressBar {{
+            background: {elevated_bg}; color: {text_secondary}; border: 1px solid {border};
+            border-radius: 5px; min-height: 10px; text-align: center;
+        }}
+        QProgressBar::chunk {{ background: {accent}; border-radius: 4px; }}
         QProgressBar#agentProgress {{
             background: {elevated_bg}; border: none; border-radius: 3px; min-height: 6px; max-height: 6px;
         }}
         QProgressBar#agentProgress::chunk {{ background: {accent}; border-radius: 3px; }}
         QWidget#agentPanel {{ background: {panel_bg}; border: 1px solid {border}; border-radius: 14px; }}
         QWidget#agentPanel QLabel {{ background: transparent; border: none; }}
+        QTabWidget::pane {{
+            background: {panel_bg}; border: 1px solid {border}; border-radius: 8px;
+        }}
+        QTabWidget > QWidget, QTabWidget > QWidget > QWidget {{ background: {panel_bg}; }}
+        QTabBar::tab {{
+            background: {elevated_bg}; color: {text_secondary}; border: 1px solid {border};
+            border-bottom: none; min-height: 30px; padding: 0 10px;
+        }}
+        QTabBar::tab:selected {{
+            background: {panel_bg}; color: {text_primary}; border-bottom: 2px solid {accent};
+        }}
+        QTabBar::tab:hover {{ background: {selected}; color: {text_primary}; }}
+        QTabBar::tab:disabled {{ color: {disabled}; background: {panel_bg}; }}
         QComboBox#notificationFilter {{ background: {panel_bg}; font-weight: 600; }}
         QListWidget#notificationItems {{ background: {panel_bg}; }}
         QPushButton#notificationButton {{ min-width: 42px; border-color: {accent}; }}
@@ -344,7 +362,8 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             padding: 4px 2px;
         }}
         QWidget#composerPanel QPlainTextEdit:focus {{ border: none; }}
-        QPlainTextEdit:focus, QLineEdit:focus, QComboBox:focus, QListWidget:focus {{ border: 2px solid {focus}; }}
+        QPlainTextEdit:focus, QLineEdit:focus, QComboBox:focus,
+        QSpinBox:focus, QDoubleSpinBox:focus, QListWidget:focus {{ border: 2px solid {focus}; }}
         QPushButton {{
             background: {elevated_bg};
             color: {text_primary};
@@ -410,7 +429,7 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             font-size: 9pt;
         }}
         QPushButton#screenContextRemoveButton:hover {{ color: {text_primary}; }}
-        QLineEdit, QComboBox, QDateTimeEdit, QListWidget {{
+        QLineEdit, QComboBox, QDateTimeEdit, QSpinBox, QDoubleSpinBox, QListWidget {{
             background: {composer_bg};
             color: {text_primary};
             border: 1px solid {border};
@@ -418,8 +437,19 @@ def build_stylesheet(font_family: str, theme: str = "dark", font_scale: float = 
             padding: 5px 8px;
             selection-background-color: {selected};
         }}
-        QLineEdit:disabled, QComboBox:disabled, QDateTimeEdit:disabled, QListWidget:disabled {{
+        QLineEdit:disabled, QComboBox:disabled, QDateTimeEdit:disabled,
+        QSpinBox:disabled, QDoubleSpinBox:disabled, QListWidget:disabled {{
             color: {disabled}; background: {elevated_bg}; border-color: {soft_border};
+        }}
+        QSpinBox::up-button, QDoubleSpinBox::up-button,
+        QSpinBox::down-button, QDoubleSpinBox::down-button {{
+            background: {elevated_bg}; border: none; border-left: 1px solid {border}; width: 18px;
+        }}
+        QSpinBox::up-button, QDoubleSpinBox::up-button {{
+            border-top-right-radius: 7px;
+        }}
+        QSpinBox::down-button, QDoubleSpinBox::down-button {{
+            border-bottom-right-radius: 7px;
         }}
         QListWidget::item {{ padding: 7px; border-radius: 6px; }}
         QListWidget::item:hover {{ background: {elevated_bg}; }}

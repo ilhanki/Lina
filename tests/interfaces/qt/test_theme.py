@@ -51,6 +51,12 @@ def test_stylesheet_uses_theme_specific_component_states() -> None:
     assert "QPushButton#primaryNavigationButton" in light
     assert "QPushButton#composerSendButton" in light
     assert "QFrame#settingsSectionCard" in light
+    assert "QSpinBox, QDoubleSpinBox" in light
+    assert "QSpinBox::up-button" in light
+    assert "QDoubleSpinBox:disabled" in light
+    assert "QTabWidget::pane" in light
+    assert "QTabBar::tab:selected" in light
+    assert "QProgressBar::chunk" in light
 
 
 def test_font_scale_bounds_are_reflected_without_component_changes() -> None:

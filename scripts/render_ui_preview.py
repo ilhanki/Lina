@@ -95,6 +95,7 @@ def render(
             "voice": window._show_voice_inspector,
             "vision": window._show_vision_inspector,
             "agent": window._show_agent_inspector,
+            "codex": window._show_codex_inspector,
         }
         if state in inspector_states:
             inspector_states[state]()
@@ -124,7 +125,7 @@ def main() -> None:
         "--state",
         choices=(
             "default", "welcome", "tools", "memory", "system", "voice", "vision",
-            "agent", "search", "general", "appearance", "models", "notifications", "advanced",
+            "agent", "codex", "search", "general", "appearance", "models", "notifications", "advanced",
         ),
         default="default",
     )
