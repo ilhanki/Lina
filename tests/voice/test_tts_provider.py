@@ -98,6 +98,33 @@ def test_normalize_spoken_text_removes_markdown_emoji_and_duplicate_sentences():
     assert spoken.count("Hazır.") == 1
 
 
+def test_normalize_spoken_text_removes_paths_diffs_logs_and_multiline_json():
+    text = """İşlem tamamlandı.
+C:\\Users\\example\\private\\report.txt dosyasını güncelledim.
+/home/example/private/report.txt hazır.
+diff --git a/app.py b/app.py
+--- a/app.py
++++ b/app.py
+@@ -1 +1 @@
+-old_value = 1
++new_value = 2
+INFO 2026-07-21 request completed
+{
+  "secret": "not-for-speech",
+  "count": 2
+}
+Özet ekranda."""
+    spoken = normalize_spoken_text(text)
+    assert "C:\\Users" not in spoken
+    assert "/home/" not in spoken
+    assert "diff --git" not in spoken
+    assert "old_value" not in spoken and "new_value" not in spoken
+    assert "INFO" not in spoken
+    assert "secret" not in spoken
+    assert "İşlem tamamlandı." in spoken
+    assert "Özet ekranda." in spoken
+
+
 def test_unavailable_provider_is_safe():
     provider = UnavailableTTSProvider()
     assert not provider.is_available()

@@ -167,12 +167,24 @@ def normalize_spoken_text(text: str, max_characters: int = MAX_SPOKEN_CHARACTERS
     value = re.sub(r"```[\s\S]*?```", " ", text)
     value = re.sub(r"`[^`\n]{1,200}`", " ", value)
     value = re.sub(r"https?://\S+", " bağlantı ", value)
+    value = re.sub(
+        r"(?im)^\s*(?:diff --git.*|index\s+[0-9a-f.]+.*|---\s+\S+.*|\+\+\+\s+\S+.*|@@\s+.*@@|"
+        r"[+-](?!\s).*)$", " ", value,
+    )
+    value = re.sub(
+        r"(?im)^\s*(?:DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|TRACE)"
+        r"(?:\s*[:\-]|\s+\d{4}[-/])?.*$", " ", value,
+    )
+    value = re.sub(r"(?i)(?<!\w)[A-Z]:\\(?:[^\s<>:\"|?*]+\\)*[^\s<>:\"|?*]*", " dosya yolu ", value)
+    value = re.sub(r"(?<!\w)/(?:Users|home|var|tmp|etc|opt)/[^\s,;]+", " dosya yolu ", value)
+    value = re.sub(r"(?m)^\s*[{}\[\],]+\s*$", " ", value)
+    value = re.sub(r'(?m)^\s*"[^"\n]{1,120}"\s*:\s*.*[,}]?\s*$', " ", value)
     value = re.sub(r"(?m)^\s{0,3}(?:[-*+] |\d+[.)]\s+)", "", value)
     value = re.sub(r"[*_~>#]", "", value)
     value = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", " ", value)
     value = re.sub(r"(?m)^\s*[\{\[][^\n]{40,}[\}\]]\s*$", " ", value)
     value = re.sub(r"(?i)\b[A-Za-z0-9+/]{120,}={0,2}\b", " ", value)
-    value = re.sub(r"(?m)^\s*(?:Traceback|File \".*\", line \d+).*$", " ", value)
+    value = re.sub(r"(?m)^\s*(?:Traceback|File \".*\", line \d+|During handling).*$", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
     sentences = re.split(r"(?<=[.!?])\s+", value)
     unique: list[str] = []
