@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.13.2--alpha-7c5cff">
+  <img alt="Sürüm" src="https://img.shields.io/badge/sürüm-v0.14.0--alpha-7c5cff">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4">
   <img alt="Inference" src="https://img.shields.io/badge/inference-Ollama_local-111111">
@@ -49,7 +49,17 @@ Lina; yerel sohbet, kalıcı hafıza, sesli etkileşim, görsel analiz, hatırla
 
 ## Ürün deneyimi
 
-`v0.13.2-alpha`, Codex Bridge'i Windows ve uzun görevler için üretim sertleştirmesinden geçirir:
+`v0.14.0-alpha`, Lina'nın bütün çalışma hattını birlikte denetleyen ürün sertleştirme sürümüdür:
+
+- Qt worker, speech, Agent, Codex ve Live Vision için bounded shutdown ve stale-result korumaları.
+- Codex resume'da yeni takip talimatını bağlayıcı görev yapan, gerçek test command evidence isteyen doğrulama.
+- Değişiklikli Codex görevini kullanıcı diff incelemesi bitene kadar `completed` göstermeyen lifecycle.
+- TXT/MD/PY/JSON/CSV/PDF/DOCX/XLSX için explicit, read-only, size-bounded belge attachment akışı.
+- Memory hassas veri filtresi, conversation persistence recovery ve atomik settings/history yazımı.
+- Path, diff, log, JSON, kod, URL ve Base64 yüklerini yazılı yanıtı bozmadan TTS dışında tutan filtre.
+- Merkezi Türkçe durum etiketleri, genişletilmiş release kanıtı ve 1.384 testlik regresyon paketi.
+
+Önceki `v0.13.2-alpha` Codex üretim sertleştirmesi korunur:
 
 - WindowsApps başarısız olsa bile npm `codex.cmd` adayına ilerleyen discovery ve güvenli `shell=False` wrapper invocation.
 - Root/exec/resume yardım kapsamını ayıran gerçek capability modeli; workspace/sürüm/auth/onay kapılı session resume.
@@ -104,12 +114,30 @@ Agent Mode varsayılan olarak kapalıdır ve yeni bir genel bilgisayar kontrol y
 
 Ayrıntılı sözleşmeler için [Agent görev şablonları](docs/agent-task-templates.md) ve [Agent recovery](docs/agent-recovery.md) belgelerine bakın.
 
+### Codex Bridge
+
+Codex Bridge varsayılan olarak kapalıdır ve yalnız kullanıcı tarafından seçilen workspace'te çalışır.
+
+- Resmi Codex CLI executable/version/capability/auth durumunu ayrı ayrı doğrular.
+- Görev promptunu command line'a değil stdin'e verir; metadata geçmişinde prompt veya dosya içeriği tutmaz.
+- Salt-okunur ve kontrollü değişiklik sandbox'larını ayırır; runtime approval'ı otomatik kabul etmez.
+- Resume için aynı workspace, uyumlu CLI sürümü, canlı remote reference ve yeni açık kullanıcı onayı ister.
+- “Bu kez yalnız testi çalıştır” gibi takip talimatını eski görevin yerine yeni bağlayıcı objective yapar.
+- Test istenirse yalnız model beyanına güvenmez; tanınan test komutu ve başarılı exit evidence ister.
+- Dosya değişikliklerini typed diff review'a taşır ve inceleme bitmeden görevi tamamlanmış saymaz.
+- Commit, push, tag, reset, clean, rebase, package install veya otomatik rollback yapmaz.
+
+Codex OpenAI hizmetine veri gönderebilir; Lina credential dosyasını okumaz. Kurulum ve sınırlar için [Codex Bridge](docs/codex-bridge.md) ile [v0.14 readiness](docs/production-readiness-v0.14.0-alpha.md) belgelerine bakın.
+
 ### Memory ve güvenli dosyalar
 
 - Açık komutlarla hatırlama, listeleme, unutma ve temizleme.
 - Duplicate kayıt ve hassas bilgi koruması.
 - Memory yazma işlemi için kullanıcı onayı.
-- Yalnız sabit allowlist içindeki proje dokümanlarına read-only erişim.
+- Sohbet komutlarında yalnız sabit allowlist içindeki proje dokümanlarına read-only erişim.
+- Dosya seçicide kullanıcı tarafından açıkça eklenen TXT, Markdown, Python, JSON, CSV, PDF, DOCX ve XLSX belgeleri için bounded salt-okunur context.
+- 10 MiB dosya ve 24.000 karakter model-context sınırı; truncation kullanıcıya gösterilir.
+- Şifreli/metinsiz PDF, bozuk Office belgesi, zip genişleme sınırı ve credential/private-key benzeri adlar için kontrollü ret.
 - Absolute path, UNC path, `..` traversal ve symlink escape reddi.
 - Dosya yazma, silme, taşıma veya yeniden adlandırma yetkisi yoktur.
 
@@ -255,7 +283,7 @@ Lina’nın yetki sınırları bilinçli olarak dardır.
 | --- | --- |
 | Yerel Ollama inference | Cloud LLM, cloud vision veya cloud speech |
 | Kullanıcı eylemli mikrofon/kamera/ekran | Gizli veya izinsiz capture |
-| Allowlist tabanlı read-only dosya okuma | Genel dosya sistemi veya dosya yazma/silme |
+| Allowlist veya explicit picker tabanlı read-only dosya okuma | Gizli disk taraması veya dosya yazma/silme |
 | Typed ve onaylı güvenli araçlar | Shell, PowerShell/CMD veya arbitrary code execution |
 | Yerel Memory ve conversation persistence | Ham ses, screenshot bytes, Base64 veya model reasoning persistence’ı |
 | Uygulama içi Agent planları | Browser automation, mouse/keyboard kontrolü veya process launch |
@@ -308,7 +336,7 @@ flowchart LR
 | `brain` / `quality` | Prompt, context, model orchestration ve yanıt doğrulama |
 | `agent` | Typed planlama, policy, execution, task templates ve recovery |
 | `conversations` / `memory` | Framework-neutral modeller ve SQLite persistence |
-| `files` | Allowlist tabanlı read-only dosya erişimi |
+| `files` | Allowlist erişimi ve bounded explicit belge attachment çıkarımı |
 | `vision` / `screen` | Geçici image context, capture ve Live Vision sözleşmeleri |
 | `speech` / `voice` | Mikrofon, STT, TTS ve voice lifecycle |
 | `notifications` | Reminder repository, scheduler ve presenter |
@@ -340,7 +368,7 @@ python -m compileall -q src/lina
 Son doğrulanan regresyon sonucu:
 
 ```text
-1180 passed
+1384 passed
 ```
 
 Otomatik testler dış sistemleri fake provider ve geçici repository’lerle izole eder. Gerçek Ollama modeli, Windows mikrofon/TTS, kamera, DPI, multi-monitor ve GUI erişilebilirliği için [manuel smoke checklist](docs/smoke-test-checklist.md) uygulanmalıdır.
@@ -379,11 +407,11 @@ Tamamlanan son sürüm hattı:
 - `v0.13.0-alpha` — Codex Bridge Foundation.
 - `v0.13.1-alpha` — Real Codex CLI Transport.
 - `v0.13.2-alpha` — Codex Production Hardening, Session Resume & Diff Review.
+- `v0.14.0-alpha` — Full-System Audit, Integration Repair & Product Hardening.
 
 Planlanan yön:
 
-1. `v0.14.0-alpha` — Safe Desktop Capabilities.
-2. `v0.15.0-alpha` — Packaging & Update Foundation.
+1. `v0.15.0-alpha` — Packaging & Update Foundation.
 
 Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 
@@ -392,6 +420,9 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | Belge | İçerik |
 | --- | --- |
 | [Mimari](docs/architecture.md) | Katmanlar, servisler ve güvenlik sınırları |
+| [Sistem yaşam döngüsü](docs/system-lifecycle.md) | Başlangıç, stale-result, shutdown ve recovery sırası |
+| [Dosya ekleri](docs/file-attachments.md) | Desteklenen türler, extraction sınırları ve gizlilik |
+| [v0.14 Production Readiness](docs/production-readiness-v0.14.0-alpha.md) | Otomatik kapılar, gerçek ortam kanıtı ve no-go koşulları |
 | [Referans UI uygulaması](docs/reference-ui-implementation.md) | v0.12.2 shell, responsive ve inspector kararları |
 | [Codex Bridge](docs/codex-bridge.md) | Mimari, workspace, approval, events, voice ve güvenlik sınırları |
 | [Codex CLI Transport](docs/codex-cli-transport.md) | Discovery, capability, exec, JSONL ve process lifecycle |
@@ -413,6 +444,7 @@ Güncel plan için [roadmap](docs/roadmap.md) belgesine bakın.
 | [v0.13.0 sürüm notları](docs/release-notes-v0.13.0-alpha.md) | Codex Bridge Foundation kapsamı ve doğrulama |
 | [v0.13.1 sürüm notları](docs/release-notes-v0.13.1-alpha.md) | Gerçek Codex CLI transport kapsamı ve sınırlamalar |
 | [v0.13.2 sürüm notları](docs/release-notes-v0.13.2-alpha.md) | Production hardening, resume, diff review ve doğrulama |
+| [v0.14.0 sürüm notları](docs/release-notes-v0.14.0-alpha.md) | Full-system audit, entegrasyon onarımları ve release kanıtı |
 | [Smoke Test Checklist](docs/smoke-test-checklist.md) | Windows manuel doğrulama listesi |
 | [Development Log](docs/development-log.md) | Kronolojik geliştirme kaydı |
 
