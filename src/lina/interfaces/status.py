@@ -8,10 +8,21 @@ from enum import IntEnum
 
 class StatusPriority(IntEnum):
     BACKGROUND = 10
-    READY = 20
-    ACTIVE = 30
-    ATTENTION = 40
-    ERROR = 50
+    UNAVAILABLE = 20
+    DISABLED = 30
+    READY = 40
+    ACTIVE = 50
+    THINKING = 50
+    VISION = 60
+    AGENT = 70
+    CODEX = 80
+    SPEAKING = 90
+    TRANSCRIBING = 100
+    LISTENING = 110
+    RUNTIME_APPROVAL = 120
+    ATTENTION = 130
+    SECURITY = 140
+    ERROR = 150
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +44,11 @@ class UnifiedStatusController:
     def publish(self, text: str, *, priority: StatusPriority = StatusPriority.ACTIVE, generation: int | None = None, secondary: tuple[str, ...] = ()) -> bool:
         candidate_generation = self._current.generation + 1 if generation is None else generation
         if candidate_generation < self._current.generation:
+            return False
+        if (
+            candidate_generation == self._current.generation
+            and priority < self._current.priority
+        ):
             return False
         self._current = UnifiedStatus(text, priority, candidate_generation, secondary)
         return True

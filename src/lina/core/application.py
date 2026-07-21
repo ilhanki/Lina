@@ -42,3 +42,7 @@ class LinaApplication:
 
         self._state = ApplicationState.STOPPED
 
+
+# Stable public name used by integration checks and future entry points.  Keep
+# LinaApplication for source compatibility with the existing bootstrap layer.
+Application = LinaApplication

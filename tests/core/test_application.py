@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from lina.core.application import ApplicationState, LinaApplication
+from lina.core.application import Application, ApplicationState, LinaApplication
 from lina.core.context import ApplicationContext
 from lina.core.exceptions import ApplicationLifecycleError
 from lina.core.paths import AppPaths
@@ -71,6 +71,14 @@ def test_application_keeps_context_reference(tmp_path: Path) -> None:
     assert application.context is context
 
 
+def test_application_public_alias_preserves_lifecycle_contract(tmp_path: Path) -> None:
+    application = Application(context=_create_context(tmp_path))
+    assert isinstance(application, LinaApplication)
+    application.start()
+    application.stop()
+    assert application.state is ApplicationState.STOPPED
+
+
 def _create_context(tmp_path: Path) -> ApplicationContext:
     return ApplicationContext(
         settings=_create_settings(),
@@ -86,4 +94,3 @@ def _create_settings() -> AppSettings:
         paths=PathSettings(data="data", logs="logs", models="models", cache="cache"),
         ollama=OllamaSettings(base_url="http://localhost:11434", default_model=""),
     )
-
