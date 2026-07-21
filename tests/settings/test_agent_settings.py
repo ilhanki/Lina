@@ -9,7 +9,7 @@ def test_agent_settings_safe_defaults_and_round_trip():
     assert settings.agent.max_agent_steps == 8
     assert settings.agent.max_agent_replans == 1
     assert settings.agent.always_confirm_persistent_steps
-    assert settings.agent.show_task_template_suggestions
+    assert not settings.agent.show_task_template_suggestions
     assert settings.agent.notify_interrupted_tasks_on_startup
     assert settings.agent.agent_history_retention_days == 30
     assert UserSettings.from_dict(settings.to_dict()) == settings
