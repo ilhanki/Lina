@@ -371,17 +371,26 @@ class AgentController:
             return self.run()
 
     def cancel(self, session_id: str) -> AgentSession:
+        session = self._session
+        if session is None or session.session_id != session_id:
+            raise AgentStateError("Agent oturumu bulunamadı veya sonuç artık güncel değil.")
+        # Signal first: run() intentionally owns the lifecycle lock while a step
+        # executes, but executors must be able to observe cancellation immediately.
+        session.cancellation_token.cancel()
         with self._lock:
             session = self._matching(session_id)
-            session.cancellation_token.cancel()
+            if session.status is AgentSessionStatus.CANCELLED:
+                return session
             session.generation_id += 1
             return self._finish_cancelled()
 
     def shutdown(self) -> None:
+        signalled = self.active_session
+        if signalled is not None:
+            signalled.cancellation_token.cancel()
         with self._lock:
-            if self.active_session is not None:
-                session = self.active_session
-                session.cancellation_token.cancel()
+            if signalled is not None:
+                session = signalled
                 session.generation_id += 1
                 session.status = AgentSessionStatus.INTERRUPTED
                 session.error_code = AgentErrorCode.INTERRUPTED.value

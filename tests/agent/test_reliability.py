@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import json
+import threading
 import time
 
 import pytest
@@ -24,7 +25,7 @@ from lina.agent import (
     recovery_actions,
     user_error_message,
 )
-from lina.agent.models import AgentEvent, AgentEventType, CancellationToken
+from lina.agent.models import AgentEvent, AgentEventType, CancellationToken, ExecutionResult
 from lina.agent.reliability import checkpoint_for_step, normalized_operation_hash
 from lina.brain.routing.models import IntentType, RequestContext, ToolResult
 from lina.brain.routing.registry import SafeToolRegistry, ToolDefinition
@@ -82,6 +83,35 @@ def _start(controller):
     controller.plan()
     controller.approve_plan(session.session_id, 4)
     return session
+
+
+def test_cancel_signal_reaches_inflight_executor_without_waiting_for_controller_lock():
+    registry, _calls = _registry()
+    controller = _controller(registry)
+    session = _start(controller)
+    started = threading.Event()
+
+    class BlockingExecutor:
+        def available(self, _tool):
+            return True
+
+        def execute(self, _step, _context, cancellation):
+            started.set()
+            assert cancellation._event.wait(timeout=1)
+            return ExecutionResult(False, "cancelled", error_code="user_cancelled")
+
+        def shutdown(self):
+            return None
+
+    controller.executor = BlockingExecutor()
+    runner = threading.Thread(target=controller.run)
+    runner.start()
+    assert started.wait(timeout=1)
+    cancelled = controller.cancel(session.session_id)
+    runner.join(timeout=1)
+    assert runner.is_alive() is False
+    assert cancelled.status is AgentSessionStatus.CANCELLED
+    assert cancelled.cancellation_token.cancelled
 
 
 def test_error_taxonomy_has_safe_turkish_messages_and_contextual_actions():
