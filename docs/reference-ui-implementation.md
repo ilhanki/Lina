@@ -4,7 +4,7 @@ Bu belge, `v0.12.2-alpha` için verilen premium koyu masaüstü referansının L
 
 ## Uygulanan yönler
 
-- Geniş pencerede 280 px sidebar, esnek conversation workspace ve 300–360 px contextual inspector’dan oluşan üç kolon.
+- Geniş pencerede 280 px sidebar ve esnek conversation workspace; istendiğinde açılan 300–360 px contextual inspector.
 - Orta genişlikte açık sidebar + sağ drawer; kompakt genişlikte 60 px icon sidebar + scrim üstü drawer.
 - Branding, Yeni Sohbet, debounce arama, tarih grupları, son mesaj preview/time ve context menu içeren sakin navigasyon.
 - Başlık + metinsel status + icon-only status/tools eylemlerinden oluşan minimal header.
@@ -15,7 +15,7 @@ Bu belge, `v0.12.2-alpha` için verilen premium koyu masaüstü referansının L
 
 ## Gerçek entegrasyon sınırı
 
-Tool satırları yeni yetki üretmez. Chat composer’a odaklanır; Voice mevcut STT/TTS durumunu, Vision mevcut controller snapshot’ını, File mevcut açık dosya akışını, Agent typed task inspector’ını, Memory `MemoryService` repository’sini kullanır. Unavailable servis metinsel boş durum gösterir. Local storage hesaplaması `LocalStorageService` ile GUI thread’i dışında, 50.000 entry sınırı ve 60 saniye cache ile yapılır; yalnız yapılandırılmış Lina data/cache konumlarına bakar.
+Tool satırları yeni yetki üretmez. Voice mevcut STT/TTS durumunu, Vision mevcut controller snapshot’ını ve File mevcut açık dosya akışını kullanır. Agent ve Codex yalnız ilgili gelişmiş ayar etkinse araç listesine katılır; Memory ayrı, sade özet bölümünde kalır. Unavailable servis metinsel boş durum gösterir. Local storage hesaplaması `LocalStorageService` ile GUI thread’i dışında, 50.000 entry sınırı ve 60 saniye cache ile yapılır; yalnız yapılandırılmış Lina data/cache konumlarına bakar.
 
 ## State ve persistence
 

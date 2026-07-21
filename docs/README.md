@@ -2,9 +2,9 @@
 
 Bu klasör Lina'nın proje dokümantasyonunu içerir.
 
-Burada mimari kararlar, yol haritası, geliştirme notları, kurulum rehberleri ve gelecekte kullanıcıya dönük dokümanlar tutulur.
+Burada mimari kararlar, temel sohbet/ses/vision akışları, yol haritası, geliştirme notları ve kullanıcıya dönük rehberler tutulur.
 
-Agent Mode için [görev şablonları](agent-task-templates.md) ve [kurtarma ve güvenilirlik](agent-recovery.md) ayrı referanslardır. Premium masaüstü kabuğunun referansla eşlemesi [uygulama notlarında](reference-ui-implementation.md) bulunur. Codex Bridge mimarisi [özel rehberde](codex-bridge.md); CLI ayrıntıları [transport](codex-cli-transport.md), [authentication](codex-authentication.md) ve [security boundaries](codex-security-boundaries.md) belgelerindedir.
+Temel başlangıç noktaları [mimari](architecture.md), [arayüz mimarisi](user-interface-architecture.md), [ses mimarisi](speech-architecture-v1.md), [vision](vision.md) ve [manuel smoke checklist](smoke-test-checklist.md) belgeleridir. Agent ve Codex Bridge ana sohbet deneyiminden ayrı gelişmiş yeteneklerdir; ayrıntılar [Agent recovery](agent-recovery.md) ve [Codex Bridge](codex-bridge.md) referanslarında tutulur.
 
 Güncel v0.14 referansları:
 
