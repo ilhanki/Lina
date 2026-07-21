@@ -32,7 +32,8 @@ def test_default_user_settings_are_turkish_and_local_first() -> None:
     assert settings.system.close_behavior == "exit"
     assert settings.general.intent_routing_enabled is True
     assert settings.appearance.density == "comfortable"
-    assert settings.appearance.right_panel_visible is True
+    assert settings.appearance.right_panel_visible is False
+    assert settings.agent.show_task_template_suggestions is False
     assert settings.appearance.right_panel_width == 320
 
 

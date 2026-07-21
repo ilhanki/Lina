@@ -308,7 +308,7 @@ class LinaMainWindow(QMainWindow):
         self._conversation_query = ""
         self._view_state = ApplicationViewState()
         self._responsive_mode = ResponsiveMode.LARGE
-        self._right_panel_requested_visible = True
+        self._right_panel_requested_visible = False
         self._right_panel_width = design_tokens("dark").layout.inspector_width
         self._message_width = design_tokens("dark").layout.chat_readable
         self._storage_snapshot: LocalStorageSnapshot | None = None
@@ -393,6 +393,7 @@ class LinaMainWindow(QMainWindow):
         self._inspector.memory_requested.connect(self._show_memory_inspector)
         self._inspector.data_folder_requested.connect(self._open_local_data_folder)
         root_layout.addWidget(self._inspector)
+        self._inspector.hide()
 
         self._drawer_scrim = DrawerScrim(central)
         self._drawer_scrim.clicked.connect(self._close_inspector)
@@ -450,7 +451,7 @@ class LinaMainWindow(QMainWindow):
         self._status_button.setObjectName("unifiedStatusButton")
         self._status_button.setIcon(standard_icon(self, "status"))
         self._status_button.setAccessibleName("Lina Durumu ve sistem ayrıntıları")
-        self._status_button.setToolTip("Model, mikrofon, ses, Agent ve Vision durumlarını göster")
+        self._status_button.setToolTip("Model, mikrofon, ses ve Vision durumlarını göster")
         self._status_button.clicked.connect(self._show_status_menu)
         layout.addWidget(self._status_button)
 
@@ -672,28 +673,37 @@ class LinaMainWindow(QMainWindow):
         self._composer.input.setFocus()
 
     def _palette_actions(self) -> tuple[PaletteAction, ...]:
-        return (
+        actions = [
             PaletteAction("new_chat", "Yeni sohbet", "sohbet temizle", self.start_new_chat),
             PaletteAction("search", "Sohbetlerde ara", "geçmiş bul", self._sidebar.search_input.setFocus),
-            PaletteAction("agent", "Agent görev ayrıntıları", "plan görev", self._show_agent_inspector, self._agent_controller is not None),
-            PaletteAction("agent_templates", "Hazır Agent görevleri", "şablon template görev", self._show_task_templates, self._template_registry() is not None),
-            PaletteAction("agent_tasks", "Agent Görev Merkezi", "geçmiş recovery yarım", self._show_agent_task_center, self._agent_controller is not None),
-            PaletteAction("codex_analyze", "Codex ile analiz et", "proje incele analiz", self._create_codex_task, self._codex_bridge is not None),
-            PaletteAction("codex_create", "Codex görevi oluştur", "plan görev", self._create_codex_task, self._codex_bridge is not None),
-            PaletteAction("codex_active", "Aktif Codex görevini göster", "durum progress", self._show_codex_inspector, self._codex_bridge is not None),
-            PaletteAction("codex_history", "Codex geçmişi", "görev sonuç", self._show_codex_inspector, self._codex_bridge is not None),
-            PaletteAction("codex_stop", "Codex görevini durdur", "iptal stop", self._stop_codex_task, self._codex_bridge is not None),
-            PaletteAction("codex_resume", "Codex görevini sürdür", "devam resume recovery", self._resume_codex_task, self._codex_bridge is not None),
-            PaletteAction("codex_changes", "Codex değişikliklerini göster", "diff inceleme review", self._show_codex_diff_review, self._codex_bridge is not None),
-            PaletteAction("codex_settings", "Codex ayarları", "güvenlik workspace", self.open_settings, self._user_settings_service is not None),
             PaletteAction("notifications", "Bildirimleri aç", "hatırlatıcı", self.open_notifications, self._notification_service is not None),
             PaletteAction("settings", "Ayarları aç", "tema ses model", self.open_settings, self._user_settings_service is not None),
             PaletteAction("inspector", "Ayrıntılar panelini aç", "durum sistem", self._show_system_inspector),
-        )
+        ]
+        if self._agent_enabled and self._agent_controller is not None:
+            actions.extend((
+                PaletteAction("agent", "Agent görev ayrıntıları", "plan görev", self._show_agent_inspector),
+                PaletteAction("agent_templates", "Hazır Agent görevleri", "şablon template görev", self._show_task_templates, self._template_registry() is not None),
+                PaletteAction("agent_tasks", "Agent Görev Merkezi", "geçmiş recovery yarım", self._show_agent_task_center),
+            ))
+        if self._codex_bridge is not None:
+            actions.extend((
+                PaletteAction("codex_analyze", "Codex ile analiz et", "proje incele analiz", self._create_codex_task),
+                PaletteAction("codex_create", "Codex görevi oluştur", "plan görev", self._create_codex_task),
+                PaletteAction("codex_active", "Aktif Codex görevini göster", "durum progress", self._show_codex_inspector),
+                PaletteAction("codex_history", "Codex geçmişi", "görev sonuç", self._show_codex_inspector),
+                PaletteAction("codex_stop", "Codex görevini durdur", "iptal stop", self._stop_codex_task),
+                PaletteAction("codex_resume", "Codex görevini sürdür", "devam resume recovery", self._resume_codex_task),
+                PaletteAction("codex_changes", "Codex değişikliklerini göster", "diff inceleme review", self._show_codex_diff_review),
+                PaletteAction("codex_settings", "Codex ayarları", "güvenlik workspace", self.open_settings, self._user_settings_service is not None),
+            ))
+        return tuple(actions)
 
     def _show_command_palette(self) -> None:
-        if not hasattr(self, "_command_palette") or self._command_palette is None:
-            self._command_palette = CommandPalette(self._palette_actions(), self)
+        if hasattr(self, "_command_palette") and self._command_palette is not None:
+            self._command_palette.close()
+            self._command_palette.deleteLater()
+        self._command_palette = CommandPalette(self._palette_actions(), self)
         self._command_palette.open_focused()
 
     def _toggle_inspector(self) -> None:
@@ -1397,15 +1407,14 @@ class LinaMainWindow(QMainWindow):
         menu = QMenu(self)
         palette_action = menu.addAction("Komut paleti")
         palette_action.triggered.connect(self._show_command_palette)
-        agent_action = menu.addAction("Agent ile çalış")
-        agent_action.setEnabled(self._agent_controller is not None)
-        agent_action.triggered.connect(self._show_agent_inspector)
-        templates_action = menu.addAction("Hazır görevler")
-        templates_action.setEnabled(self._template_registry() is not None)
-        templates_action.triggered.connect(self._show_task_templates)
-        task_center_action = menu.addAction("Agent Görev Merkezi")
-        task_center_action.setEnabled(self._agent_controller is not None)
-        task_center_action.triggered.connect(self._show_agent_task_center)
+        if self._agent_enabled and self._agent_controller is not None:
+            agent_action = menu.addAction("Agent ile çalış")
+            agent_action.triggered.connect(self._show_agent_inspector)
+            templates_action = menu.addAction("Hazır görevler")
+            templates_action.setEnabled(self._template_registry() is not None)
+            templates_action.triggered.connect(self._show_task_templates)
+            task_center_action = menu.addAction("Agent Görev Merkezi")
+            task_center_action.triggered.connect(self._show_agent_task_center)
         conversations = menu.addMenu("Sohbet görünümü")
         for label, view in (("Sohbetler", "chats"), ("Sabitlenenler", "pinned"), ("Arşiv", "archive")):
             action = conversations.addAction(label)
@@ -1485,7 +1494,7 @@ class LinaMainWindow(QMainWindow):
             self._tray_screen_action.triggered.connect(lambda: self._confirm_tray_live_start(LiveVisionSource.SCREEN))
             self._update_live_tray_actions(LiveVisionState.IDLE)
         if self._agent_controller is not None:
-            menu.addSeparator()
+            self._tray_agent_separator = menu.addSeparator()
             self._tray_agent_mode_action = menu.addAction("Agent Modu Aç/Kapat")
             self._tray_agent_mode_action.triggered.connect(self._toggle_agent_mode)
             self._tray_agent_show_action = menu.addAction("Aktif Görevi Göster")
@@ -1494,6 +1503,7 @@ class LinaMainWindow(QMainWindow):
             self._tray_agent_pause_action.triggered.connect(self._toggle_agent_pause)
             self._tray_agent_cancel_action = menu.addAction("Agent Görevini İptal Et")
             self._tray_agent_cancel_action.triggered.connect(self._cancel_agent)
+            self._set_agent_tray_actions_visible(self._agent_enabled)
             self._update_agent_ui()
         menu.addSeparator()
         exit_action = menu.addAction("Çıkış")
@@ -1527,6 +1537,7 @@ class LinaMainWindow(QMainWindow):
         if (
             controller is None
             or controller.repository is None
+            or settings is not None and not settings.agent_mode_enabled
             or settings is not None and not settings.notify_interrupted_tasks_on_startup
         ):
             return
@@ -1535,6 +1546,18 @@ class LinaMainWindow(QMainWindow):
             return
         self._notify_agent_event("recovery", "Yarım Agent görevi", notice.message)
         self._set_status(notice.message)
+
+    def _set_agent_tray_actions_visible(self, visible: bool) -> None:
+        if not hasattr(self, "_tray_agent_separator"):
+            return
+        for action in (
+            self._tray_agent_separator,
+            self._tray_agent_mode_action,
+            self._tray_agent_show_action,
+            self._tray_agent_pause_action,
+            self._tray_agent_cancel_action,
+        ):
+            action.setVisible(visible)
 
     def _notify_agent_event(self, event_id: str, title: str, message: str) -> None:
         if event_id in self._agent_notification_events:
@@ -1710,6 +1733,10 @@ class LinaMainWindow(QMainWindow):
                 self._voice_status.setText("Sesli yanıt · kapalı")
         self._vision_enabled = settings.vision.enabled
         self._agent_enabled = settings.agent.agent_mode_enabled
+        self._inspector.set_advanced_tools_visible(
+            agent=self._agent_enabled and self._agent_controller is not None,
+            codex=settings.codex.bridge_enabled and self._codex_bridge is not None,
+        )
         if self._agent_controller is not None:
             self._agent_controller.auto_start_read_only_plans = settings.agent.auto_start_read_only_plans
             self._agent_controller.always_show_plan = settings.agent.always_show_plan
@@ -1720,9 +1747,15 @@ class LinaMainWindow(QMainWindow):
                     self._agent_controller.repository.cleanup(settings.agent.agent_history_retention_days)
                 except (OSError, ValueError, TypeError):
                     pass
-        if hasattr(self._composer, "task_templates_action"):
-            self._composer.task_templates_action.setVisible(settings.agent.show_task_template_suggestions)
+        self._composer.set_advanced_actions_visible(
+            agent=self._agent_enabled and self._agent_controller is not None,
+            templates=(
+                settings.agent.show_task_template_suggestions
+                and self._template_registry() is not None
+            ),
+        )
         self._update_agent_ui()
+        self._set_agent_tray_actions_visible(self._agent_enabled)
         self._live_vision_enabled = settings.live_vision.enabled and settings.vision.enabled
         if self._camera_preview is not None:
             self._camera_preview.canvas.set_mirror_enabled(settings.live_vision.mirror_camera_preview)
@@ -1884,13 +1917,6 @@ class LinaMainWindow(QMainWindow):
                     )
                 self._finish_routed_intent(message, response, request_created_at)
                 return
-        if _is_camera_question(message) and not self._camera_is_active():
-            self._finish_routed_intent(
-                message,
-                "Kamera şu anda açık değil.",
-                request_created_at,
-            )
-            return
         if self._intent_router is not None:
             routed = self._intent_router.route(
                 message, self._routing_session_key, self._active_request_id
@@ -1898,6 +1924,13 @@ class LinaMainWindow(QMainWindow):
             if routed.intent is not RoutingIntentType.CHAT:
                 self._handle_routed_intent(routed, message, request_created_at)
                 return
+        if _is_camera_question(message) and not self._camera_is_active():
+            self._finish_routed_intent(
+                message,
+                "Kamera şu anda açık değil.",
+                request_created_at,
+            )
+            return
         if request_screen_context is None:
             request_screen_context = self._capture_live_camera_context(message)
             if request_screen_context is not None:
@@ -3829,7 +3862,7 @@ class LinaMainWindow(QMainWindow):
                 self._header_status_label.setText(text)
             if hasattr(self, "_status_button"):
                 self._status_button.setToolTip(
-                    f"Lina Durumu: {text}. Model, mikrofon, ses, Agent ve Vision ayrıntılarını göster"
+                    f"Lina Durumu: {text}. Model, mikrofon, ses ve Vision ayrıntılarını göster"
                 )
 
     def _update_responsive_chrome(self, compact: bool) -> None:

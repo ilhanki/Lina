@@ -20,7 +20,7 @@ def test_settings_dialog_loads_sections_and_saves_values(qtbot, tmp_path) -> Non
     assert dialog._agent_max_steps.maximum() == 12
     assert "kalıcı işlem onayı" in dialog._agent_security_note.text()
     assert dialog._agent_security_note.accessibleName()
-    assert dialog._agent_template_suggestions.isChecked()
+    assert not dialog._agent_template_suggestions.isChecked()
     assert dialog._agent_interrupted_notice.isChecked()
     assert dialog._agent_history_retention.currentData() == 30
     assert dialog._codex_session_retention.currentData() == 30

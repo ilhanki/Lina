@@ -33,6 +33,9 @@ def test_context_inspector_exposes_real_tool_routes_and_memory(qtbot):
 
     inspector = DetailsInspector(MemoryStub(), "llama3.2:3b")
     qtbot.addWidget(inspector)
+    assert inspector.tools_panel.rows["agent"].isHidden()
+    assert inspector.tools_panel.rows["codex"].isHidden()
+    inspector.set_advanced_tools_visible(agent=True, codex=False)
     requested = []
     inspector.tool_requested.connect(requested.append)
     inspector.tools_panel.rows["agent"].click()

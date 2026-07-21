@@ -558,13 +558,15 @@ def test_main_window_builds_shell_and_welcome_message(qtbot) -> None:
     assert window._status_button.text() == ""
     assert window._header_status_label.text() == "Hazır"
     assert window._inspector_button.accessibleName() == "Bağlamsal araçlar"
-    assert window._inspector.isHidden() is False
+    assert window._inspector.isHidden()
     assert window._inspector.display_mode == "docked"
     tools = window._build_tools_menu()
     assert [action.text() for action in tools.actions() if not action.isSeparator()] == [
-        "Komut paleti", "Agent ile çalış", "Hazır görevler", "Agent Görev Merkezi",
-        "Sohbet görünümü", "Sistem ayrıntıları"
+        "Komut paleti", "Sohbet görünümü", "Sistem ayrıntıları"
     ]
+    assert {action.id for action in window._palette_actions()} == {
+        "new_chat", "search", "notifications", "settings", "inspector"
+    }
 
 
 def test_send_message_removes_typing_and_normalizes_lina_prefix(qtbot) -> None:
@@ -1313,6 +1315,9 @@ def test_responsive_shell_docks_and_overlays_context_panel(qtbot) -> None:
     assert window._responsive_mode is ResponsiveMode.LARGE
     assert window._inspector.display_mode == "docked"
     assert window._root_layout.indexOf(window._inspector) >= 0
+    assert window._inspector.isHidden()
+
+    window._toggle_inspector()
     assert window._inspector.isVisible()
 
     window.resize(1100, 800)

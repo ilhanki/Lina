@@ -11,8 +11,12 @@ def test_classifier_routes_supported_intents_and_chat() -> None:
     cases = {
         "Merhaba, nasılsın?": IntentType.CHAT,
         "Yarın saat 9'da beni ara diye hatırlat": IntentType.CREATE_REMINDER,
+        "Yarın saat 9'da antrenmanım var, hatırlatır mısın?": IntentType.CREATE_REMINDER,
         "Hatırlatıcılarımı göster": IntentType.LIST_REMINDERS,
         "Ekranı analiz et": IntentType.ANALYZE_SCREEN,
+        "Ekranda ne görüyorsun?": IntentType.ANALYZE_SCREEN,
+        "Bu ekrandaki yazıyı özetle.": IntentType.ANALYZE_SCREEN,
+        "Kameradaki nesneyi tarif et.": IntentType.CAMERA_ANALYZE,
         "Ekranda bölge seçip incele": IntentType.ANALYZE_REGION,
         "Şu görseli incele": IntentType.ANALYZE_IMAGE,
         "README dosyasını oku": IntentType.READ_FILE,
@@ -55,6 +59,30 @@ def test_reminder_title_and_trailing_memory_content_are_clean() -> None:
     memory = DeterministicIntentClassifier().classify("Koyu temayı tercih ettiğimi unutma")
     assert reminder.extracted_arguments["title"] == "Ara"
     assert memory.extracted_arguments["content"] == "Koyu temayı tercih ettiğimi"
+
+
+def test_reminder_parser_understands_turkish_dayparts_and_weekdays() -> None:
+    now = datetime(2026, 7, 20, 16, tzinfo=timezone.utc)
+
+    evening, evening_missing = parse_reminder_arguments(
+        "Akşam 8'de annemi aramamı hatırlat.", now
+    )
+    weekly, weekly_missing = parse_reminder_arguments(
+        "Her pazartesi sabah 10'da toplantıyı hatırlat.", now
+    )
+    natural, natural_missing = parse_reminder_arguments(
+        "Yarın saat 9'da antrenmanım var, hatırlatır mısın?", now
+    )
+
+    assert evening_missing == ()
+    assert evening["due_at"].astimezone().hour == 20
+    assert evening["title"] == "Annemi aramamı"
+    assert weekly_missing == ()
+    assert weekly["due_at"].astimezone().weekday() == 0
+    assert weekly["due_at"].astimezone().hour == 10
+    assert weekly["recurrence"] is ReminderRecurrence.WEEKLY
+    assert natural_missing == ()
+    assert natural["title"] == "Antrenmanım"
 
 
 def test_missing_title_and_time_asks_one_combined_question() -> None:

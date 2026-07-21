@@ -99,10 +99,31 @@ def test_gui_file_memory_vision_and_chat_fallback(qtbot, tmp_path, monkeypatch) 
     called = []
     monkeypatch.setattr(window, "handle_screen_request", lambda: called.append("screen"))
     _send(window, "Ekranı analiz et")
-    assert called == ["screen"]
+    _send(window, "Ekranda ne görüyorsun?")
+    _send(window, "Bu ekrandaki yazıyı özetle.")
+    assert called == ["screen", "screen", "screen"]
     _send(window, "Hatırlatıcılar sence faydalı mı?")
     assert len(conversation.calls) == 1
     assert window._last_response_text == "Normal sohbet"
+    window._force_exit = True; window.close()
+
+
+def test_explicit_camera_command_is_routed_before_inactive_camera_fallback(
+    qtbot, tmp_path, monkeypatch
+) -> None:
+    window, _conversation, _reminders = _window(qtbot, tmp_path)
+    routed = []
+    monkeypatch.setattr(
+        window,
+        "_handle_routed_intent",
+        lambda request, _text, _created_at: routed.append(request),
+    )
+
+    _send(window, "Kamerayı aç, elimde ne var söyle.")
+
+    assert len(routed) == 1
+    assert routed[0].intent.value == "camera_analyze"
+    assert routed[0].extracted_arguments["user_focus"] == "elimde ne var söyle."
     window._force_exit = True; window.close()
 
 

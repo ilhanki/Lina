@@ -27,7 +27,7 @@ class RightPanelSection(Enum):
 @dataclass(frozen=True, slots=True)
 class ApplicationViewState:
     sidebar_collapsed: bool = False
-    right_panel_visible: bool = True
+    right_panel_visible: bool = False
     right_panel_section: RightPanelSection = RightPanelSection.TOOLS
     responsive_mode: ResponsiveMode = ResponsiveMode.LARGE
     conversation_id: int | None = None

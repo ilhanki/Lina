@@ -30,14 +30,15 @@ class ContextTool:
     icon: str
 
 
-CONTEXT_TOOLS = (
-    ContextTool("chat", "Sohbet", "Akıllı ve hızlı yanıtlar", "details"),
+CORE_CONTEXT_TOOLS = (
     ContextTool("voice", "Sesli Mod", "Doğal sesli sohbet", "voice"),
     ContextTool("vision", "Görsel Anlama", "Ekran, görsel ve diyagram analizi", "vision"),
     ContextTool("file", "Dosya Anlama", "Desteklenen yerel dosyaları incele", "file"),
+)
+
+ADVANCED_CONTEXT_TOOLS = (
     ContextTool("agent", "Agent", "Planla, uygula ve doğrula", "agent"),
     ContextTool("codex", "Codex ile Çalış", "Güvenli, kontrollü proje çalışması", "agent"),
-    ContextTool("memory", "Hafıza", "Önemli bilgileri hatırla", "memory"),
 )
 
 
@@ -69,7 +70,7 @@ class ToolsPanel(QFrame):
         heading.setObjectName("inspectorSectionTitle")
         layout.addWidget(heading)
         self.rows: dict[str, QPushButton] = {}
-        for tool in CONTEXT_TOOLS:
+        for tool in (*CORE_CONTEXT_TOOLS, *ADVANCED_CONTEXT_TOOLS):
             button = QPushButton(f"{tool.title}\n{tool.description}", self)
             button.setObjectName("contextToolRow")
             button.setIcon(standard_icon(self, tool.icon, 20))
@@ -81,6 +82,12 @@ class ToolsPanel(QFrame):
             )
             layout.addWidget(button)
             self.rows[tool.id] = button
+        self.set_advanced_tools_visible(agent=False, codex=False)
+
+    def set_advanced_tools_visible(self, *, agent: bool, codex: bool) -> None:
+        """Keep optional project automation out of the primary tool surface."""
+        self.rows["agent"].setVisible(agent)
+        self.rows["codex"].setVisible(codex)
 
 
 class MemoryPanel(QFrame):
@@ -287,6 +294,9 @@ class ContextInspector(QWidget):
 
     def set_storage_snapshot(self, snapshot: LocalStorageSnapshot) -> None:
         self.local_panel.set_snapshot(snapshot)
+
+    def set_advanced_tools_visible(self, *, agent: bool, codex: bool) -> None:
+        self.tools_panel.set_advanced_tools_visible(agent=agent, codex=codex)
 
     def _clear_content(self) -> None:
         while self.content.count():

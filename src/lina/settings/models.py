@@ -26,7 +26,7 @@ class AppearanceSettings:
     reduce_motion: bool = False
     density: str = "comfortable"
     sidebar_collapsed: bool = False
-    right_panel_visible: bool = True
+    right_panel_visible: bool = False
     right_panel_section: str = "tools"
     right_panel_width: int = 320
     message_width: int = 820
@@ -129,7 +129,7 @@ class AgentUserSettings:
     speak_important_agent_events: bool = True
     speak_agent_completion: bool = True
     speak_agent_approvals: bool = True
-    show_task_template_suggestions: bool = True
+    show_task_template_suggestions: bool = False
     notify_interrupted_tasks_on_startup: bool = True
     agent_history_retention_days: int | None = 30
 

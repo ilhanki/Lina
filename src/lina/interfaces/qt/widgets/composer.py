@@ -80,6 +80,7 @@ class ComposerWidget(QWidget):
         self._initial_resize_done = False
         self._waiting = False
         self._compact = False
+        self._advanced_actions_available = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(10)
@@ -194,6 +195,7 @@ class ComposerWidget(QWidget):
         self.task_templates_action = self.tools_menu.addAction("Hazır görevler")
         self.task_templates_action.triggered.connect(self.task_templates_requested.emit)
         self.tools_button.setMenu(self.tools_menu)
+        self.set_advanced_actions_visible(agent=False, templates=False)
         action_layout.addWidget(self.tools_button)
         self.input_hint = QLabel("Enter gönderir · Shift+Enter yeni satır", action_row)
         self.input_hint.setObjectName("composerHint")
@@ -228,6 +230,17 @@ class ComposerWidget(QWidget):
 
     def text(self) -> str:
         return self.input.toPlainText().strip()
+
+    def set_advanced_actions_visible(self, *, agent: bool, templates: bool) -> None:
+        """Reveal automation shortcuts only after the user enables them."""
+        self.agent_action.setVisible(agent)
+        self.task_templates_action.setVisible(templates)
+        self._advanced_actions_available = agent or templates
+        self._update_tools_visibility()
+
+    def _update_tools_visibility(self) -> None:
+        # Compact mode moves the hidden microphone and screen controls here.
+        self.tools_button.setVisible(self._compact or self._advanced_actions_available)
 
     def set_text(self, text: str) -> None:
         self.input.setPlainText(text)
@@ -324,6 +337,7 @@ class ComposerWidget(QWidget):
         )
         for button, short, full in labels:
             button.setText(short if compact else full)
+        self._update_tools_visibility()
 
     def set_mic_state(self, state: str) -> None:
         """Update the visible microphone action state."""

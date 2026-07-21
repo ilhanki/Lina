@@ -72,8 +72,17 @@ class DeterministicIntentClassifier:
         focus = original.split(",", 1)[1].strip() if "," in original else ""
         if "kamera" in normalized and any(term in normalized for term in ("takip et", "izle", "canlı", "canli")):
             return self._request(IntentType.CAMERA_MONITOR, original, 0.99, {"user_focus": focus}, True)
-        if "kamera" in normalized and any(term in normalized for term in ("bak", "analiz", "incele")):
-            return self._request(IntentType.CAMERA_ANALYZE, original, 0.99, {"user_focus": focus}, True)
+        if "kamera" in normalized and any(term in normalized for term in (
+            "bak", "analiz", "incele", "ne görüyorsun", "ne goruyorsun",
+            "elimde ne var", "nesneyi tarif et", "ne var söyle", "ne var soyle",
+        )):
+            return self._request(
+                IntentType.CAMERA_ANALYZE,
+                original,
+                0.99,
+                {"user_focus": focus or original},
+                True,
+            )
         if any(phrase in normalized for phrase in ("kamerayı aç", "kamerayi ac", "kamerayı ac", "kamerayi aç")):
             return self._request(IntentType.CAMERA_OPEN, original, 0.99, {"user_focus": focus}, True)
         if ("bölge" in normalized or "bolge" in normalized or "alan" in normalized) and any(term in normalized for term in ("takip et", "izle")):
@@ -90,13 +99,21 @@ class DeterministicIntentClassifier:
             return self._request(IntentType.CHAT, original, 0.95)
         if any(phrase in normalized for phrase in ("ekran analizi nasıl", "ekran analizi nedir", "memory sistemi güvenli", "dosya okumak tehlikeli", "readme nedir")):
             return self._request(IntentType.CHAT, original, 0.95)
-        if re.search(r"\b(hatırlat|hatırlatıcı oluştur)\b", normalized):
+        if re.search(
+            r"\b(hatırlat|hatırlatır|hatirlat|hatirlatir|"
+            r"hatırlatıcı oluştur|hatirlatici olustur)\b",
+            normalized,
+        ):
             arguments, missing = parse_reminder_arguments(original)
             arguments["missing_fields"] = missing
             return self._request(IntentType.CREATE_REMINDER, original, 0.98, arguments, True)
         if "bölge" in normalized and any(term in normalized for term in ("analiz", "incele", "ekran")):
             return self._request(IntentType.ANALYZE_REGION, original, 0.98)
-        if "ekran" in normalized and any(term in normalized for term in ("analiz", "incele", "bak")):
+        if "ekran" in normalized and any(term in normalized for term in (
+            "analiz", "incele", "bak", "ne görüyorsun", "ne goruyorsun",
+            "yazıyı özetle", "yaziyi ozetle", "ekranı özetle", "ekrani ozetle",
+            "ekrandaki yazı", "ekrandaki yazi", "oku", "tarif et", "açıkla", "acikla",
+        )):
             return self._request(IntentType.ANALYZE_SCREEN, original, 0.97)
         if any(term in normalized for term in ("görseli analiz", "görseli incele", "resmi analiz", "resmi incele")):
             return self._request(IntentType.ANALYZE_IMAGE, original, 0.97)

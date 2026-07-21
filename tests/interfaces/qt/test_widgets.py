@@ -174,7 +174,7 @@ def test_composer_is_compact_and_action_buttons_are_aligned(qtbot) -> None:
     assert composer.mic_button.isHidden() is False
     assert composer.screen_button.isHidden() is False
     assert composer.agent_button.isHidden()
-    assert not composer.tools_button.isHidden()
+    assert composer.tools_button.isHidden()
     assert [action.text() for action in composer.tools_menu.actions()] == [
         "Mikrofon", "Ekran görüntüsü", "Agent modu", "Hazır görevler"
     ]
@@ -188,6 +188,7 @@ def test_composer_compact_mode_and_agent_action(qtbot) -> None:
     assert composer.attachment_button.text() == ""
     assert composer.mic_button.isHidden()
     assert composer.screen_button.isHidden()
+    assert not composer.tools_button.isHidden()
     with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
         composer.agent_button.click()
 
@@ -195,6 +196,8 @@ def test_composer_compact_mode_and_agent_action(qtbot) -> None:
 def test_composer_tools_menu_preserves_context_actions(qtbot) -> None:
     composer = ComposerWidget("Arial", 11)
     qtbot.addWidget(composer)
+    composer.set_advanced_actions_visible(agent=True, templates=True)
+    assert not composer.tools_button.isHidden()
     with qtbot.waitSignal(composer.mic_requested, timeout=1000):
         composer.mic_action.trigger()
     with qtbot.waitSignal(composer.agent_mode_requested, timeout=1000):
