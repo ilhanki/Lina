@@ -1,6 +1,6 @@
 """Tests for Qt GUI formatting helpers."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from lina.interfaces.qt.formatting import (
     build_welcome_message,

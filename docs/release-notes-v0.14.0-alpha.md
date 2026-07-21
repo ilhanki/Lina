@@ -24,7 +24,11 @@ Bu sürüm yeni bir “her şeyi yapar” yetkisi eklemek yerine mevcut ürünü
 
 ## Doğrulama özeti
 
-- Tam otomatik paket: `1384 passed` (ilk tam v0.14 turu).
+- Windows shell/venv sarmalayıcıları ve parçalı `item.started` / `item.completed` JSONL olayları artık test yürütme kanıtını kaybetmez.
+- Test doğrulaması isteyen Codex promptu testi gerçekten çalıştırmayı zorunlu kılar; oturum hatası CLI hazır durumunu anında düşürür ve eksik kanıt mesajı uygulanabilir yönlendirme sunar.
+- Koyu temadaki sayısal ayar alanları, Agent sekmeleri ve genel ilerleme çubukları merkezi tema ile tutarlı hale getirildi; Codex görünümü görsel QA matrisine eklendi.
+- Ruff geliştirme bağımlılığı ve proje lint politikası etkinleştirildi; kaynak, test ve script ağacı lint kontrolünden hatasız geçer.
+- Tam otomatik paket: `1401 passed` (uyarılar hata kabul edilerek).
 - `compileall` ve `pip check` release kapanışında yeniden çalıştırılır.
 - Gerçek Codex CLI bulundu (`0.144.6`) ancak yerel oturum açık olmadığı için başarılı remote smoke yapılamadı; bu durum testle taklit edilmedi.
 - Mikrofon yalnız enumerate edildi. Kamera/mikrofon kaydı otomatik başlatılmadı.

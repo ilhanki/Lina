@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QPushButton
 
 from lina.interfaces.qt.theme import clamp_message_font_size, resolve_font_family
 from lina.interfaces.qt.widgets import ChatMessageWidget, ComposerWidget, SidebarWidget
-from lina.interfaces.qt.widgets.chat_message import MAX_ASSISTANT_WIDTH, MIN_ASSISTANT_WIDTH
+from lina.interfaces.qt.widgets.chat_message import MAX_ASSISTANT_WIDTH
 from lina.interfaces.qt.widgets.composer import (
     COMPOSER_BUTTON_HEIGHT,
     COMPOSER_INPUT_MAX_HEIGHT,

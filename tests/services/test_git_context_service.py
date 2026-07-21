@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import pytest
 
 from lina.services.git_context_service import (
     GitContext,

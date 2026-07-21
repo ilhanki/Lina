@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
@@ -174,7 +173,7 @@ def start(ctl):
 
 def test_controller_complete_flow_and_single_session():
     ctl = controller()
-    session = start(ctl)
+    start(ctl)
     with pytest.raises(AgentStateError):
         ctl.create_session("ikinci", 1)
     result = ctl.run(1)

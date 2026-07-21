@@ -11,7 +11,6 @@ import threading
 import tkinter as tk
 from tkinter import font
 from tkinter import ttk
-from typing import TYPE_CHECKING
 
 from lina.brain.model_provider import ModelProviderError, ModelResponse
 from lina.services.conversation_service import ConversationService
@@ -32,7 +31,6 @@ from lina.interfaces.gui_theme import (
     COLOR_INPUT_BG,
     COLOR_PANEL_BG,
     COLOR_SIDEBAR_BG,
-    COLOR_SUCCESS,
     COLOR_TEXT_MUTED,
     COLOR_TEXT_PRIMARY,
     COLOR_TEXT_SECONDARY,
@@ -55,10 +53,6 @@ from lina.speech.models import (
 )
 from lina.speech.service import SpeechService
 from lina.version import APP_VERSION
-
-if TYPE_CHECKING:
-    from lina.services.model_diagnostics_service import DiagnosticsResult
-
 
 _logger = logging.getLogger(__name__)
 

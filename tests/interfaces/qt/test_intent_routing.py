@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from PySide6.QtCore import Qt
 
 from lina.brain.model_provider import ModelResponse

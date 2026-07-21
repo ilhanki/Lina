@@ -282,11 +282,12 @@ Bu doküman release öncesi manuel doğrulama adımlarını tanımlar.
 
 ```powershell
 python -m pytest
+python -m ruff check src tests scripts
 ```
 
 Beklenen sonuç:
 
-- Tüm testler başarılı olmalı.
+- Tüm testler ve lint kontrolü başarılı olmalı.
 
 ## CLI Smoke Test
 

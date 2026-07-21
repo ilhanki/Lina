@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import json
 import threading
 import time
 
@@ -205,7 +204,7 @@ def test_tool_availability_is_rechecked_immediately_before_execution():
     state = {"available": True}
     registry, calls = _registry(available=lambda: state["available"])
     controller = _controller(registry)
-    session = _start(controller)
+    _start(controller)
     state["available"] = False
     result = controller.run(7)
     assert result.status is AgentSessionStatus.BLOCKED

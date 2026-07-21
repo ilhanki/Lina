@@ -359,6 +359,12 @@ Tam test paketi:
 python -m pytest -q
 ```
 
+Lint kontrolü:
+
+```powershell
+python -m ruff check src tests scripts
+```
+
 Compile kontrolü:
 
 ```powershell
@@ -368,7 +374,7 @@ python -m compileall -q src/lina
 Son doğrulanan regresyon sonucu:
 
 ```text
-1384 passed
+1401 passed
 ```
 
 Otomatik testler dış sistemleri fake provider ve geçici repository’lerle izole eder. Gerçek Ollama modeli, Windows mikrofon/TTS, kamera, DPI, multi-monitor ve GUI erişilebilirliği için [manuel smoke checklist](docs/smoke-test-checklist.md) uygulanmalıdır.

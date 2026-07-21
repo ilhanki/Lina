@@ -1,6 +1,5 @@
 from dataclasses import replace
 from pathlib import Path
-import os
 import subprocess
 
 import pytest
@@ -13,7 +12,6 @@ from lina.codex.changes import (
     CodexReviewStatus,
 )
 from lina.codex.snapshot import (
-    CodexFileFingerprint,
     CodexGitSnapshot,
     CodexWorkspaceSnapshot,
     build_change_set,

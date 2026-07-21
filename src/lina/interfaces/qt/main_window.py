@@ -65,10 +65,8 @@ from lina.brain.routing.models import IntentRequest, IntentType as RoutingIntent
 from lina.brain.routing.models import ToolStatus
 from lina.brain.routing.router import IntentRouter
 from lina.interfaces.qt.formatting import (
-    build_welcome_message,
     derive_session_title,
     format_conversation_datetime,
-    format_welcome_message,
     friendly_error_message,
     normalize_assistant_text,
 )
@@ -102,7 +100,6 @@ from lina.interfaces.status import StatusPriority, UnifiedStatusController
 from lina.services.conversation_service import ConversationService
 from lina.services.local_storage_service import LocalStorageService, LocalStorageSnapshot
 from lina.memory.service import MemoryService
-from lina.conversations.models import ConversationSession
 from lina.services.conversation_models import ConversationInput, ConversationResult
 from lina.interfaces.qt.widgets.welcome_state import WelcomeStateWidget
 from lina.screen.capture_service import ScreenCaptureService
@@ -1868,7 +1865,7 @@ class LinaMainWindow(QMainWindow):
             )
             if match is not None and (match.template_id is not None or match.ambiguous):
                 try:
-                    session = self._agent_controller.create_session(
+                    self._agent_controller.create_session(
                         message, self._routing_session_key, self._active_request_id
                     )
                     plan = self._agent_controller.plan(capabilities=capabilities)

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from PySide6.QtCore import Qt
 
@@ -10,7 +10,6 @@ from lina.agent import (
     AgentSessionRepository,
     AgentSessionStatus,
     AgentStep,
-    AgentStepStatus,
     AgentTaskCenter,
     RiskLevel,
     TaskCenterSection,

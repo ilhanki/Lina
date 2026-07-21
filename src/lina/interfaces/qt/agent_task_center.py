@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from lina.agent.models import AgentPlan, AgentSession, AgentSessionStatus, RiskLevel
+from lina.agent.models import AgentPlan, AgentSession, RiskLevel
 from lina.agent.task_center import AgentTaskCenter, AgentTaskSummary, TaskCenterSection
 from lina.agent.templates.models import TaskTemplate, TaskTemplateCategory
 from lina.agent.templates.registry import TaskTemplateRegistry
@@ -485,7 +485,7 @@ class AgentTaskCenterDialog(QDialog):
         self.open_button = _button("Aç", actions, self._open_current, self)
         self.restart_button = _button("Güvenli Kopya", actions, self._restart_current, self)
         self.remove_button = _button("Geçmişten Kaldır", actions, self._remove_current, self)
-        close = _button("Kapat", actions, self.accept, self)
+        _button("Kapat", actions, self.accept, self)
         layout.addLayout(actions)
         for items in self.lists.values():
             items.currentItemChanged.connect(self._show_current)

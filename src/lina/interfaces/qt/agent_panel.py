@@ -160,11 +160,11 @@ class AgentPanel(QWidget):
             self.modify_button: status in {AgentSessionStatus.AWAITING_PLAN_APPROVAL, AgentSessionStatus.AWAITING_STEP_APPROVAL},
             self.pause_button: status in {AgentSessionStatus.READY, AgentSessionStatus.RUNNING, AgentSessionStatus.AWAITING_STEP_APPROVAL},
             self.resume_button: status is AgentSessionStatus.PAUSED,
-            self.cancel_button: status is not None and not (status in {
+            self.cancel_button: status is not None and status not in {
                 AgentSessionStatus.COMPLETED, AgentSessionStatus.PARTIALLY_COMPLETED,
                 AgentSessionStatus.FAILED, AgentSessionStatus.CANCELLED, AgentSessionStatus.BLOCKED,
                 AgentSessionStatus.INTERRUPTED, AgentSessionStatus.UNCERTAIN,
-            }),
+            },
         }
         for button, visible in visibility.items():
             button.setVisible(visible)

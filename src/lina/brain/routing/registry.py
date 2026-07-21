@@ -1,7 +1,7 @@
 """Central allowlist of safe assistant tools."""
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
 from lina.brain.routing.models import IntentRequest, IntentType, RequestContext, ToolResult
 

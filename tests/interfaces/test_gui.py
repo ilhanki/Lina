@@ -12,9 +12,7 @@ from lina.interfaces.gui import (
 )
 from lina.services.model_diagnostics_service import (
     DiagnosticsResult,
-    ModelDiagnosticsService,
     ModelStatus,
-    format_status_message as format_diagnostics_message,
 )
 from lina.speech.models import (
     AudioRecordingResult,
