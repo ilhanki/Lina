@@ -515,7 +515,7 @@ def test_settings_toggle_disables_speech_and_vision_controls(qtbot, tmp_path) ->
     window._apply_user_settings(updated)
 
     assert window._composer.mic_button.isEnabled() is False
-    assert window._composer.attachment_button.isEnabled() is False
+    assert window._composer.attachment_button.isEnabled() is True
     assert window._composer.screen_button.isEnabled() is False
 
 
@@ -813,6 +813,35 @@ def test_attachment_load_error_is_user_friendly(qtbot, monkeypatch) -> None:
 
     assert window._screen_context is None
     assert window._status_label.text() == "Seçilen görsel yüklenemedi."
+
+
+def test_document_attachment_reaches_chat_and_is_consumed(qtbot, monkeypatch, tmp_path) -> None:
+    document = tmp_path / "rapor.csv"
+    document.write_text("durum,değer\nLina,hazır", encoding="utf-8")
+    conversation = FakeConversationService(consume_attachment=True)
+    window = LinaMainWindow(
+        conversation_service=conversation,
+        diagnostics_service=FakeDiagnosticsService(),
+        speech_service=FakeSpeechService(available=False),
+        thread_pool=ImmediateThreadPool(),
+    )
+    qtbot.addWidget(window)
+    monkeypatch.setattr(
+        "lina.interfaces.qt.main_window.QFileDialog.getOpenFileName",
+        lambda *args, **kwargs: (str(document), "Documents"),
+    )
+
+    window.handle_image_upload()
+    assert window._document_attachment is not None
+    assert window._screen_context is None
+    assert "rapor.csv" in window._composer.screen_context_label.text()
+    window._composer.set_text("Belgedeki durumu özetle")
+    window.send_message()
+
+    assert conversation.inputs[0].document_attachment is not None
+    assert conversation.inputs[0].document_attachment.text == "durum | değer\nLina | hazır"
+    assert window._document_attachment is None
+    assert window._status_label.text() == "Belge işlendi"
 
 
 def test_screen_capture_acceptance_adds_temporary_context(qtbot) -> None:

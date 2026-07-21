@@ -40,6 +40,9 @@ from PySide6.QtWidgets import (
 )
 
 from lina.brain.model_provider import EmptyModelResponseError, ModelResponse
+from lina.files import AttachmentService, DocumentAttachment
+from lina.files.models import (DocumentExtractionError, FileTooLargeError,
+                               ForbiddenFilePathError, UnsupportedFileTypeError)
 from lina.agent import (
     AgentContext,
     AgentController,
@@ -194,6 +197,7 @@ class LinaMainWindow(QMainWindow):
         intent_router: IntentRouter | None = None,
         screen_capture_service: ScreenCaptureService | None = None,
         image_loader: QtImageLoader | None = None,
+        attachment_service: AttachmentService | None = None,
         voice_controller: VoiceController | None = None,
         inference_diagnostics_service: InferenceDiagnosticsService | None = None,
         model_lifecycle_service: ModelLifecycleService | None = None,
@@ -265,6 +269,7 @@ class LinaMainWindow(QMainWindow):
         self._window_state_restored = False
         self._screen_capture_service = screen_capture_service or QtScreenCaptureService()
         self._image_loader = image_loader or QtImageLoader()
+        self._attachment_service = attachment_service or AttachmentService()
         self._screen_preview_factory = screen_preview_factory or ScreenPreviewDialog
         self._thread_pool = thread_pool or QThreadPool.globalInstance()
         self._workers: set[FunctionWorker] = set()
@@ -281,8 +286,10 @@ class LinaMainWindow(QMainWindow):
         self._is_screen_capture_busy = False
         self._region_overlay: RegionCaptureOverlay | None = None
         self._screen_context: ScreenContext | None = None
+        self._document_attachment: DocumentAttachment | None = None
         self._vision_status: VisionDiagnosticsResult | None = None
         self._request_screen_contexts: dict[int, ScreenContext] = {}
+        self._request_document_attachments: dict[int, DocumentAttachment] = {}
         self._auto_scroll_enabled = True
         self._pending_scroll_to_bottom = False
         self._pending_scroll_to_top = False
@@ -1725,7 +1732,7 @@ class LinaMainWindow(QMainWindow):
         if hasattr(self, "_hands_free_toggle"):
             self._hands_free_toggle.setText("Hands-free Açık" if settings.speech.hands_free_enabled else "Hands-free Kapalı")
             self._hands_free_pause.setEnabled(settings.speech.hands_free_enabled)
-        self._composer.attachment_button.setEnabled(self._vision_enabled)
+        self._composer.attachment_button.setEnabled(True)
         self._set_vision_controls_enabled(self._vision_enabled)
         if not self._vision_enabled and self._screen_context is not None:
             self._clear_screen_context()
@@ -1783,12 +1790,15 @@ class LinaMainWindow(QMainWindow):
         if not message:
             if self._screen_context is not None:
                 self._set_status("Ekran görüntüsü hakkında bir soru yaz.")
+            elif self._document_attachment is not None:
+                self._set_status("Belge hakkında bir soru yaz.")
             return
 
         self._record_input_history(message)
         self._update_session_title(message)
         self._composer.clear()
         request_screen_context = self._screen_context
+        request_document_attachment = self._document_attachment
         request_created_at = datetime.now(timezone.utc)
         self._hide_welcome_state()
         self._auto_scroll_enabled = True
@@ -1911,11 +1921,14 @@ class LinaMainWindow(QMainWindow):
         request_id = self._active_request_id
         if request_screen_context is not None:
             self._request_screen_contexts[request_id] = request_screen_context
+        if request_document_attachment is not None:
+            self._request_document_attachments[request_id] = request_document_attachment
         worker = FunctionWorker(
             self._run_conversation_request,
             request_id,
             message,
             request_screen_context,
+            request_document_attachment,
             request_created_at,
         )
         worker.signals.result.connect(self._handle_conversation_worker_result)
@@ -2812,6 +2825,7 @@ class LinaMainWindow(QMainWindow):
             return
         self._cancelled_request_ids.add(self._active_request_id)
         self._request_screen_contexts.pop(self._active_request_id, None)
+        self._request_document_attachments.pop(self._active_request_id, None)
         self._remove_typing_indicator()
         self._set_waiting_state(False)
         self._set_status("Yanıt durduruldu.")
@@ -3152,19 +3166,42 @@ class LinaMainWindow(QMainWindow):
             self._set_vision_controls_enabled(self._vision_enabled)
 
     def handle_image_upload(self) -> None:
-        """Load one image explicitly selected by the user into temporary context."""
-        if not self._vision_enabled:
-            return
+        """Load one explicitly selected image or supported document."""
         selected_path, _selected_filter = QFileDialog.getOpenFileName(
             self,
-            "Görsel Seç",
+            "Görsel veya Belge Seç",
             "",
-            "Görseller (*.png *.jpg *.jpeg *.webp *.bmp)",
+            "Desteklenen dosyalar (*.png *.jpg *.jpeg *.webp *.bmp *.txt *.md *.py *.json *.csv *.pdf *.docx *.xlsx);;"
+            "Görseller (*.png *.jpg *.jpeg *.webp *.bmp);;"
+            "Belgeler (*.txt *.md *.py *.json *.csv *.pdf *.docx *.xlsx)",
         )
         if not selected_path:
             return
+        path = Path(selected_path)
+        if path.suffix.casefold() not in {".png", ".jpg", ".jpeg", ".webp", ".bmp"}:
+            try:
+                attachment = self._attachment_service.load(path)
+            except FileTooLargeError:
+                self._set_status("Belge boyut sınırını aşıyor.")
+            except UnsupportedFileTypeError:
+                self._set_status("Bu belge türü desteklenmiyor.")
+            except ForbiddenFilePathError:
+                self._set_status("Kimlik bilgisi veya anahtar dosyası eklenemez.")
+            except DocumentExtractionError:
+                self._set_status("Belgeden okunabilir içerik çıkarılamadı.")
+            else:
+                self._clear_screen_context()
+                self._document_attachment = attachment
+                self._composer.set_document_context(
+                    attachment.display_name, attachment.format, attachment.truncated
+                )
+                self._set_status("Belge soruna eklenmeye hazır")
+            return
+        if not self._vision_enabled:
+            self._set_status("Görsel eklemek için Vision özelliğini aç.")
+            return
         try:
-            context = self._image_loader.load(Path(selected_path))
+            context = self._image_loader.load(path)
         except ImageLoadError:
             self._set_status("Seçilen görsel yüklenemedi.")
             return
@@ -3245,6 +3282,7 @@ class LinaMainWindow(QMainWindow):
         self._set_status("Ekran bağlamı kaldırıldı")
 
     def _set_screen_context(self, context: ScreenContext) -> None:
+        self._document_attachment = None
         self._screen_context = context
         self._composer.set_screen_context(
             context.width,
@@ -3261,6 +3299,12 @@ class LinaMainWindow(QMainWindow):
 
     def preview_active_attachment(self) -> None:
         """Open the active attachment from its in-memory session data."""
+        if self._document_attachment is not None:
+            QMessageBox.information(
+                self, self._document_attachment.display_name,
+                self._document_attachment.text[:4000],
+            )
+            return
         if self._screen_context is None:
             return
         try:
@@ -3271,6 +3315,9 @@ class LinaMainWindow(QMainWindow):
 
     def change_active_attachment(self) -> None:
         """Replace the current local image or screen capture."""
+        if self._document_attachment is not None:
+            self.handle_image_upload()
+            return
         if self._screen_context is not None and self._screen_context.source == LOCAL_FILE:
             self.handle_image_upload()
             return
@@ -3280,6 +3327,7 @@ class LinaMainWindow(QMainWindow):
 
     def _clear_screen_context(self) -> None:
         self._screen_context = None
+        self._document_attachment = None
         self._composer.clear_screen_context()
 
     def copy_last_response(self) -> None:
@@ -3344,12 +3392,16 @@ class LinaMainWindow(QMainWindow):
         request_id: int,
         message: str,
         screen_context: ScreenContext | None,
+        document_attachment: DocumentAttachment | None,
         created_at: datetime,
     ) -> tuple[int, str, object]:
         try:
             if screen_context is None:
                 response: object = self._conversation_service.handle_input(
-                    ConversationInput(text=message, created_at=created_at)
+                    ConversationInput(
+                        text=message, created_at=created_at,
+                        document_attachment=document_attachment,
+                    )
                 )
             else:
                 response = self._conversation_service.handle_input(
@@ -3382,12 +3434,15 @@ class LinaMainWindow(QMainWindow):
         if request_id in self._cancelled_request_ids:
             self._cancelled_request_ids.discard(request_id)
             self._request_screen_contexts.pop(request_id, None)
+            self._request_document_attachments.pop(request_id, None)
             return
         if request_id != self._active_request_id:
             self._request_screen_contexts.pop(request_id, None)
+            self._request_document_attachments.pop(request_id, None)
             return
         if status == "error":
             request_screen_context = self._request_screen_contexts.pop(request_id, None)
+            self._request_document_attachments.pop(request_id, None)
             self._handle_conversation_error(
                 payload,
                 vision_request=request_screen_context is not None,
@@ -3395,12 +3450,16 @@ class LinaMainWindow(QMainWindow):
             )
             return
         request_screen_context = self._request_screen_contexts.pop(request_id, None)
-        self._handle_conversation_result(payload, request_screen_context)
+        request_document_attachment = self._request_document_attachments.pop(request_id, None)
+        self._handle_conversation_result(
+            payload, request_screen_context, request_document_attachment
+        )
 
     def _handle_conversation_result(
         self,
         result: object,
         request_screen_context: ScreenContext | None = None,
+        request_document_attachment: DocumentAttachment | None = None,
     ) -> None:
         self._remove_typing_indicator()
         if isinstance(result, ConversationResult):
@@ -3438,6 +3497,13 @@ class LinaMainWindow(QMainWindow):
         ):
             self._clear_screen_context()
             self._set_status("Ekran görüntüsü analiz edildi")
+        elif (
+            consumed
+            and request_document_attachment is not None
+            and self._document_attachment is request_document_attachment
+        ):
+            self._clear_screen_context()
+            self._set_status("Belge işlendi")
         else:
             self._set_status("Hazır")
         self._composer.input.setFocus()

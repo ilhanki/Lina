@@ -283,6 +283,18 @@ class ComposerWidget(QWidget):
         self.screen_context_thumbnail.hide()
         self.screen_context_chip.hide()
 
+    def set_document_context(self, display_name: str, document_format: str,
+                             truncated: bool = False) -> None:
+        """Show one temporary document attachment without pretending it is visual."""
+        self.screen_context_label.setText(f"Belge · {display_name}")
+        note = f"{document_format.upper()} · salt-okunur"
+        if truncated:
+            note += " · içerik kısaltıldı"
+        self.screen_context_note.setText(note)
+        self.screen_context_thumbnail.setIcon(QIcon())
+        self.screen_context_thumbnail.hide()
+        self.screen_context_chip.show()
+
     def set_waiting(self, waiting: bool) -> None:
         self._waiting = waiting
         self.input.setEnabled(True)
